@@ -1,0 +1,13 @@
+# requirements.txt
+langchain
+langchain_google_genai
+langchain_openai
+textstat
+python-dotenv
+numpy
+pandas
+pydantic
+# The following is for the jupyter notebook support:
+jupyter
+python-language-server
+python-lsp-server
