@@ -1,0 +1,14 @@
+name: release-please
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release-please:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: learning-commons-org/shared-github-actions/.github/workflows/release-please.yml@v1.2.0
+    secrets: inherit
