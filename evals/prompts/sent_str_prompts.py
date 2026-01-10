@@ -26,6 +26,8 @@ I am going to give you a text, and I need you to look through the text sentence-
 * Sophisticated Transitions: Conjunctive adverbs and phrases signaling logical relationships. Examples: 'however', 'therefore', 'consequently', 'as a result', 'for example', 'although'.
 * One-Concept Sentence: A sentence with ZERO subordinate clauses AND ZERO transition words/phrases (neither simple nor sophisticated).
 * Multi-Concept Sentence: Any sentence that has ≥1 subordinate clause OR ≥1 transition word/phrase (or both).
+* Basic Complex Sentences: Sentences with exactly one independent clause and at one dependent (subordinate) clause.
+* Advanced Complex Sentences: Sentences with two or more of any of those following (can include a mix, doesn't have to be two of the same type) subordinate phrases, clauses, transition words, or any other meaningful "interruptions" to the flow of the sentence (like not-only-but-also constructions, dashes, semicolons, and lengthy appositives). A sentence can be advanced complex if it has just one subordinate phrase or clause alongside a transition phrase, like: "For example, the British favored trade with Hong Kong, assuming favorable trade conditions.
 
 # Computational Counts
 Use these as reference, your internal heuristics can be more reliable.
@@ -42,7 +44,7 @@ IMPORTANT: Your response should be a single JSON object with the following struc
 """
 
 """System and user prompts for text complexity evaluation."""
-SYSTEM_PROMPT_COMPLEXITY = "You are an expert in grammar and literacy, and understand K-12 and SCASS text complexity rubric."
+SYSTEM_PROMPT_COMPLEXITY = "You are an expert in grammar and literacy, and understand K-12 and Qualitative Text Complexity rubric (SAP)."
 
 USER_PROMPT_COMPLEXITY = """
 Your task is to perform a text complexity analysis for a Grade {grade} student. You will be given a text excerpt and a set of quantitative sentence-level statistics for that text.
@@ -74,7 +76,7 @@ Your final answer must be one of ["Slightly Complex," "Moderately Complex," "Ver
     For early release, we are only providing rubrics for grades 3 and 4.
 """
 GRADE_SPECIFIC_RUBRICS = {
-    3: """
+    "GRADE_3": """
     **Instructions for Analysis:** First, evaluate if the text meets the criteria for "Slightly Complex" or "Exceedingly Complex". If it does not fit into these categories, then decide between "Moderately Complex" and "Very Complex".
 
     **Slightly Complex:**
@@ -110,7 +112,7 @@ GRADE_SPECIFIC_RUBRICS = {
             * Low Simplicity: `percent_simple_sentences` is very low (typically < 30%).
             * Concentrated Length: `percent_very_long_sentences` is notable (typically > 10%).
     """,
-    4: """
+    "GRADE_4": """
     **Instructions for Analysis:** First, evaluate if the text meets the criteria for "Slightly Complex" or "Exceedingly Complex". If it does not fit into these categories, then decide between "Moderately Complex" and "Very Complex".
 
     **Slightly Complex:**
@@ -146,5 +148,11 @@ GRADE_SPECIFIC_RUBRICS = {
             * Extreme Sentence Length: `avg_sentence_length` is exceptionally long (typically > 22 words).
             * Low Simplicity: `percent_simple_sentences` is very low (typically < 25%).
             * Concentrated Length: `percent_very_long_sentences` is significant (typically > 15%).
+    """,
+    "GRADES_5_TO_12": """
+    **Slightly Complex:** A text is in the Slightly Complex bucket if it has at least 50% simple sentences. If it doesn't, the text is a higher level of complexity. If the % of simple sentences is >= 50% and the % of compound sentences is >= 20%, the text is Moderately Complex, otherwise, the text is Slightly Complex. Slightly Complex texts NEVER have advanced complex sentences — the presence of an advanced complex sentence always leads to a higher level of complexity than Slightly.
+    **For Moderately Complex:** These texts can take on any distribution of sentence types as long as there aren't more than 2 advanced complex sentences and as long as there aren't so many simple sentences that the text becomes Slightly Complex. That means Moderately Complex texts may have many simple sentences (although not so many that the text is Slightly Complex), compound sentences, and/or basic complex sentences. It's also possible for a moderately complex text to contain one or two advanced complex sentences, as long as there aren't more than 2. If there are more than 2, then the text is either Very or Exceedingly complex.
+    **Very Complex:** These texts contain 3 or more advanced complex sentences (unless the percentage of advanced complex sentences is >= 65)%, in which case the text becomes Exceedingly Complex). They may still contain many simple, compound, and basic complex sentences, but a text is not Very Complex unless there are 3 or more advanced complex sentences.
+    **Exceedingly Complex:** These texts have 65%+ of their sentences being advanced complex sentences.
     """,
 }
