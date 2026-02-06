@@ -5,3 +5,9 @@ export {
   evaluateVocabulary,
   type VocabularyEvaluatorConfig,
 } from './vocabulary.js';
+
+export {
+  SentenceStructureEvaluator,
+  evaluateSentenceStructure,
+  type SentenceStructureEvaluatorConfig,
+} from './sentence-structure.js';
