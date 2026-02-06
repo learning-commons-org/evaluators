@@ -121,6 +121,46 @@ await evaluator.evaluate(text: string, grade: string)
 
 ---
 
+### 3. Grade Level Appropriateness Evaluator
+
+Determines appropriate grade level for text.
+
+**No grade parameter required** - evaluates what grade the text is appropriate for.
+
+**Uses:** Google Gemini 2.5 Pro
+
+**Constructor:**
+```typescript
+const evaluator = new GradeLevelAppropriatenessEvaluator({
+  googleApiKey: string;   // Required - Google API key
+  maxRetries?: number;    // Optional - Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Optional (default: true)
+  logger?: Logger;        // Optional - Custom logger
+  logLevel?: LogLevel;    // Optional - Logging verbosity (default: WARN)
+});
+```
+
+**API:**
+```typescript
+await evaluator.evaluate(text: string)
+```
+
+**Returns:**
+```typescript
+{
+  score: {
+    grade: 'K-1' | '2-3' | '4-5' | '6-8' | '9-10' | '11-CCR';
+    alternative_grade: string;
+    scaffolding_needed: string[];
+    reasoning: string;
+  };
+  reasoning: string;
+  metadata: EvaluationMetadata;
+}
+```
+
+---
+
 ## Error Handling
 
 The SDK provides specific error types to help you handle different scenarios:
