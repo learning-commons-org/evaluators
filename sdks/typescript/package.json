@@ -1,0 +1,87 @@
+{
+  "name": "@learning-commons/evaluators",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for Learning Commons educational text complexity evaluators",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "copy-prompts": "node scripts/copy-prompts.js",
+    "test": "npm run copy-prompts && vitest run",
+    "test:unit": "npm run copy-prompts && vitest run tests/unit",
+    "test:integration": "npm run copy-prompts && RUN_INTEGRATION_TESTS=true vitest run tests/integration",
+    "test:integration:dist": "npm run build && RUN_INTEGRATION_TESTS=true vitest run --config vitest.ci.config.ts",
+    "test:all": "npm run copy-prompts && RUN_INTEGRATION_TESTS=true vitest run",
+    "test:watch": "npm run copy-prompts && vitest",
+    "test:coverage": "npm run copy-prompts && vitest run --coverage",
+    "test:ci": "npm run test:unit && npm run test:integration:dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "education",
+    "text-complexity",
+    "evaluators",
+    "llm",
+    "assessment"
+  ],
+  "author": "Learning Commons",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chanzuckerberg/learning-commons-evaluators",
+    "directory": "sdks/typescript"
+  },
+  "bugs": {
+    "url": "https://github.com/chanzuckerberg/learning-commons-evaluators/issues"
+  },
+  "homepage": "https://github.com/chanzuckerberg/learning-commons-evaluators#readme",
+  "peerDependencies": {
+    "ai": ">=3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "ai": {
+      "optional": false
+    }
+  },
+  "dependencies": {
+    "compromise": "^14.13.0",
+    "syllable": "^5.0.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@ai-sdk/anthropic": "^3.0.12",
+    "@ai-sdk/google": "^3.0.7",
+    "@ai-sdk/openai": "^3.0.9",
+    "@types/node": "^20.11.5",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "@vitest/coverage-v8": "^4.0.17",
+    "ai": "^6.0.30",
+    "dotenv": "^17.2.3",
+    "eslint": "^8.56.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.17"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

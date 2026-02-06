@@ -1,0 +1,85 @@
+name: Test TypeScript SDK
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'sdks/typescript/**'
+      - 'evals/prompts/**'
+      - '.github/workflows/test-sdk-typescript.yml'
+  pull_request:
+    paths:
+      - 'sdks/typescript/**'
+      - 'evals/prompts/**'
+      - '.github/workflows/test-sdk-typescript.yml'
+
+jobs:
+  test:
+    name: Test SDK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/typescript
+
+    strategy:
+      matrix:
+        node-version: [18, 20]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: sdks/typescript/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run type checking
+        run: npm run typecheck
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Build package
+        run: npm run build
+
+      - name: Verify build artifacts
+        run: |
+          echo "Checking dist/ contents..."
+          ls -la dist/
+          echo "Checking prompts were copied..."
+          ls -la dist/prompts/vocabulary/
+          ls -la dist/prompts/sentence-structure/
+          ls -la dist/prompts/grade-level-appropriateness/
+
+      # Temporarily disabled - integration tests take too long in CI
+      # - name: Run integration tests (against dist/)
+      #   if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+      #   env:
+      #     RUN_INTEGRATION_TESTS: true
+      #     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      #     GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      #   run: npm run test:integration:dist
+
+      - name: Generate coverage report
+        if: matrix.node-version == 20
+        run: npm run test:coverage
+        continue-on-error: true
+
+      - name: Upload coverage to Codecov
+        if: matrix.node-version == 20
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./sdks/typescript/coverage/coverage-final.json
+          flags: typescript-sdk
+          name: typescript-sdk-coverage
+        continue-on-error: true
