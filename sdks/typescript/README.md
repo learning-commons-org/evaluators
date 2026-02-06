@@ -74,6 +74,48 @@ await evaluator.evaluate(text: string, grade: string)
 }
 ```
 
+---
+
+### 2. Sentence Structure Evaluator
+
+Evaluates sentence structure complexity based on grammatical features.
+
+**Supported Grades:** K-12
+
+**Uses:** OpenAI GPT-4o
+
+**Constructor:**
+```typescript
+const evaluator = new SentenceStructureEvaluator({
+  openaiApiKey: string;   // Required - OpenAI API key
+  maxRetries?: number;    // Optional - Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Optional (default: true)
+  logger?: Logger;        // Optional - Custom logger
+  logLevel?: LogLevel;    // Optional - Logging verbosity (default: WARN)
+});
+```
+
+**API:**
+```typescript
+await evaluator.evaluate(text: string, grade: string)
+```
+
+**Returns:**
+```typescript
+{
+  score: 'Slightly Complex' | 'Moderately Complex' | 'Very Complex' | 'Exceedingly Complex';
+  reasoning: string;
+  metadata: EvaluationMetadata;
+  _internal: {
+    sentenceAnalysis: SentenceAnalysis;
+    features: SentenceFeatures;
+    complexity: ComplexityClassification;
+  };
+}
+```
+
+---
+
 ## Error Handling
 
 The SDK provides specific error types to help you handle different scenarios:
