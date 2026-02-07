@@ -20,11 +20,6 @@ import type { StageDetail } from '../telemetry/index.js';
 import { ConfigurationError, ValidationError, wrapProviderError } from '../errors.js';
 
 /**
- * Valid grade levels (K-12)
- */
-const VALID_GRADES = new Set(['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
-
-/**
  * Internal data structure for sentence structure evaluation
  */
 interface SentenceStructureInternal {
@@ -55,14 +50,6 @@ function normalizeLabel(label: string | null | undefined): string | null {
 }
 
 /**
- * Configuration for SentenceStructureEvaluator
- */
-export interface SentenceStructureEvaluatorConfig extends BaseEvaluatorConfig {
-  /** OpenAI API key for sentence analysis and complexity evaluation (uses GPT-4o) */
-  openaiApiKey: string;
-}
-
-/**
  * Sentence Structure Evaluator
  *
  * Evaluates sentence structure complexity of educational texts relative to grade level.
@@ -88,11 +75,20 @@ export interface SentenceStructureEvaluatorConfig extends BaseEvaluatorConfig {
  * ```
  */
 export class SentenceStructureEvaluator extends BaseEvaluator {
+  static readonly metadata = {
+    id: 'sentence-structure',
+    name: 'Sentence Structure',
+    description: 'Evaluates sentence structure complexity based on grammatical features',
+    supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
+    requiresGoogleKey: false,
+    requiresOpenAIKey: true,
+  };
+
   private analysisProvider: LLMProvider;
   private complexityProvider: LLMProvider;
 
-  constructor(config: SentenceStructureEvaluatorConfig) {
-    // Call base constructor for common setup (telemetry, etc.)
+  constructor(config: BaseEvaluatorConfig) {
+    // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
 
     // Validate required API keys
@@ -114,11 +110,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
       apiKey: config.openaiApiKey,
       maxRetries: this.config.maxRetries,
     });
-  }
-
-  // Implement abstract methods from BaseEvaluator
-  protected getEvaluatorType(): string {
-    return 'sentence-structure';
   }
 
   /**
@@ -377,7 +368,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
 export async function evaluateSentenceStructure(
   text: string,
   grade: string,
-  config: SentenceStructureEvaluatorConfig
+  config: BaseEvaluatorConfig
 ): Promise<EvaluationResult<string, SentenceStructureInternal>> {
   const evaluator = new SentenceStructureEvaluator(config);
   return evaluator.evaluate(text, grade);

@@ -45,8 +45,8 @@ Evaluates vocabulary complexity using the Qual Text Complexity rubric (SAP).
 **Constructor:**
 ```typescript
 const evaluator = new VocabularyEvaluator({
-  googleApiKey: string;   // Required - Google API key
-  openaiApiKey: string;   // Required - OpenAI API key
+  googleApiKey?: string;  // Google API key (required by this evaluator)
+  openaiApiKey?: string;  // OpenAI API key (required by this evaluator)
   maxRetries?: number;    // Optional - Max retry attempts (default: 2)
   telemetry?: boolean | TelemetryOptions; // Optional (default: true)
   logger?: Logger;        // Optional - Custom logger
@@ -80,14 +80,14 @@ await evaluator.evaluate(text: string, grade: string)
 
 Evaluates sentence structure complexity based on grammatical features.
 
-**Supported Grades:** K-12
+**Supported Grades:** 3-12
 
 **Uses:** OpenAI GPT-4o
 
 **Constructor:**
 ```typescript
 const evaluator = new SentenceStructureEvaluator({
-  openaiApiKey: string;   // Required - OpenAI API key
+  openaiApiKey?: string;  // OpenAI API key (required by this evaluator)
   maxRetries?: number;    // Optional - Max retry attempts (default: 2)
   telemetry?: boolean | TelemetryOptions; // Optional (default: true)
   logger?: Logger;        // Optional - Custom logger
@@ -121,7 +121,51 @@ await evaluator.evaluate(text: string, grade: string)
 
 ---
 
-### 3. Grade Level Appropriateness Evaluator
+### 3. Text Complexity Evaluator
+
+Composite evaluator that analyzes both vocabulary and sentence structure complexity in parallel.
+
+**Supported Grades:** 3-12
+
+**Uses:** Google Gemini 2.5 Pro + OpenAI GPT-4o (composite)
+
+**Constructor:**
+```typescript
+const evaluator = new TextComplexityEvaluator({
+  googleApiKey?: string;  // Google API key (required by this evaluator)
+  openaiApiKey?: string;  // OpenAI API key (required by this evaluator)
+  maxRetries?: number;    // Optional - Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Optional (default: true)
+  logger?: Logger;        // Optional - Custom logger
+  logLevel?: LogLevel;    // Optional - Logging verbosity (default: WARN)
+});
+```
+
+**API:**
+```typescript
+await evaluator.evaluate(text: string, grade: string)
+```
+
+**Returns:**
+```typescript
+{
+  score: {
+    overall: string;           // Overall complexity (highest of the two)
+    vocabulary: string;        // Vocabulary complexity score
+    sentenceStructure: string; // Sentence structure complexity score
+  };
+  reasoning: string;  // Combined reasoning from both evaluators
+  metadata: EvaluationMetadata;
+  _internal: {
+    vocabulary: EvaluationResult | { error: Error };
+    sentenceStructure: EvaluationResult | { error: Error };
+  };
+}
+```
+
+---
+
+### 4. Grade Level Appropriateness Evaluator
 
 Determines appropriate grade level for text.
 
@@ -132,7 +176,7 @@ Determines appropriate grade level for text.
 **Constructor:**
 ```typescript
 const evaluator = new GradeLevelAppropriatenessEvaluator({
-  googleApiKey: string;   // Required - Google API key
+  googleApiKey?: string;  // Google API key (required by this evaluator)
   maxRetries?: number;    // Optional - Max retry attempts (default: 2)
   telemetry?: boolean | TelemetryOptions; // Optional (default: true)
   logger?: Logger;        // Optional - Custom logger
@@ -253,10 +297,12 @@ See [docs/telemetry.md](./docs/telemetry.md) for telemetry configuration and pri
 
 ## Configuration Options
 
-All evaluators support these common options:
+All evaluators use the same `BaseEvaluatorConfig` interface:
 
 ```typescript
 interface BaseEvaluatorConfig {
+  googleApiKey?: string;  // Google API key (required by some evaluators)
+  openaiApiKey?: string;  // OpenAI API key (required by some evaluators)
   maxRetries?: number;    // Max API retry attempts (default: 2)
   telemetry?: boolean | TelemetryOptions; // Telemetry config (default: true)
   logger?: Logger;        // Custom logger (optional)
@@ -264,6 +310,12 @@ interface BaseEvaluatorConfig {
   partnerKey?: string;    // Learning Commons partner key for authenticated telemetry (optional)
 }
 ```
+
+**Note:** Which API keys are required depends on the evaluator. The SDK validates required keys at runtime based on the evaluator's metadata:
+- **Vocabulary**: Requires both `googleApiKey` and `openaiApiKey`
+- **Sentence Structure**: Requires `openaiApiKey` only
+- **Text Complexity**: Requires both `googleApiKey` and `openaiApiKey`
+- **Grade Level Appropriateness**: Requires `googleApiKey` only
 
 ---
 

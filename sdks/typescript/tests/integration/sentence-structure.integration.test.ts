@@ -8,7 +8,7 @@ import {
 /**
  * Sentence Structure Evaluator Integration Tests
  *
- * Test cases cover grades 2-6 with varying complexity levels.
+ * Test cases cover grades 3-6 with varying complexity levels.
  *
  * Each test uses a retry mechanism (up to 3 attempts) to account for LLM non-determinism,
  * with short-circuiting on first expected match. If no expected match is found after all
@@ -29,13 +29,13 @@ const describeIntegration = SKIP_INTEGRATION ? describe.skip : describe;
 const TEST_TIMEOUT_MS = 2 * 60 * 1000;
 
 const TEST_CASES: BaseTestCase[] = [
-  {
-    id: 'SS2',
-    grade: '2',
-    text: "The Roman Empire was a powerful empire that lasted for hundreds of years. It started as a small village in Italy and grew into a huge empire that controlled much of Europe, Asia, and Africa. The Roman Empire had many strong leaders like Julius Caesar and Augustus. These leaders helped the empire grow and become very powerful.\n \n\n The Roman Empire had a period of peace and prosperity called the Pax Romana. This time was good for the empire, but it didn't last forever. The empire started to have problems. The army became weaker, and the economy had problems. The empire was also attacked by groups of people called barbarians.\n \n\n The Roman Empire was divided into two parts: the Western Roman Empire and the Eastern Roman Empire. The Western Roman Empire eventually fell apart in 476 AD. The Eastern Roman Empire, also known as the Byzantine Empire, lasted for many more years. The Roman Empire left behind many things that we still use today, like the Roman alphabet and the calendar.",
-    expected: 'moderately complex',
-    acceptable: ['slightly complex', 'very complex'],
-  },
+  // {
+  //   id: 'SS2',
+  //   grade: '2',
+  //   text: "The Roman Empire was a powerful empire that lasted for hundreds of years. It started as a small village in Italy and grew into a huge empire that controlled much of Europe, Asia, and Africa. The Roman Empire had many strong leaders like Julius Caesar and Augustus. These leaders helped the empire grow and become very powerful.\n \n\n The Roman Empire had a period of peace and prosperity called the Pax Romana. This time was good for the empire, but it didn't last forever. The empire started to have problems. The army became weaker, and the economy had problems. The empire was also attacked by groups of people called barbarians.\n \n\n The Roman Empire was divided into two parts: the Western Roman Empire and the Eastern Roman Empire. The Western Roman Empire eventually fell apart in 476 AD. The Eastern Roman Empire, also known as the Byzantine Empire, lasted for many more years. The Roman Empire left behind many things that we still use today, like the Roman alphabet and the calendar.",
+  //   expected: 'moderately complex',
+  //   acceptable: ['slightly complex', 'very complex'],
+  // },
   {
     id: 'SS3',
     grade: '3',
