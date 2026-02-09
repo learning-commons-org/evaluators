@@ -9,9 +9,17 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./batch": {
+      "types": "./dist/batch/index.d.ts",
+      "import": "./dist/batch/index.js",
+      "require": "./dist/batch/index.cjs"
     }
   },
   "sideEffects": false,
+  "bin": {
+    "evaluators-batch": "./dist/batch/cli.js"
+  },
   "files": [
     "dist",
     "README.md",
@@ -29,7 +37,7 @@
     "test:coverage": "vitest run --coverage",
     "test:ci": "npm run test:unit && npm run test:integration:dist",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src tests --ext .ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -48,19 +56,27 @@
   },
   "homepage": "https://github.com/learning-commons-org/evaluators#readme",
   "peerDependencies": {
-    "ai": ">=6.0.0",
-    "@ai-sdk/openai": ">=3.0.0",
+    "@ai-sdk/anthropic": ">=3.0.0",
     "@ai-sdk/google": ">=3.0.0",
-    "@ai-sdk/anthropic": ">=3.0.0"
+    "@ai-sdk/openai": ">=3.0.0",
+    "ai": ">=6.0.0"
   },
   "peerDependenciesMeta": {
-    "@ai-sdk/openai": { "optional": true },
-    "@ai-sdk/google": { "optional": true },
-    "@ai-sdk/anthropic": { "optional": true }
+    "@ai-sdk/openai": {
+      "optional": true
+    },
+    "@ai-sdk/google": {
+      "optional": true
+    },
+    "@ai-sdk/anthropic": {
+      "optional": true
+    }
   },
   "dependencies": {
     "compromise": "^14.13.0",
+    "csv-parse": "^6.1.0",
     "p-limit": "^5.0.0",
+    "prompts": "^2.4.2",
     "syllable": "^5.0.1",
     "zod": "^3.22.4"
   },
@@ -69,6 +85,7 @@
     "@ai-sdk/google": "^3.0.7",
     "@ai-sdk/openai": "^3.0.9",
     "@types/node": "^20.11.5",
+    "@types/prompts": "^2.4.9",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
     "@vitest/coverage-v8": "^4.0.17",

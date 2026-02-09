@@ -290,7 +290,7 @@ export abstract class BaseEvaluator {
         // Sort K first, then numerically
         if (a === 'K') return -1;
         if (b === 'K') return 1;
-        return parseInt(a) - parseInt(b);
+        return parseInt(a, 10) - parseInt(b, 10);
       }).join(', ');
 
       throw new ValidationError(

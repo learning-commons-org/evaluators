@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evaluation Report</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:           #f1f5f9;
+      --surface:      #ffffff;
+      --border:       #e2e8f0;
+      --header-bg:    #0f172a;
+      --text:         #1e293b;
+      --text-muted:   #64748b;
+      --blue:         #3b82f6;
+      --blue-bg:      #dbeafe;
+      --green:        #059669;
+      --green-bg:     #d1fae5;
+      --amber:        #d97706;
+      --amber-bg:     #fef3c7;
+      --red:          #dc2626;
+      --red-bg:       #fee2e2;
+      --radius:       10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Header ── */
+    .report-header {
+      background: var(--header-bg);
+      color: #fff;
+      padding: 28px 40px;
+    }
+    .report-header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+    .report-header .report-meta {
+      font-size: 12px;
+      color: #94a3b8;
+      letter-spacing: 0.01em;
+    }
+
+    /* ── Tab bar ── */
+    .tab-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      padding: 0 40px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .tab-btn {
+      padding: 13px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      border-bottom: 3px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+    .tab-btn:hover  { color: var(--text); }
+
+    /* ── Tab panels ── */
+    .tab-panel { display: none; padding: 32px 40px; max-width: 1200px; margin: 0 auto; }
+    .tab-panel.active { display: block; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+    }
+
+    /* ── Snapshot ── */
+    .snapshot-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px 32px;
+    }
+    .snapshot-item { display: flex; flex-direction: column; gap: 5px; }
+    .snapshot-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+    .snapshot-value { font-size: 15px; font-weight: 500; }
+    .snapshot-value.mono {
+      font-family: 'SFMono-Regular', 'Menlo', Consolas, monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      word-break: break-all;
+    }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+    .tag {
+      background: var(--blue-bg);
+      color: var(--blue);
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* ── GLA stat cards ── */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      border-left-width: 4px;
+      border-left-style: solid;
+    }
+    .stat-card .stat-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 10px;
+    }
+    .stat-card .stat-value { font-size: 40px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
+    .stat-card .stat-sub   { font-size: 13px; color: var(--text-muted); }
+    .stat-card.green { border-left-color: var(--green); }
+    .stat-card.green .stat-label { color: var(--green); }
+    .stat-card.green .stat-value { color: var(--green); }
+    .stat-card.amber { border-left-color: var(--amber); }
+    .stat-card.amber .stat-label { color: var(--amber); }
+    .stat-card.amber .stat-value { color: var(--amber); }
+    .stat-card.red { border-left-color: var(--red); }
+    .stat-card.red .stat-label { color: var(--red); }
+    .stat-card.red .stat-value { color: var(--red); }
+
+    /* ── Complexity dimension cards ── */
+    .complexity-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .complexity-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+    }
+    .complexity-card .cx-name {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .complexity-card .cx-avg { font-size: 44px; font-weight: 700; line-height: 1; color: var(--text); }
+    .complexity-card .cx-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; margin-bottom: 16px; }
+    .dist-bar { display: flex; flex-direction: column; gap: 7px; }
+    .dist-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .dist-item .dl { width: 110px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dist-item .dt { flex: 1; background: #f1f5f9; border-radius: 4px; height: 7px; overflow: hidden; }
+    .dist-item .df { height: 100%; border-radius: 4px; background: var(--blue); }
+    .dist-item .dc { color: var(--text-muted); min-width: 28px; text-align: right; }
+
+    /* ── Insights ── */
+    .insights-body { display: flex; flex-direction: column; gap: 10px; }
+    .insight-item {
+      display: flex;
+      gap: 12px;
+      padding: 11px 14px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border-left: 3px solid var(--blue);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .insight-arrow { color: var(--blue); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .alpha-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      background: var(--amber-bg);
+      color: var(--amber);
+      padding: 2px 7px;
+      border-radius: 100px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .insights-note {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* ── Chart ── */
+    .chart-container { position: relative; height: 280px; }
+
+    /* ── Heatmap table ── */
+    .heatmap-wrap { overflow-x: auto; }
+    .heatmap-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .heatmap-table th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    .heatmap-table td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+    .heatmap-table td:first-child { text-align: left; font-weight: 600; }
+    .heatmap-table tr:last-child td { border-bottom: none; }
+    .hm-cell {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .hm-1 { background: var(--green-bg); color: #065f46; }
+    .hm-2 { background: var(--amber-bg); color: #78350f; }
+    .hm-3 { background: #fed7aa;         color: #7c2d12; }
+    .hm-4 { background: var(--red-bg);   color: #7f1d1d; }
+    .hm-null { background: #f1f5f9; color: var(--text-muted); }
+
+    /* ── Full Results table ── */
+    .results-outer {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+    .results-table {
+      border-collapse: collapse;
+      font-size: 13px;
+      min-width: 100%;
+      white-space: nowrap;
+    }
+    .results-table th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      background: #f8fafc;
+      border-bottom: 2px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+    /* Frozen column headers sit above both sticky top AND sticky left */
+    .results-table th.frozen { z-index: 4; }
+    .results-table td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      max-width: 280px;
+      white-space: normal;
+    }
+    .results-table tr:last-child td { border-bottom: none; }
+    .results-table tr:hover td { background: #f8fafc; }
+    .results-table tr:hover td.frozen { background: #f1f5f9; }
+    /* Frozen (sticky-left) cells */
+    .results-table th.frozen,
+    .results-table td.frozen {
+      position: sticky;
+      background: #f8fafc;
+      z-index: 2;
+    }
+    .results-table td.frozen { background: var(--surface); }
+    /* Visual separator after frozen columns */
+    .results-table th.frozen-last,
+    .results-table td.frozen-last {
+      border-right: 2px solid var(--border);
+    }
+    /* Column group separator */
+    .results-table th.group-start,
+    .results-table td.group-start {
+      border-left: 2px solid var(--border);
+    }
+    /* Reasoning cells — truncated with tooltip */
+    .reasoning-cell {
+      max-width: 280px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-muted);
+      font-size: 12px;
+      cursor: help;
+    }
+    /* Status badges */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    .badge-on-band  { background: var(--green-bg); color: var(--green); }
+    .badge-adjacent { background: var(--amber-bg); color: var(--amber); }
+    .badge-off-target { background: var(--red-bg);  color: var(--red); }
+
+    /* ── Empty / no-data states ── */
+    .no-data {
+      padding: 40px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="report-header" id="app-header"></header>
+
+  <nav class="tab-bar" id="tab-bar"></nav>
+
+  <div id="tab-summary" class="tab-panel active"></div>
+  <div id="tab-results" class="tab-panel"></div>
+
+  <script>
+    // ---------------------------------------------------------------------------
+    // MOCK DATA — used when the template is opened directly in a browser so
+    // designers can see a realistic preview without running the CLI.
+    // This constant is never referenced when real data has been injected.
+    // ---------------------------------------------------------------------------
+    const MOCK_REPORT_DATA = {
+      meta: {
+        reportId: 'sample_content_batch_20260301T1430',
+        generatedAt: 'Mar 1, 2026 2:30 PM',
+        csvPath: '/Users/designer/Documents/interventionhelper_content_batch_03-01.csv',
+        evaluatorIds: ['grade-level-appropriateness', 'vocabulary', 'sentence-structure'],
+        evaluatorNames: ['Grade Level Appropriateness', 'Vocabulary', 'Sentence Structure'],
+        totalRows: 300,
+        processedRows: 287,
+        erroredRows: 13,
+      },
+      gradeLevelStats: {
+        onBand: 172, adjacent: 85, offTarget: 30,
+        onBandPct: 60, adjacentPct: 30, offTargetPct: 10,
+        hasData: true,
+      },
+      complexityStats: [
+        {
+          evaluatorId: 'vocabulary', name: 'Vocabulary',
+          average: 2.4, label: 'Moderately Complex',
+          distribution: [45, 120, 95, 27],
+        },
+        {
+          evaluatorId: 'sentence-structure', name: 'Sentence Structure',
+          average: 1.9, label: 'Moderately Complex',
+          distribution: [88, 105, 72, 22],
+        },
+      ],
+      gradeBandDistribution: {
+        bands: ['K-1', '2-3', '4-5', '6-8', '9-10', '11-CCR'],
+        data: [
+          { onBand: 0,  adjacent: 0,  offTarget: 0,  total: 0  },
+          { onBand: 32, adjacent: 18, offTarget: 5,  total: 55 },
+          { onBand: 58, adjacent: 22, offTarget: 8,  total: 88 },
+          { onBand: 48, adjacent: 25, offTarget: 10, total: 83 },
+          { onBand: 22, adjacent: 14, offTarget: 5,  total: 41 },
+          { onBand: 12, adjacent: 6,  offTarget: 2,  total: 20 },
+        ],
+      },
+      complexityHeatmap: {
+        bands: ['K-1', '2-3', '4-5', '6-8', '9-10', '11-CCR'],
+        evaluators: ['Vocabulary', 'Sentence Structure'],
+        evaluatorIds: ['vocabulary', 'sentence-structure'],
+        values: [
+          [null, null],
+          [1.6,  1.4 ],
+          [2.1,  1.8 ],
+          [2.5,  2.2 ],
+          [2.9,  2.6 ],
+          [3.2,  2.8 ],
+        ],
+      },
+      insights: [
+        'Review texts marked as Off Target — they may need content revision or grade-level adjustment before distribution.',
+        'Texts evaluated as Adjacent may benefit from light scaffolding strategies such as vocabulary pre-teaching.',
+        'Higher grade bands tend to show greater text complexity. Consider whether complexity aligns with instructional goals.',
+      ],
+      fullResults: {
+        originalColumns: ['row_id', 'text', 'grade', 'source'],
+        hasGLA: true,
+        complexityEvaluators: [
+          { evaluatorId: 'vocabulary',         name: 'Vocabulary',         prefix: 'vocabulary'         },
+          { evaluatorId: 'sentence-structure', name: 'Sentence Structure', prefix: 'sentence_structure' },
+        ],
+        rows: [
+          {
+            row_id: '1', grade: '5', source: 'science_unit_3',
+            text: 'The water cycle describes how water evaporates from surfaces, rises into the atmosphere, cools and condenses into clouds, and falls back to the ground as precipitation.',
+            __gla_status: 'On Band', __gla_band: '4-5',
+            __gla_reasoning: 'Uses grade-appropriate science vocabulary with a clear explanatory structure suitable for grades 4–5.',
+            __vocabulary_score: 'moderately complex',
+            __vocabulary_reasoning: 'Contains domain-specific terms (evaporates, condenses, precipitation) that require pre-teaching for grade 5 students.',
+            __sentence_structure_score: 'Slightly Complex',
+            __sentence_structure_reasoning: 'Primarily compound sentences with clear connective structure appropriate for grade 5.',
+          },
+          {
+            row_id: '2', grade: '6', source: 'science_unit_1',
+            text: 'Photosynthesis is the process by which green plants use sunlight, water and carbon dioxide to produce food and oxygen.',
+            __gla_status: 'Adjacent', __gla_band: '4-5',
+            __gla_reasoning: 'Content is accessible but slightly below typical grade 6 complexity expectations.',
+            __vocabulary_score: 'moderately complex',
+            __vocabulary_reasoning: 'Key scientific terms are present but relatively straightforward for grade 6 readers.',
+            __sentence_structure_score: 'Slightly Complex',
+            __sentence_structure_reasoning: 'Single main clause with a relative clause; well within grade 6 reading ability.',
+          },
+          {
+            row_id: '3', grade: '8', source: 'biology_unit_2',
+            text: 'The mitochondria, often described as the powerhouse of the cell, are organelles found in the cytoplasm of eukaryotic cells, where they generate most of the adenosine triphosphate used for cellular energy.',
+            __gla_status: 'Off Target', __gla_band: '11-CCR',
+            __gla_reasoning: 'Text uses advanced biochemical terminology (adenosine triphosphate, eukaryotic) more appropriate for upper secondary or college-level readers.',
+            __vocabulary_score: 'exceedingly complex',
+            __vocabulary_reasoning: 'High density of Tier 3 domain-specific words significantly exceeds typical grade 8 vocabulary expectations.',
+            __sentence_structure_score: 'Very Complex',
+            __sentence_structure_reasoning: 'Long, embedded clauses with multiple modifying phrases create significant syntactic complexity for grade 8.',
+          },
+          {
+            row_id: '4', grade: '3', source: 'science_unit_3',
+            text: 'Rain falls from clouds when tiny water droplets join together and become heavy enough to fall to the ground.',
+            __gla_status: 'On Band', __gla_band: '2-3',
+            __gla_reasoning: 'Simple vocabulary and sentence structure are appropriate for grades 2–3.',
+            __vocabulary_score: 'slightly complex',
+            __vocabulary_reasoning: 'Common everyday vocabulary with no domain-specific terms requiring pre-teaching.',
+            __sentence_structure_score: 'Slightly Complex',
+            __sentence_structure_reasoning: 'Short simple sentences with basic connective structure.',
+          },
+          {
+            row_id: '5', grade: '9', source: 'biology_unit_1',
+            text: 'Ecosystems are communities of organisms that interact with each other and their physical environment, shaped by both biotic and abiotic factors that influence population dynamics over time.',
+            __gla_status: 'On Band', __gla_band: '9-10',
+            __gla_reasoning: 'Appropriate complexity and terminology for a grade 9–10 biology curriculum.',
+            __vocabulary_score: 'very complex',
+            __vocabulary_reasoning: 'Multiple Tier 3 terms (biotic, abiotic, population dynamics) require strong background knowledge.',
+            __sentence_structure_score: 'Moderately Complex',
+            __sentence_structure_reasoning: 'Compound-complex sentence with a relative clause; manageable for grade 9 readers.',
+          },
+          {
+            row_id: '6', grade: '4', source: 'social_studies_unit_2',
+            text: 'Ancient Egyptians built pyramids as tombs for their pharaohs and used a picture-based writing system called hieroglyphics.',
+            __gla_status: 'On Band', __gla_band: '4-5',
+            __gla_reasoning: 'Vocabulary and sentence length are well-matched to grade 4–5 social studies content.',
+            __vocabulary_score: 'moderately complex',
+            __vocabulary_reasoning: 'Domain-specific proper nouns (pharaohs, hieroglyphics) may need brief glossing.',
+            __sentence_structure_score: 'Slightly Complex',
+            __sentence_structure_reasoning: 'Two coordinated independent clauses; clear and accessible structure.',
+          },
+          {
+            row_id: '7', grade: '11', source: 'lit_unit_4',
+            text: 'Shakespeare\'s use of dramatic irony in Othello functions as a mechanism of tragic inevitability, positioning the audience as unwilling witnesses to the protagonist\'s epistemological collapse.',
+            __gla_status: 'On Band', __gla_band: '11-CCR',
+            __gla_reasoning: 'Sophisticated literary analysis vocabulary and complex syntax are well-suited to grades 11–CCR.',
+            __vocabulary_score: 'exceedingly complex',
+            __vocabulary_reasoning: 'Tier 3 literary and philosophical vocabulary (epistemological, dramatic irony, tragic inevitability) demands high reading proficiency.',
+            __sentence_structure_score: 'Exceedingly Complex',
+            __sentence_structure_reasoning: 'Noun phrase and participial phrase stacking creates a dense, highly embedded syntactic structure.',
+          },
+          {
+            row_id: '8', grade: '7', source: 'history_unit_1',
+            text: 'The Industrial Revolution transformed European societies by shifting labor from farms to factories, driving rapid urban growth and fundamentally changing how goods were produced and traded.',
+            __gla_status: 'Adjacent', __gla_band: '9-10',
+            __gla_reasoning: 'Vocabulary and conceptual density exceed typical grade 7 expectations; better suited for grades 9–10.',
+            __vocabulary_score: 'very complex',
+            __vocabulary_reasoning: 'Abstract economic and historical vocabulary (urban growth, fundamentally) adds significant reading demand.',
+            __sentence_structure_score: 'Moderately Complex',
+            __sentence_structure_reasoning: 'Participial phrases and coordinated verb phrases add structural complexity but remain readable.',
+          },
+        ],
+      },
+    };
+
+    // ---------------------------------------------------------------------------
+    // DATA — this line is replaced by the formatter at report generation time.
+    // When opening the template directly in a browser, MOCK_REPORT_DATA is used.
+    // ---------------------------------------------------------------------------
+    var REPORT_DATA = null; // __REPLACED_BY_FORMATTER__
+    REPORT_DATA = REPORT_DATA || MOCK_REPORT_DATA;
+
+    // ---------------------------------------------------------------------------
+    // Utilities
+    // ---------------------------------------------------------------------------
+
+    function esc(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function hmClass(val) {
+      if (val === null || val === undefined) return 'hm-null';
+      if (val < 1.5) return 'hm-1';
+      if (val < 2.5) return 'hm-2';
+      if (val < 3.5) return 'hm-3';
+      return 'hm-4';
+    }
+
+    function statusBadge(status) {
+      const cls = {
+        'On Band':   'badge-on-band',
+        'Adjacent':  'badge-adjacent',
+        'Off Target':'badge-off-target',
+      }[status] || '';
+      return `<span class="badge ${cls}">${esc(status)}</span>`;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Tab switching
+    // ---------------------------------------------------------------------------
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.tab === tab)
+      );
+      document.getElementById('tab-summary').classList.toggle('active', tab === 'summary');
+      document.getElementById('tab-results').classList.toggle('active', tab === 'results');
+      if (tab === 'summary' && !window._chartDrawn) drawChart();
+    }
+
+    // ---------------------------------------------------------------------------
+    // Header
+    // ---------------------------------------------------------------------------
+
+    function renderHeader() {
+      const { meta } = REPORT_DATA;
+      document.getElementById('app-header').innerHTML = `
+        <h1>Evaluation Report</h1>
+        <div class="report-meta">
+          Generated: ${esc(meta.generatedAt)} &bull; Report ID: ${esc(meta.reportId)}
+        </div>
+      `;
+      document.title = `Report: ${meta.reportId}`;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Tab bar
+    // ---------------------------------------------------------------------------
+
+    function renderTabs() {
+      document.getElementById('tab-bar').innerHTML = `
+        <button class="tab-btn active" data-tab="summary" onclick="switchTab('summary')">Summary</button>
+        <button class="tab-btn" data-tab="results" onclick="switchTab('results')">Full Results</button>
+      `;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Summary tab
+    // ---------------------------------------------------------------------------
+
+    function renderSummary() {
+      const { meta, gradeLevelStats: gls, complexityStats, insights,
+              gradeBandDistribution, complexityHeatmap } = REPORT_DATA;
+
+      // ── Snapshot ──
+      const snapshotHtml = `
+        <div class="card">
+          <div class="card-title">Snapshot</div>
+          <div class="snapshot-grid">
+            <div class="snapshot-item">
+              <span class="snapshot-label">Evaluators</span>
+              <div class="tags">
+                ${meta.evaluatorNames.map(n => `<span class="tag">${esc(n)}</span>`).join('')}
+              </div>
+            </div>
+            <div class="snapshot-item">
+              <span class="snapshot-label">Rows Processed</span>
+              <span class="snapshot-value">${meta.processedRows} of ${meta.totalRows}</span>
+            </div>
+            <div class="snapshot-item">
+              <span class="snapshot-label">Rows Errored</span>
+              <span class="snapshot-value">${meta.erroredRows}</span>
+            </div>
+            <div class="snapshot-item">
+              <span class="snapshot-label">Source File</span>
+              <span class="snapshot-value mono" title="${esc(meta.csvPath)}">${esc(meta.csvPath)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // ── GLA stat cards ──
+      const glsHtml = gls.hasData ? `
+        <div class="stat-row">
+          <div class="stat-card green">
+            <div class="stat-label">On Band</div>
+            <div class="stat-value">${gls.onBandPct}%</div>
+            <div class="stat-sub">${gls.onBand} texts match the target grade band</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-label">Adjacent</div>
+            <div class="stat-value">${gls.adjacentPct}%</div>
+            <div class="stat-sub">${gls.adjacent} texts within one band of target</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-label">Off Target</div>
+            <div class="stat-value">${gls.offTargetPct}%</div>
+            <div class="stat-sub">${gls.offTarget} texts need review</div>
+          </div>
+        </div>
+      ` : '';
+
+      // ── Complexity dimension cards ──
+      const COMPLEXITY_LABELS = ['Slightly Complex', 'Moderately Complex', 'Very Complex', 'Exceedingly Complex'];
+      const cxHtml = complexityStats.length > 0 ? `
+        <div class="complexity-row">
+          ${complexityStats.map(cs => {
+            const maxDist = Math.max(...cs.distribution, 1);
+            const bars = COMPLEXITY_LABELS.map((lbl, i) => `
+              <div class="dist-item">
+                <div class="dl" title="${lbl}">${lbl}</div>
+                <div class="dt">
+                  <div class="df" style="width:${Math.round((cs.distribution[i] / maxDist) * 100)}%"></div>
+                </div>
+                <div class="dc">${cs.distribution[i]}</div>
+              </div>
+            `).join('');
+            return `
+              <div class="complexity-card">
+                <div class="cx-name">${esc(cs.name)}</div>
+                <div class="cx-avg">${cs.average > 0 ? cs.average.toFixed(1) : '—'}</div>
+                <div class="cx-label">${esc(cs.label)}</div>
+                <div class="dist-bar">${bars}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      ` : '';
+
+      // ── Insights (Alpha) ──
+      const insightsHtml = `
+        <div class="card">
+          <div class="card-title">
+            Insights <span class="alpha-badge">Alpha</span>
+          </div>
+          <div class="insights-body">
+            ${insights.map(i => `
+              <div class="insight-item">
+                <span class="insight-arrow">→</span>
+                <span>${esc(i)}</span>
+              </div>
+            `).join('')}
+          </div>
+          <div class="insights-note">
+            These insights are automatically generated and may not reflect the full context of your data.
+          </div>
+        </div>
+      `;
+
+      // ── Distribution chart ──
+      const distHtml = gls.hasData ? `
+        <div class="card">
+          <div class="card-title">Grade Level Distribution by Band</div>
+          <div class="chart-container">
+            <canvas id="dist-chart"></canvas>
+          </div>
+        </div>
+      ` : '';
+
+      // ── Heatmap ──
+      const heatmapHtml = complexityStats.length > 0 && complexityHeatmap.evaluators.length > 0 ? `
+        <div class="card">
+          <div class="card-title">Text Complexity by Grade Band</div>
+          <div class="heatmap-wrap">
+            <table class="heatmap-table">
+              <thead>
+                <tr>
+                  <th>Grade Band</th>
+                  ${complexityHeatmap.evaluators.map(e => `<th>${esc(e)}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${complexityHeatmap.bands.map((band, bi) => `
+                  <tr>
+                    <td>${esc(band)}</td>
+                    ${complexityHeatmap.values[bi].map(val => {
+                      const cls = hmClass(val);
+                      const label = val !== null ? val.toFixed(1) : '—';
+                      return `<td><span class="hm-cell ${cls}">${label}</span></td>`;
+                    }).join('')}
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ` : '';
+
+      document.getElementById('tab-summary').innerHTML =
+        snapshotHtml + glsHtml + cxHtml + insightsHtml + distHtml + heatmapHtml;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Distribution bar chart (Chart.js)
+    // ---------------------------------------------------------------------------
+
+    window._chartDrawn = false;
+
+    function drawChart() {
+      const { gradeBandDistribution: dist } = REPORT_DATA;
+      const ctx = document.getElementById('dist-chart');
+      if (!ctx) return;
+
+      // Only show bands that have at least one classified row
+      const activeBands = dist.bands.filter((_, i) => dist.data[i].total > 0);
+      const activeData  = dist.data.filter(d => d.total > 0);
+      const toPct = (n, total) => total > 0 ? Math.round((n / total) * 100) : 0;
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: activeBands,
+          datasets: [
+            {
+              label: 'On Band',
+              data: activeData.map(d => toPct(d.onBand, d.total)),
+              backgroundColor: '#10b981',
+              borderRadius: 4,
+            },
+            {
+              label: 'Adjacent',
+              data: activeData.map(d => toPct(d.adjacent, d.total)),
+              backgroundColor: '#f59e0b',
+              borderRadius: 4,
+            },
+            {
+              label: 'Off Target',
+              data: activeData.map(d => toPct(d.offTarget, d.total)),
+              backgroundColor: '#ef4444',
+              borderRadius: 4,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top' },
+            tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw}%` } },
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              max: 100,
+              ticks: { callback: v => v + '%' },
+              grid: { color: '#f1f5f9' },
+            },
+          },
+        },
+      });
+
+      window._chartDrawn = true;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Full Results tab
+    // ---------------------------------------------------------------------------
+
+    function renderResults() {
+      const { fullResults } = REPORT_DATA;
+      const { originalColumns, hasGLA, complexityEvaluators, rows } = fullResults;
+
+      // We'll set sticky left offsets after the table is in the DOM.
+      // Assign each original column a preliminary min-width; real offsets are
+      // calculated in applyFrozenOffsets() below.
+      const COL_MIN_WIDTH = 160; // px — initial estimate
+      const frozenCount = originalColumns.length;
+
+      // Header
+      const thOriginal = originalColumns.map((col, i) => {
+        const isLast = i === frozenCount - 1;
+        return `<th class="frozen${isLast ? ' frozen-last' : ''}" data-frozen="${i}"
+                    style="min-width:${COL_MIN_WIDTH}px">${esc(col)}</th>`;
+      }).join('');
+
+      const thGLA = hasGLA ? `
+        <th class="group-start" style="min-width:120px">Grade Level Status</th>
+        <th style="min-width:110px">GLA Grade Band</th>
+        <th style="min-width:260px">GLA Reasoning</th>
+      ` : '';
+
+      const thCX = complexityEvaluators.map(e => `
+        <th class="group-start" style="min-width:150px">${esc(e.name)} Score</th>
+        <th style="min-width:260px">${esc(e.name)} Reasoning</th>
+      `).join('');
+
+      // Rows
+      const bodyRows = rows.map(row => {
+        const tdOriginal = originalColumns.map((col, i) => {
+          const isLast = i === frozenCount - 1;
+          return `<td class="frozen${isLast ? ' frozen-last' : ''}" data-frozen="${i}"
+                      style="min-width:${COL_MIN_WIDTH}px">${esc(row[col])}</td>`;
+        }).join('');
+
+        const glaStatus = row['__gla_status'] || '';
+        const tdGLA = hasGLA ? `
+          <td class="group-start">${statusBadge(glaStatus)}</td>
+          <td>${esc(row['__gla_band'])}</td>
+          <td class="reasoning-cell" title="${esc(row['__gla_reasoning'])}">${esc(row['__gla_reasoning'])}</td>
+        ` : '';
+
+        const tdCX = complexityEvaluators.map(e => {
+          const prefix = `__${e.prefix}`;
+          return `
+            <td class="group-start">${esc(row[prefix + '_score'])}</td>
+            <td class="reasoning-cell" title="${esc(row[prefix + '_reasoning'])}">${esc(row[prefix + '_reasoning'])}</td>
+          `;
+        }).join('');
+
+        return `<tr>${tdOriginal}${tdGLA}${tdCX}</tr>`;
+      }).join('');
+
+      document.getElementById('tab-results').innerHTML = `
+        <div class="results-outer">
+          <table class="results-table" id="results-table">
+            <thead><tr>${thOriginal}${thGLA}${thCX}</tr></thead>
+            <tbody>${bodyRows}</tbody>
+          </table>
+        </div>
+      `;
+
+      // Apply real sticky left offsets once the table is rendered
+      applyFrozenOffsets('results-table', frozenCount);
+    }
+
+    /**
+     * Reads the rendered widths of frozen header cells and applies correct
+     * `left` offsets to all frozen <th> and <td> cells in the table.
+     */
+    function applyFrozenOffsets(tableId, frozenCount) {
+      const table = document.getElementById(tableId);
+      if (!table) return;
+
+      const headerCells = table.querySelectorAll('thead th.frozen');
+      const offsets = [];
+      let cumLeft = 0;
+      headerCells.forEach(th => {
+        offsets.push(cumLeft);
+        cumLeft += th.offsetWidth;
+      });
+
+      table.querySelectorAll('tr').forEach(row => {
+        const cells = row.querySelectorAll('td.frozen, th.frozen');
+        cells.forEach((cell, i) => {
+          if (i < frozenCount) cell.style.left = (offsets[i] ?? 0) + 'px';
+        });
+      });
+    }
+
+    // ---------------------------------------------------------------------------
+    // Bootstrap
+    // ---------------------------------------------------------------------------
+
+    renderHeader();
+    renderTabs();
+    renderSummary();
+    renderResults();
+    // Draw chart after DOM is ready
+    setTimeout(drawChart, 80);
+  </script>
+</body>
+</html>

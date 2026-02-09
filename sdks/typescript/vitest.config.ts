@@ -19,8 +19,23 @@ function txtPlugin(): Plugin {
   };
 }
 
+function htmlPlugin(): Plugin {
+  return {
+    name: 'html-loader',
+    enforce: 'pre',
+    resolveId(source, importer) {
+      if (!source.endsWith('.html') || !importer) return;
+      return resolve(dirname(importer), source);
+    },
+    load(id) {
+      if (!id.endsWith('.html')) return;
+      return `export default ${JSON.stringify(readFileSync(id, 'utf-8'))};`;
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
-  plugins: [txtPlugin()],
+  plugins: [txtPlugin(), htmlPlugin()],
   test: {
     globals: true,
     environment: 'node',
