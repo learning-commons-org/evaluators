@@ -1,7 +1,7 @@
 # requirements.txt
 langchain
-langchain_google_genai
-langchain_openai
+langchain-google-genai
+langchain-openai
 textstat
 python-dotenv
 numpy
