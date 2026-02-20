@@ -84,7 +84,6 @@ describeIntegration.concurrent('Sentence Structure Evaluator - Comprehensive Tes
 
     evaluator = new SentenceStructureEvaluator({
       openaiApiKey: process.env.OPENAI_API_KEY!,
-      retry: false, // We handle retries in the test logic
     });
 
     console.log('\n' + '='.repeat(80));

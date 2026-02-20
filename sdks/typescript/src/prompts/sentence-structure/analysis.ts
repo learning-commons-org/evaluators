@@ -1,10 +1,5 @@
-import { loadPrompt } from '../../utils/prompts';
-
-/**
- * System prompt for sentence grammatical analysis
- * Loaded from: prompts/sentence-structure/analysis-system.txt
- */
-const SYSTEM_PROMPT_ANALYSIS_TEMPLATE = loadPrompt('sentence-structure/analysis-system.txt');
+import SYSTEM_PROMPT_ANALYSIS_TEMPLATE from '../../../../../evals/prompts/sentence-structure/analysis-system.txt';
+import USER_PROMPT_ANALYSIS_TEMPLATE from '../../../../../evals/prompts/sentence-structure/analysis-user.txt';
 
 /**
  * Get the system prompt for sentence grammatical analysis
@@ -13,12 +8,6 @@ const SYSTEM_PROMPT_ANALYSIS_TEMPLATE = loadPrompt('sentence-structure/analysis-
 export function getSystemPromptAnalysis(): string {
   return SYSTEM_PROMPT_ANALYSIS_TEMPLATE;
 }
-
-/**
- * User prompt template for sentence grammatical analysis
- * Loaded from: prompts/sentence-structure/analysis-user.txt
- */
-const USER_PROMPT_ANALYSIS_TEMPLATE = loadPrompt('sentence-structure/analysis-user.txt');
 
 /**
  * Generate the user prompt for sentence analysis

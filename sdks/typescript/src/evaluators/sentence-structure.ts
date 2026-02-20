@@ -90,7 +90,6 @@ export interface SentenceStructureEvaluatorConfig extends BaseEvaluatorConfig {
 export class SentenceStructureEvaluator extends BaseEvaluator {
   private analysisProvider: LLMProvider;
   private complexityProvider: LLMProvider;
-  private evaluatorConfig: SentenceStructureEvaluatorConfig;
 
   constructor(config: SentenceStructureEvaluatorConfig) {
     // Call base constructor for common setup (telemetry, etc.)
@@ -101,7 +100,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
       throw new ValidationError('OpenAI API key is required. Pass openaiApiKey in config.');
     }
 
-    this.evaluatorConfig = config;
 
     // Create OpenAI GPT-4o provider for both stages
     this.analysisProvider = createProvider({

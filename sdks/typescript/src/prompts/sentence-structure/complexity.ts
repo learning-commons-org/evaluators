@@ -1,10 +1,8 @@
-import { loadPrompt } from '../../utils/prompts';
-
-/**
- * System prompt for sentence structure complexity evaluation
- * Loaded from: prompts/sentence-structure/complexity-system.txt
- */
-const SYSTEM_PROMPT_COMPLEXITY_TEMPLATE = loadPrompt('sentence-structure/complexity-system.txt');
+import SYSTEM_PROMPT_COMPLEXITY_TEMPLATE from '../../../../../evals/prompts/sentence-structure/complexity-system.txt';
+import USER_PROMPT_COMPLEXITY_TEMPLATE from '../../../../../evals/prompts/sentence-structure/complexity-user.txt';
+import RUBRIC_GRADE_3 from '../../../../../evals/prompts/sentence-structure/rubric-grade-3.txt';
+import RUBRIC_GRADE_4 from '../../../../../evals/prompts/sentence-structure/rubric-grade-4.txt';
+import RUBRIC_GRADES_5_12 from '../../../../../evals/prompts/sentence-structure/rubric-grades-5-12.txt';
 
 /**
  * Get the system prompt for sentence structure complexity evaluation
@@ -13,19 +11,6 @@ const SYSTEM_PROMPT_COMPLEXITY_TEMPLATE = loadPrompt('sentence-structure/complex
 export function getSystemPromptComplexity(): string {
   return SYSTEM_PROMPT_COMPLEXITY_TEMPLATE;
 }
-
-/**
- * User prompt template for complexity evaluation
- * Loaded from: prompts/sentence-structure/complexity-user.txt
- */
-const USER_PROMPT_COMPLEXITY_TEMPLATE = loadPrompt('sentence-structure/complexity-user.txt');
-
-/**
- * Grade-specific rubrics
- */
-const RUBRIC_GRADE_3 = loadPrompt('sentence-structure/rubric-grade-3.txt');
-const RUBRIC_GRADE_4 = loadPrompt('sentence-structure/rubric-grade-4.txt');
-const RUBRIC_GRADES_5_12 = loadPrompt('sentence-structure/rubric-grades-5-12.txt');
 
 /**
  * Get the appropriate rubric based on grade level
