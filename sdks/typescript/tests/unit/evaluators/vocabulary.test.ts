@@ -70,7 +70,8 @@ describe('VocabularyEvaluator - Evaluation Flow', () => {
     // @ts-expect-error Accessing private property for testing
     mockBackgroundProvider = evaluator.backgroundKnowledgeProvider;
     // @ts-expect-error Accessing private property for testing
-    mockComplexityProvider = evaluator.complexityProvider;
+    // Tests use grade 5+, which routes to otherGradesComplexityProvider (GPT-4.1)
+    mockComplexityProvider = evaluator.otherGradesComplexityProvider;
   });
 
   afterEach(() => {
@@ -114,7 +115,7 @@ describe('VocabularyEvaluator - Evaluation Flow', () => {
       expect(result.score).toBe('moderately complex');
       expect(result.reasoning).toContain('grade-appropriate vocabulary');
       expect(result.metadata).toBeDefined();
-      expect(result.metadata.model).toBe('gemini-2.5-pro + gpt-4o-2024-11-20');
+      expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20 + openai:gpt-4.1-2025-04-14');
       expect(result.metadata.processingTimeMs).toBeGreaterThan(0);
 
       // Verify both providers were called
@@ -214,7 +215,7 @@ describe('VocabularyEvaluator - Evaluation Flow', () => {
 
       // Verify metadata values
       expect(result.metadata.promptVersion).toBe('1.0');
-      expect(result.metadata.model).toBe('gemini-2.5-pro + gpt-4o-2024-11-20');
+      expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20 + openai:gpt-4.1-2025-04-14');
       expect(result.metadata.timestamp).toBeInstanceOf(Date);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0); // Mocked calls can be instant (0ms)
     });

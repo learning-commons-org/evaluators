@@ -59,7 +59,8 @@ export interface VocabularyEvaluatorConfig extends BaseEvaluatorConfig {
  * ```
  */
 export class VocabularyEvaluator extends BaseEvaluator {
-  private complexityProvider: LLMProvider;
+  private grades34ComplexityProvider: LLMProvider;
+  private otherGradesComplexityProvider: LLMProvider;
   private backgroundKnowledgeProvider: LLMProvider;
 
   constructor(config: VocabularyEvaluatorConfig) {
@@ -75,11 +76,19 @@ export class VocabularyEvaluator extends BaseEvaluator {
       throw new ValidationError('OpenAI API key is required. Pass openaiApiKey in config.');
     }
 
-    // Create Google Gemini provider for complexity evaluation
-    this.complexityProvider = createProvider({
+    // Create Google Gemini provider for complexity evaluation (grades 3-4)
+    this.grades34ComplexityProvider = createProvider({
       type: 'google',
       model: 'gemini-2.5-pro',
       apiKey: config.googleApiKey,
+      maxRetries: this.config.maxRetries,
+    });
+
+    // Create OpenAI GPT-4.1 provider for complexity evaluation (grades 5-12)
+    this.otherGradesComplexityProvider = createProvider({
+      type: 'openai',
+      model: 'gpt-4.1-2025-04-14',
+      apiKey: config.openaiApiKey,
       maxRetries: this.config.maxRetries,
     });
 
@@ -122,6 +131,9 @@ export class VocabularyEvaluator extends BaseEvaluator {
 
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
+    const complexityProviderName = (grade === '3' || grade === '4')
+      ? 'google:gemini-2.5-pro'
+      : 'openai:gpt-4.1-2025-04-14';
 
     try {
       this.logger.debug('Stage 1: Generating background knowledge', {
@@ -158,7 +170,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
 
       stageDetails.push({
         stage: 'complexity_evaluation',
-        provider: 'google:gemini-2.5-pro',
+        provider: complexityProviderName,
         latency_ms: complexityResponse.latencyMs,
         // TODO: Retry tracking - Vercel AI SDK doesn't expose actual retry attempts
         // We set -1 to indicate "unknown" (we may have retried, but can't track it)
@@ -188,7 +200,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
         reasoning: complexityResponse.data.reasoning,
         metadata: {
           promptVersion: '1.0',
-          model: 'gemini-2.5-pro + gpt-4o-2024-11-20',
+          model: `openai:gpt-4o-2024-11-20 + ${complexityProviderName}`,
           timestamp: new Date(),
           processingTimeMs: latencyMs,
         },
@@ -201,7 +213,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
         latencyMs,
         textLength: text.length,
         grade,
-        provider: 'google:gemini-2.5-pro+openai:gpt-4o',
+        provider: `openai:gpt-4o-2024-11-20 + ${complexityProviderName}`,
         retryAttempts: totalRetries,
         tokenUsage: totalTokenUsage,
         metadata: {
@@ -251,7 +263,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
         latencyMs,
         textLength: text.length,
         grade,
-        provider: 'google:gemini-2.5-pro+openai:gpt-4o',
+        provider: `openai:gpt-4o-2024-11-20 + ${complexityProviderName}`,
         retryAttempts: totalRetries,
         tokenUsage: totalTokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
@@ -301,7 +313,8 @@ export class VocabularyEvaluator extends BaseEvaluator {
   /**
    * Stage 2: Evaluate vocabulary complexity
    *
-   * Uses the Qual Text Complexity rubric (SAP) and background knowledge to evaluate vocabulary complexity
+   * Uses the Qual Text Complexity rubric (SAP) and background knowledge to evaluate vocabulary complexity.
+   * Grades 3-4 use Gemini 2.5 Pro; grades 5-12 use GPT-4.1.
    */
   private async evaluateComplexity(
     text: string,
@@ -312,7 +325,11 @@ export class VocabularyEvaluator extends BaseEvaluator {
     const systemPrompt = getSystemPrompt(grade);
     const userPrompt = getUserPrompt(text, grade, backgroundKnowledge, fkLevel);
 
-    const response = await this.complexityProvider.generateStructured({
+    const provider = (grade === '3' || grade === '4')
+      ? this.grades34ComplexityProvider
+      : this.otherGradesComplexityProvider;
+
+    const response = await provider.generateStructured({
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
