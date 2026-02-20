@@ -16,14 +16,11 @@ on:
 
 jobs:
   lint:
-    name: 👖 Lint (Node ${{ matrix.node-version }})
+    name: 👖 Lint
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: sdks/typescript
-    strategy:
-      matrix:
-        node-version: [18, 20, 22]
     steps:
       - name: ⛔ Cancel previous runs
         uses: styfle/cancel-workflow-action@0.13.0
@@ -31,10 +28,10 @@ jobs:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v6
 
-      - name: 😻 Setup Node.js ${{ matrix.node-version }}
+      - name: 😻 Setup Node.js 22
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22
 
       - name: 📥 Install dependencies
         uses: bahmutov/npm-install@v1
@@ -45,14 +42,11 @@ jobs:
         run: npm run lint
 
   typecheck:
-    name: 🔎 TypeScript (Node ${{ matrix.node-version }})
+    name: 🔎 TypeScript
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: sdks/typescript
-    strategy:
-      matrix:
-        node-version: [18, 20, 22]
     steps:
       - name: ⛔ Cancel previous runs
         uses: styfle/cancel-workflow-action@0.13.0
@@ -60,10 +54,10 @@ jobs:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v6
 
-      - name: 😻 Setup Node.js ${{ matrix.node-version }}
+      - name: 😻 Setup Node.js 22
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22
 
       - name: 📥 Install dependencies
         uses: bahmutov/npm-install@v1
