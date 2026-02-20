@@ -97,7 +97,6 @@ describeIntegration.concurrent('Vocabulary Evaluator - Comprehensive Test Suite'
     evaluator = new VocabularyEvaluator({
       googleApiKey: process.env.GOOGLE_API_KEY!,
       openaiApiKey: process.env.OPENAI_API_KEY!,
-      retry: false, // We handle retries in the test logic
     });
 
     console.log('\n' + '='.repeat(80));

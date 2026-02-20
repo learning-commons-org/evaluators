@@ -1,16 +1,5 @@
-import { loadPrompt } from '../../utils/prompts';
-
-/**
- * System prompt for vocabulary complexity evaluation (Grades 3-4)
- * Loaded from: prompts/vocabulary/grades-3-4-system.txt
- */
-const SYSTEM_PROMPT_GRADES_3_4 = loadPrompt('vocabulary/grades-3-4-system.txt');
-
-/**
- * System prompt for vocabulary complexity evaluation (Other grades: K-2, 5-12)
- * Loaded from: prompts/vocabulary/other-grades-system.txt
- */
-const SYSTEM_PROMPT_OTHER_GRADES = loadPrompt('vocabulary/other-grades-system.txt');
+import SYSTEM_PROMPT_GRADES_3_4 from '../../../../../evals/prompts/vocabulary/grades-3-4-system.txt';
+import SYSTEM_PROMPT_OTHER_GRADES from '../../../../../evals/prompts/vocabulary/other-grades-system.txt';
 
 /**
  * Get the appropriate system prompt based on grade level

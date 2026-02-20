@@ -1,16 +1,5 @@
-import { loadPrompt } from '../../utils/prompts';
-
-/**
- * User prompt template for vocabulary complexity evaluation (Grades 3-4)
- * Loaded from: prompts/vocabulary/grades-3-4-user.txt
- */
-const USER_PROMPT_TEMPLATE_GRADES_3_4 = loadPrompt('vocabulary/grades-3-4-user.txt');
-
-/**
- * User prompt template for vocabulary complexity evaluation (Other grades: K-2, 5-12)
- * Loaded from: prompts/vocabulary/other-grades-user.txt
- */
-const USER_PROMPT_TEMPLATE_OTHER_GRADES = loadPrompt('vocabulary/other-grades-user.txt');
+import USER_PROMPT_TEMPLATE_GRADES_3_4 from '../../../../../evals/prompts/vocabulary/grades-3-4-user.txt';
+import USER_PROMPT_TEMPLATE_OTHER_GRADES from '../../../../../evals/prompts/vocabulary/other-grades-user.txt';
 
 /**
  * Generate the user prompt for vocabulary complexity evaluation

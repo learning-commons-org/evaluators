@@ -61,7 +61,6 @@ export interface VocabularyEvaluatorConfig extends BaseEvaluatorConfig {
 export class VocabularyEvaluator extends BaseEvaluator {
   private complexityProvider: LLMProvider;
   private backgroundKnowledgeProvider: LLMProvider;
-  private evaluatorConfig: VocabularyEvaluatorConfig;
 
   constructor(config: VocabularyEvaluatorConfig) {
     // Call base constructor for common setup (telemetry, etc.)
@@ -76,7 +75,6 @@ export class VocabularyEvaluator extends BaseEvaluator {
       throw new ValidationError('OpenAI API key is required. Pass openaiApiKey in config.');
     }
 
-    this.evaluatorConfig = config;
 
     // Create Google Gemini provider for complexity evaluation
     this.complexityProvider = createProvider({
