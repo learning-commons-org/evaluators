@@ -126,13 +126,6 @@ jobs:
       - name: 🏗️ Build package
         run: npm run build
 
-      - name: 🔍 Verify build artifacts
-        run: |
-          echo "Checking dist/ contents..."
-          ls -la dist/
-          echo "Checking prompts were copied..."
-          find dist/prompts -type f -name '*.txt' | grep -q . || (echo "❌ No prompt .txt files found in dist/prompts" && exit 1)
-
       # Temporarily disabled - integration tests take too long in CI
       # - name: ⚡ Run integration tests (against dist/)
       #   if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository

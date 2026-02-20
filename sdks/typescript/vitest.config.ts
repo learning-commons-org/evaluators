@@ -1,6 +1,21 @@
 import { defineConfig } from 'vitest/config';
+import type { Plugin } from 'vite';
+
+function txtPlugin(): Plugin {
+  return {
+    name: 'txt-loader',
+    transform(code, id) {
+      if (!id.endsWith('.txt')) return;
+      return {
+        code: `export default ${JSON.stringify(code)};`,
+        map: null,
+      };
+    },
+  };
+}
 
 export default defineConfig({
+  plugins: [txtPlugin()],
   test: {
     globals: true,
     environment: 'node',

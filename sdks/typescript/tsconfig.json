@@ -9,7 +9,6 @@
     "allowJs": false,
     "checkJs": false,
     "outDir": "./dist",
-    "rootDir": "./src",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -24,6 +23,6 @@
     "allowSyntheticDefaultImports": true,
     "isolatedModules": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests/**/*"]
+  "include": ["src/**/*", "tests/**/*", "*.config.ts"],
+  "exclude": ["node_modules", "dist"]
 }
