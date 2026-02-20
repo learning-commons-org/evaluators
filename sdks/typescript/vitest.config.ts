@@ -1,15 +1,19 @@
 import { defineConfig } from 'vitest/config';
+import { readFileSync } from 'fs';
+import { resolve, dirname } from 'path';
 import type { Plugin } from 'vite';
 
 function txtPlugin(): Plugin {
   return {
     name: 'txt-loader',
-    transform(code, id) {
+    enforce: 'pre',
+    resolveId(source, importer) {
+      if (!source.endsWith('.txt') || !importer) return;
+      return resolve(dirname(importer), source);
+    },
+    load(id) {
       if (!id.endsWith('.txt')) return;
-      return {
-        code: `export default ${JSON.stringify(code)};`,
-        map: null,
-      };
+      return `export default ${JSON.stringify(readFileSync(id, 'utf-8'))};`;
     },
   };
 }
