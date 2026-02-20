@@ -24,7 +24,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18, 20]
+        node-version: [18, 20, 22]
 
     steps:
       - name: Checkout code
@@ -57,9 +57,7 @@ jobs:
           echo "Checking dist/ contents..."
           ls -la dist/
           echo "Checking prompts were copied..."
-          ls -la dist/prompts/vocabulary/
-          ls -la dist/prompts/sentence-structure/
-          ls -la dist/prompts/grade-level-appropriateness/
+          find dist/prompts -type f -name '*.txt' | grep -q . || (echo "❌ No prompt .txt files found in dist/prompts" && exit 1)
 
       # Temporarily disabled - integration tests take too long in CI
       # - name: Run integration tests (against dist/)

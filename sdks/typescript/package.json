@@ -1,7 +1,7 @@
 {
   "name": "@learning-commons/evaluators",
   "version": "0.1.0",
-  "description": "TypeScript SDK for Learning Commons educational text complexity evaluators",
+  "description": "TypeScript SDK for Learning Commons educational evaluators",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
@@ -37,22 +37,19 @@
   },
   "keywords": [
     "education",
-    "text-complexity",
-    "evaluators",
-    "llm",
-    "assessment"
+    "evaluators"
   ],
   "author": "Learning Commons",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/chanzuckerberg/learning-commons-evaluators",
+    "url": "https://github.com/learning-commons-org/evaluators",
     "directory": "sdks/typescript"
   },
   "bugs": {
-    "url": "https://github.com/chanzuckerberg/learning-commons-evaluators/issues"
+    "url": "https://github.com/learning-commons-org/evaluators/issues"
   },
-  "homepage": "https://github.com/chanzuckerberg/learning-commons-evaluators#readme",
+  "homepage": "https://github.com/learning-commons-org/evaluators#readme",
   "peerDependencies": {
     "ai": ">=3.0.0"
   },

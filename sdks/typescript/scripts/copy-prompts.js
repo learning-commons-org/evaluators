@@ -45,6 +45,6 @@ try {
 
   console.log('✓ Copied prompt files to src/prompts');
 } catch (error) {
-  console.error('❌ Failed to copy prompt files:', error.message);
+  console.error('❌ Failed to copy prompt files:', error);
   process.exit(1);
 }

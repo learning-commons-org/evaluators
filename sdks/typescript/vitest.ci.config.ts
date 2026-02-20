@@ -22,12 +22,13 @@ export default defineConfig({
     testTimeout: 120000, // 2 minutes for integration tests with LLM calls
   },
   resolve: {
-    alias: {
+    alias: [
       // Remap all src/evaluators imports to the bundled dist/index.js
       // Example: ../../src/evaluators/vocabulary.js → ../../dist/index.js
-      '../../src/evaluators/vocabulary.js': resolve(__dirname, './dist/index.js'),
-      '../../src/evaluators/sentence-structure.js': resolve(__dirname, './dist/index.js'),
-      '../../src/evaluators/grade-level-appropriateness.js': resolve(__dirname, './dist/index.js'),
-    },
+      {
+        find: /^.*\/src\/evaluators\/.*\.js$/,
+        replacement: resolve(__dirname, './dist/index.js'),
+      },
+    ],
   },
 });
