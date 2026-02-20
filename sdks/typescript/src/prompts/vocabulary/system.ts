@@ -3,7 +3,7 @@ import SYSTEM_PROMPT_OTHER_GRADES from '../../../../../evals/prompts/vocabulary/
 
 /**
  * Get the appropriate system prompt based on grade level
- * @param grade - The target grade level (K-12)
+ * @param grade - The target grade level (3-12)
  * @returns The system prompt for the grade level
  */
 export function getSystemPrompt(grade: string): string {
@@ -12,6 +12,6 @@ export function getSystemPrompt(grade: string): string {
     return SYSTEM_PROMPT_GRADES_3_4;
   }
 
-  // All other grades (K, 1, 2, 5-12) use OTHER_GRADES prompt
+  // All other grades (5-12) use OTHER_GRADES prompt
   return SYSTEM_PROMPT_OTHER_GRADES;
 }

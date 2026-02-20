@@ -21,8 +21,8 @@ export function getUserPrompt(
     : USER_PROMPT_TEMPLATE_OTHER_GRADES;
 
   return template
-    .replace('{student_grade_level}', studentGradeLevel)
-    .replace('{student_background_knowledge}', studentBackgroundKnowledge)
-    .replace('{fk_level}', fkLevel.toString())
-    .replace('{text}', text);
+    .replaceAll('{student_grade_level}', studentGradeLevel)
+    .replaceAll('{student_background_knowledge}', studentBackgroundKnowledge)
+    .replaceAll('{fk_level}', fkLevel.toString())
+    .replaceAll('{text}', text);
 }

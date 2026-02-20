@@ -75,7 +75,6 @@ export class VocabularyEvaluator extends BaseEvaluator {
       throw new ValidationError('OpenAI API key is required. Pass openaiApiKey in config.');
     }
 
-
     // Create Google Gemini provider for complexity evaluation
     this.complexityProvider = createProvider({
       type: 'google',
@@ -102,9 +101,9 @@ export class VocabularyEvaluator extends BaseEvaluator {
    * Evaluate vocabulary complexity for a given text and grade level
    *
    * @param text - The text to evaluate
-   * @param grade - The target grade level (K-12)
+   * @param grade - The target grade level (3-12)
    * @returns Evaluation result with complexity score and detailed analysis
-   * @throws {Error} If text is empty or grade is invalid
+   * @throws {ValidationError} If text is empty or grade is invalid
    */
   async evaluate(
     text: string,

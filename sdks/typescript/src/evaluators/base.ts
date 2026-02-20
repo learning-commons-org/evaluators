@@ -162,7 +162,7 @@ export abstract class BaseEvaluator {
    * Validate text meets requirements
    * Default implementation - can be overridden by concrete evaluators
    *
-   * @throws {Error} If text is invalid
+   * @throws {ValidationError} If text is invalid
    */
   protected validateText(text: string): void {
     this.logger.debug('Validating text input', {
@@ -199,15 +199,15 @@ export abstract class BaseEvaluator {
     }
 
     // Check maximum length
-    if (text.length > VALIDATION_LIMITS.MAX_TEXT_LENGTH) {
+    if (trimmedText.length > VALIDATION_LIMITS.MAX_TEXT_LENGTH) {
       const error = new ValidationError(
-        `Text is too long. Maximum length is ${VALIDATION_LIMITS.MAX_TEXT_LENGTH.toLocaleString()} characters, received ${text.length.toLocaleString()} characters`
+        `Text is too long. Maximum length is ${VALIDATION_LIMITS.MAX_TEXT_LENGTH.toLocaleString()} characters, received ${trimmedText.length.toLocaleString()} characters`
       );
       this.logger.error('Text validation failed: too long', {
         evaluator: this.getEvaluatorType(),
         error,
         maxLength: VALIDATION_LIMITS.MAX_TEXT_LENGTH,
-        actualLength: text.length,
+        actualLength: trimmedText.length,
       });
       throw error;
     }
@@ -219,7 +219,7 @@ export abstract class BaseEvaluator {
    *
    * @param grade - Grade level to validate
    * @param validGrades - Set of valid grades for this evaluator
-   * @throws {Error} If grade is invalid
+   * @throws {ValidationError} If grade is invalid
    */
   protected validateGrade(grade: string, validGrades: Set<string>): void {
     this.logger.debug('Validating grade input', {

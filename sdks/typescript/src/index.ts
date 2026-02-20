@@ -7,7 +7,7 @@ export type {
   EvaluationError,
 } from './schemas/index.js';
 
-export { ComplexityLevel, GradeLevel, } from './schemas/index.js';
+export { ComplexityLevel, GradeLevel } from './schemas/index.js';
 
 // Error types
 export {
@@ -58,4 +58,5 @@ export {
 export {
   calculateFleschKincaidGrade,
   calculateReadabilityMetrics,
+  type ReadabilityMetrics,
 } from './features/index.js';

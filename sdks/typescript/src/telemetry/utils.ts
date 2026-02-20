@@ -1,4 +1,4 @@
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -22,7 +22,7 @@ export function generateClientId(...apiKeys: (string | undefined)[]): string {
   // If no keys provided, generate random ID for this session
   if (keys.length === 0) {
     return createHash('sha256')
-      .update(Math.random().toString())
+      .update(randomBytes(16))
       .digest('hex');
   }
 

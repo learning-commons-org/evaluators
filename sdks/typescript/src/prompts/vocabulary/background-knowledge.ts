@@ -5,6 +5,6 @@ import BACKGROUND_KNOWLEDGE_TEMPLATE from '../../../../../evals/prompts/vocabula
  */
 export function getBackgroundKnowledgePrompt(text: string, grade: string): string {
   return BACKGROUND_KNOWLEDGE_TEMPLATE
-    .replace('{grade}', grade)
-    .replace('{text}', text);
+    .replaceAll('{grade}', grade)
+    .replaceAll('{text}', text);
 }
