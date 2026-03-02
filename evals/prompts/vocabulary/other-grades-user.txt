@@ -1,0 +1,139 @@
+
+Your job is to rate the complexity of a text's vocabulary (relative to the intended level of the text) according to a rubric and annotation guide. Stick to the rubric and annotation guide exactly — do not introduce any additional criteria or lenses for judging the complexity of the text.
+
+[BEGIN ANNOTATION GUIDE AND RUBRIC]
+Instructions
+For the following task, please assume that:
+    - The student is on grade level and proficient in all core content areas, including reading fluency, comprehension, science, & social studies. (example).
+    - The student is moving through a common progression of topics (detailed here).
+    - The student is fluent in speaking English.
+    - The student has an "average" amount of background knowledge on topics not commonly covered in curriculum.
+    - The student will use this material for independent reading/work, without direct instruction.
+    - The text is reasonable for the given grade level.
+
+Please do not consider the presence of figurative language when scoring Vocabulary. For example: with a phrase like "kicked the bucket," consider only the qualities of the words themselves ("kicked", "the" and "bucket").
+
+Please do be sure to consider:
+- all of the different types of vocabulary (listed below)
+- the overall proportion of complex words in the text - including repeated complex words.
+- the resulting holistic complexity of the vocabulary (described in the Summary section below).
+
+Level 1:
+Rubric: Vocabulary that is almost entirely not complex: contemporary, conversational, and/or familiar. That said, a very low proportion of complex words (archaic, subject-specific, academic) is OK -- i.e. doesn't need to be 0.
+
+Level 2:
+Rubric: Vocabulary that is mostly not complex: contemporary, conversational, and/or familiar. A low proportion of complex words (archaic, subject-specific, academic) is OK, but if it's very low, the text is probably level 1.
+
+Level 3:
+Rubric: Vocabulary that is often complex: unfamiliar, archaic, subject-specific, and/or overly academic
+
+Level 4:
+Rubric: Vocabulary that is mostly complex: unfamiliar, archaic, subject-specific, and/or overly academic. May be ambiguous or purposefully misleading
+
+And here are some relevant definitions:
+    - Conversational: Everyday language.
+    - Familiar: Words that the student is likely to have seen/heard, from everyday life or their curriculum. Reminder: assume an "average" level of background knowledge.
+    - Unfamiliar: Words the student has probably not heard, or are being used in an unfamiliar way.
+        - For ex: 4th graders are familiar with the word "table" but may not be familiar with the use of the word with respect to data ("a table of data").
+        - Note:
+            - Words with in-line definitions (via appositives, or because they can be easily inferred from other parts of the text) should be evaluated as less unfamiliar.
+            - For ex: "The pharaoh, a powerful ruler of ancient Egypt, was buried in a grand tomb."
+                - The word "pharaoh" might be unfamiliar or subject-specific, but since is defined within the text, you can consider it a more familiar word.
+        - Unfamiliar proper nouns:
+            - A person's name, even if unfamiliar, generally does not add to complexity.
+            - Other unfamiliar proper nouns (eg locations, organizations) do add to complexity.
+
+- Subject-specific: Words that are specific to a subject or field of study that are essential for understanding concepts and engaging with the content.
+- Overly-academic: Words that are excessively formal, complex, or specialized.
+    - For ex: "The agrarian societal structure of the Neolithic Revolution precipitated a paradigm shift in agriculture"
+- Archaic: A word that was common in the past but is now rarely/almost never used. Could also be a word used in an archaic way.
+    - For ex: "After a long day of court proceedings, the jury 'retired' to deliberate on their verdict."
+        - The word "retire" meaning to stop working may be familiar to a student, but "retire" meaning "withdrawing to a private place" is an archaic use.
+
+
+Examples
+The student is on-grade-level:
+- Consider a 6th grade passage about earth systems. Per NGSS standards, students are introduced to earth systems starting in 2nd grade. They encounter words like: wind, water, river, lake, solids, and liquids. For our rating purposes, we would assume most students following 2nd have encountered these words. In 5th grade, they dive more fully into earth systems concepts, learning vocabulary words like geosphere, sediment, biosphere, atmosphere, ecosystems, organisms and climate. While rating, we would consider the words listed in the NGSS standards as more familiar following that grade level.  If the same passage were intended for 3rd graders, though, then the subject-specific vocabulary is likely to be unfamiliar.
+
+Figurative Language
+- Kicked the bucket.
+- The pen is mightier than the sword.
+- The classroom was a zoo.
+- He ran faster than the speed of light.
+[END ANNOTATION GUIDE AND RUBRIC]
+
+Here are a couple examples of texts that have already been scored along with justification for their scores, which you can use as exemplars:
+[BEGIN EXAMPLES]
+
+*** EXAMPLE 1 ***
+The following text was intended for grade level 11 and received a complexity level of 1.
+
+Here is the background knowledge assumption for that text: N/A
+
+Here is the text:
+// START TEXT //
+"In a recent lecture, "Is Nothing Sacred?", Salman Rushdie, one of the most censored authors of our time, talked about the importance of books. He grew up in a household in India where books were as sacred as bread. If anyone in the household dropped a piece of bread or a book, the person not only picked it up, but also kissed the object by way of apologizing for clumsy disrespect.
+
+He goes on to say that he had kissed many books before he had kissed a girl. Bread and books were for his household, and for many like his, food for the body and the soul. This image of the kissing of the book one had accidentally dropped made an impression on me. It speaks to the love and respect many people have for them.
+
+I grew up in a small town in New Mexico, and we had very few books in our household. The first one I remember reading was my catechism book. Before I went to school to learn English, my mother taught me catechism in Spanish.
+
+I remember the questions and answers I had to learn, and I remember the well-thumbed, frayed volume which was sacred to me.
+
+Growing up with few books in the house created in me a desire and a need for them. When I started school, I remember visiting the one room library of our town and standing in front of the dusty shelves. In reality there were only a few shelves and not over a thousand books, but I wanted to read them all. There was food for my soul in the books, that much I realized."
+// END TEXT //
+
+Here is the reasoning for that complexity level:
+// START REASONING //
+This text is a 1 for vocabulary, because the vocabulary that is used is familiar and accessible for a proficient 11th grader. Most of the words used in the text are very common everyday vocabulary for describing growing up, family life, and the importance of reading. A few examples of these very common words are: small town, book, school, learn, food, kissed, image, respect, love, speaks. There are many more in the text. In this text there are only a few "juicier" or more complex words, you can think of those as words that are less familiar, have a more abstract or nuanced meaning, or carry a very large concept. Less commonly spoken words that were used in the text were: frayed, volume, censored, clumsy, sacred. These are still well within reach of a proficient 11th grader, and would still be considered familiar, because they will have encountered them in past reading or academic studies. In the text there are a couple of words that are outliers, but they are not essential to the understanding of the larger text. One of these words or hyphenated compound phrase is well-frayed. A compound phrase is a phrase consisting of multiple words that work together to create a specific meaning or idea, often acting as a single unit in a sentence. If the meaning of individual words is familiar, it is typically quite easy for proficient readers to generalize the larger meaning that the author is implying with their word choice. In this case, proficient students will be accustomed to the phrase well, with the secondary meaning of very, rather than a description of positivity or health; and they will be accustomed to the use frayed, as in worn, aged, or damaged from use. Making the leap to identify the meaning of "well-frayed" as a book that is very used, will take only moments for a proficient 11th grader. Another word that stands out in the text is the word catechism, which might be new for many students based on their personal background or location, but a full understanding of what a catechism book contains is not essential for understanding the paragraph or whole text. The reader can make it through using minimum context clues to know that the catechism must be something important to his family. The type of book he learned to read before going to school is not critical for comprehension, it's enough to understand that reading was so important in his family, his mother started instruction before he even started school. Additionally, it's important to know that having one unknown word for an 11th grade reading, does not merit a rating higher than one.
+
+It is worth noting that another reason this text is a 1, is that the content or topic of the passage is so familiar and covered extensively in K-12 education, i.e. reading is important, loving books, growing up; that coupled with the simple vocabulary choices, getting to the meaning of the overall text, and even the paragraphs, would be incredibly easy for a proficient 11th grader.
+// END REASONING //
+*** EXAMPLE 2 ***
+The following text was intended for grade level 5 and received a complexity level of 2.
+
+Here is the background knowledge assumption for that text: Background Knowledge Assumption: Students are likely familiar with the concept of natural disasters, including hurricanes, and basic atmospheric concepts like high and low pressure from their studies on weather and climate. They may not be familiar with the specific formation processes of hurricanes or the global terminology differences (hurricane, typhoon, cyclone).
+
+Here is the text:
+// START TEXT //
+Great whirling storms roar out of the oceans in many parts of the world. They are called by several names—hurricane, typhoon, and cyclone are the three most familiar ones. But no matter what they are called, they are all the same sort of storm. They are born in the same way, in tropical waters. They develop the same way, feeding on warm, moist air. And they do the same kind of damage, both ashore and at sea. Other storms may cover a bigger area or have higher winds, but none can match both the size and the fury of hurricanes. They are earth's mightiest storms.
+
+Like all storms, they take place in the atmosphere, the envelope of air that surrounds the earth and presses on its surface. The pressure at any one place is always changing. There are days when air is sinking and the atmosphere presses harder on the surface. These are the times of high pressure. There are days when a lot of air is rising and the atmosphere does not press down as hard. These are times of low pressure. Low-pressure areas over warm oceans give birth to hurricanes.
+// END TEXT //
+
+Here is the reasoning for that complexity level:
+// START REASONING //
+I scored this a 2 because of the density of subject-specific vocabulary related to weather and climate, which is often covered in lower grade levels. This adds to the complexity above a 1, but it is not a level 3 because of the familiarity with the topic, which implies some familiarity with the vocabulary as well. The specific formation process and the vocabulary used to explain the processes are also subject-specfiic but not famliar, which would make the second paragraph a level 3 in the rubric language, but when considering the language used in the overall SUMMARY below the rubric, this new content and vocabulary would cause quick pauses and/or occasional prolonged pauses but would not cause the reader to slow down to due to challenging overall comprehension of the key ideas and supporting claims. This is especially the case because the second paragraph builds upon prior knowledge and familiar vocabulary use, so it is not entirely new information and vocabulary. While there is subject-specific vocabulary used, overly academic vocabulary is NOT used and is more conversational in nature, such as "great whiring storms" and "born" / "giving birth" to storm  (although this is the way storms are described!) rather than more technical terms which made comprehension easier due to the accessibility of the vocabulary (even if used in other contexts before reading this text). Words such as "a lot" and "bigger" are more conversational, and while technical, unfamiliar words are provided, such as "hurricane," "typhoon," and "cyclone," knowing and understanding their differences is not necessary to grasp the main idea. The processes by which they are formed are what need to be retained while reading the entire text, and familiarity with the bulk of the vocabulary used would allow for that to happen without too much struggle to make meaning of it. Additionally, the text does not contain any archaic vocabulary or ambiguous words, which prevents it from reaching a rating of 4, although it is not necessary that they text have such vocabulary to meet a level 4, the frequent inclusion of such vocabulary makes it more likely to land at least a 3 or 4.
+// END REASONING //
+
+*** EXAMPLE 3 ***
+The following text was intended for grade level 6 and received a complexity level of 3.
+
+Here is the background knowledge assumption for that text: Background Knowledge Assumption: Students are likely familiar with basic Earth science concepts such as rocks, minerals, and fossils, as well as natural processes like volcanic eruptions and earthquakes. They may not be familiar with more advanced topics like plate tectonics or the specific branches of geology such as mineralogy, petrology, and seismology.
+
+Here is the text:
+// START TEXT //
+Geology is the scientific study of Earth. Geologists study the planet—its formation, its internal structure, its materials, its chemical and physical processes, and its history. Mountains, valleys, plains, sea floors, minerals, rocks, fossils, and the processes that create and destroy each of these are all the domain of the geologist. Geology is divided into two broad categories of study: physical geology and historical geology.
+
+Physical geology is concerned with the processes occurring on or below the surface of Earth and the materials on which they operate. These processes include volcanic eruptions, landslides, earthquakes, and floods. Materials include rocks, air, seawater, soils, and sediment. Physical geology further divides into more specific branches, each of which deals with its own part of Earth's materials, landforms, and processes. Mineralogy and petrology investigate the composition and origin of minerals and rocks. Volcanologists study lava, rocks, and gases on live, dormant, and extinct volcanoes. Seismologists use instruments to monitor and predict earthquakes and volcanic eruptions.
+
+Historical geology is concerned with the chronology of events, both physical and biological, that have taken place in Earth's history. Paleontologists study fossils (remains of ancient life) for evidence of the evolution of life on Earth. Fossils not only relate evolution, but also speak of the environment in which the organism lived. Corals in rocks at the top of the Grand Canyon in Arizona, for example, show a shallow sea flooded the area around 290 million years ago. In addition, by determining the ages and types of rocks around the world, geologists piece together continental and oceanic history over the past few billion years. Plate tectonics (the study of the movement of the sections of Earth's crust) adds to Earth's story with details of the changing configuration of the continents and oceans.
+// END TEXT //
+
+Here is the reasoning for that complexity level:
+// START REASONING //
+To determine the complexity rating of this text based on the vocabulary present, I used the annotation guide, scoring rubric, and examples to set the expectations for rating. During the first read of the text, I "bolded" and categorized the more challenging vocabulary words according to the following complexity groupings: archaic, unfamiliar, archaic, subject-specific, and/or overly academic. On the second read, I considered the main idea or "gist" that students need to acquire understanding of. I then referenced the previously mentioned tools–annotation guide, scoring rubric, and examples to remind myself of the expectations for rating.  I agreed that readers would have familiarity with basic concepts of geology; however, I also considered the definitions provided for words such as Geology, Geologists, Physical Geology, Historical Geology, Mineralogy, and Petrology. I considered how students might pause for clarification and for how long. After reviewing the Annotation Guide while considering, I narrowed the rating down because the definitions provided throughout the text of more complex words should make the meaning of the text more accessible for readers, which is why although the words are subject-specific, I rated this text as a 3 instead of a 2-less complex or a 4–more complex. I read the text one final time to ensure clarity around my rating, scored and wrote the justification.
+// END REASONING //
+[END EXAMPLES]
+
+Below is the text you need to evaluate. It is intended for grade {student_grade_level}.
+
+As you read the text, you can assume the student has the following background knowledge about the text — this background knowledge influences which words from the text are familiar versus unfamiliar for the student: {student_background_knowledge}
+
+[BEGIN TEXT]
+{text}
+[END TEXT]
+
+In your response, when specifying the level of complexity, be sure to use only a single integer (e.g. 2) and don't include any other text (e.g. don't say "level 2").
+
+{format_instructions}

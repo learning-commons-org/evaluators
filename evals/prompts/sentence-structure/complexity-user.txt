@@ -1,0 +1,24 @@
+
+Your task is to perform a text complexity analysis for a Grade {grade} student. You will be given a text excerpt and a set of quantitative sentence-level statistics for that text.
+
+You must integrate both the qualitative aspects of the text and the quantitative statistics to make your final judgment. Do not rely on the numbers alone.
+
+1.  Read the TEXT EXCERPT to understand its topic, conceptual load, and overall structure.
+2.  Review the TEXT STATISTICS as a guide for complexity level.
+3.  Synthesize your findings in your reasoning. Explain how the structure (qualitative) interact with the text statistics (quantitative) to determine the complexity. For example, a text with simple sentences might still be complex if the topic is very dense or abstract.
+
+Your final answer must be one of ["Slightly Complex," "Moderately Complex," "Very Complex", "Exceedingly Complex"].
+
+# GRADE {grade} RUBRIC
+{rubric}
+
+# TEXT EXCERPT
+[BEGIN TEXT]
+{excerpt}
+[END TEXT]
+
+# TEXT STATISTICS
+{sentence_features}
+
+# OUTPUT FORMAT
+{format_instructions}
