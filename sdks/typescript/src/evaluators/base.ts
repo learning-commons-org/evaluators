@@ -25,7 +25,7 @@ export interface TelemetryOptions {
   /** Enable telemetry (default: true) */
   enabled?: boolean;
 
-  /** Record input text in telemetry (default: true) */
+  /** Record input text in telemetry (default: false) */
   recordInputs?: boolean;
 }
 
@@ -55,7 +55,7 @@ export interface BaseEvaluatorConfig {
    * Telemetry configuration (default: all enabled)
    *
    * Can be:
-   * - `true`: Enable with defaults (recordInputs: true)
+   * - `true`: Enable with defaults (recordInputs: false)
    * - `false`: Disable completely
    * - `TelemetryOptions`: Granular control
    */
@@ -141,14 +141,14 @@ export abstract class BaseEvaluator {
     if (telemetry === true || telemetry === undefined) {
       return {
         enabled: true,
-        recordInputs: true,
+        recordInputs: false,
       };
     }
 
     // Handle granular config object
     return {
       enabled: telemetry.enabled ?? true,
-      recordInputs: telemetry.recordInputs ?? true,
+      recordInputs: telemetry.recordInputs ?? false,
     };
   }
 

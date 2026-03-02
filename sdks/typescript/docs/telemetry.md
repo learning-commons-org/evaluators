@@ -75,7 +75,7 @@ We **never** collect your API keys (only a hashed identifier).
 | `provider` | LLM provider(s) used (e.g., "openai:gpt-4o", "google:gemini-2.5-pro+openai:gpt-4o") |
 | `retry_attempts` | Number of retries (-1 means unknown, see note below) |
 | `token_usage` | Total tokens consumed (input, output, total) |
-| `input_text` | The text being evaluated (omitted if `recordInputs: false`) |
+| `input_text` | The text being evaluated (only included if `recordInputs: true`) |
 | `metadata.stage_details` | Per-stage breakdown for multi-stage evaluators (optional) |
 
 **Note on `retry_attempts`:** Currently set to `-1` (unknown) as actual retry counts are not yet tracked. This field is included for backward compatibility as we plan to add this as a future enhancement.
@@ -114,7 +114,7 @@ const evaluator = new VocabularyEvaluator({
 });
 ```
 
-### Disable Input Text Collection
+### Enable Input Text Collection
 
 ```typescript
 const evaluator = new VocabularyEvaluator({
@@ -122,7 +122,7 @@ const evaluator = new VocabularyEvaluator({
   openaiApiKey: process.env.OPENAI_API_KEY!,
   telemetry: {
     enabled: true,
-    recordInputs: false,  // Only metrics, no text content
+    recordInputs: true,  // Also send input text with telemetry
   },
 });
 ```
