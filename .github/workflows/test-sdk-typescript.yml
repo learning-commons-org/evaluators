@@ -1,0 +1,173 @@
+name: 🏗️ Test TypeScript SDK
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'sdks/typescript/**'
+      - 'evals/prompts/**'
+      - '.github/workflows/test-sdk-typescript.yml'
+  pull_request:
+    paths:
+      - 'sdks/typescript/**'
+      - 'evals/prompts/**'
+      - '.github/workflows/test-sdk-typescript.yml'
+
+jobs:
+  lint:
+    name: 👖 Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/typescript
+    steps:
+      - name: ⛔ Cancel previous runs
+        uses: styfle/cancel-workflow-action@0.13.0
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v6
+
+      - name: 😻 Setup Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: 📥 Install dependencies
+        uses: bahmutov/npm-install@v1
+        with:
+          working-directory: sdks/typescript
+
+      - name: 👖 Run linter
+        run: npm run lint
+
+  typecheck:
+    name: 🔎 TypeScript
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/typescript
+    steps:
+      - name: ⛔ Cancel previous runs
+        uses: styfle/cancel-workflow-action@0.13.0
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v6
+
+      - name: 😻 Setup Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: 📥 Install dependencies
+        uses: bahmutov/npm-install@v1
+        with:
+          working-directory: sdks/typescript
+
+      - name: 🔎 Type check
+        run: npm run typecheck
+
+  test:
+    name: ⚡ Unit Tests (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/typescript
+    strategy:
+      matrix:
+        node-version: ['20.19.0', '22', '24']
+    steps:
+      - name: ⛔ Cancel previous runs
+        uses: styfle/cancel-workflow-action@0.13.0
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v6
+
+      - name: 😻 Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: 📥 Install dependencies
+        uses: bahmutov/npm-install@v1
+        with:
+          working-directory: sdks/typescript
+
+      - name: ⚡ Run unit tests
+        run: npm run test:unit
+
+  build:
+    name: 🏗️ Build (Node ${{ matrix.node-version }})
+    needs: [lint, typecheck, test]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/typescript
+    strategy:
+      matrix:
+        node-version: ['20.19.0', '22', '24']
+    steps:
+      - name: ⛔ Cancel previous runs
+        uses: styfle/cancel-workflow-action@0.13.0
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v6
+
+      - name: 😻 Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: 📥 Install dependencies
+        uses: bahmutov/npm-install@v1
+        with:
+          working-directory: sdks/typescript
+
+      - name: 🏗️ Build package
+        run: npm run build
+
+      # Temporarily disabled - integration tests take too long in CI
+      # - name: ⚡ Run integration tests (against dist/)
+      #   if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+      #   env:
+      #     RUN_INTEGRATION_TESTS: true
+      #     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      #     GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      #   run: npm run test:integration:dist
+
+  coverage:
+    name: 📊 Coverage
+    needs: [build]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/typescript
+    steps:
+      - name: ⛔ Cancel previous runs
+        uses: styfle/cancel-workflow-action@0.13.0
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v6
+
+      - name: 😻 Setup Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: 📥 Install dependencies
+        uses: bahmutov/npm-install@v1
+        with:
+          working-directory: sdks/typescript
+
+      - name: 📊 Generate coverage report
+        run: npm run test:coverage
+        continue-on-error: true
+
+      - name: 📁 Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./sdks/typescript/coverage/coverage-final.json
+          flags: typescript-sdk
+          name: typescript-sdk-coverage
+        continue-on-error: true
