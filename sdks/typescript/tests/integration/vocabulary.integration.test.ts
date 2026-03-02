@@ -1,13 +1,9 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { VocabularyEvaluator } from '../../src/evaluators/vocabulary.js';
-import { config } from 'dotenv';
 import {
   runEvaluatorTest,
   type BaseTestCase,
 } from '../utils/index.js';
-
-// Load .env file for testing convenience
-config();
 
 /**
  * Vocabulary Evaluator Integration Tests
