@@ -75,7 +75,7 @@ jobs:
         working-directory: sdks/typescript
     strategy:
       matrix:
-        node-version: [18, 20, 22]
+        node-version: ['20.19.0', '22', '24']
     steps:
       - name: ⛔ Cancel previous runs
         uses: styfle/cancel-workflow-action@0.13.0
@@ -105,7 +105,7 @@ jobs:
         working-directory: sdks/typescript
     strategy:
       matrix:
-        node-version: [18, 20, 22]
+        node-version: ['20.19.0', '22', '24']
     steps:
       - name: ⛔ Cancel previous runs
         uses: styfle/cancel-workflow-action@0.13.0
