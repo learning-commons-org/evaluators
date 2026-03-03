@@ -18,5 +18,6 @@ export function getSystemPromptAnalysis(): string {
 export function getUserPromptAnalysis(text: string, groundTruthCounts: string): string {
   return USER_PROMPT_ANALYSIS_TEMPLATE
     .replace('{text}', text)
-    .replace('{ground_truth_counts}', groundTruthCounts);
+    .replace('{ground_truth_counts}', groundTruthCounts)
+    .replace('{format_instructions}', '');
 }

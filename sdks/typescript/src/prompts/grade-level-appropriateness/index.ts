@@ -15,5 +15,7 @@ export function getSystemPrompt(): string {
  * @returns The formatted user prompt
  */
 export function getUserPrompt(text: string): string {
-  return USER_PROMPT_TEMPLATE.replace('{text}', text);
+  return USER_PROMPT_TEMPLATE
+    .replace('{text}', text)
+    .replace('{format_instructions}', '');
 }
