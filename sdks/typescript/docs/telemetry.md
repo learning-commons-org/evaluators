@@ -14,7 +14,7 @@ Telemetry is **anonymous by default**. If you'd like to partner with us to impro
 
 **Input text is NOT collected by default.** You can opt in via `recordInputs: true` — see [Enable Input Text Collection](#enable-input-text-collection) below.
 
-We **never** collect your API keys (only a hashed identifier).
+We **never** collect your API keys (only an anonymous identifier).
 
 If you prefer not to send any telemetry, you can disable it entirely — see [Disable Telemetry Completely](#disable-telemetry-completely) below.
 
@@ -30,7 +30,6 @@ If you prefer not to send any telemetry, you can disable it entirely — see [Di
   "latency_ms": 3500,
   "text_length_chars": 456,
   "provider": "google:gemini-2.5-pro+openai:gpt-4o",
-  "retry_attempts": -1,
   "token_usage": {
     "input_tokens": 650,
     "output_tokens": 350
@@ -41,7 +40,6 @@ If you prefer not to send any telemetry, you can disable it entirely — see [Di
         "stage": "background_knowledge",
         "provider": "openai:gpt-4o-2024-11-20",
         "latency_ms": 1200,
-        "retry_attempts": -1,
         "token_usage": {
           "input_tokens": 250,
           "output_tokens": 150
@@ -51,7 +49,6 @@ If you prefer not to send any telemetry, you can disable it entirely — see [Di
         "stage": "complexity_evaluation",
         "provider": "google:gemini-2.5-pro",
         "latency_ms": 2300,
-        "retry_attempts": -1,
         "token_usage": {
           "input_tokens": 400,
           "output_tokens": 200
@@ -75,12 +72,9 @@ If you prefer not to send any telemetry, you can disable it entirely — see [Di
 | `latency_ms` | Total evaluation time in milliseconds |
 | `text_length_chars` | Length of input text in characters |
 | `provider` | LLM provider(s) used (e.g., "openai:gpt-4o", "google:gemini-2.5-pro+openai:gpt-4o") |
-| `retry_attempts` | Number of retries (-1 means unknown, see note below) |
 | `token_usage` | Total tokens consumed (input, output, total) |
 | `input_text` | The text being evaluated (only included if `recordInputs: true`) |
 | `metadata.stage_details` | Per-stage breakdown for multi-stage evaluators (optional) |
-
-**Note on `retry_attempts`:** Currently set to `-1` (unknown) as actual retry counts are not yet tracked. This field is included for backward compatibility as we plan to add this as a future enhancement.
 
 ## Configuration
 

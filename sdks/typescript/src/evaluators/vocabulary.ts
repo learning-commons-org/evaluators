@@ -148,10 +148,6 @@ export class VocabularyEvaluator extends BaseEvaluator {
         stage: 'background_knowledge',
         provider: 'openai:gpt-4o-2024-11-20',
         latency_ms: bgResponse.latencyMs,
-        // TODO: Retry tracking - Vercel AI SDK doesn't expose actual retry attempts
-        // We set -1 to indicate "unknown" (we may have retried, but can't track it)
-        // To fix: Implement custom retry wrapper that tracks each attempt
-        retry_attempts: -1,
         token_usage: {
           input_tokens: bgResponse.usage.inputTokens,
           output_tokens: bgResponse.usage.outputTokens,
@@ -173,10 +169,6 @@ export class VocabularyEvaluator extends BaseEvaluator {
         stage: 'complexity_evaluation',
         provider: complexityProviderName,
         latency_ms: complexityResponse.latencyMs,
-        // TODO: Retry tracking - Vercel AI SDK doesn't expose actual retry attempts
-        // We set -1 to indicate "unknown" (we may have retried, but can't track it)
-        // To fix: Implement custom retry wrapper that tracks each attempt
-        retry_attempts: -1,
         token_usage: {
           input_tokens: complexityResponse.usage.inputTokens,
           output_tokens: complexityResponse.usage.outputTokens,
@@ -190,11 +182,6 @@ export class VocabularyEvaluator extends BaseEvaluator {
         input_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.input_tokens || 0), 0),
         output_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.output_tokens || 0), 0),
       };
-
-      // If any stage has unknown retries (-1), total is unknown
-      const totalRetries = stageDetails.some(s => s.retry_attempts === -1)
-        ? -1
-        : stageDetails.reduce((sum, s) => sum + s.retry_attempts, 0);
 
       const result = {
         score: complexityResponse.data.complexity_score,
@@ -215,7 +202,6 @@ export class VocabularyEvaluator extends BaseEvaluator {
         textLength: text.length,
         grade,
         provider: `openai:gpt-4o-2024-11-20 + ${complexityProviderName}`,
-        retryAttempts: totalRetries,
         tokenUsage: totalTokenUsage,
         metadata: {
           stage_details: stageDetails,
@@ -253,11 +239,6 @@ export class VocabularyEvaluator extends BaseEvaluator {
         output_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.output_tokens || 0), 0),
       } : undefined;
 
-      // If any stage has unknown retries (-1), total is unknown
-      const totalRetries = stageDetails.length > 0 && stageDetails.some(s => s.retry_attempts === -1)
-        ? -1
-        : stageDetails.reduce((sum, s) => sum + s.retry_attempts, 0);
-
       // Send failure telemetry (fire-and-forget)
       this.sendTelemetry({
         status: 'error',
@@ -265,7 +246,6 @@ export class VocabularyEvaluator extends BaseEvaluator {
         textLength: text.length,
         grade,
         provider: `openai:gpt-4o-2024-11-20 + ${complexityProviderName}`,
-        retryAttempts: totalRetries,
         tokenUsage: totalTokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,

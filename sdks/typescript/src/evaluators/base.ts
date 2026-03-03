@@ -228,7 +228,6 @@ export abstract class BaseEvaluator {
     textLength: number;
     grade?: string;
     provider: string;
-    retryAttempts: number;
     errorCode?: string;
     tokenUsage?: TokenUsage;
     metadata?: TelemetryMetadata;
@@ -248,7 +247,6 @@ export abstract class BaseEvaluator {
       latency_ms: params.latencyMs,
       text_length_chars: params.textLength,
       provider: params.provider,
-      retry_attempts: params.retryAttempts,
       token_usage: params.tokenUsage,
       metadata: params.metadata,
       // Include input text only if recording is enabled

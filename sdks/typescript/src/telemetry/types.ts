@@ -28,21 +28,6 @@ export interface StageDetail {
   /** Total latency including all retries (ms) */
   latency_ms: number;
 
-  /**
-   * Number of retries for this stage
-   *
-   * IMPORTANT: Currently set to -1 (unknown) because Vercel AI SDK doesn't expose
-   * actual retry attempts. We may have retried, but can't track it.
-   *
-   * Values:
-   * - -1 = unknown (current implementation)
-   * - 0+ = known retry count (requires custom retry wrapper)
-   *
-   * Note: Token usage and costs only reflect the final successful attempt.
-   * Failed retry attempts are not included due to SDK limitations.
-   */
-  retry_attempts: number;
-
   /** Token usage aggregated across all attempts */
   token_usage?: TokenUsage;
 
@@ -81,7 +66,6 @@ export interface TelemetryEvent {
   latency_ms: number;
   text_length_chars: number;
   provider: string; // Format: "provider:model" or "provider1+provider2" for multi-provider
-  retry_attempts: number; // Total retries across all stages (-1 = unknown, see StageDetail docs)
   token_usage?: TokenUsage; // Aggregated across all stages and attempts
   metadata?: TelemetryMetadata; // Optional per-stage breakdown
   input_text?: string; // Input text (only if recordInputs enabled)
