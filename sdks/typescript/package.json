@@ -48,7 +48,15 @@
   },
   "homepage": "https://github.com/learning-commons-org/evaluators#readme",
   "peerDependencies": {
-    "ai": ">=4.0.0"
+    "ai": ">=6.0.0",
+    "@ai-sdk/openai": ">=3.0.0",
+    "@ai-sdk/google": ">=3.0.0",
+    "@ai-sdk/anthropic": ">=3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@ai-sdk/openai": { "optional": true },
+    "@ai-sdk/google": { "optional": true },
+    "@ai-sdk/anthropic": { "optional": true }
   },
   "dependencies": {
     "compromise": "^14.13.0",

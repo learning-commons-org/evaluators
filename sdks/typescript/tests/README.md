@@ -124,7 +124,7 @@ describeIntegration.concurrent('My Evaluator - Test Suite', () => {
     }
 
     evaluator = new MyEvaluator({
-      apiKey: process.env.MY_API_KEY!,
+      partnerKey: process.env.MY_PARTNER_KEY!,
       retry: false,  // We handle retries in test logic
     });
   });

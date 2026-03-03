@@ -30,9 +30,9 @@ export class TelemetryClient {
         'X-Client-ID': this.config.clientId,
       };
 
-      // Add API key if provided
-      if (this.config.apiKey) {
-        headers['X-API-Key'] = this.config.apiKey;
+      // Add partner key if provided
+      if (this.config.partnerKey) {
+        headers['X-API-Key'] = this.config.partnerKey;
       }
 
       const response = await fetch(this.config.endpoint, {

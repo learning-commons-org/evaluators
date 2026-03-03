@@ -94,10 +94,10 @@ export interface TelemetryConfig {
   /** Analytics service endpoint URL */
   endpoint: string;
 
-  /** Learning Commons API key (optional, sent as X-API-Key header) */
-  apiKey?: string;
+  /** Learning Commons partner key (optional, sent as X-API-Key header) */
+  partnerKey?: string;
 
-  /** Client ID for anonymous tracking (sha256 of LLM API keys) */
+  /** Client ID for anonymous tracking (persistent UUID from ~/.config/learning-commons/config.json) */
   clientId: string;
 
   /** Enable telemetry (default: true) */

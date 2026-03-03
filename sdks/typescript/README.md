@@ -5,7 +5,15 @@ TypeScript SDK for Learning Commons educational text complexity evaluators.
 ## Installation
 
 ```bash
-npm install ai @learning-commons/evaluators
+npm install @learning-commons/evaluators ai
+```
+
+The SDK uses the [Vercel AI SDK](https://sdk.vercel.ai) (`ai`) as its LLM interface. You also need to install the provider adapter(s) for the LLM(s) you use:
+
+```bash
+npm install @ai-sdk/openai   # for OpenAI
+npm install @ai-sdk/google   # for Google Gemini
+npm install @ai-sdk/anthropic  # for Anthropic
 ```
 
 ## Quick Start
@@ -155,7 +163,7 @@ interface BaseEvaluatorConfig {
   telemetry?: boolean | TelemetryOptions; // Telemetry config (default: true)
   logger?: Logger;        // Custom logger (optional)
   logLevel?: LogLevel;    // Console log level (default: WARN)
-  apiKey?: string;        // Learning Commons API key for authenticated telemetry (optional)
+  partnerKey?: string;    // Learning Commons partner key for authenticated telemetry (optional)
 }
 ```
 

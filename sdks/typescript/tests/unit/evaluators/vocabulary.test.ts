@@ -214,7 +214,7 @@ describe('VocabularyEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toHaveProperty('processingTimeMs');
 
       // Verify metadata values
-      expect(result.metadata.promptVersion).toBe('1.0');
+      expect(result.metadata.promptVersion).toBe('1.2.0');
       expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20 + openai:gpt-4.1-2025-04-14');
       expect(result.metadata.timestamp).toBeInstanceOf(Date);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0); // Mocked calls can be instant (0ms)

@@ -1,7 +1,4 @@
-import { generateText, Output } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { generateText as aiGenerateText, Output } from 'ai';
 import type {
   LLMProvider,
   LLMRequest,
@@ -36,91 +33,85 @@ export class VercelAIProvider implements LLMProvider {
    * Generate structured output using Vercel AI SDK's generateText with output
    */
   async generateStructured<T>(request: LLMRequest<T>): Promise<LLMResponse<T>> {
-    const model = this.getModel(request.model);
+    const model = await this.getModel(request.model);
     const startTime = Date.now();
 
-    try {
-      const baseParams = {
-        model,
-        messages: request.messages,
-        output: Output.object({ schema: request.schema }),
-        temperature: request.temperature ?? 0,
-        maxRetries: this.config.maxRetries ?? 0,
-      };
+    const { output, usage } = await aiGenerateText({
+      model,
+      messages: request.messages,
+      output: Output.object({ schema: request.schema }),
+      temperature: request.temperature ?? 0,
+      maxRetries: this.config.maxRetries ?? 0,
+      ...(request.maxTokens !== undefined ? { maxTokens: request.maxTokens } : {}),
+    });
 
-      const params = request.maxTokens !== undefined
-        ? { ...baseParams, maxTokens: request.maxTokens }
-        : baseParams;
-
-      const { output, usage } = await generateText(params as Parameters<typeof generateText>[0]);
-
-      return {
-        data: output,
-        model: request.model || this.getDefaultModel(),
-        usage: {
-          inputTokens: usage.inputTokens || 0,
-          outputTokens: usage.outputTokens || 0,
-        },
-        latencyMs: Date.now() - startTime,
-      };
-    } catch (error) {
-      throw new Error(
-        `Failed to generate structured output: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    return {
+      data: output as T,
+      model: request.model || this.getDefaultModel(),
+      usage: {
+        inputTokens: usage.inputTokens || 0,
+        outputTokens: usage.outputTokens || 0,
+      },
+      latencyMs: Date.now() - startTime,
+    };
   }
 
   /**
    * Generate plain text using Vercel AI SDK's generateText
    */
   async generateText(messages: Message[], temperature?: number): Promise<import('./base.js').TextGenerationResponse> {
-    const model = this.getModel();
+    const model = await this.getModel();
     const startTime = Date.now();
 
-    try {
-      const params = {
-        model,
-        messages,
-        temperature: temperature ?? this.config.temperature ?? 0,
-        maxRetries: this.config.maxRetries ?? 0,
-      };
+    const { text, usage } = await aiGenerateText({
+      model,
+      messages,
+      temperature: temperature ?? this.config.temperature ?? 0,
+      maxRetries: this.config.maxRetries ?? 0,
+    });
 
-      const { text, usage } = await generateText(params as Parameters<typeof generateText>[0]);
-
-      return {
-        text,
-        usage: {
-          inputTokens: usage.inputTokens || 0,
-          outputTokens: usage.outputTokens || 0,
-        },
-        latencyMs: Date.now() - startTime,
-      };
-    } catch (error) {
-      throw new Error(
-        `Failed to generate text: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    return {
+      text,
+      usage: {
+        inputTokens: usage.inputTokens || 0,
+        outputTokens: usage.outputTokens || 0,
+      },
+      latencyMs: Date.now() - startTime,
+    };
   }
 
   /**
-   * Get the configured language model
+   * Get the configured language model.
+   * Uses dynamic imports so consumers only need to install the provider packages they use.
    */
-  private getModel(requestModel?: string) {
+  private async getModel(requestModel?: string) {
     const modelId = requestModel || this.config.model || this.getDefaultModel();
     const apiKey = this.config.apiKey;
 
     switch (this.config.type) {
       case 'openai': {
-        const provider = createOpenAI(apiKey ? { apiKey } : {});
-        return provider(modelId);
+        const { createOpenAI } = await import('@ai-sdk/openai').catch(() => {
+          throw new Error(
+            'To use the OpenAI provider, install its adapter: npm install @ai-sdk/openai'
+          );
+        });
+        return createOpenAI(apiKey ? { apiKey } : {})(modelId);
       }
       case 'anthropic': {
-        const provider = createAnthropic(apiKey ? { apiKey } : {});
-        return provider(modelId);
+        const { createAnthropic } = await import('@ai-sdk/anthropic').catch(() => {
+          throw new Error(
+            'To use the Anthropic provider, install its adapter: npm install @ai-sdk/anthropic'
+          );
+        });
+        return createAnthropic(apiKey ? { apiKey } : {})(modelId);
       }
       case 'google': {
-        const provider = createGoogleGenerativeAI(apiKey ? { apiKey } : {});
-        return provider(modelId);
+        const { createGoogleGenerativeAI } = await import('@ai-sdk/google').catch(() => {
+          throw new Error(
+            'To use the Google provider, install its adapter: npm install @ai-sdk/google'
+          );
+        });
+        return createGoogleGenerativeAI(apiKey ? { apiKey } : {})(modelId);
       }
       default:
         throw new Error(`Unsupported provider type: ${this.config.type}`);

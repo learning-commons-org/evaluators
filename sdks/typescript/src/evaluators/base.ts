@@ -39,8 +39,8 @@ export interface BaseEvaluatorConfig {
   /** OpenAI API key (for evaluators using GPT) */
   openaiApiKey?: string;
 
-  /** Learning Commons API key for authenticated telemetry (optional) */
-  apiKey?: string;
+  /** Learning Commons partner key for authenticated telemetry (optional) */
+  partnerKey?: string;
 
   /**
    * Maximum number of retries for failed API calls (default: 2)
@@ -110,15 +110,10 @@ export abstract class BaseEvaluator {
 
     // Initialize telemetry if enabled
     if (this.config.telemetry.enabled) {
-      // Use all provider keys for client ID generation
-      const providerKeys = [config.googleApiKey, config.openaiApiKey].filter(
-        (key): key is string => key !== undefined
-      );
-
       this.telemetryClient = new TelemetryClient({
         endpoint: 'https://api.learningcommons.org/v1/telemetry',
-        apiKey: config.apiKey,
-        clientId: generateClientId(...providerKeys),
+        partnerKey: config.partnerKey,
+        clientId: generateClientId(),
         enabled: true,
       });
     }
@@ -174,42 +169,21 @@ export abstract class BaseEvaluator {
     // Check if text is empty or only whitespace
     const trimmedText = text.trim();
     if (!trimmedText) {
-      const error = new ValidationError(
-        'Text cannot be empty or contain only whitespace'
-      );
-      this.logger.error('Text validation failed: empty or whitespace only', {
-        evaluator: this.getEvaluatorType(),
-        error,
-      });
-      throw error;
+      throw new ValidationError('Text cannot be empty or contain only whitespace');
     }
 
     // Check minimum length
     if (trimmedText.length < VALIDATION_LIMITS.MIN_TEXT_LENGTH) {
-      const error = new ValidationError(
+      throw new ValidationError(
         `Text is too short. Minimum length is ${VALIDATION_LIMITS.MIN_TEXT_LENGTH} characters, received ${trimmedText.length} characters`
       );
-      this.logger.error('Text validation failed: too short', {
-        evaluator: this.getEvaluatorType(),
-        error,
-        minLength: VALIDATION_LIMITS.MIN_TEXT_LENGTH,
-        actualLength: trimmedText.length,
-      });
-      throw error;
     }
 
     // Check maximum length
     if (trimmedText.length > VALIDATION_LIMITS.MAX_TEXT_LENGTH) {
-      const error = new ValidationError(
+      throw new ValidationError(
         `Text is too long. Maximum length is ${VALIDATION_LIMITS.MAX_TEXT_LENGTH.toLocaleString()} characters, received ${trimmedText.length.toLocaleString()} characters`
       );
-      this.logger.error('Text validation failed: too long', {
-        evaluator: this.getEvaluatorType(),
-        error,
-        maxLength: VALIDATION_LIMITS.MAX_TEXT_LENGTH,
-        actualLength: trimmedText.length,
-      });
-      throw error;
     }
   }
 
@@ -237,16 +211,9 @@ export abstract class BaseEvaluator {
         return parseInt(a) - parseInt(b);
       }).join(', ');
 
-      const error = new ValidationError(
+      throw new ValidationError(
         `Invalid grade "${grade}". Supported grades for this evaluator: ${validList}`
       );
-      this.logger.error('Grade validation failed: invalid grade', {
-        evaluator: this.getEvaluatorType(),
-        error,
-        providedGrade: grade,
-        validGrades: validList,
-      });
-      throw error;
     }
   }
 

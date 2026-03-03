@@ -112,7 +112,8 @@ export class VocabularyEvaluator extends BaseEvaluator {
    * @param text - The text to evaluate
    * @param grade - The target grade level (3-12)
    * @returns Evaluation result with complexity score and detailed analysis
-   * @throws {ValidationError} If text is empty or grade is invalid
+   * @throws {ValidationError} If text is empty, too short/long, or grade is invalid
+   * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
    */
   async evaluate(
     text: string,
@@ -125,10 +126,6 @@ export class VocabularyEvaluator extends BaseEvaluator {
       textLength: text.length,
     });
 
-    // Use inherited validation methods
-    this.validateText(text);
-    this.validateGrade(grade, VALID_GRADES);
-
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
     const complexityProviderName = (grade === '3' || grade === '4')
@@ -136,6 +133,10 @@ export class VocabularyEvaluator extends BaseEvaluator {
       : 'openai:gpt-4.1-2025-04-14';
 
     try {
+      // Validate inputs — inside try so validation errors are telemetered.
+      // If partners consistently pass invalid grades/text, telemetry will surface documentation gaps.
+      this.validateText(text);
+      this.validateGrade(grade, VALID_GRADES);
       this.logger.debug('Stage 1: Generating background knowledge', {
         evaluator: 'vocabulary',
         operation: 'background_knowledge',
@@ -199,7 +200,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
         score: complexityResponse.data.complexity_score,
         reasoning: complexityResponse.data.reasoning,
         metadata: {
-          promptVersion: '1.0',
+          promptVersion: '1.2.0',
           model: `openai:gpt-4o-2024-11-20 + ${complexityProviderName}`,
           timestamp: new Date(),
           processingTimeMs: latencyMs,

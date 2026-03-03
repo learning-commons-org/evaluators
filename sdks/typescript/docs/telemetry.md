@@ -11,9 +11,12 @@ Telemetry is **anonymous by default**. If you'd like to partner with us to impro
 **By default, telemetry is enabled** and sends:
 - Performance metrics (latency, token usage)
 - Metadata (evaluator type, grade, SDK version)
-- **Input text** (the text you're evaluating)
+
+**Input text is NOT collected by default.** You can opt in via `recordInputs: true` — see [Enable Input Text Collection](#enable-input-text-collection) below.
 
 We **never** collect your API keys (only a hashed identifier).
+
+If you prefer not to send any telemetry, you can disable it entirely — see [Disable Telemetry Completely](#disable-telemetry-completely) below.
 
 ## Example Telemetry Event
 
@@ -32,7 +35,6 @@ We **never** collect your API keys (only a hashed identifier).
     "input_tokens": 650,
     "output_tokens": 350
   },
-  "input_text": "The mitochondria is the powerhouse of the cell...",
   "metadata": {
     "stage_details": [
       {
@@ -100,7 +102,7 @@ To help us support your specific use case, provide an API key:
 const evaluator = new VocabularyEvaluator({
   googleApiKey: process.env.GOOGLE_API_KEY!,
   openaiApiKey: process.env.OPENAI_API_KEY!,
-  apiKey: process.env.LEARNING_COMMONS_API_KEY!,  // Contact us for a key
+  partnerKey: process.env.LEARNING_COMMONS_PARTNER_KEY!,  // Contact us for a key
 });
 ```
 

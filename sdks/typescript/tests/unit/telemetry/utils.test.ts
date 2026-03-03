@@ -1,73 +1,106 @@
-import { describe, it, expect } from 'vitest';
-import { generateClientId, getSDKVersion } from '../../../src/telemetry/utils.js';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { getSDKVersion } from '../../../src/telemetry/utils.js';
+
+// UUID v4 pattern
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 describe('Telemetry Utils', () => {
   describe('generateClientId', () => {
-    it('should generate consistent hash for same keys', () => {
-      const id1 = generateClientId('key1', 'key2');
-      const id2 = generateClientId('key1', 'key2');
-
-      expect(id1).toBe(id2);
+    // Reset module cache between tests so cachedClientId doesn't leak across tests
+    beforeEach(() => {
+      vi.resetModules();
     });
 
-    it('should generate same hash regardless of key order', () => {
-      const id1 = generateClientId('key1', 'key2');
-      const id2 = generateClientId('key2', 'key1');
+    it('should generate a new UUID, create the config directory, and persist it when no config file exists', async () => {
+      const writeFileSync = vi.fn();
+      const mkdirSync = vi.fn();
+      vi.doMock('node:fs', () => ({
+        readFileSync: vi.fn(() => { throw new Error('ENOENT'); }),
+        writeFileSync,
+        mkdirSync,
+      }));
+      vi.doMock('node:os', () => ({ homedir: vi.fn(() => '/home/user') }));
 
-      expect(id1).toBe(id2);
+      const { generateClientId } = await import('../../../src/telemetry/utils.js');
+      const id = generateClientId();
+
+      expect(id).toMatch(UUID_REGEX);
+      expect(mkdirSync).toHaveBeenCalledWith(expect.any(String), { recursive: true });
+      expect(writeFileSync).toHaveBeenCalledOnce();
+      const written = JSON.parse(writeFileSync.mock.calls[0][1] as string) as {
+        telemetry: { clientId: string };
+      };
+      expect(written.telemetry.clientId).toBe(id);
     });
 
-    it('should filter out undefined keys', () => {
-      const id1 = generateClientId('key1', undefined, 'key2');
-      const id2 = generateClientId('key1', 'key2');
+    it('should not re-read from disk on repeated calls', async () => {
+      const readFileSync = vi.fn(() => { throw new Error('ENOENT'); });
+      vi.doMock('node:fs', () => ({
+        readFileSync,
+        writeFileSync: vi.fn(),
+        mkdirSync: vi.fn(),
+      }));
+      vi.doMock('node:os', () => ({ homedir: vi.fn(() => '/home/user') }));
 
-      expect(id1).toBe(id2);
+      const { generateClientId } = await import('../../../src/telemetry/utils.js');
+
+      generateClientId();
+      generateClientId();
+
+      expect(readFileSync).toHaveBeenCalledOnce();
     });
 
-    it('should generate different hashes for different keys', () => {
-      const id1 = generateClientId('key1', 'key2');
-      const id2 = generateClientId('key1', 'key3');
+    it('should read and return an existing client ID from config file without writing to disk', async () => {
+      const existingId = 'a1b2c3d4-e5f6-4789-ab01-cd23ef456789';
+      const writeFileSync = vi.fn();
+      const mkdirSync = vi.fn();
+      vi.doMock('node:fs', () => ({
+        readFileSync: vi.fn(() => JSON.stringify({ telemetry: { clientId: existingId } })),
+        writeFileSync,
+        mkdirSync,
+      }));
+      vi.doMock('node:os', () => ({ homedir: vi.fn(() => '/home/user') }));
 
-      expect(id1).not.toBe(id2);
+      const { generateClientId } = await import('../../../src/telemetry/utils.js');
+
+      expect(generateClientId()).toBe(existingId);
+      expect(mkdirSync).not.toHaveBeenCalled();
+      expect(writeFileSync).not.toHaveBeenCalled();
     });
 
-    it('should return 64-character hex string', () => {
-      const id = generateClientId('key1', 'key2');
+    it('should generate and persist a new UUID if config file exists but clientId is missing', async () => {
+      const writeFileSync = vi.fn();
+      vi.doMock('node:fs', () => ({
+        readFileSync: vi.fn(() => JSON.stringify({ telemetry: {} })),
+        writeFileSync,
+        mkdirSync: vi.fn(),
+      }));
+      vi.doMock('node:os', () => ({ homedir: vi.fn(() => '/home/user') }));
 
-      expect(id).toMatch(/^[a-f0-9]{64}$/);
+      const { generateClientId } = await import('../../../src/telemetry/utils.js');
+      const id = generateClientId();
+
+      expect(id).toMatch(UUID_REGEX);
+      expect(writeFileSync).toHaveBeenCalledOnce();
+      const written = JSON.parse(writeFileSync.mock.calls[0][1] as string) as {
+        telemetry: { clientId: string };
+      };
+      expect(written.telemetry.clientId).toBe(id);
     });
 
-    it('should handle single key', () => {
-      const id = generateClientId('single-key');
+    it('should return a valid UUID without throwing when filesystem is read-only', async () => {
+      vi.doMock('node:fs', () => ({
+        readFileSync: vi.fn(() => { throw new Error('ENOENT'); }),
+        writeFileSync: vi.fn(() => { throw new Error('EROFS'); }),
+        mkdirSync: vi.fn(() => { throw new Error('EROFS'); }),
+      }));
+      vi.doMock('node:os', () => ({ homedir: vi.fn(() => '/home/user') }));
 
-      expect(id).toMatch(/^[a-f0-9]{64}$/);
-    });
+      const { generateClientId } = await import('../../../src/telemetry/utils.js');
 
-    it('should generate random ID when no keys provided', () => {
-      const id1 = generateClientId();
-      const id2 = generateClientId();
-
-      // Random IDs should be different
-      expect(id1).not.toBe(id2);
-      expect(id1).toMatch(/^[a-f0-9]{64}$/);
-      expect(id2).toMatch(/^[a-f0-9]{64}$/);
-    });
-
-    it('should generate random ID when all keys are undefined', () => {
-      const id1 = generateClientId(undefined, undefined);
-      const id2 = generateClientId(undefined, undefined);
-
-      // Random IDs should be different
-      expect(id1).not.toBe(id2);
-    });
-
-    it('should prevent collision with delimiter (theoretical)', () => {
-      // Without delimiter: ["ab", "c"] and ["a", "bc"] would both hash "abc"
-      // With delimiter: ["ab", "c"] → "ab|c" and ["a", "bc"] → "a|bc"
-      const id1 = generateClientId('ab', 'c');
-      const id2 = generateClientId('a', 'bc');
-
-      expect(id1).not.toBe(id2);
+      let id: string | undefined;
+      expect(() => { id = generateClientId(); }).not.toThrow();
+      expect(id).toMatch(UUID_REGEX);
     });
   });
 

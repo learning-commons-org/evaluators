@@ -1,35 +1,65 @@
-import { createHash, randomBytes } from 'crypto';
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { randomUUID } from 'node:crypto';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { homedir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-/**
- * Generate client ID for anonymous tracking
- *
- * Creates SHA256 hash of API keys to create consistent identifier
- * across requests while maintaining anonymity.
- *
- * @param apiKeys - Array of API keys to hash
- * @returns SHA256 hex string
- */
-export function generateClientId(...apiKeys: (string | undefined)[]): string {
-  // Filter out undefined keys and sort for consistency
-  const keys = apiKeys.filter((k): k is string => k !== undefined).sort();
+/** Cached client ID — populated on first call, reused for process lifetime */
+let cachedClientId: string | undefined;
 
-  // If no keys provided, generate random ID for this session
-  if (keys.length === 0) {
-    return createHash('sha256')
-      .update(randomBytes(16))
-      .digest('hex');
+/**
+ * Get or create a persistent client ID for anonymous tracking.
+ *
+ * On first run, generates a UUID and tries to save it to:
+ *   - Windows:  %APPDATA%\learning-commons\config.json
+ *   - macOS/Linux: ~/.config/learning-commons/config.json
+ *
+ * On subsequent runs, reads the saved UUID from disk.
+ * Falls back to an in-memory UUID (per-process) if the filesystem
+ * is unavailable (e.g., serverless, read-only containers).
+ */
+export function generateClientId(): string {
+  if (cachedClientId) {
+    return cachedClientId;
   }
 
-  // Hash the concatenated keys with delimiter to prevent collisions
-  return createHash('sha256')
-    .update(keys.join('|'))
-    .digest('hex');
+  const configFile = getConfigFilePath();
+
+  // Try to read existing client ID from disk
+  try {
+    const data = JSON.parse(readFileSync(configFile, 'utf-8')) as {
+      telemetry?: { clientId?: string };
+    };
+    if (data?.telemetry?.clientId) {
+      cachedClientId = data.telemetry.clientId;
+      return cachedClientId;
+    }
+  } catch {
+    // File doesn't exist yet — fall through to generate
+  }
+
+  // Generate new UUID and try to persist it
+  const clientId = randomUUID();
+  try {
+    mkdirSync(dirname(configFile), { recursive: true });
+    writeFileSync(configFile, JSON.stringify({ telemetry: { clientId } }, null, 2));
+  } catch {
+    // Filesystem unavailable — use in-memory UUID for this process
+  }
+
+  cachedClientId = clientId;
+  return cachedClientId;
+}
+
+function getConfigFilePath(): string {
+  const configDir =
+    process.platform === 'win32'
+      ? join(process.env.APPDATA ?? homedir(), 'learning-commons')
+      : join(homedir(), '.config', 'learning-commons');
+  return join(configDir, 'config.json');
 }
 
 let cachedVersion: string | undefined;

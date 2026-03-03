@@ -7,8 +7,6 @@ export type {
   EvaluationError,
 } from './schemas/index.js';
 
-export { ComplexityLevel, GradeLevel } from './schemas/index.js';
-
 // Error types
 export {
   EvaluatorError,
@@ -18,14 +16,13 @@ export {
   RateLimitError,
   NetworkError,
   TimeoutError,
-  wrapProviderError,
 } from './errors.js';
 
 // Logger
 export type { Logger, LogContext } from './logger.js';
-export { LogLevel, createLogger, formatError } from './logger.js';
+export { LogLevel } from './logger.js';
 
-// Provider exports
+// Provider types (for implementing custom providers)
 export type {
   LLMProvider,
   LLMRequest,
@@ -35,16 +32,11 @@ export type {
   ProviderConfig,
 } from './providers/index.js';
 
-export { VercelAIProvider, createProvider } from './providers/index.js';
-
 // Vocabulary exports
 export type {
   VocabularyComplexity,
   VocabularyComplexityLevel,
-  BackgroundKnowledge,
 } from './schemas/vocabulary.js';
-
-export { VocabularyComplexitySchema } from './schemas/vocabulary.js';
 
 export {
   VocabularyEvaluator,
