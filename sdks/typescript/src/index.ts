@@ -33,6 +33,18 @@ export type {
   ProviderConfig,
 } from './providers/index.js';
 
+// Sentence structure exports
+export type {
+  SentenceAnalysis,
+  ComplexityClassification,
+  SentenceFeatures,
+} from './schemas/sentence-structure.js';
+
+export {
+  SentenceAnalysisSchema,
+  ComplexityClassificationSchema,
+} from './schemas/sentence-structure.js';
+
 // Vocabulary exports
 export type {
   VocabularyComplexity,
@@ -43,6 +55,9 @@ export {
   VocabularyEvaluator,
   evaluateVocabulary,
   type VocabularyEvaluatorConfig,
+  SentenceStructureEvaluator,
+  evaluateSentenceStructure,
+  type SentenceStructureEvaluatorConfig,
   type BaseEvaluatorConfig,
   type TelemetryOptions,
 } from './evaluators/index.js';
@@ -51,5 +66,7 @@ export {
 export {
   calculateFleschKincaidGrade,
   calculateReadabilityMetrics,
+  addEngineeredFeatures,
+  featuresToJSON,
   type ReadabilityMetrics,
 } from './features/index.js';

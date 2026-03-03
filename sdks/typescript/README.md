@@ -40,7 +40,7 @@ Evaluates vocabulary complexity using the Qual Text Complexity rubric (SAP).
 
 **Supported Grades:** 3-12
 
-**Uses:** Google Gemini 2.5 Pro + OpenAI GPT-4o
+**Uses:** OpenAI GPT-4o (background knowledge) + Google Gemini 2.5 Pro (grades 3–4) / OpenAI GPT-4.1 (grades 5–12)
 
 **Constructor:**
 ```typescript
@@ -73,6 +73,53 @@ await evaluator.evaluate(text: string, grade: string)
   _internal: VocabularyComplexity; // Detailed analysis
 }
 ```
+
+---
+
+### 2. Sentence Structure Evaluator
+
+Evaluates sentence structure complexity based on grammatical features.
+
+**Supported Grades:** K-12
+
+**Uses:** OpenAI GPT-4o
+
+**Constructor:**
+```typescript
+const evaluator = new SentenceStructureEvaluator({
+  openaiApiKey: string;   // Required - OpenAI API key
+  maxRetries?: number;    // Optional - Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Optional (default: true)
+  logger?: Logger;        // Optional - Custom logger
+  logLevel?: LogLevel;    // Optional - Logging verbosity (default: WARN)
+});
+```
+
+**API:**
+```typescript
+await evaluator.evaluate(text: string, grade: string)
+```
+
+**Returns:**
+```typescript
+{
+  score: 'Slightly Complex' | 'Moderately Complex' | 'Very Complex' | 'Exceedingly Complex';
+  reasoning: string;
+  metadata: {
+    promptVersion: string;
+    model: string;
+    timestamp: Date;
+    processingTimeMs: number;
+  };
+  _internal: {
+    sentenceAnalysis: SentenceAnalysis;
+    features: SentenceFeatures;
+    complexity: ComplexityClassification;
+  };
+}
+```
+
+---
 
 ## Error Handling
 
