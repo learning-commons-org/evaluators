@@ -5,7 +5,7 @@ import {
   type TelemetryMetadata,
   type TokenUsage,
 } from '../telemetry/index.js';
-import { ValidationError } from '../errors.js';
+import { ConfigurationError, ValidationError } from '../errors.js';
 import { createLogger, LogLevel, type Logger } from '../logger.js';
 
 /**
@@ -176,17 +176,17 @@ export abstract class BaseEvaluator {
 
   /**
    * Validate that required API keys are provided based on metadata
-   * @throws {ValidationError} If required API keys are missing
+   * @throws {ConfigurationError} If required API keys are missing
    */
   private validateApiKeys(config: BaseEvaluatorConfig): void {
     if (this.metadata.requiresGoogleKey && !config.googleApiKey) {
-      throw new ValidationError(
+      throw new ConfigurationError(
         `Google API key is required for ${this.metadata.name} evaluator. Pass googleApiKey in config.`
       );
     }
 
     if (this.metadata.requiresOpenAIKey && !config.openaiApiKey) {
-      throw new ValidationError(
+      throw new ConfigurationError(
         `OpenAI API key is required for ${this.metadata.name} evaluator. Pass openaiApiKey in config.`
       );
     }

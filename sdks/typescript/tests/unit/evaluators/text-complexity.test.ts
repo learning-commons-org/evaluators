@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TextComplexityEvaluator } from '../../../src/evaluators/text-complexity.js';
-import { VocabularyEvaluator } from '../../../src/evaluators/vocabulary.js';
-import { SentenceStructureEvaluator } from '../../../src/evaluators/sentence-structure.js';
-import { ValidationError } from '../../../src/errors.js';
+import { ConfigurationError, ValidationError } from '../../../src/errors.js';
 
 // Mock telemetry to avoid real HTTP calls
 vi.mock('../../../src/telemetry/client.js', () => ({
@@ -61,7 +59,7 @@ describe('TextComplexityEvaluator', () => {
           openaiApiKey: 'test-openai-key',
           telemetry: false,
         });
-      }).toThrow(ValidationError);
+      }).toThrow(ConfigurationError);
       expect(() => {
         new TextComplexityEvaluator({
           openaiApiKey: 'test-openai-key',
@@ -76,7 +74,7 @@ describe('TextComplexityEvaluator', () => {
           googleApiKey: 'test-google-key',
           telemetry: false,
         });
-      }).toThrow(ValidationError);
+      }).toThrow(ConfigurationError);
       expect(() => {
         new TextComplexityEvaluator({
           googleApiKey: 'test-google-key',
@@ -90,7 +88,7 @@ describe('TextComplexityEvaluator', () => {
         new TextComplexityEvaluator({
           telemetry: false,
         });
-      }).toThrow(ValidationError);
+      }).toThrow(ConfigurationError);
     });
   });
 
@@ -151,8 +149,8 @@ describe('TextComplexityEvaluator', () => {
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe('composite:gemini-2.5-pro+gpt-4o');
       expect(result._internal).toBeDefined();
-      expect(result._internal.vocabulary).toBeDefined();
-      expect(result._internal.sentenceStructure).toBeDefined();
+      expect(result._internal!.vocabulary).toBeDefined();
+      expect(result._internal!.sentenceStructure).toBeDefined();
     });
 
     it('should validate text input', async () => {
@@ -204,8 +202,8 @@ describe('TextComplexityEvaluator', () => {
       // Allow some overhead but should be significantly less than 200ms
       expect(duration).toBeLessThan(200);
 
-      expect('error' in result._internal.vocabulary).toBe(false);
-      expect('error' in result._internal.sentenceStructure).toBe(false);
+      expect('error' in result._internal!.vocabulary).toBe(false);
+      expect('error' in result._internal!.sentenceStructure).toBe(false);
     });
 
     it('should handle partial failures gracefully', async () => {
@@ -218,9 +216,9 @@ describe('TextComplexityEvaluator', () => {
       const result = await evaluator.evaluate(text, grade);
 
       expect(result).toBeDefined();
-      expect('error' in result._internal.vocabulary).toBe(true);
-      expect(result._internal.vocabulary.error).toBeDefined();
-      expect('error' in result._internal.sentenceStructure).toBe(false);
+      expect('error' in result._internal!.vocabulary).toBe(true);
+      expect((result._internal!.vocabulary as { error: Error }).error).toBeDefined();
+      expect('error' in result._internal!.sentenceStructure).toBe(false);
       expect(result.score.vocabulary).toBe('N/A');
       expect(result.score.sentenceStructure).not.toBe('N/A');
     });

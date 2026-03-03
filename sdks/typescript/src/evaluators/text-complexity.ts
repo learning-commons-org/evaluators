@@ -4,7 +4,6 @@ import { SentenceStructureEvaluator } from './sentence-structure.js';
 import type { BaseEvaluatorConfig } from './base.js';
 import { BaseEvaluator } from './base.js';
 import type { EvaluationResult } from '../schemas/index.js';
-import { ValidationError } from '../errors.js';
 
 /**
  * Internal data structure for text complexity evaluation
@@ -173,7 +172,6 @@ export class TextComplexityEvaluator extends BaseEvaluator {
       textLength: text.length,
       grade,
       provider: 'composite:google+openai',
-      retryAttempts: -1, // Composite evaluator doesn't track retries
       errorCode: hasFailures ? 'PartialFailure' : undefined,
       inputText: text,
     }).catch(() => {

@@ -17,7 +17,7 @@ import {
 import type { EvaluationResult, ComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
-import { ConfigurationError, ValidationError, wrapProviderError } from '../errors.js';
+import { ValidationError, wrapProviderError } from '../errors.js';
 
 /**
  * Internal data structure for sentence structure evaluation
@@ -91,11 +91,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
 
-    // Validate required API keys
-    if (!config.openaiApiKey) {
-      throw new ConfigurationError('OpenAI API key is required. Pass openaiApiKey in config.');
-    }
-
     // Create OpenAI GPT-4o provider for both stages
     this.analysisProvider = createProvider({
       type: 'openai',
@@ -138,7 +133,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     try {
       // Validate inputs — inside try so validation errors are telemetered.
       this.validateText(text);
-      this.validateGrade(grade, VALID_GRADES);
+      this.validateGrade(grade, new Set(SentenceStructureEvaluator.metadata.supportedGrades));
       this.logger.debug('Stage 1: Analyzing sentence structure', {
         evaluator: 'sentence-structure',
         operation: 'sentence_analysis',

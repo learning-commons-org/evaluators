@@ -7,7 +7,7 @@ import {
 import { getSystemPrompt, getUserPrompt } from '../prompts/grade-level-appropriateness/index.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
-import { ConfigurationError, ValidationError, wrapProviderError } from '../errors.js';
+import { ValidationError, wrapProviderError } from '../errors.js';
 
 /**
  * Grade Level Appropriateness Evaluator
@@ -51,11 +51,6 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
   constructor(config: BaseEvaluatorConfig) {
     // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
-
-    // Validate required API keys
-    if (!config.googleApiKey) {
-      throw new ConfigurationError('Google API key is required. Pass googleApiKey in config.');
-    }
 
     // Create Google Gemini provider
     this.provider = createProvider({
@@ -190,7 +185,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
  */
 export async function evaluateGradeLevelAppropriateness(
   text: string,
-  config: GradeLevelAppropriatenessEvaluatorConfig
+  config: BaseEvaluatorConfig
 ): Promise<EvaluationResult<string, GradeLevelAppropriateness>> {
   const evaluator = new GradeLevelAppropriatenessEvaluator(config);
   return evaluator.evaluate(text);
