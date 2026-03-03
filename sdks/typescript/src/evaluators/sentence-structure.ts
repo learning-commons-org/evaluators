@@ -17,7 +17,7 @@ import {
 import type { EvaluationResult, ComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
-import { ValidationError, wrapProviderError } from '../errors.js';
+import { ConfigurationError, ValidationError, wrapProviderError } from '../errors.js';
 
 /**
  * Valid grade levels (K-12)
@@ -97,9 +97,8 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
 
     // Validate required API keys
     if (!config.openaiApiKey) {
-      throw new ValidationError('OpenAI API key is required. Pass openaiApiKey in config.');
+      throw new ConfigurationError('OpenAI API key is required. Pass openaiApiKey in config.');
     }
-
 
     // Create OpenAI GPT-4o provider for both stages
     this.analysisProvider = createProvider({
@@ -128,7 +127,8 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
    * @param text - The text to evaluate
    * @param grade - The target grade level (K-12)
    * @returns Evaluation result with complexity score and detailed analysis
-   * @throws {Error} If text is empty or grade is invalid
+   * @throws {ValidationError} If text is empty, too short/long, or grade is invalid
+   * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
    */
   async evaluate(
     text: string,
@@ -141,14 +141,13 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
       textLength: text.length,
     });
 
-    // Use inherited validation methods
-    this.validateText(text);
-    this.validateGrade(grade, VALID_GRADES);
-
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
 
     try {
+      // Validate inputs — inside try so validation errors are telemetered.
+      this.validateText(text);
+      this.validateGrade(grade, VALID_GRADES);
       this.logger.debug('Stage 1: Analyzing sentence structure', {
         evaluator: 'sentence-structure',
         operation: 'sentence_analysis',
@@ -160,10 +159,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         stage: 'sentence_analysis',
         provider: 'openai:gpt-4o',
         latency_ms: analysisResponse.latencyMs,
-        // TODO: Retry tracking - Vercel AI SDK doesn't expose actual retry attempts
-        // We set -1 to indicate "unknown" (we may have retried, but can't track it)
-        // To fix: Implement custom retry wrapper that tracks each attempt
-        retry_attempts: -1,
         token_usage: {
           input_tokens: analysisResponse.usage.inputTokens,
           output_tokens: analysisResponse.usage.outputTokens,
@@ -184,10 +179,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         stage: 'complexity_classification',
         provider: 'openai:gpt-4o',
         latency_ms: complexityResponse.latencyMs,
-        // TODO: Retry tracking - Vercel AI SDK doesn't expose actual retry attempts
-        // We set -1 to indicate "unknown" (we may have retried, but can't track it)
-        // To fix: Implement custom retry wrapper that tracks each attempt
-        retry_attempts: -1,
         token_usage: {
           input_tokens: complexityResponse.usage.inputTokens,
           output_tokens: complexityResponse.usage.outputTokens,
@@ -202,17 +193,12 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         output_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.output_tokens || 0), 0),
       };
 
-      // If any stage has unknown retries (-1), total is unknown
-      const totalRetries = stageDetails.some(s => s.retry_attempts === -1)
-        ? -1
-        : stageDetails.reduce((sum, s) => sum + s.retry_attempts, 0);
-
       const result = {
         score: complexityResponse.data.answer,
         reasoning: complexityResponse.data.reasoning,
         metadata: {
-          promptVersion: '1.0',
-          model: 'gpt-4o',
+          promptVersion: '1.2.0',
+          model: 'openai:gpt-4o',
           timestamp: new Date(),
           processingTimeMs: latencyMs,
         },
@@ -230,7 +216,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         textLength: text.length,
         grade,
         provider: 'openai:gpt-4o',
-        retryAttempts: totalRetries,
         tokenUsage: totalTokenUsage,
         metadata: {
           stage_details: stageDetails,
@@ -268,11 +253,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         output_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.output_tokens || 0), 0),
       } : undefined;
 
-      // If any stage has unknown retries (-1), total is unknown
-      const totalRetries = stageDetails.length > 0 && stageDetails.some(s => s.retry_attempts === -1)
-        ? -1
-        : stageDetails.reduce((sum, s) => sum + s.retry_attempts, 0);
-
       // Send failure telemetry (fire-and-forget)
       this.sendTelemetry({
         status: 'error',
@@ -280,7 +260,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         textLength: text.length,
         grade,
         provider: 'openai:gpt-4o',
-        retryAttempts: totalRetries,
         tokenUsage: totalTokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,

@@ -40,7 +40,7 @@ Evaluates vocabulary complexity using the Qual Text Complexity rubric (SAP).
 
 **Supported Grades:** 3-12
 
-**Uses:** Google Gemini 2.5 Pro + OpenAI GPT-4o
+**Uses:** OpenAI GPT-4o (background knowledge) + Google Gemini 2.5 Pro (grades 3–4) / OpenAI GPT-4.1 (grades 5–12)
 
 **Constructor:**
 ```typescript
@@ -105,7 +105,12 @@ await evaluator.evaluate(text: string, grade: string)
 {
   score: 'Slightly Complex' | 'Moderately Complex' | 'Very Complex' | 'Exceedingly Complex';
   reasoning: string;
-  metadata: EvaluationMetadata;
+  metadata: {
+    promptVersion: string;
+    model: string;
+    timestamp: Date;
+    processingTimeMs: number;
+  };
   _internal: {
     sentenceAnalysis: SentenceAnalysis;
     features: SentenceFeatures;

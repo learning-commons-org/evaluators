@@ -25,11 +25,11 @@ If you prefer not to send any telemetry, you can disable it entirely — see [Di
   "timestamp": "2026-02-05T19:30:00.000Z",
   "sdk_version": "0.1.0",
   "evaluator_type": "vocabulary",
-  "grade": "5",
+  "grade": "3",
   "status": "success",
   "latency_ms": 3500,
   "text_length_chars": 456,
-  "provider": "google:gemini-2.5-pro+openai:gpt-4o",
+  "provider": "openai:gpt-4o-2024-11-20 + google:gemini-2.5-pro",
   "token_usage": {
     "input_tokens": 650,
     "output_tokens": 350
@@ -72,7 +72,7 @@ If you prefer not to send any telemetry, you can disable it entirely — see [Di
 | `latency_ms` | Total evaluation time in milliseconds |
 | `text_length_chars` | Length of input text in characters |
 | `provider` | LLM provider(s) used (e.g., "openai:gpt-4o", "google:gemini-2.5-pro+openai:gpt-4o") |
-| `token_usage` | Total tokens consumed (input, output, total) |
+| `token_usage` | Total tokens consumed (input, output) |
 | `input_text` | The text being evaluated (only included if `recordInputs: true`) |
 | `metadata.stage_details` | Per-stage breakdown for multi-stage evaluators (optional) |
 

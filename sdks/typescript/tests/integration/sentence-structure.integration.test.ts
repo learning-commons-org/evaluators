@@ -1,13 +1,9 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { SentenceStructureEvaluator } from '../../src/evaluators/sentence-structure.js';
-import { config } from 'dotenv';
 import {
   runEvaluatorTest,
   type BaseTestCase,
 } from '../utils/index.js';
-
-// Load .env file for testing convenience
-config();
 
 /**
  * Sentence Structure Evaluator Integration Tests

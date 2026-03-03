@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SentenceStructureEvaluator } from '../../../src/evaluators/sentence-structure.js';
+import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 /**
@@ -75,10 +76,10 @@ vi.mock('../../../src/telemetry/client.js', () => {
 });
 
 describe('SentenceStructureEvaluator - Constructor Validation', () => {
-  it('should throw error when OpenAI API key is missing', () => {
+  it('should throw ConfigurationError when OpenAI API key is missing', () => {
     expect(() => new SentenceStructureEvaluator({
       openaiApiKey: '',
-    })).toThrow('OpenAI API key is required. Pass openaiApiKey in config.');
+    })).toThrow(ConfigurationError);
   });
 
 });
@@ -145,7 +146,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       expect(result.score).toBe('Slightly Complex');
       expect(result.reasoning).toContain('simple sentence structures');
       expect(result.metadata).toBeDefined();
-      expect(result.metadata.model).toBe('gpt-4o');
+      expect(result.metadata.model).toBe('openai:gpt-4o');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
 
       // Verify both providers were called
@@ -239,8 +240,8 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toHaveProperty('processingTimeMs');
 
       // Verify metadata values
-      expect(result.metadata.promptVersion).toBe('1.0');
-      expect(result.metadata.model).toBe('gpt-4o');
+      expect(result.metadata.promptVersion).toBe('1.2.0');
+      expect(result.metadata.model).toBe('openai:gpt-4o');
       expect(result.metadata.timestamp).toBeInstanceOf(Date);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
