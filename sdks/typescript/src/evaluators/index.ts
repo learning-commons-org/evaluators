@@ -11,3 +11,9 @@ export {
   evaluateSentenceStructure,
   type SentenceStructureEvaluatorConfig,
 } from './sentence-structure.js';
+
+export {
+  GradeLevelAppropriatenessEvaluator,
+  evaluateGradeLevelAppropriateness,
+  type GradeLevelAppropriatenessEvaluatorConfig,
+} from './grade-level-appropriateness.js';

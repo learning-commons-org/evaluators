@@ -8,3 +8,8 @@ export {
   type EvaluationError,
 } from './outputs.js';
 
+export {
+  GradeBand,
+  GradeLevelAppropriatenessSchema,
+  type GradeLevelAppropriateness,
+} from './grade-level-appropriateness.js';

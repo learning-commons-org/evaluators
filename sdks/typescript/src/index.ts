@@ -7,6 +7,8 @@ export type {
   EvaluationError,
 } from './schemas/index.js';
 
+export { ComplexityLevel, GradeLevel, GradeBand } from './schemas/index.js';
+
 // Error types
 export {
   EvaluatorError,
@@ -51,6 +53,12 @@ export type {
   VocabularyComplexityLevel,
 } from './schemas/vocabulary.js';
 
+// Grade Level Appropriateness exports
+export type { GradeLevelAppropriateness } from './schemas/grade-level-appropriateness.js';
+
+export { GradeLevelAppropriatenessSchema } from './schemas/grade-level-appropriateness.js';
+
+
 export {
   VocabularyEvaluator,
   evaluateVocabulary,
@@ -58,6 +66,9 @@ export {
   SentenceStructureEvaluator,
   evaluateSentenceStructure,
   type SentenceStructureEvaluatorConfig,
+  GradeLevelAppropriatenessEvaluator,
+  evaluateGradeLevelAppropriateness,
+  type GradeLevelAppropriatenessEvaluatorConfig,
   type BaseEvaluatorConfig,
   type TelemetryOptions,
 } from './evaluators/index.js';

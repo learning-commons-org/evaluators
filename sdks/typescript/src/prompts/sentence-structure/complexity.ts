@@ -48,5 +48,6 @@ export function getUserPromptComplexity(
     .replace('{sentence_features}', sentenceFeatures)
     .replace('{grade}', grade)
     .replace('{rubric}', rubric)
-    .replace('{excerpt}', excerpt);
+    .replace('{excerpt}', excerpt)
+    .replace('{format_instructions}', '');
 }
