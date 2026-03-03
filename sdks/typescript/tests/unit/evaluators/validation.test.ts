@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { VocabularyEvaluator } from '../../../src/evaluators/vocabulary.js';
 import { VALIDATION_LIMITS } from '../../../src/evaluators/base.js';
+import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 /**
@@ -30,6 +31,22 @@ vi.mock('../../../src/telemetry/client.js', () => {
       send = vi.fn().mockResolvedValue(undefined);
     },
   };
+});
+
+describe('Configuration Validation', () => {
+  it('should throw ConfigurationError when googleApiKey is missing', () => {
+    expect(() => new VocabularyEvaluator({
+      googleApiKey: '',
+      openaiApiKey: 'test-openai-key',
+    })).toThrow(ConfigurationError);
+  });
+
+  it('should throw ConfigurationError when openaiApiKey is missing', () => {
+    expect(() => new VocabularyEvaluator({
+      googleApiKey: 'test-google-key',
+      openaiApiKey: '',
+    })).toThrow(ConfigurationError);
+  });
 });
 
 describe('Input Validation - Text Validation', () => {

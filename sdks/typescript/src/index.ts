@@ -10,6 +10,7 @@ export type {
 // Error types
 export {
   EvaluatorError,
+  ConfigurationError,
   ValidationError,
   APIError,
   AuthenticationError,

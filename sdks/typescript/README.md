@@ -80,6 +80,7 @@ The SDK provides specific error types to help you handle different scenarios:
 
 ```typescript
 import {
+  ConfigurationError,
   ValidationError,
   APIError,
   AuthenticationError,
@@ -89,9 +90,13 @@ import {
 } from '@learning-commons/evaluators';
 
 try {
+  const evaluator = new VocabularyEvaluator({ googleApiKey, openaiApiKey });
   const result = await evaluator.evaluate(text, grade);
 } catch (error) {
-  if (error instanceof ValidationError) {
+  if (error instanceof ConfigurationError) {
+    // Missing or invalid API keys — fix your config
+    console.error('Configuration error:', error.message);
+  } else if (error instanceof ValidationError) {
     // Invalid input (text too short, invalid grade, etc.)
     console.error('Invalid input:', error.message);
   } else if (error instanceof AuthenticationError) {

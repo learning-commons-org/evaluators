@@ -14,7 +14,7 @@ import {
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
-import { ValidationError, wrapProviderError } from '../errors.js';
+import { ConfigurationError, ValidationError, wrapProviderError } from '../errors.js';
 
 /**
  * Valid grade levels (3-12)
@@ -69,11 +69,11 @@ export class VocabularyEvaluator extends BaseEvaluator {
 
     // Validate required API keys
     if (!config.googleApiKey) {
-      throw new ValidationError('Google API key is required. Pass googleApiKey in config.');
+      throw new ConfigurationError('Google API key is required. Pass googleApiKey in config.');
     }
 
     if (!config.openaiApiKey) {
-      throw new ValidationError('OpenAI API key is required. Pass openaiApiKey in config.');
+      throw new ConfigurationError('OpenAI API key is required. Pass openaiApiKey in config.');
     }
 
     // Create Google Gemini provider for complexity evaluation (grades 3-4)

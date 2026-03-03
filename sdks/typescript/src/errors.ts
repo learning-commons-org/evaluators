@@ -24,6 +24,28 @@ export class EvaluatorError extends Error {
 }
 
 /**
+ * Configuration error - thrown when the evaluator is misconfigured
+ * These are developer errors (e.g. missing API keys) that should NOT be retried
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   const evaluator = new VocabularyEvaluator({ googleApiKey: '' });
+ * } catch (error) {
+ *   if (error instanceof ConfigurationError) {
+ *     console.error('Check your evaluator config:', error.message);
+ *   }
+ * }
+ * ```
+ */
+export class ConfigurationError extends EvaluatorError {
+  constructor(message: string) {
+    super(message, 'CONFIGURATION_ERROR');
+    this.name = 'ConfigurationError';
+  }
+}
+
+/**
  * Validation error - thrown when input validation fails
  * These are client-side errors that should NOT be retried
  *
