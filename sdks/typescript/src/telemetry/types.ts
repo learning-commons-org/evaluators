@@ -102,4 +102,7 @@ export interface TelemetryConfig {
 
   /** Enable telemetry (default: true) */
   enabled: boolean;
+
+  /** Logger instance (respects the SDK's configured log level and custom logger) */
+  logger: import('../logger.js').Logger;
 }

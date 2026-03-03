@@ -115,6 +115,7 @@ export abstract class BaseEvaluator {
         partnerKey: config.partnerKey,
         clientId: generateClientId(),
         enabled: true,
+        logger: this.logger,
       });
     }
   }

@@ -1,4 +1,5 @@
 import type { TelemetryConfig, TelemetryEvent } from './types.js';
+import type { Logger } from '../logger.js';
 
 /**
  * Telemetry client for sending analytics events
@@ -8,9 +9,11 @@ import type { TelemetryConfig, TelemetryEvent } from './types.js';
  */
 export class TelemetryClient {
   private config: TelemetryConfig;
+  private logger: Logger;
 
   constructor(config: TelemetryConfig) {
     this.config = config;
+    this.logger = config.logger;
   }
 
   /**
@@ -44,7 +47,7 @@ export class TelemetryClient {
       });
 
       if (!response.ok) {
-        console.error(
+        this.logger.warn(
           `[Telemetry] Failed to send event: ${response.status} ${response.statusText}`
         );
       }
@@ -53,7 +56,7 @@ export class TelemetryClient {
       if (error instanceof Error) {
         // Don't log timeout errors (expected on slow networks)
         if (error.name !== 'TimeoutError' && error.name !== 'AbortError') {
-          console.error('[Telemetry] Error sending event:', error.message);
+          this.logger.warn(`[Telemetry] Error sending event: ${error.message}`);
         }
       }
     }
