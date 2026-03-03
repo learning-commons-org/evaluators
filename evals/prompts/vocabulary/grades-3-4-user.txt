@@ -10,5 +10,3 @@ Below is the text you need to evaluate. Let's think step by step in order to pre
 - Text to evaluate: [BEGIN TEXT]
 {text}
 [END TEXT]
-
-{format_instructions}

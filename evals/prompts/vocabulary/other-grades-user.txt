@@ -135,5 +135,3 @@ As you read the text, you can assume the student has the following background kn
 [END TEXT]
 
 In your response, when specifying the level of complexity, be sure to use only a single integer (e.g. 2) and don't include any other text (e.g. don't say "level 2").
-
-{format_instructions}
