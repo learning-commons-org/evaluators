@@ -18,8 +18,6 @@ export interface TextComplexityInternal {
  * Composite score for text complexity
  */
 export interface TextComplexityScore {
-  /** Overall complexity assessment */
-  overall: string;
   /** Vocabulary complexity score */
   vocabulary: string;
   /** Sentence structure complexity score */
@@ -44,7 +42,6 @@ export interface TextComplexityScore {
  * });
  *
  * const result = await evaluator.evaluate(text, "5");
- * console.log(result.score.overall);
  * console.log(result.score.vocabulary);
  * console.log(result.score.sentenceStructure);
  * ```
@@ -110,9 +107,6 @@ export class TextComplexityEvaluator extends BaseEvaluator {
 
     const latencyMs = Date.now() - startTime;
 
-    // Determine overall complexity
-    const overall = this.determineOverallComplexity(vocabResult, sentenceResult);
-
     // Build combined reasoning
     const reasoning = this.buildCombinedReasoning(vocabResult, sentenceResult);
 
@@ -148,7 +142,6 @@ export class TextComplexityEvaluator extends BaseEvaluator {
 
     const result = {
       score: {
-        overall,
         vocabulary: vocabFailed ? 'N/A' : vocabResult.score,
         sentenceStructure: sentenceFailed ? 'N/A' : sentenceResult.score,
       },
@@ -182,7 +175,6 @@ export class TextComplexityEvaluator extends BaseEvaluator {
       evaluator: 'text-complexity',
       operation: 'evaluate',
       grade,
-      overall: result.score.overall,
       processingTimeMs: latencyMs,
       hasFailures,
     });
@@ -209,39 +201,6 @@ export class TextComplexityEvaluator extends BaseEvaluator {
   }
 
   /**
-   * Determine overall complexity from individual results
-   *
-   * Logic: Take the higher (more complex) of the two scores
-   * Order: Slightly < Moderately < Very < Exceedingly
-   */
-  private determineOverallComplexity(
-    vocabResult: EvaluationResult<string> | { error: Error },
-    sentenceResult: EvaluationResult<string> | { error: Error }
-  ): string {
-    // If either failed, use the successful one or return error
-    if ('error' in vocabResult) {
-      return 'error' in sentenceResult ? 'Error' : sentenceResult.score;
-    }
-    if ('error' in sentenceResult) {
-      return vocabResult.score;
-    }
-
-    // Both succeeded - take the higher complexity
-    const complexityOrder = [
-      'slightly complex',
-      'moderately complex',
-      'very complex',
-      'exceedingly complex',
-    ];
-
-    const vocabIndex = complexityOrder.indexOf(vocabResult.score.toLowerCase());
-    const sentenceIndex = complexityOrder.indexOf(sentenceResult.score.toLowerCase());
-
-    // Return the higher complexity (or vocabulary if equal)
-    return vocabIndex >= sentenceIndex ? vocabResult.score : sentenceResult.score;
-  }
-
-  /**
    * Build combined reasoning from individual results
    */
   private buildCombinedReasoning(
@@ -251,15 +210,15 @@ export class TextComplexityEvaluator extends BaseEvaluator {
     const parts: string[] = [];
 
     if ('error' in vocabResult) {
-      parts.push(`**Vocabulary Complexity:** Evaluation failed - ${vocabResult.error.message}`);
+      parts.push(`Vocabulary Complexity: Evaluation failed - ${vocabResult.error.message}`);
     } else {
-      parts.push(`**Vocabulary Complexity (${vocabResult.score}):**\n${vocabResult.reasoning}`);
+      parts.push(`Vocabulary Complexity (${vocabResult.score}):\n${vocabResult.reasoning}`);
     }
 
     if ('error' in sentenceResult) {
-      parts.push(`**Sentence Structure Complexity:** Evaluation failed - ${sentenceResult.error.message}`);
+      parts.push(`Sentence Structure Complexity: Evaluation failed - ${sentenceResult.error.message}`);
     } else {
-      parts.push(`**Sentence Structure Complexity (${sentenceResult.score}):**\n${sentenceResult.reasoning}`);
+      parts.push(`Sentence Structure Complexity (${sentenceResult.score}):\n${sentenceResult.reasoning}`);
     }
 
     return parts.join('\n\n');

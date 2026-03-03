@@ -142,7 +142,6 @@ describe('TextComplexityEvaluator', () => {
 
       expect(result).toBeDefined();
       expect(result.score).toBeDefined();
-      expect(result.score.overall).toBeDefined();
       expect(result.score.vocabulary).toBeDefined();
       expect(result.score.sentenceStructure).toBeDefined();
       expect(result.reasoning).toBeDefined();
@@ -268,8 +267,6 @@ describe('TextComplexityEvaluator', () => {
 
       const result = await evaluator.evaluate(text, grade);
 
-      // Should take the higher complexity (moderately complex)
-      expect(result.score.overall).toBe('moderately complex');
       expect(result.score.vocabulary).toBe('moderately complex');
       expect(result.score.sentenceStructure).toBe('Slightly Complex');
     });

@@ -111,7 +111,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
    * Evaluate sentence structure complexity for a given text and grade level
    *
    * @param text - The text to evaluate
-   * @param grade - The target grade level (K-12)
+   * @param grade - The target grade level (3-12)
    * @returns Evaluation result with complexity score and detailed analysis
    * @throws {ValidationError} If text is empty, too short/long, or grade is invalid
    * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)

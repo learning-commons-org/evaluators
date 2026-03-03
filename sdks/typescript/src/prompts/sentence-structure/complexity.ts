@@ -14,7 +14,7 @@ export function getSystemPromptComplexity(): string {
 
 /**
  * Get the appropriate rubric based on grade level
- * @param grade - The target grade level (K-12)
+ * @param grade - The target grade level (3-12)
  * @returns The rubric text for the grade level
  */
 export function getRubricForGrade(grade: string): string {
@@ -22,11 +22,8 @@ export function getRubricForGrade(grade: string): string {
     return RUBRIC_GRADE_3;
   } else if (grade === '4') {
     return RUBRIC_GRADE_4;
-  } else if (['5', '6', '7', '8', '9', '10', '11', '12'].includes(grade)) {
-    return RUBRIC_GRADES_5_12;
   } else {
-    // K, 1, 2 - no specific rubric, use general principles
-    return 'No specific rubric available for this grade. Use general linguistic principles.';
+    return RUBRIC_GRADES_5_12;
   }
 }
 

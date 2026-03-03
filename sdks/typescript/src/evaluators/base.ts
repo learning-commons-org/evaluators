@@ -169,9 +169,16 @@ export abstract class BaseEvaluator {
 
   /**
    * Get metadata for this evaluator instance
+   * @throws {ConfigurationError} If the subclass has not defined static metadata
    */
   protected get metadata(): EvaluatorMetadata {
-    return (this.constructor as typeof BaseEvaluator).metadata;
+    const meta = (this.constructor as typeof BaseEvaluator).metadata;
+    if (!meta) {
+      throw new ConfigurationError(
+        `${this.constructor.name} must define a static readonly metadata block.`
+      );
+    }
+    return meta;
   }
 
   /**
