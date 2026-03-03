@@ -89,10 +89,11 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       const result = await evaluator.evaluate(testText);
 
       // Verify result structure
-      expect(result.score).toBeDefined();
-      expect(result.score.grade).toBe('6-8');
-      expect(result.score.alternative_grade).toBe('4-5');
-      expect(result.score.scaffolding_needed).toContain('gravitational forces');
+      expect(result.score).toBe('6-8');
+      expect(result._internal).toBeDefined();
+      expect(result._internal!.grade).toBe('6-8');
+      expect(result._internal!.alternative_grade).toBe('4-5');
+      expect(result._internal!.scaffolding_needed).toContain('gravitational forces');
       expect(result.reasoning).toContain('gravitational forces');
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe('google:gemini-2.5-pro');
@@ -140,12 +141,16 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result).toHaveProperty('score');
       expect(result).toHaveProperty('reasoning');
       expect(result).toHaveProperty('metadata');
+      expect(result).toHaveProperty('_internal');
 
-      // Verify score structure (GradeLevelAppropriateness)
-      expect(result.score).toHaveProperty('grade');
-      expect(result.score).toHaveProperty('alternative_grade');
-      expect(result.score).toHaveProperty('scaffolding_needed');
-      expect(result.score).toHaveProperty('reasoning');
+      // Verify score is the grade string
+      expect(result.score).toBe('9-10');
+
+      // Verify _internal structure (GradeLevelAppropriateness)
+      expect(result._internal).toHaveProperty('grade');
+      expect(result._internal).toHaveProperty('alternative_grade');
+      expect(result._internal).toHaveProperty('scaffolding_needed');
+      expect(result._internal).toHaveProperty('reasoning');
 
       // Verify metadata structure
       expect(result.metadata).toHaveProperty('promptVersion');
@@ -159,10 +164,10 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result.metadata.timestamp).toBeInstanceOf(Date);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
 
-      // Verify score values
-      expect(result.score.grade).toBe('9-10');
-      expect(result.score.alternative_grade).toBe('6-8');
-      expect(result.score.scaffolding_needed).toBeTruthy();
+      // Verify _internal values
+      expect(result._internal!.grade).toBe('9-10');
+      expect(result._internal!.alternative_grade).toBe('6-8');
+      expect(result._internal!.scaffolding_needed).toBeTruthy();
     });
   });
 });

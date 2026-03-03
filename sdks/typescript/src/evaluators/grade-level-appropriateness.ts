@@ -39,9 +39,9 @@ export interface GradeLevelAppropriatenessEvaluatorConfig extends BaseEvaluatorC
  * });
  *
  * const result = await evaluator.evaluate(text);
- * console.log(result.score.grade); // "9-10"
- * console.log(result.score.alternative_grade); // "6-8"
- * console.log(result.score.scaffolding_needed);
+ * console.log(result.score); // "9-10"
+ * console.log(result._internal.alternative_grade); // "6-8"
+ * console.log(result._internal.scaffolding_needed);
  * ```
  */
 export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
@@ -61,7 +61,6 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
       type: 'google',
       model: 'gemini-2.5-pro',
       apiKey: config.googleApiKey,
-      temperature: 0.25,
       maxRetries: this.config.maxRetries,
     });
   }
@@ -79,7 +78,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
    * @throws {ValidationError} If text is empty or too short/long
    * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
    */
-  async evaluate(text: string): Promise<EvaluationResult<GradeLevelAppropriateness>> {
+  async evaluate(text: string): Promise<EvaluationResult<string, GradeLevelAppropriateness>> {
     this.logger.info('Starting grade level appropriateness evaluation', {
       evaluator: 'grade-level-appropriateness',
       operation: 'evaluate',
@@ -114,7 +113,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
       };
 
       const result = {
-        score: response.data,
+        score: response.data.grade,
         reasoning: response.data.reasoning,
         metadata: {
           promptVersion: '1.2.0',
@@ -122,6 +121,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
           timestamp: new Date(),
           processingTimeMs: latencyMs,
         },
+        _internal: response.data,
       };
 
       // Send success telemetry (fire-and-forget)
@@ -140,7 +140,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
       this.logger.info('Grade level appropriateness evaluation completed successfully', {
         evaluator: 'grade-level-appropriateness',
         operation: 'evaluate',
-        grade: result.score.grade,
+        grade: result.score,
         processingTimeMs: latencyMs,
       });
 
@@ -195,7 +195,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
 export async function evaluateGradeLevelAppropriateness(
   text: string,
   config: GradeLevelAppropriatenessEvaluatorConfig
-): Promise<EvaluationResult<GradeLevelAppropriateness>> {
+): Promise<EvaluationResult<string, GradeLevelAppropriateness>> {
   const evaluator = new GradeLevelAppropriatenessEvaluator(config);
   return evaluator.evaluate(text);
 }

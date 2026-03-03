@@ -148,18 +148,19 @@ await evaluator.evaluate(text: string)
 **Returns:**
 ```typescript
 {
-  score: {
-    grade: string; // e.g., 'K-1', '2-3', '4-5', '6-8', '9-10', '11-CCR'
-    alternative_grade: string;
-    scaffolding_needed: string;
-    reasoning: string;
-  };
+  score: string; // e.g., 'K-1', '2-3', '4-5', '6-8', '9-10', '11-CCR'
   reasoning: string;
   metadata: {
     promptVersion: string;
     model: string;
     timestamp: Date;
     processingTimeMs: number;
+  };
+  _internal: {
+    grade: string;
+    alternative_grade: string;
+    scaffolding_needed: string;
+    reasoning: string;
   };
 }
 ```
