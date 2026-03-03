@@ -1,10 +1,5 @@
-import { loadPrompt } from '../../utils/prompts.js';
-
-/**
- * System prompt for grade level appropriateness evaluation
- * Loaded from: prompts/grade-level-appropriateness/system.txt
- */
-const SYSTEM_PROMPT_TEMPLATE = loadPrompt('grade-level-appropriateness/system.txt');
+import SYSTEM_PROMPT_TEMPLATE from '../../../../../evals/prompts/grade-level-appropriateness/system.txt';
+import USER_PROMPT_TEMPLATE from '../../../../../evals/prompts/grade-level-appropriateness/user.txt';
 
 /**
  * Get the system prompt for grade level appropriateness evaluation
@@ -13,12 +8,6 @@ const SYSTEM_PROMPT_TEMPLATE = loadPrompt('grade-level-appropriateness/system.tx
 export function getSystemPrompt(): string {
   return SYSTEM_PROMPT_TEMPLATE;
 }
-
-/**
- * User prompt template for grade level appropriateness evaluation
- * Loaded from: prompts/grade-level-appropriateness/user.txt
- */
-const USER_PROMPT_TEMPLATE = loadPrompt('grade-level-appropriateness/user.txt');
 
 /**
  * Get the user prompt with the text to evaluate

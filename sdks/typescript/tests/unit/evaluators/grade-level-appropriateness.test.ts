@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/grade-level-appropriateness.js';
+import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 /**
@@ -34,10 +35,10 @@ vi.mock('../../../src/telemetry/client.js', () => {
 });
 
 describe('GradeLevelAppropriatenessEvaluator - Constructor Validation', () => {
-  it('should throw error when Google API key is missing', () => {
+  it('should throw ConfigurationError when Google API key is missing', () => {
     expect(() => new GradeLevelAppropriatenessEvaluator({
       googleApiKey: '',
-    })).toThrow('Google API key is required. Pass googleApiKey in config.');
+    })).toThrow(ConfigurationError);
   });
 
 });
@@ -73,10 +74,7 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
         data: {
           grade: '6-8',
           alternative_grade: '4-5',
-          scaffolding_needed: [
-            'Pre-teach gravitational forces',
-            'Use visual diagrams of moon-sun-earth system',
-          ],
+          scaffolding_needed: 'Pre-teach gravitational forces; Use visual diagrams of moon-sun-earth system',
           reasoning: 'The text discusses gravitational forces and celestial mechanics, which are appropriate for middle school science curriculum.',
         },
         model: 'gemini-2.5-pro',
@@ -94,10 +92,10 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result.score).toBeDefined();
       expect(result.score.grade).toBe('6-8');
       expect(result.score.alternative_grade).toBe('4-5');
-      expect(result.score.scaffolding_needed).toHaveLength(2);
+      expect(result.score.scaffolding_needed).toContain('gravitational forces');
       expect(result.reasoning).toContain('gravitational forces');
       expect(result.metadata).toBeDefined();
-      expect(result.metadata.model).toBe('gemini-2.5-pro');
+      expect(result.metadata.model).toBe('google:gemini-2.5-pro');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
 
       // Verify provider was called
@@ -128,10 +126,7 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
         data: {
           grade: '9-10',
           alternative_grade: '6-8',
-          scaffolding_needed: [
-            'Pre-teach advanced vocabulary',
-            'Provide background context',
-          ],
+          scaffolding_needed: 'Pre-teach advanced vocabulary; Provide background context',
           reasoning: 'Detailed reasoning about grade appropriateness',
         },
         model: 'gemini-2.5-pro',
@@ -159,15 +154,15 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toHaveProperty('processingTimeMs');
 
       // Verify metadata values
-      expect(result.metadata.promptVersion).toBe('1.0');
-      expect(result.metadata.model).toBe('gemini-2.5-pro');
+      expect(result.metadata.promptVersion).toBe('1.2.0');
+      expect(result.metadata.model).toBe('google:gemini-2.5-pro');
       expect(result.metadata.timestamp).toBeInstanceOf(Date);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
 
       // Verify score values
       expect(result.score.grade).toBe('9-10');
       expect(result.score.alternative_grade).toBe('6-8');
-      expect(result.score.scaffolding_needed).toHaveLength(2);
+      expect(result.score.scaffolding_needed).toBeTruthy();
     });
   });
 });

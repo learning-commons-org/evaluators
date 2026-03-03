@@ -7,7 +7,7 @@ import {
 import { getSystemPrompt, getUserPrompt } from '../prompts/grade-level-appropriateness/index.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
-import { ValidationError, wrapProviderError } from '../errors.js';
+import { ConfigurationError, ValidationError, wrapProviderError } from '../errors.js';
 
 /**
  * Configuration for GradeLevelAppropriatenessEvaluator
@@ -46,7 +46,6 @@ export interface GradeLevelAppropriatenessEvaluatorConfig extends BaseEvaluatorC
  */
 export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
   private provider: LLMProvider;
-  private evaluatorConfig: GradeLevelAppropriatenessEvaluatorConfig;
 
   constructor(config: GradeLevelAppropriatenessEvaluatorConfig) {
     // Call base constructor for common setup (telemetry, etc.)
@@ -54,10 +53,8 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
 
     // Validate required API keys
     if (!config.googleApiKey) {
-      throw new ValidationError('Google API key is required. Pass googleApiKey in config.');
+      throw new ConfigurationError('Google API key is required. Pass googleApiKey in config.');
     }
-
-    this.evaluatorConfig = config;
 
     // Create Google Gemini provider
     this.provider = createProvider({
@@ -79,7 +76,8 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
    *
    * @param text - The text to evaluate
    * @returns Evaluation result with grade recommendations and scaffolding suggestions
-   * @throws {Error} If text is empty
+   * @throws {ValidationError} If text is empty or too short/long
+   * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
    */
   async evaluate(text: string): Promise<EvaluationResult<GradeLevelAppropriateness>> {
     this.logger.info('Starting grade level appropriateness evaluation', {
@@ -88,12 +86,11 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
       textLength: text.length,
     });
 
-    // Use inherited validation method
-    this.validateText(text);
-
     const startTime = Date.now();
 
     try {
+      // Validate inputs — inside try so validation errors are telemetered.
+      this.validateText(text);
       this.logger.debug('Evaluating grade level appropriateness', {
         evaluator: 'grade-level-appropriateness',
         operation: 'grade_evaluation',
@@ -120,8 +117,8 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
         score: response.data,
         reasoning: response.data.reasoning,
         metadata: {
-          promptVersion: '1.0',
-          model: 'gemini-2.5-pro',
+          promptVersion: '1.2.0',
+          model: 'google:gemini-2.5-pro',
           timestamp: new Date(),
           processingTimeMs: latencyMs,
         },
@@ -133,10 +130,6 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
         latencyMs,
         textLength: text.length,
         provider: 'google:gemini-2.5-pro',
-        // TODO: Retry tracking - Vercel AI SDK doesn't expose actual retry attempts
-        // We set -1 to indicate "unknown" (we may have retried, but can't track it)
-        // To fix: Implement custom retry wrapper that tracks each attempt
-        retryAttempts: -1,
         tokenUsage,
         // No metadata.stage_details for single-stage evaluator
         inputText: text,
@@ -169,10 +162,6 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
         latencyMs,
         textLength: text.length,
         provider: 'google:gemini-2.5-pro',
-        // TODO: Retry tracking - Vercel AI SDK doesn't expose actual retry attempts
-        // We set -1 to indicate "unknown" (we may have retried, but can't track it)
-        // To fix: Implement custom retry wrapper that tracks each attempt
-        retryAttempts: -1,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         inputText: text,
       }).catch(() => {
