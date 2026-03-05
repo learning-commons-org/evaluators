@@ -7,15 +7,7 @@ import {
 import { getSystemPrompt, getUserPrompt } from '../prompts/grade-level-appropriateness/index.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
-import { ConfigurationError, ValidationError, wrapProviderError } from '../errors.js';
-
-/**
- * Configuration for GradeLevelAppropriatenessEvaluator
- */
-export interface GradeLevelAppropriatenessEvaluatorConfig extends BaseEvaluatorConfig {
-  /** Google API key for grade level evaluation (uses Gemini 2.5 Pro) */
-  googleApiKey: string;
-}
+import { ValidationError, wrapProviderError } from '../errors.js';
 
 /**
  * Grade Level Appropriateness Evaluator
@@ -45,16 +37,20 @@ export interface GradeLevelAppropriatenessEvaluatorConfig extends BaseEvaluatorC
  * ```
  */
 export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
+  static readonly metadata = {
+    id: 'grade-level-appropriateness',
+    name: 'Grade Level Appropriateness',
+    description: 'Determines appropriate grade level for text with scaffolding recommendations',
+    supportedGrades: [] as const, // No grade parameter required - evaluates what grade the text is appropriate for
+    requiresGoogleKey: true,
+    requiresOpenAIKey: false,
+  };
+
   private provider: LLMProvider;
 
-  constructor(config: GradeLevelAppropriatenessEvaluatorConfig) {
-    // Call base constructor for common setup (telemetry, etc.)
+  constructor(config: BaseEvaluatorConfig) {
+    // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
-
-    // Validate required API keys
-    if (!config.googleApiKey) {
-      throw new ConfigurationError('Google API key is required. Pass googleApiKey in config.');
-    }
 
     // Create Google Gemini provider
     this.provider = createProvider({
@@ -63,11 +59,6 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
       apiKey: config.googleApiKey,
       maxRetries: this.config.maxRetries,
     });
-  }
-
-  // Implement abstract methods from BaseEvaluator
-  protected getEvaluatorType(): string {
-    return 'grade-level-appropriateness';
   }
 
   /**
@@ -194,7 +185,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
  */
 export async function evaluateGradeLevelAppropriateness(
   text: string,
-  config: GradeLevelAppropriatenessEvaluatorConfig
+  config: BaseEvaluatorConfig
 ): Promise<EvaluationResult<string, GradeLevelAppropriateness>> {
   const evaluator = new GradeLevelAppropriatenessEvaluator(config);
   return evaluator.evaluate(text);

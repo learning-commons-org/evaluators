@@ -112,7 +112,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
   describe('Successful Evaluation Flow', () => {
     it('should successfully evaluate text through both stages', async () => {
       const testText = 'The cat sat on the mat. It was sleeping peacefully.';
-      const testGrade = 'K';
+      const testGrade = '3';
 
       // Mock sentence analysis response
       vi.mocked(mockAnalysisProvider.generateStructured).mockResolvedValue({
@@ -129,7 +129,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       vi.mocked(mockComplexityProvider.generateStructured).mockResolvedValue({
         data: {
           answer: 'Slightly Complex',
-          reasoning: 'The text uses simple sentence structures appropriate for kindergarten.',
+          reasoning: 'The text uses simple sentence structures appropriate for third grade.',
         },
         model: 'gpt-4o',
         usage: {

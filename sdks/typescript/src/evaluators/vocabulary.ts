@@ -14,23 +14,7 @@ import {
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
-import { ConfigurationError, ValidationError, wrapProviderError } from '../errors.js';
-
-/**
- * Valid grade levels (3-12)
- */
-const VALID_GRADES = new Set(['3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
-
-/**
- * Configuration for VocabularyEvaluator
- */
-export interface VocabularyEvaluatorConfig extends BaseEvaluatorConfig {
-  /** Google API key for complexity evaluation (uses Gemini 2.5 Pro) */
-  googleApiKey: string;
-
-  /** OpenAI API key for background knowledge generation (uses GPT-4o) */
-  openaiApiKey: string;
-}
+import { ValidationError, wrapProviderError } from '../errors.js';
 
 /**
  * Vocabulary Evaluator
@@ -59,22 +43,22 @@ export interface VocabularyEvaluatorConfig extends BaseEvaluatorConfig {
  * ```
  */
 export class VocabularyEvaluator extends BaseEvaluator {
+  static readonly metadata = {
+    id: 'vocabulary',
+    name: 'Vocabulary',
+    description: 'Evaluates vocabulary complexity of educational texts relative to grade level',
+    supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
+    requiresGoogleKey: true,
+    requiresOpenAIKey: true,
+  };
+
   private grades34ComplexityProvider: LLMProvider;
   private otherGradesComplexityProvider: LLMProvider;
   private backgroundKnowledgeProvider: LLMProvider;
 
-  constructor(config: VocabularyEvaluatorConfig) {
-    // Call base constructor for common setup (telemetry, etc.)
+  constructor(config: BaseEvaluatorConfig) {
+    // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
-
-    // Validate required API keys
-    if (!config.googleApiKey) {
-      throw new ConfigurationError('Google API key is required. Pass googleApiKey in config.');
-    }
-
-    if (!config.openaiApiKey) {
-      throw new ConfigurationError('OpenAI API key is required. Pass openaiApiKey in config.');
-    }
 
     // Create Google Gemini provider for complexity evaluation (grades 3-4)
     this.grades34ComplexityProvider = createProvider({
@@ -99,11 +83,6 @@ export class VocabularyEvaluator extends BaseEvaluator {
       apiKey: config.openaiApiKey,
       maxRetries: this.config.maxRetries,
     });
-  }
-
-  // Implement abstract methods from BaseEvaluator
-  protected getEvaluatorType(): string {
-    return 'vocabulary';
   }
 
   /**
@@ -136,7 +115,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
       // Validate inputs — inside try so validation errors are telemetered.
       // If partners consistently pass invalid grades/text, telemetry will surface documentation gaps.
       this.validateText(text);
-      this.validateGrade(grade, VALID_GRADES);
+      this.validateGrade(grade, new Set(VocabularyEvaluator.metadata.supportedGrades));
       this.logger.debug('Stage 1: Generating background knowledge', {
         evaluator: 'vocabulary',
         operation: 'background_knowledge',
@@ -346,7 +325,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
 export async function evaluateVocabulary(
   text: string,
   grade: string,
-  config: VocabularyEvaluatorConfig
+  config: BaseEvaluatorConfig
 ): Promise<EvaluationResult<string, VocabularyComplexity>> {
   const evaluator = new VocabularyEvaluator(config);
   return evaluator.evaluate(text, grade);

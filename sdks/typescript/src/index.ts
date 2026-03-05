@@ -62,15 +62,17 @@ export { GradeLevelAppropriatenessSchema } from './schemas/grade-level-appropria
 export {
   VocabularyEvaluator,
   evaluateVocabulary,
-  type VocabularyEvaluatorConfig,
   SentenceStructureEvaluator,
   evaluateSentenceStructure,
-  type SentenceStructureEvaluatorConfig,
   GradeLevelAppropriatenessEvaluator,
   evaluateGradeLevelAppropriateness,
-  type GradeLevelAppropriatenessEvaluatorConfig,
+  TextComplexityEvaluator,
+  evaluateTextComplexity,
+  type TextComplexityScore,
+  type TextComplexityInternal,
   type BaseEvaluatorConfig,
   type TelemetryOptions,
+  type EvaluatorMetadata,
 } from './evaluators/index.js';
 
 // Features

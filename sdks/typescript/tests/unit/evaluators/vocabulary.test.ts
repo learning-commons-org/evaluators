@@ -39,14 +39,14 @@ describe('VocabularyEvaluator - Constructor Validation', () => {
     expect(() => new VocabularyEvaluator({
       googleApiKey: '',
       openaiApiKey: 'test-openai-key',
-    })).toThrow('Google API key is required. Pass googleApiKey in config.');
+    })).toThrow('Google API key is required for Vocabulary evaluator. Pass googleApiKey in config.');
   });
 
   it('should throw error when OpenAI API key is missing', () => {
     expect(() => new VocabularyEvaluator({
       googleApiKey: 'test-google-key',
       openaiApiKey: '',
-    })).toThrow('OpenAI API key is required. Pass openaiApiKey in config.');
+    })).toThrow('OpenAI API key is required for Vocabulary evaluator. Pass openaiApiKey in config.');
   });
 
 });

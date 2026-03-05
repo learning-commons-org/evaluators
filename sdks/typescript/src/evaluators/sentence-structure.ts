@@ -17,12 +17,7 @@ import {
 import type { EvaluationResult, ComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
-import { ConfigurationError, ValidationError, wrapProviderError } from '../errors.js';
-
-/**
- * Valid grade levels (K-12)
- */
-const VALID_GRADES = new Set(['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
+import { ValidationError, wrapProviderError } from '../errors.js';
 
 /**
  * Internal data structure for sentence structure evaluation
@@ -55,14 +50,6 @@ function normalizeLabel(label: string | null | undefined): string | null {
 }
 
 /**
- * Configuration for SentenceStructureEvaluator
- */
-export interface SentenceStructureEvaluatorConfig extends BaseEvaluatorConfig {
-  /** OpenAI API key for sentence analysis and complexity evaluation (uses GPT-4o) */
-  openaiApiKey: string;
-}
-
-/**
  * Sentence Structure Evaluator
  *
  * Evaluates sentence structure complexity of educational texts relative to grade level.
@@ -88,17 +75,21 @@ export interface SentenceStructureEvaluatorConfig extends BaseEvaluatorConfig {
  * ```
  */
 export class SentenceStructureEvaluator extends BaseEvaluator {
+  static readonly metadata = {
+    id: 'sentence-structure',
+    name: 'Sentence Structure',
+    description: 'Evaluates sentence structure complexity based on grammatical features',
+    supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
+    requiresGoogleKey: false,
+    requiresOpenAIKey: true,
+  };
+
   private analysisProvider: LLMProvider;
   private complexityProvider: LLMProvider;
 
-  constructor(config: SentenceStructureEvaluatorConfig) {
-    // Call base constructor for common setup (telemetry, etc.)
+  constructor(config: BaseEvaluatorConfig) {
+    // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
-
-    // Validate required API keys
-    if (!config.openaiApiKey) {
-      throw new ConfigurationError('OpenAI API key is required. Pass openaiApiKey in config.');
-    }
 
     // Create OpenAI GPT-4o provider for both stages
     this.analysisProvider = createProvider({
@@ -116,16 +107,11 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     });
   }
 
-  // Implement abstract methods from BaseEvaluator
-  protected getEvaluatorType(): string {
-    return 'sentence-structure';
-  }
-
   /**
    * Evaluate sentence structure complexity for a given text and grade level
    *
    * @param text - The text to evaluate
-   * @param grade - The target grade level (K-12)
+   * @param grade - The target grade level (3-12)
    * @returns Evaluation result with complexity score and detailed analysis
    * @throws {ValidationError} If text is empty, too short/long, or grade is invalid
    * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
@@ -147,7 +133,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     try {
       // Validate inputs — inside try so validation errors are telemetered.
       this.validateText(text);
-      this.validateGrade(grade, VALID_GRADES);
+      this.validateGrade(grade, new Set(SentenceStructureEvaluator.metadata.supportedGrades));
       this.logger.debug('Stage 1: Analyzing sentence structure', {
         evaluator: 'sentence-structure',
         operation: 'sentence_analysis',
@@ -377,7 +363,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
 export async function evaluateSentenceStructure(
   text: string,
   grade: string,
-  config: SentenceStructureEvaluatorConfig
+  config: BaseEvaluatorConfig
 ): Promise<EvaluationResult<string, SentenceStructureInternal>> {
   const evaluator = new SentenceStructureEvaluator(config);
   return evaluator.evaluate(text, grade);

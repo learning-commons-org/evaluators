@@ -5,7 +5,7 @@ import {
   type TelemetryMetadata,
   type TokenUsage,
 } from '../telemetry/index.js';
-import { ValidationError } from '../errors.js';
+import { ConfigurationError, ValidationError } from '../errors.js';
 import { createLogger, LogLevel, type Logger } from '../logger.js';
 
 /**
@@ -81,6 +81,25 @@ export interface BaseEvaluatorConfig {
 }
 
 /**
+ * Evaluator metadata interface
+ * Each evaluator must provide this metadata as static properties
+ */
+export interface EvaluatorMetadata {
+  /** Unique identifier for the evaluator (e.g., 'vocabulary', 'sentence-structure') */
+  readonly id: string;
+  /** Human-readable name (e.g., 'Vocabulary', 'Sentence Structure') */
+  readonly name: string;
+  /** Brief description of what the evaluator does */
+  readonly description: string;
+  /** Supported grade levels (e.g., ['3', '4', '5', ...]) */
+  readonly supportedGrades: readonly string[];
+  /** Whether this evaluator requires a Google API key */
+  readonly requiresGoogleKey: boolean;
+  /** Whether this evaluator requires an OpenAI API key */
+  readonly requiresOpenAIKey: boolean;
+}
+
+/**
  * Abstract base class for all evaluators
  *
  * Provides common functionality:
@@ -88,6 +107,9 @@ export interface BaseEvaluatorConfig {
  * - Text validation
  * - Grade validation (with overridable default)
  * - Metadata creation
+ *
+ * Concrete evaluators must implement:
+ * - static metadata: Provide evaluator metadata (see EvaluatorMetadata interface)
  */
 export abstract class BaseEvaluator {
   protected telemetryClient?: TelemetryClient;
@@ -96,9 +118,34 @@ export abstract class BaseEvaluator {
     telemetry: Required<TelemetryOptions>;
   };
 
+  /**
+   * Static metadata for the evaluator
+   *
+   * Concrete evaluators MUST define this property.
+   *
+   * @example
+   * ```typescript
+   * class MyEvaluator extends BaseEvaluator {
+   *   static readonly metadata = {
+   *     id: 'my-evaluator',
+   *     name: 'My Evaluator',
+   *     description: 'Does something useful',
+   *     supportedGrades: ['3', '4', '5'],
+   *     requiresGoogleKey: true,
+   *     requiresOpenAIKey: false,
+   *   };
+   * }
+   * ```
+   */
+  static readonly metadata: EvaluatorMetadata;
+
   constructor(config: BaseEvaluatorConfig) {
     // Initialize logger
     this.logger = createLogger(config.logger, config.logLevel ?? LogLevel.WARN);
+
+    // Validate required API keys based on metadata
+    this.validateApiKeys(config);
+
     // Normalize telemetry config
     const telemetryConfig = this.normalizeTelemetryConfig(config.telemetry);
 
@@ -117,6 +164,38 @@ export abstract class BaseEvaluator {
         enabled: true,
         logger: this.logger,
       });
+    }
+  }
+
+  /**
+   * Get metadata for this evaluator instance
+   * @throws {ConfigurationError} If the subclass has not defined static metadata
+   */
+  protected get metadata(): EvaluatorMetadata {
+    const meta = (this.constructor as typeof BaseEvaluator).metadata;
+    if (!meta) {
+      throw new ConfigurationError(
+        `${this.constructor.name} must define a static readonly metadata block.`
+      );
+    }
+    return meta;
+  }
+
+  /**
+   * Validate that required API keys are provided based on metadata
+   * @throws {ConfigurationError} If required API keys are missing
+   */
+  private validateApiKeys(config: BaseEvaluatorConfig): void {
+    if (this.metadata.requiresGoogleKey && !config.googleApiKey) {
+      throw new ConfigurationError(
+        `Google API key is required for ${this.metadata.name} evaluator. Pass googleApiKey in config.`
+      );
+    }
+
+    if (this.metadata.requiresOpenAIKey && !config.openaiApiKey) {
+      throw new ConfigurationError(
+        `OpenAI API key is required for ${this.metadata.name} evaluator. Pass openaiApiKey in config.`
+      );
     }
   }
 
@@ -149,10 +228,12 @@ export abstract class BaseEvaluator {
   }
 
   /**
-   * Get the evaluator type identifier (e.g., "vocabulary", "sentence-structure")
-   * Must be implemented by concrete evaluators
+   * Get the evaluator type identifier from metadata
+   * @returns The evaluator type ID (e.g., "vocabulary", "sentence-structure")
    */
-  protected abstract getEvaluatorType(): string;
+  protected getEvaluatorType(): string {
+    return this.metadata.id;
+  }
 
   /**
    * Validate text meets requirements
