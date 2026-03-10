@@ -1,0 +1,29 @@
+{
+  "name": "@learning-commons/differentiated-text-generator",
+  "version": "0.1.0",
+  "description": "Agentic demo: generate below/at/above grade-level variants of a text passage",
+  "type": "module",
+  "scripts": {
+    "dev": "node --import tsx/esm src/index.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^3.0.7",
+    "@ai-sdk/openai": "^3.0.9",
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@learning-commons/evaluators": "file:../../sdks/typescript",
+    "ai": "^6.0.30",
+    "compromise": "^14.13.0",
+    "dotenv": "^17.3.1",
+    "p-limit": "^5.0.0",
+    "syllable": "^5.0.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "tsx": "^4.19.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}
