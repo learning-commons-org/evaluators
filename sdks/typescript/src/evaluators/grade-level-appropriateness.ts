@@ -107,7 +107,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
         score: response.data.grade,
         reasoning: response.data.reasoning,
         metadata: {
-          promptVersion: '1.2.0',
+          promptVersion: '1.0.0',
           model: 'google:gemini-2.5-pro',
           timestamp: new Date(),
           processingTimeMs: latencyMs,

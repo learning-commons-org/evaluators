@@ -240,7 +240,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toHaveProperty('processingTimeMs');
 
       // Verify metadata values
-      expect(result.metadata.promptVersion).toBe('1.2.0');
+      expect(result.metadata.promptVersion).toBe('1.1.0');
       expect(result.metadata.model).toBe('openai:gpt-4o');
       expect(result.metadata.timestamp).toBeInstanceOf(Date);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
