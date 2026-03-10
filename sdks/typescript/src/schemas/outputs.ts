@@ -1,16 +1,17 @@
 import { z } from 'zod';
 
 /**
- * Complexity levels for sentence structure evaluation
+ * Shared complexity levels used across all text complexity evaluators
+ * (Vocabulary, Sentence Structure, and any future sub-evaluators)
  */
-export const ComplexityLevel = z.enum([
-  'Slightly Complex',
-  'Moderately Complex',
-  'Very Complex',
-  'Exceedingly Complex',
+export const TextComplexityLevel = z.enum([
+  'Slightly complex',
+  'Moderately complex',
+  'Very complex',
+  'Exceedingly complex',
 ]);
 
-export type ComplexityLevel = z.infer<typeof ComplexityLevel>;
+export type TextComplexityLevel = z.infer<typeof TextComplexityLevel>;
 
 /**
  * Grade levels for vocabulary evaluation

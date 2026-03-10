@@ -24,4 +24,4 @@ export const GradeLevelAppropriatenessSchema = z.object({
     .describe('Scaffolding needed for the text to be appropriate for the alternative grade'),
 });
 
-export type GradeLevelAppropriateness = z.infer<typeof GradeLevelAppropriatenessSchema>;
+export type GradeLevelAppropriatenessInternal = z.infer<typeof GradeLevelAppropriatenessSchema>;

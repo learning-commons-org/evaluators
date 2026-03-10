@@ -2,10 +2,10 @@ import type { LLMProvider } from '../providers/index.js';
 import { createProvider } from '../providers/index.js';
 import {
   GradeLevelAppropriatenessSchema,
-  type GradeLevelAppropriateness,
+  type GradeLevelAppropriatenessInternal,
 } from '../schemas/grade-level-appropriateness.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/grade-level-appropriateness/index.js';
-import type { EvaluationResult } from '../schemas/index.js';
+import type { EvaluationResult, GradeBand } from '../schemas/index.js';
 import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
 import { ValidationError, wrapProviderError } from '../errors.js';
 
@@ -69,7 +69,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
    * @throws {ValidationError} If text is empty or too short/long
    * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
    */
-  async evaluate(text: string): Promise<EvaluationResult<string, GradeLevelAppropriateness>> {
+  async evaluate(text: string): Promise<EvaluationResult<GradeBand, GradeLevelAppropriatenessInternal>> {
     this.logger.info('Starting grade level appropriateness evaluation', {
       evaluator: 'grade-level-appropriateness',
       operation: 'evaluate',
@@ -186,7 +186,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
 export async function evaluateGradeLevelAppropriateness(
   text: string,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<string, GradeLevelAppropriateness>> {
+): Promise<EvaluationResult<GradeBand, GradeLevelAppropriatenessInternal>> {
   const evaluator = new GradeLevelAppropriatenessEvaluator(config);
   return evaluator.evaluate(text);
 }

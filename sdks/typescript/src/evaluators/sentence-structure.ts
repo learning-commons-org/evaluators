@@ -6,6 +6,7 @@ import {
   type SentenceAnalysis,
   type SentenceFeatures,
   type ComplexityClassification,
+  type SentenceStructureInternal,
 } from '../schemas/sentence-structure.js';
 import { calculateReadabilityMetrics, addEngineeredFeatures, featuresToJSON } from '../features/index.js';
 import {
@@ -14,39 +15,29 @@ import {
   getSystemPromptComplexity,
   getUserPromptComplexity,
 } from '../prompts/sentence-structure/index.js';
-import type { EvaluationResult, ComplexityLevel } from '../schemas/index.js';
+import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { ValidationError, wrapProviderError } from '../errors.js';
 
 /**
- * Internal data structure for sentence structure evaluation
- */
-interface SentenceStructureInternal {
-  sentenceAnalysis: SentenceAnalysis;
-  features: SentenceFeatures;
-  complexity: ComplexityClassification;
-}
-
-/**
  * Normalize complexity label to handle LLM output variations
- * Ported from Python normalize_label function
  */
-function normalizeLabel(label: string | null | undefined): string | null {
+function normalizeLabel(label: string | null | undefined): TextComplexityLevel | null {
   if (!label) {
     return null;
   }
 
-  const normalized = label.trim().toLowerCase();
-  const mapping: Record<string, string> = {
-    'slightly complex': 'Slightly Complex',
-    'moderately complex': 'Moderately Complex',
-    'very complex': 'Very Complex',
-    'exceedingly complex': 'Exceedingly Complex',
-    'extremely complex': 'Exceedingly Complex', // Maps to Exceedingly Complex
+  const normalized = label.trim().toLowerCase().replace(/_/g, ' ');
+  const mapping: Record<string, TextComplexityLevel> = {
+    'slightly complex': 'Slightly complex',
+    'moderately complex': 'Moderately complex',
+    'very complex': 'Very complex',
+    'exceedingly complex': 'Exceedingly complex',
+    'extremely complex': 'Exceedingly complex',
   };
 
-  return mapping[normalized] || null; // Return null if no mapping found
+  return mapping[normalized] ?? null;
 }
 
 /**
@@ -57,11 +48,11 @@ function normalizeLabel(label: string | null | undefined): string | null {
  * 1. Analyze grammatical structure (sentence types, clauses, phrases, etc.)
  * 2. Classify complexity using features and grade-specific rubric
  *
- * Based on SCASS Text Complexity rubric with 4 levels:
- * - Slightly Complex
- * - Moderately Complex
- * - Very Complex
- * - Exceedingly Complex
+ * Based on Qualitative Text Complexity rubric with 4 levels:
+ * - Slightly complex
+ * - Moderately complex
+ * - Very complex
+ * - Exceedingly complex
  *
  * @example
  * ```typescript
@@ -70,7 +61,7 @@ function normalizeLabel(label: string | null | undefined): string | null {
  * });
  *
  * const result = await evaluator.evaluate(text, "3");
- * console.log(result.score); // "Moderately Complex"
+ * console.log(result.score); // "Moderately complex"
  * console.log(result.reasoning);
  * ```
  */
@@ -119,7 +110,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
   async evaluate(
     text: string,
     grade: string
-  ): Promise<EvaluationResult<string, SentenceStructureInternal>> {
+  ): Promise<EvaluationResult<TextComplexityLevel, SentenceStructureInternal>> {
     this.logger.info('Starting sentence structure evaluation', {
       evaluator: 'sentence-structure',
       operation: 'evaluate',
@@ -338,7 +329,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     return {
       data: {
         ...response.data,
-        answer: normalizedAnswer as ComplexityLevel,
+        answer: normalizedAnswer,
       },
       usage: response.usage,
       latencyMs: response.latencyMs,
@@ -364,7 +355,7 @@ export async function evaluateSentenceStructure(
   text: string,
   grade: string,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<string, SentenceStructureInternal>> {
+): Promise<EvaluationResult<TextComplexityLevel, SentenceStructureInternal>> {
   const evaluator = new SentenceStructureEvaluator(config);
   return evaluator.evaluate(text, grade);
 }

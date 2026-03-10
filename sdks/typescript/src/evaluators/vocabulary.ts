@@ -2,7 +2,7 @@ import type { LLMProvider } from '../providers/index.js';
 import { createProvider } from '../providers/index.js';
 import {
   VocabularyComplexitySchema,
-  type VocabularyComplexity,
+  type VocabularyInternal,
   type BackgroundKnowledge,
 } from '../schemas/vocabulary.js';
 import { calculateFleschKincaidGrade } from '../features/index.js';
@@ -11,7 +11,7 @@ import {
   getSystemPrompt,
   getUserPrompt,
 } from '../prompts/vocabulary/index.js';
-import type { EvaluationResult } from '../schemas/index.js';
+import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { ValidationError, wrapProviderError } from '../errors.js';
@@ -38,7 +38,7 @@ import { ValidationError, wrapProviderError } from '../errors.js';
  * });
  *
  * const result = await evaluator.evaluate(text, "3");
- * console.log(result.score); // "moderately complex"
+ * console.log(result.score); // "Moderately complex"
  * console.log(result.reasoning);
  * ```
  */
@@ -97,7 +97,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
   async evaluate(
     text: string,
     grade: string
-  ): Promise<EvaluationResult<string, VocabularyComplexity>> {
+  ): Promise<EvaluationResult<TextComplexityLevel, VocabularyInternal>> {
     this.logger.info('Starting vocabulary evaluation', {
       evaluator: 'vocabulary',
       operation: 'evaluate',
@@ -281,7 +281,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
     grade: string,
     backgroundKnowledge: string,
     fkLevel: number
-  ): Promise<{ data: VocabularyComplexity; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
+  ): Promise<{ data: VocabularyInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const systemPrompt = getSystemPrompt(grade);
     const userPrompt = getUserPrompt(text, grade, backgroundKnowledge, fkLevel);
 
@@ -326,7 +326,7 @@ export async function evaluateVocabulary(
   text: string,
   grade: string,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<string, VocabularyComplexity>> {
+): Promise<EvaluationResult<TextComplexityLevel, VocabularyInternal>> {
   const evaluator = new VocabularyEvaluator(config);
   return evaluator.evaluate(text, grade);
 }

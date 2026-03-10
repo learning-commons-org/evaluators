@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ComplexityLevel } from './outputs.js';
+import { TextComplexityLevel } from './outputs.js';
 
 /**
  * Stage 1: Detailed sentence analysis output (40+ metrics)
@@ -69,10 +69,19 @@ export type SentenceAnalysis = z.infer<typeof SentenceAnalysisSchema>;
  */
 export const ComplexityClassificationSchema = z.object({
   reasoning: z.string().describe('Detailed pedagogically appropriate reasoning'),
-  answer: ComplexityLevel,
+  answer: TextComplexityLevel,
 });
 
 export type ComplexityClassification = z.infer<typeof ComplexityClassificationSchema>;
+
+/**
+ * Internal data structure for sentence structure evaluation
+ */
+export interface SentenceStructureInternal {
+  sentenceAnalysis: SentenceAnalysis;
+  features: SentenceFeatures;
+  complexity: ComplexityClassification;
+}
 
 /**
  * Engineered features computed from sentence analysis

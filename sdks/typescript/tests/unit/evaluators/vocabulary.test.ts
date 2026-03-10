@@ -96,7 +96,7 @@ describe('VocabularyEvaluator - Evaluation Flow', () => {
       // Mock complexity evaluation response
       vi.mocked(mockComplexityProvider.generateStructured).mockResolvedValue({
         data: {
-          complexity_score: 'moderately complex',
+          complexity_score: 'Moderately complex',
           reasoning: 'The text uses grade-appropriate vocabulary.',
           factors: ['Academic terminology', 'Clear structure'],
         },
@@ -112,7 +112,7 @@ describe('VocabularyEvaluator - Evaluation Flow', () => {
       const result = await evaluator.evaluate(testText, testGrade);
 
       // Verify result structure
-      expect(result.score).toBe('moderately complex');
+      expect(result.score).toBe('Moderately complex');
       expect(result.reasoning).toContain('grade-appropriate vocabulary');
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20 + openai:gpt-4.1-2025-04-14');
@@ -190,7 +190,7 @@ describe('VocabularyEvaluator - Evaluation Flow', () => {
 
       vi.mocked(mockComplexityProvider.generateStructured).mockResolvedValue({
         data: {
-          complexity_score: 'moderately complex',
+          complexity_score: 'Moderately complex',
           reasoning: 'Detailed reasoning here',
           factors: ['Factor 1', 'Factor 2'],
         },
@@ -228,7 +228,7 @@ describe('VocabularyEvaluator - Evaluation Flow', () => {
       });
 
       const mockComplexityData = {
-        complexity_score: 'moderately complex',
+        complexity_score: 'Moderately complex',
         reasoning: 'Detailed reasoning',
         factors: ['Factor 1', 'Factor 2'],
         analysis: 'Deep analysis',

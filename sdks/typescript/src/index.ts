@@ -7,7 +7,7 @@ export type {
   EvaluationError,
 } from './schemas/index.js';
 
-export { ComplexityLevel, GradeLevel, GradeBand } from './schemas/index.js';
+export { TextComplexityLevel, GradeLevel, GradeBand } from './schemas/index.js';
 
 // Error types
 export {
@@ -40,6 +40,7 @@ export type {
   SentenceAnalysis,
   ComplexityClassification,
   SentenceFeatures,
+  SentenceStructureInternal,
 } from './schemas/sentence-structure.js';
 
 export {
@@ -48,16 +49,12 @@ export {
 } from './schemas/sentence-structure.js';
 
 // Vocabulary exports
-export type {
-  VocabularyComplexity,
-  VocabularyComplexityLevel,
-} from './schemas/vocabulary.js';
+export type { VocabularyInternal } from './schemas/vocabulary.js';
 
 // Grade Level Appropriateness exports
-export type { GradeLevelAppropriateness } from './schemas/grade-level-appropriateness.js';
+export type { GradeLevelAppropriatenessInternal } from './schemas/grade-level-appropriateness.js';
 
 export { GradeLevelAppropriatenessSchema } from './schemas/grade-level-appropriateness.js';
-
 
 export {
   VocabularyEvaluator,
@@ -68,8 +65,7 @@ export {
   evaluateGradeLevelAppropriateness,
   TextComplexityEvaluator,
   evaluateTextComplexity,
-  type TextComplexityScore,
-  type TextComplexityInternal,
+  type TextComplexityResult,
   type BaseEvaluatorConfig,
   type TelemetryOptions,
   type EvaluatorMetadata,

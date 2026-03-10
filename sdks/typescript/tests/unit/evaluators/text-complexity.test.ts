@@ -16,7 +16,7 @@ vi.mock('../../../src/providers/index.js', () => ({
       data: {
         complexity_score: 'moderately complex',
         reasoning: 'Test reasoning',
-        answer: 'Moderately Complex',
+        answer: 'Moderately complex',
       },
       usage: { inputTokens: 100, outputTokens: 50 },
       latencyMs: 100,
@@ -106,7 +106,7 @@ describe('TextComplexityEvaluator', () => {
 
       // Mock the child evaluators' evaluate methods
       vocabSpy = vi.spyOn((evaluator as any).vocabularyEvaluator, 'evaluate').mockResolvedValue({
-        score: 'moderately complex',
+        score: 'Moderately complex',
         reasoning: 'Vocabulary test reasoning',
         metadata: {
           promptVersion: '1.0',
@@ -118,7 +118,7 @@ describe('TextComplexityEvaluator', () => {
       });
 
       sentenceSpy = vi.spyOn((evaluator as any).sentenceStructureEvaluator, 'evaluate').mockResolvedValue({
-        score: 'Moderately Complex',
+        score: 'Moderately complex',
         reasoning: 'Sentence structure test reasoning',
         metadata: {
           promptVersion: '1.0',
@@ -141,15 +141,10 @@ describe('TextComplexityEvaluator', () => {
       const result = await evaluator.evaluate(text, grade);
 
       expect(result).toBeDefined();
-      expect(result.score).toBeDefined();
-      expect(result.score.vocabulary).toBeDefined();
-      expect(result.score.sentenceStructure).toBeDefined();
-      expect(result.reasoning).toBeDefined();
-      expect(result.metadata).toBeDefined();
-      expect(result.metadata.model).toBe('composite:gemini-2.5-pro+gpt-4o');
-      expect(result._internal).toBeDefined();
-      expect(result._internal!.vocabulary).toBeDefined();
-      expect(result._internal!.sentenceStructure).toBeDefined();
+      expect(result.vocabulary).toBeDefined();
+      expect(result.sentenceStructure).toBeDefined();
+      expect('error' in result.vocabulary).toBe(false);
+      expect('error' in result.sentenceStructure).toBe(false);
     });
 
     it('should validate text input', async () => {
@@ -201,8 +196,8 @@ describe('TextComplexityEvaluator', () => {
       // Allow some overhead but should be significantly less than 200ms
       expect(duration).toBeLessThan(200);
 
-      expect('error' in result._internal!.vocabulary).toBe(false);
-      expect('error' in result._internal!.sentenceStructure).toBe(false);
+      expect('error' in result.vocabulary).toBe(false);
+      expect('error' in result.sentenceStructure).toBe(false);
     });
 
     it('should handle partial failures gracefully', async () => {
@@ -215,11 +210,9 @@ describe('TextComplexityEvaluator', () => {
       const result = await evaluator.evaluate(text, grade);
 
       expect(result).toBeDefined();
-      expect('error' in result._internal!.vocabulary).toBe(true);
-      expect((result._internal!.vocabulary as { error: Error }).error).toBeDefined();
-      expect('error' in result._internal!.sentenceStructure).toBe(false);
-      expect(result.score.vocabulary).toBe('N/A');
-      expect(result.score.sentenceStructure).not.toBe('N/A');
+      expect('error' in result.vocabulary).toBe(true);
+      expect((result.vocabulary as { error: Error }).error).toBeDefined();
+      expect('error' in result.sentenceStructure).toBe(false);
     });
 
     it('should throw when both evaluators fail', async () => {
@@ -239,9 +232,9 @@ describe('TextComplexityEvaluator', () => {
       const text = 'The cat sat on the mat.';
       const grade = '5';
 
-      // Override vocabulary to return "moderately complex"
+      // Override vocabulary to return "Moderately complex"
       vocabSpy.mockResolvedValue({
-        score: 'moderately complex',
+        score: 'Moderately complex',
         reasoning: 'Vocab reasoning',
         metadata: {
           promptVersion: '1.0',
@@ -252,9 +245,9 @@ describe('TextComplexityEvaluator', () => {
         _internal: {},
       });
 
-      // Override sentence structure to return "Slightly Complex"
+      // Override sentence structure to return "Slightly complex"
       sentenceSpy.mockResolvedValue({
-        score: 'Slightly Complex',
+        score: 'Slightly complex',
         reasoning: 'Sentence reasoning',
         metadata: {
           promptVersion: '1.0',
@@ -267,17 +260,23 @@ describe('TextComplexityEvaluator', () => {
 
       const result = await evaluator.evaluate(text, grade);
 
-      expect(result.score.vocabulary).toBe('moderately complex');
-      expect(result.score.sentenceStructure).toBe('Slightly Complex');
+      expect('error' in result.vocabulary).toBe(false);
+      expect('error' in result.sentenceStructure).toBe(false);
+      if (!('error' in result.vocabulary)) {
+        expect(result.vocabulary.score).toBe('Moderately complex');
+      }
+      if (!('error' in result.sentenceStructure)) {
+        expect(result.sentenceStructure.score).toBe('Slightly complex');
+      }
     });
 
-    it('should build combined reasoning from both evaluators', async () => {
+    it('should preserve individual sub-evaluator reasoning', async () => {
       const text = 'The cat sat on the mat.';
       const grade = '5';
 
       // Override both evaluators with specific reasoning
       vocabSpy.mockResolvedValue({
-        score: 'moderately complex',
+        score: 'Moderately complex',
         reasoning: 'This is the vocabulary reasoning.',
         metadata: {
           promptVersion: '1.0',
@@ -289,7 +288,7 @@ describe('TextComplexityEvaluator', () => {
       });
 
       sentenceSpy.mockResolvedValue({
-        score: 'Slightly Complex',
+        score: 'Slightly complex',
         reasoning: 'This is the sentence structure reasoning.',
         metadata: {
           promptVersion: '1.0',
@@ -302,10 +301,12 @@ describe('TextComplexityEvaluator', () => {
 
       const result = await evaluator.evaluate(text, grade);
 
-      expect(result.reasoning).toContain('Vocabulary Complexity');
-      expect(result.reasoning).toContain('This is the vocabulary reasoning.');
-      expect(result.reasoning).toContain('Sentence Structure Complexity');
-      expect(result.reasoning).toContain('This is the sentence structure reasoning.');
+      if (!('error' in result.vocabulary)) {
+        expect(result.vocabulary.reasoning).toBe('This is the vocabulary reasoning.');
+      }
+      if (!('error' in result.sentenceStructure)) {
+        expect(result.sentenceStructure.reasoning).toBe('This is the sentence structure reasoning.');
+      }
     });
   });
 
