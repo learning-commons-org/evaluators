@@ -2,12 +2,10 @@
 export type {
   EvaluationResult,
   EvaluationMetadata,
-  BatchEvaluationResult,
-  BatchSummary,
   EvaluationError,
 } from './schemas/index.js';
 
-export { TextComplexityLevel, GradeLevel, GradeBand } from './schemas/index.js';
+export { TextComplexityLevel, GradeBand } from './schemas/index.js';
 
 // Error types
 export {

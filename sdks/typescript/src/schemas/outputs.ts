@@ -14,17 +14,6 @@ export const TextComplexityLevel = z.enum([
 export type TextComplexityLevel = z.infer<typeof TextComplexityLevel>;
 
 /**
- * Grade levels for vocabulary evaluation
- */
-export const GradeLevel = z.enum([
-  'Below Grade Level',
-  'At Grade Level',
-  'Above Grade Level',
-]);
-
-export type GradeLevel = z.infer<typeof GradeLevel>;
-
-/**
  * Metadata attached to all evaluation results
  */
 export interface EvaluationMetadata {

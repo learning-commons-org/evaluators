@@ -1,10 +1,7 @@
 export {
   TextComplexityLevel,
-  GradeLevel,
   type EvaluationResult,
   type EvaluationMetadata,
-  type BatchEvaluationResult,
-  type BatchSummary,
   type EvaluationError,
 } from './outputs.js';
 
