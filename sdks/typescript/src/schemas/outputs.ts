@@ -29,9 +29,7 @@ export type GradeLevel = z.infer<typeof GradeLevel>;
  */
 export interface EvaluationMetadata {
   evaluatorVersion?: string;
-  promptVersion: string;
   model: string;
-  timestamp: Date;
   processingTimeMs: number;
 }
 

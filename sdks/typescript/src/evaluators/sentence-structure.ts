@@ -174,9 +174,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         score: complexityResponse.data.answer,
         reasoning: complexityResponse.data.reasoning,
         metadata: {
-          promptVersion: '1.1.0',
           model: 'openai:gpt-4o',
-          timestamp: new Date(),
           processingTimeMs: latencyMs,
         },
         _internal: {

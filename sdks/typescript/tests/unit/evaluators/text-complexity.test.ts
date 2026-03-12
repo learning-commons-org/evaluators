@@ -109,9 +109,7 @@ describe('TextComplexityEvaluator', () => {
         score: 'Moderately complex',
         reasoning: 'Vocabulary test reasoning',
         metadata: {
-          promptVersion: '1.0',
           model: 'gemini-2.5-pro + gpt-4o',
-          timestamp: new Date(),
           processingTimeMs: 100,
         },
         _internal: {},
@@ -121,9 +119,7 @@ describe('TextComplexityEvaluator', () => {
         score: 'Moderately complex',
         reasoning: 'Sentence structure test reasoning',
         metadata: {
-          promptVersion: '1.0',
           model: 'gpt-4o',
-          timestamp: new Date(),
           processingTimeMs: 100,
         },
         _internal: {},
@@ -237,9 +233,7 @@ describe('TextComplexityEvaluator', () => {
         score: 'Moderately complex',
         reasoning: 'Vocab reasoning',
         metadata: {
-          promptVersion: '1.0',
           model: 'gemini-2.5-pro',
-          timestamp: new Date(),
           processingTimeMs: 100,
         },
         _internal: {},
@@ -250,9 +244,7 @@ describe('TextComplexityEvaluator', () => {
         score: 'Slightly complex',
         reasoning: 'Sentence reasoning',
         metadata: {
-          promptVersion: '1.0',
           model: 'gpt-4o',
-          timestamp: new Date(),
           processingTimeMs: 100,
         },
         _internal: {},
@@ -279,9 +271,7 @@ describe('TextComplexityEvaluator', () => {
         score: 'Moderately complex',
         reasoning: 'This is the vocabulary reasoning.',
         metadata: {
-          promptVersion: '1.0',
           model: 'gemini-2.5-pro',
-          timestamp: new Date(),
           processingTimeMs: 100,
         },
         _internal: {},
@@ -291,9 +281,7 @@ describe('TextComplexityEvaluator', () => {
         score: 'Slightly complex',
         reasoning: 'This is the sentence structure reasoning.',
         metadata: {
-          promptVersion: '1.0',
           model: 'gpt-4o',
-          timestamp: new Date(),
           processingTimeMs: 100,
         },
         _internal: {},

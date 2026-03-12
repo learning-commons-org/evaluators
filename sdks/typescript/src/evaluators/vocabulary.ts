@@ -166,9 +166,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
         score: complexityResponse.data.complexity_score,
         reasoning: complexityResponse.data.reasoning,
         metadata: {
-          promptVersion: '1.2.0',
           model: `openai:gpt-4o-2024-11-20 + ${complexityProviderName}`,
-          timestamp: new Date(),
           processingTimeMs: latencyMs,
         },
         _internal: complexityResponse.data,
