@@ -67,6 +67,8 @@ Keys:
 - friction_analysis: String discussing the gap between Concrete description and Abstract meaning.
 - complexity_score: String (One of: slightly_complex, moderately_complex, very_complex, exceedingly_complex).
 - reasoning: String synthesizing the decision.
+
+{format_instructions}
 """
 
 smk_user_prompt = """Analyze:
