@@ -158,7 +158,7 @@ export abstract class BaseEvaluator {
     // Initialize telemetry if enabled
     if (this.config.telemetry.enabled) {
       this.telemetryClient = new TelemetryClient({
-        endpoint: 'https://api.learningcommons.org/v1/telemetry',
+        endpoint: 'https://api.learningcommons.org/evaluators-telemetry/v1/events',
         partnerKey: config.partnerKey,
         clientId: generateClientId(),
         enabled: true,
