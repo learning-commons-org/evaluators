@@ -17,7 +17,6 @@ export type TextComplexityLevel = z.infer<typeof TextComplexityLevel>;
  * Metadata attached to all evaluation results
  */
 export interface EvaluationMetadata {
-  evaluatorVersion?: string;
   model: string;
   processingTimeMs: number;
 }
@@ -51,7 +50,6 @@ export interface EvaluationError {
     text: string;
     grade?: string;
   };
-  timestamp: Date;
 }
 
 /**
