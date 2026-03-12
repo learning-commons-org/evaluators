@@ -65,9 +65,7 @@ await evaluator.evaluate(text: string, grade: string)
   score: 'slightly complex' | 'moderately complex' | 'very complex' | 'exceedingly complex';
   reasoning: string;
   metadata: {
-    promptVersion: string;
     model: string;
-    timestamp: Date;
     processingTimeMs: number;
   };
   _internal: VocabularyComplexity; // Detailed analysis
@@ -106,9 +104,7 @@ await evaluator.evaluate(text: string, grade: string)
   score: 'Slightly Complex' | 'Moderately Complex' | 'Very Complex' | 'Exceedingly Complex';
   reasoning: string;
   metadata: {
-    promptVersion: string;
     model: string;
-    timestamp: Date;
     processingTimeMs: number;
   };
   _internal: {
@@ -195,9 +191,7 @@ await evaluator.evaluate(text: string)
   score: string; // e.g., 'K-1', '2-3', '4-5', '6-8', '9-10', '11-CCR'
   reasoning: string;
   metadata: {
-    promptVersion: string;
     model: string;
-    timestamp: Date;
     processingTimeMs: number;
   };
   _internal: {

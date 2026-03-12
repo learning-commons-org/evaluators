@@ -23,6 +23,5 @@ export {
 export {
   TextComplexityEvaluator,
   evaluateTextComplexity,
-  type TextComplexityScore,
-  type TextComplexityInternal,
+  type TextComplexityResult,
 } from './text-complexity.js';

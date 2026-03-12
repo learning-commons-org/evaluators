@@ -128,7 +128,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       // Mock complexity classification response
       vi.mocked(mockComplexityProvider.generateStructured).mockResolvedValue({
         data: {
-          answer: 'Slightly Complex',
+          answer: 'Slightly complex',
           reasoning: 'The text uses simple sentence structures appropriate for third grade.',
         },
         model: 'gpt-4o',
@@ -143,7 +143,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       const result = await evaluator.evaluate(testText, testGrade);
 
       // Verify result structure
-      expect(result.score).toBe('Slightly Complex');
+      expect(result.score).toBe('Slightly complex');
       expect(result.reasoning).toContain('simple sentence structures');
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe('openai:gpt-4o');
@@ -217,7 +217,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
 
       vi.mocked(mockComplexityProvider.generateStructured).mockResolvedValue({
         data: {
-          answer: 'Moderately Complex',
+          answer: 'Moderately complex',
           reasoning: 'Detailed reasoning here',
         },
         model: 'gpt-4o',
@@ -234,15 +234,11 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       expect(result).toHaveProperty('_internal');
 
       // Verify metadata structure
-      expect(result.metadata).toHaveProperty('promptVersion');
       expect(result.metadata).toHaveProperty('model');
-      expect(result.metadata).toHaveProperty('timestamp');
       expect(result.metadata).toHaveProperty('processingTimeMs');
 
       // Verify metadata values
-      expect(result.metadata.promptVersion).toBe('1.2.0');
       expect(result.metadata.model).toBe('openai:gpt-4o');
-      expect(result.metadata.timestamp).toBeInstanceOf(Date);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
   });

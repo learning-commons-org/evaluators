@@ -1,15 +1,12 @@
 export {
-  ComplexityLevel,
-  GradeLevel,
+  TextComplexityLevel,
   type EvaluationResult,
   type EvaluationMetadata,
-  type BatchEvaluationResult,
-  type BatchSummary,
   type EvaluationError,
 } from './outputs.js';
 
 export {
   GradeBand,
   GradeLevelAppropriatenessSchema,
-  type GradeLevelAppropriateness,
+  type GradeLevelAppropriatenessInternal,
 } from './grade-level-appropriateness.js';

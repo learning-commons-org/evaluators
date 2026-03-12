@@ -165,15 +165,11 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result._internal).toHaveProperty('reasoning');
 
       // Verify metadata structure
-      expect(result.metadata).toHaveProperty('promptVersion');
       expect(result.metadata).toHaveProperty('model');
-      expect(result.metadata).toHaveProperty('timestamp');
       expect(result.metadata).toHaveProperty('processingTimeMs');
 
       // Verify metadata values
-      expect(result.metadata.promptVersion).toBe('1.2.0');
       expect(result.metadata.model).toBe('google:gemini-2.5-pro');
-      expect(result.metadata.timestamp).toBeInstanceOf(Date);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
 
       // Verify _internal values

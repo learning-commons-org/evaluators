@@ -1,27 +1,19 @@
 import pLimit from 'p-limit';
 import { VocabularyEvaluator } from './vocabulary.js';
 import { SentenceStructureEvaluator } from './sentence-structure.js';
+import type { SentenceStructureInternal } from '../schemas/sentence-structure.js';
 import type { BaseEvaluatorConfig } from './base.js';
 import { BaseEvaluator } from './base.js';
-import type { EvaluationResult } from '../schemas/index.js';
+import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
+import type { VocabularyInternal } from '../schemas/vocabulary.js';
 
 /**
- * Internal data structure for text complexity evaluation
- * Stores either successful evaluation results or errors from sub-evaluators
+ * Result map returned by TextComplexityEvaluator.
+ * Each key holds the full evaluation result from its sub-evaluator, or an error if it failed.
  */
-export interface TextComplexityInternal {
-  vocabulary: EvaluationResult<string> | { error: Error };
-  sentenceStructure: EvaluationResult<string> | { error: Error };
-}
-
-/**
- * Composite score for text complexity
- */
-export interface TextComplexityScore {
-  /** Vocabulary complexity score */
-  vocabulary: string;
-  /** Sentence structure complexity score */
-  sentenceStructure: string;
+export interface TextComplexityResult {
+  vocabulary: EvaluationResult<TextComplexityLevel, VocabularyInternal> | { error: Error };
+  sentenceStructure: EvaluationResult<TextComplexityLevel, SentenceStructureInternal> | { error: Error };
 }
 
 /**
@@ -42,8 +34,9 @@ export interface TextComplexityScore {
  * });
  *
  * const result = await evaluator.evaluate(text, "5");
- * console.log(result.score.vocabulary);
- * console.log(result.score.sentenceStructure);
+ * if (!('error' in result.vocabulary)) {
+ *   console.log(result.vocabulary.score); // "Moderately complex"
+ * }
  * ```
  */
 export class TextComplexityEvaluator extends BaseEvaluator {
@@ -76,16 +69,16 @@ export class TextComplexityEvaluator extends BaseEvaluator {
    * Evaluate text complexity for a given text and grade level
    *
    * Runs vocabulary and sentence structure evaluations in parallel with concurrency control.
+   * If both sub-evaluators fail, throws an error. Otherwise returns a result map where
+   * failed sub-evaluators are represented as `{ error: Error }`.
    *
    * @param text - The text to evaluate
    * @param grade - The target grade level (3-12)
-   * @returns Evaluation result with composite complexity score
-   * @throws {Error} If text is empty or grade is invalid
+   * @returns Map of sub-evaluator results
+   * @throws {ValidationError} If text is empty or grade is invalid
+   * @throws {Error} If all sub-evaluators fail
    */
-  async evaluate(
-    text: string,
-    grade: string
-  ): Promise<EvaluationResult<TextComplexityScore, TextComplexityInternal>> {
+  async evaluate(text: string, grade: string): Promise<TextComplexityResult> {
     this.logger.info('Starting text complexity evaluation', {
       evaluator: 'text-complexity',
       operation: 'evaluate',
@@ -100,29 +93,23 @@ export class TextComplexityEvaluator extends BaseEvaluator {
     const startTime = Date.now();
 
     // Run both evaluators in parallel with concurrency control
-    const [vocabResult, sentenceResult] = await Promise.all([
+    const [vocabResult, sentenceResult]: [
+      EvaluationResult<TextComplexityLevel, VocabularyInternal> | { error: Error },
+      EvaluationResult<TextComplexityLevel, SentenceStructureInternal> | { error: Error },
+    ] = await Promise.all([
       this.limit(() => this.runSubEvaluator(this.vocabularyEvaluator, text, grade)),
       this.limit(() => this.runSubEvaluator(this.sentenceStructureEvaluator, text, grade)),
     ]);
 
     const latencyMs = Date.now() - startTime;
-
-    // Build combined reasoning
-    const reasoning = this.buildCombinedReasoning(vocabResult, sentenceResult);
-
-    // Check if any evaluations failed
     const vocabFailed = 'error' in vocabResult;
     const sentenceFailed = 'error' in sentenceResult;
     const hasFailures = vocabFailed || sentenceFailed;
 
     if (hasFailures) {
       const errors: string[] = [];
-      if (vocabFailed) {
-        errors.push(`Vocabulary evaluation failed: ${vocabResult.error.message}`);
-      }
-      if (sentenceFailed) {
-        errors.push(`Sentence structure evaluation failed: ${sentenceResult.error.message}`);
-      }
+      if (vocabFailed) errors.push(`Vocabulary: ${vocabResult.error.message}`);
+      if (sentenceFailed) errors.push(`Sentence structure: ${sentenceResult.error.message}`);
 
       this.logger.error('Text complexity evaluation completed with errors', {
         evaluator: 'text-complexity',
@@ -132,31 +119,10 @@ export class TextComplexityEvaluator extends BaseEvaluator {
         processingTimeMs: latencyMs,
       });
 
-      // If both failed, throw error
       if (vocabFailed && sentenceFailed) {
-        throw new Error(
-          `Text complexity evaluation failed: ${errors.join('; ')}`
-        );
+        throw new Error(`Text complexity evaluation failed: ${errors.join('; ')}`);
       }
     }
-
-    const result = {
-      score: {
-        vocabulary: vocabFailed ? 'N/A' : vocabResult.score,
-        sentenceStructure: sentenceFailed ? 'N/A' : sentenceResult.score,
-      },
-      reasoning,
-      metadata: {
-        promptVersion: '1.0',
-        model: 'composite:gemini-2.5-pro+gpt-4o',
-        timestamp: new Date(),
-        processingTimeMs: latencyMs,
-      },
-      _internal: {
-        vocabulary: vocabResult,
-        sentenceStructure: sentenceResult,
-      },
-    };
 
     // Send telemetry (fire-and-forget)
     this.sendTelemetry({
@@ -179,49 +145,23 @@ export class TextComplexityEvaluator extends BaseEvaluator {
       hasFailures,
     });
 
-    return result;
+    return { vocabulary: vocabResult, sentenceStructure: sentenceResult };
   }
 
   /**
-   * Run a sub-evaluator with error handling
-   * Returns the evaluation result or an error object
+   * Run a sub-evaluator with error handling.
+   * Returns the evaluation result or `{ error: Error }` if the evaluator throws.
    */
-  private async runSubEvaluator(
-    evaluator: { evaluate(text: string, grade: string): Promise<EvaluationResult<string>> },
+  private async runSubEvaluator<TScore, TInternal>(
+    evaluator: { evaluate(text: string, grade: string): Promise<EvaluationResult<TScore, TInternal>> },
     text: string,
     grade: string
-  ): Promise<EvaluationResult<string> | { error: Error }> {
+  ): Promise<EvaluationResult<TScore, TInternal> | { error: Error }> {
     try {
       return await evaluator.evaluate(text, grade);
     } catch (error) {
-      return {
-        error: error instanceof Error ? error : new Error(String(error)),
-      };
+      return { error: error instanceof Error ? error : new Error(String(error)) };
     }
-  }
-
-  /**
-   * Build combined reasoning from individual results
-   */
-  private buildCombinedReasoning(
-    vocabResult: EvaluationResult<string> | { error: Error },
-    sentenceResult: EvaluationResult<string> | { error: Error }
-  ): string {
-    const parts: string[] = [];
-
-    if ('error' in vocabResult) {
-      parts.push(`Vocabulary Complexity: Evaluation failed - ${vocabResult.error.message}`);
-    } else {
-      parts.push(`Vocabulary Complexity (${vocabResult.score}):\n${vocabResult.reasoning}`);
-    }
-
-    if ('error' in sentenceResult) {
-      parts.push(`Sentence Structure Complexity: Evaluation failed - ${sentenceResult.error.message}`);
-    } else {
-      parts.push(`Sentence Structure Complexity (${sentenceResult.score}):\n${sentenceResult.reasoning}`);
-    }
-
-    return parts.join('\n\n');
   }
 }
 
@@ -244,7 +184,7 @@ export async function evaluateTextComplexity(
   text: string,
   grade: string,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<TextComplexityScore, TextComplexityInternal>> {
+): Promise<TextComplexityResult> {
   const evaluator = new TextComplexityEvaluator(config);
   return evaluator.evaluate(text, grade);
 }
