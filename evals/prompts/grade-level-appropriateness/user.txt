@@ -1,0 +1,120 @@
+
+Use these steps to determine appropriate grade level for a text:
+1. Calculate word count and Flesch-Kincaid Grade Level of the text, and generate a grade band.
+Here are the bands guideline for word count
+
+2-3: 200-800 words
+4-5: 200-800 words
+6-8: 400-1000 words
+9-10: 500-1500 words
+11-12: 1501 words and more
+
+Here is the formula for Flesch-Kincaid Grade Level:
+Flesch-Kincaid Grade Level = 0.39 * (total words / total sentences) + 11.8 * (total syllables / total words) - 15.59
+
+
+2. Determine the qualitative complexity using this text complexity rubric:
+TEXT STRUCTURE
+
+Exceedingly Complex
+    •	Deep, intricate, often ambiguous connections between many ideas/processes/events
+    •	Organization is intricate or discipline-specific
+    •	Text features are essential for understanding
+    •	Graphics are intricate, extensive, and integral to meaning; may convey unique information
+
+Very Complex
+    •	Expanded ideas/processes/events with implicit or subtle connections
+    •	Organization may have multiple pathways or discipline-specific traits
+    •	Text features directly enhance understanding
+    •	Graphics support or are integral to understanding
+
+Moderately Complex
+    •	Some implicit/subtle connections between ideas/events
+    •	Organization is evident and generally sequential or chronological
+    •	Text features enhance understanding
+    •	Graphics are mostly supplementary
+
+Slightly Complex
+    •	Explicit and clear connections between ideas/events
+    •	Organization is chronological, sequential, or predictable
+    •	Text features help navigation but are not essential
+    •	Graphics are simple, not necessary, but may assist understanding
+
+⸻
+
+LANGUAGE FEATURES
+
+Exceedingly Complex
+    •	Dense, abstract, ironic, and/or figurative language
+    •	Complex, unfamiliar, archaic, subject-specific, or ambiguous vocabulary
+    •	Mainly complex sentences with multiple subordinate clauses and transitions
+
+Very Complex
+    •	Fairly complex; some abstract, ironic, and/or figurative language
+    •	Some unfamiliar, archaic, or overly academic vocabulary
+    •	Many complex sentences with subordinate phrases/clauses
+
+Moderately Complex
+    •	Mostly explicit language with some complex meaning
+    •	Mostly familiar and conversational vocabulary
+    •	Primarily simple and compound sentences, with some complex ones
+
+Slightly Complex
+    •	Explicit, literal, straightforward language
+    •	Contemporary, familiar, conversational vocabulary
+    •	Mainly simple sentences
+
+⸻
+
+PURPOSE
+
+Exceedingly Complex
+    •	Subtle, intricate, and difficult to determine
+    •	Includes many theoretical or abstract elements
+
+Very Complex
+    •	Implicit or subtle, fairly easy to infer
+    •	More theoretical or abstract than concrete
+
+Moderately Complex
+    •	Implied but easy to identify based on context or source
+
+Slightly Complex
+    •	Explicitly stated, clear, concrete, and narrowly focused
+
+⸻
+
+KNOWLEDGE DEMANDS
+
+Exceedingly Complex
+    •	Requires extensive discipline-specific or theoretical knowledge
+    •	Many references/allusions to other texts or ideas
+
+Very Complex
+    •	Requires moderate discipline-specific knowledge
+    •	Some references/allusions to other texts or ideas
+
+Moderately Complex
+    •	Requires common knowledge and some discipline-specific knowledge
+    •	Few references/allusions
+
+Slightly Complex
+    •	Requires everyday, practical knowledge
+    •	No references/allusions
+
+3. Background knowledge:
+At which grade level would student have enough background knowledge to understand the text?
+
+4. Use your judgement of the above three steps. First use the quantitative signal to get first signal of the appropriate grade level range, then use qualitative analysis to refine your decisions and consider if student at such grade will have enough background knowledge to arrive at a final grade level band. Also consider if the text can be for a lower grade with additional scaffolding.
+
+<begin of text to evaluate>
+<text>{text}</text>
+<end of text to evaluate>
+
+When providing your response, first think out loud of your reasoning and then provide your answer from one of the grade band options above. Your reasoning and answer needs to be in JSON format. Strictly follow the following format for your response.
+
+Your final answer should be in the "grade" property for the target grade band for the text aimed for independent reading.  If there is alternative appropriate grade students can read and comprehend with scaffold (eg. picture, graph, additional context, etc) or for read-aloud purposes for lower grade, provide it in the "alternative_grade" property and provide the types of scaffolding in the "scaffolding_needed" property.
+
+In your reasoning, provide numbered bullet points for each of the analyses in each of the 3 steps. At the end, give me the 4th bullet point called "synthesis" to summarize your analysis from the above 3 steps that help you arrive at the final decision.
+
+{format_instructions}
