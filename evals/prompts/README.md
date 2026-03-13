@@ -14,3 +14,7 @@ In file `sent_str_prompts.py`, we provide system and user prompts used in the Se
 ### Vocabulary Evaluator
 
 In file `vocab_prompts.py`, we provide system and user prompts used in the Vocabulary Evaluator's code. These prompts can help assess the difficulty of vocabulary in texts and serve as a starting point for your own prompt development.
+
+### Subject Matter Knowledge Evaluator
+
+In file `smk_prompts.py`, we provide system and user prompts used in the Subject Matter Knowledge (SMK) Evaluator's code. These prompts can help assess the background knowledge demands of texts and serve as a starting point for your own prompt development.
