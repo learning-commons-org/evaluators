@@ -2,6 +2,16 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
+## [0.2.0] — 2026-03-18
+
+### Added
+
+- **Subject Matter Knowledge (SMK) Evaluator** — evaluates background knowledge demands of educational texts relative to grades 3–12.
+- **SMK added to TextComplexityEvaluator** — composite evaluator now runs vocabulary, sentence structure, and SMK in parallel; result includes `subjectMatterKnowledge` key.
+- **Prompt versioning** — prompts updated to v1.3.0 (`evals/prompts/subject-matter-knowledge/`).
+
+---
+
 ## [0.1.0] — Early Release
 
 Initial early release of the TypeScript SDK for Learning Commons educational evaluators.

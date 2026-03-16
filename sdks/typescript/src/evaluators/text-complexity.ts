@@ -1,11 +1,13 @@
 import pLimit from 'p-limit';
 import { VocabularyEvaluator } from './vocabulary.js';
 import { SentenceStructureEvaluator } from './sentence-structure.js';
+import { SmkEvaluator } from './smk.js';
 import type { SentenceStructureInternal } from '../schemas/sentence-structure.js';
 import type { BaseEvaluatorConfig } from './base.js';
 import { BaseEvaluator } from './base.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import type { VocabularyInternal } from '../schemas/vocabulary.js';
+import type { SmkInternal } from '../schemas/smk.js';
 
 /**
  * Result map returned by TextComplexityEvaluator.
@@ -14,17 +16,19 @@ import type { VocabularyInternal } from '../schemas/vocabulary.js';
 export interface TextComplexityResult {
   vocabulary: EvaluationResult<TextComplexityLevel, VocabularyInternal> | { error: Error };
   sentenceStructure: EvaluationResult<TextComplexityLevel, SentenceStructureInternal> | { error: Error };
+  subjectMatterKnowledge: EvaluationResult<TextComplexityLevel, SmkInternal> | { error: Error };
 }
 
 /**
  * Text Complexity Evaluator
  *
- * Composite evaluator that analyzes both vocabulary and sentence structure complexity.
- * Runs both evaluations in parallel with concurrency control to avoid rate limiting.
+ * Composite evaluator that analyzes vocabulary, sentence structure, and subject matter knowledge.
+ * Runs all evaluations in parallel with concurrency control to avoid rate limiting.
  *
  * Uses:
  * - VocabularyEvaluator (Google Gemini 2.5 Pro + OpenAI GPT-4o)
  * - SentenceStructureEvaluator (OpenAI GPT-4o)
+ * - SmkEvaluator (Google Gemini 3 Flash Preview)
  *
  * @example
  * ```typescript
@@ -43,7 +47,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
   static readonly metadata = {
     id: 'text-complexity',
     name: 'Text Complexity',
-    description: 'Composite evaluator analyzing vocabulary and sentence structure complexity',
+    description: 'Composite evaluator analyzing vocabulary, sentence structure, and subject matter knowledge complexity',
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
     requiresGoogleKey: true,
     requiresOpenAIKey: true,
@@ -51,6 +55,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
 
   private vocabularyEvaluator: VocabularyEvaluator;
   private sentenceStructureEvaluator: SentenceStructureEvaluator;
+  private smkEvaluator: SmkEvaluator;
   private limit: ReturnType<typeof pLimit>;
 
   constructor(config: BaseEvaluatorConfig) {
@@ -60,6 +65,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
     // Create child evaluators with same config
     this.vocabularyEvaluator = new VocabularyEvaluator(config);
     this.sentenceStructureEvaluator = new SentenceStructureEvaluator(config);
+    this.smkEvaluator = new SmkEvaluator(config);
 
     // Create concurrency limiter (max 3 concurrent operations)
     this.limit = pLimit(3);
@@ -68,8 +74,8 @@ export class TextComplexityEvaluator extends BaseEvaluator {
   /**
    * Evaluate text complexity for a given text and grade level
    *
-   * Runs vocabulary and sentence structure evaluations in parallel with concurrency control.
-   * If both sub-evaluators fail, throws an error. Otherwise returns a result map where
+   * Runs vocabulary, sentence structure, and SMK evaluations in parallel with concurrency control.
+   * If all three sub-evaluators fail, throws an error. Otherwise returns a result map where
    * failed sub-evaluators are represented as `{ error: Error }`.
    *
    * @param text - The text to evaluate
@@ -92,24 +98,28 @@ export class TextComplexityEvaluator extends BaseEvaluator {
 
     const startTime = Date.now();
 
-    // Run both evaluators in parallel with concurrency control
-    const [vocabResult, sentenceResult]: [
+    // Run all evaluators in parallel with concurrency control
+    const [vocabResult, sentenceResult, smkResult]: [
       EvaluationResult<TextComplexityLevel, VocabularyInternal> | { error: Error },
       EvaluationResult<TextComplexityLevel, SentenceStructureInternal> | { error: Error },
+      EvaluationResult<TextComplexityLevel, SmkInternal> | { error: Error },
     ] = await Promise.all([
       this.limit(() => this.runSubEvaluator(this.vocabularyEvaluator, text, grade)),
       this.limit(() => this.runSubEvaluator(this.sentenceStructureEvaluator, text, grade)),
+      this.limit(() => this.runSubEvaluator(this.smkEvaluator, text, grade)),
     ]);
 
     const latencyMs = Date.now() - startTime;
     const vocabFailed = 'error' in vocabResult;
     const sentenceFailed = 'error' in sentenceResult;
-    const hasFailures = vocabFailed || sentenceFailed;
+    const smkFailed = 'error' in smkResult;
+    const hasFailures = vocabFailed || sentenceFailed || smkFailed;
 
     if (hasFailures) {
       const errors: string[] = [];
       if (vocabFailed) errors.push(`Vocabulary: ${vocabResult.error.message}`);
       if (sentenceFailed) errors.push(`Sentence structure: ${sentenceResult.error.message}`);
+      if (smkFailed) errors.push(`Subject matter knowledge: ${smkResult.error.message}`);
 
       this.logger.error('Text complexity evaluation completed with errors', {
         evaluator: 'text-complexity',
@@ -119,7 +129,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
         processingTimeMs: latencyMs,
       });
 
-      if (vocabFailed && sentenceFailed) {
+      if (vocabFailed && sentenceFailed && smkFailed) {
         throw new Error(`Text complexity evaluation failed: ${errors.join('; ')}`);
       }
     }
@@ -145,7 +155,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
       hasFailures,
     });
 
-    return { vocabulary: vocabResult, sentenceStructure: sentenceResult };
+    return { vocabulary: vocabResult, sentenceStructure: sentenceResult, subjectMatterKnowledge: smkResult };
   }
 
   /**

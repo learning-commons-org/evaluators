@@ -21,6 +21,11 @@ export {
 } from './grade-level-appropriateness.js';
 
 export {
+  SmkEvaluator,
+  evaluateSmk,
+} from './smk.js';
+
+export {
   TextComplexityEvaluator,
   evaluateTextComplexity,
   type TextComplexityResult,
