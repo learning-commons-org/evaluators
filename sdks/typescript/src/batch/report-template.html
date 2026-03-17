@@ -2,369 +2,214 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Evaluation Report</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
-      --bg:           #f1f5f9;
-      --surface:      #ffffff;
-      --border:       #e2e8f0;
-      --header-bg:    #0f172a;
-      --text:         #1e293b;
-      --text-muted:   #64748b;
-      --blue:         #3b82f6;
-      --blue-bg:      #dbeafe;
-      --green:        #059669;
-      --green-bg:     #d1fae5;
-      --amber:        #d97706;
-      --amber-bg:     #fef3c7;
-      --red:          #dc2626;
-      --red-bg:       #fee2e2;
-      --radius:       10px;
+      --primary:          #242423;
+      --secondary:        #6B6A64;
+      --favorable:        #125B3A;
+      --favorable-bg:     #C2ECD9;
+      --warning:          #7E6701;
+      --warning-bg:       #FFFC83;
+      --critical:         #9D1F18;
+      --critical-bg:      #F9DFDF;
+      --informational:    #125B3A;
+      --informational-bg: #E0F5EC;
+      --border:           #e2e8f0;
+      --neutral-bg:       #f1f5f9;
+      --neutral-muted:    #64748b;
+      --on-band:          #177A4D;
+      --adjacent:         #FFFA55;
+      --off-target:       #9D1F18;
+      --card-bg:          rgba(255,255,255,0.6);
+      --card-shadow:      0 4px 10px 0 rgba(36,36,35,0.1);
+      --radius:           8px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #F4F6F8;
+      color: var(--primary);
       font-size: 14px;
       line-height: 1.5;
     }
 
+    .container { max-width: 1200px; margin: 0 auto; padding: 32px 40px; }
+
     /* ── Header ── */
-    .report-header {
-      background: var(--header-bg);
-      color: #fff;
-      padding: 28px 40px;
-    }
-    .report-header h1 {
-      font-size: 20px;
-      font-weight: 600;
-      margin-bottom: 5px;
-    }
-    .report-header .report-meta {
-      font-size: 12px;
-      color: #94a3b8;
-      letter-spacing: 0.01em;
-    }
-
-    /* ── Tab bar ── */
-    .tab-bar {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      padding: 0 40px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-    .tab-btn {
-      padding: 13px 18px;
-      font-size: 13px;
-      font-weight: 500;
-      border: none;
-      background: none;
-      cursor: pointer;
-      color: var(--text-muted);
-      border-bottom: 3px solid transparent;
-      margin-bottom: -1px;
-      transition: color 0.15s, border-color 0.15s;
-    }
-    .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
-    .tab-btn:hover  { color: var(--text); }
-
-    /* ── Tab panels ── */
-    .tab-panel { display: none; padding: 32px 40px; max-width: 1200px; margin: 0 auto; }
-    .tab-panel.active { display: block; }
+    header.report-header { margin-bottom: 24px; }
+    header.report-header h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px 0; color: var(--primary); }
+    header.report-header .subtitle { font-size: 14px; color: var(--secondary); }
 
     /* ── Cards ── */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px;
-      margin-bottom: 20px;
-    }
-    .card-title {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: var(--text-muted);
-      margin-bottom: 18px;
-    }
+    .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--card-shadow); margin-bottom: 20px; overflow: hidden; }
+    .card-body { padding: 24px; }
+    .card-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--secondary); margin-bottom: 16px; }
+    .card-label-sm { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--secondary); }
 
-    /* ── Snapshot ── */
-    .snapshot-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px 32px;
-    }
-    .snapshot-item { display: flex; flex-direction: column; gap: 5px; }
-    .snapshot-label {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-    }
-    .snapshot-value { font-size: 15px; font-weight: 500; }
-    .snapshot-value.mono {
-      font-family: 'SFMono-Regular', 'Menlo', Consolas, monospace;
-      font-size: 12px;
-      color: var(--text-muted);
-      word-break: break-all;
-    }
-    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
-    .tag {
-      background: var(--blue-bg);
-      color: var(--blue);
-      padding: 3px 10px;
-      border-radius: 100px;
-      font-size: 12px;
-      font-weight: 500;
-    }
+    /* ── Tabs ── */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); }
+    .tab-btn { padding: 12px 20px; font-size: 14px; font-weight: 500; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; color: var(--secondary); transition: color 0.15s, border-color 0.15s; }
+    .tab-btn:hover { color: var(--primary); }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--favorable); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .tab-content { padding: 32px 40px; }
+
+    /* ── Layout grids ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px 32px; }
+    .flex-col { display: flex; flex-direction: column; gap: 4px; }
+
+    /* ── Tags ── */
+    .tag { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+    .tag-favorable    { background: var(--favorable-bg);    color: var(--favorable); }
+    .tag-warning      { background: var(--warning-bg);      color: var(--warning); }
+    .tag-critical     { background: var(--critical-bg);     color: var(--critical); }
+    .tag-informational{ background: var(--informational-bg); color: var(--informational); }
 
     /* ── GLA stat cards ── */
-    .stat-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-    .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 22px 24px;
-      border-left-width: 4px;
-      border-left-style: solid;
-    }
-    .stat-card .stat-label {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      margin-bottom: 10px;
-    }
-    .stat-card .stat-value { font-size: 40px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
-    .stat-card .stat-sub   { font-size: 13px; color: var(--text-muted); }
-    .stat-card.green { border-left-color: var(--green); }
-    .stat-card.green .stat-label { color: var(--green); }
-    .stat-card.green .stat-value { color: var(--green); }
-    .stat-card.amber { border-left-color: var(--amber); }
-    .stat-card.amber .stat-label { color: var(--amber); }
-    .stat-card.amber .stat-value { color: var(--amber); }
-    .stat-card.red { border-left-color: var(--red); }
-    .stat-card.red .stat-label { color: var(--red); }
-    .stat-card.red .stat-value { color: var(--red); }
+    .gla-card .top-stripe { height: 4px; }
+    .gla-card.on-band  .top-stripe  { background: var(--favorable-bg); }
+    .gla-card.adjacent .top-stripe  { background: var(--warning-bg); }
+    .gla-card.off-target .top-stripe{ background: var(--critical-bg); }
+    .gla-card.on-band  .card-label-sm { color: var(--favorable); }
+    .gla-card.adjacent .card-label-sm { color: var(--warning); }
+    .gla-card.off-target .card-label-sm{ color: var(--critical); }
+    .gla-card .big-num { font-size: 28px; font-weight: 700; margin: 6px 0; }
+    .gla-card.on-band  .big-num { color: var(--favorable); }
+    .gla-card.adjacent .big-num { color: var(--warning); }
+    .gla-card.off-target .big-num{ color: var(--critical); }
+    .gla-card .desc { font-size: 13px; color: var(--secondary); }
 
-    /* ── Complexity dimension cards ── */
-    .complexity-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-    .complexity-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 22px;
-    }
-    .complexity-card .cx-name {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: var(--text-muted);
-      margin-bottom: 12px;
-    }
-    .complexity-card .cx-avg { font-size: 44px; font-weight: 700; line-height: 1; color: var(--text); }
-    .complexity-card .cx-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; margin-bottom: 16px; }
-    .dist-bar { display: flex; flex-direction: column; gap: 7px; }
-    .dist-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-    .dist-item .dl { width: 110px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .dist-item .dt { flex: 1; background: #f1f5f9; border-radius: 4px; height: 7px; overflow: hidden; }
-    .dist-item .df { height: 100%; border-radius: 4px; background: var(--blue); }
-    .dist-item .dc { color: var(--text-muted); min-width: 28px; text-align: right; }
+    /* ── Complexity dimension summary bars ── */
+    .cx-dim-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .cx-dim-row:last-child { margin-bottom: 0; }
+    .cx-dim-name  { width: 148px; font-size: 13px; font-weight: 500; color: var(--primary); flex-shrink: 0; }
+    .cx-dim-track { flex: 1; height: 10px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .cx-dim-fill  { height: 100%; border-radius: 99px; background: var(--neutral-muted); transition: width 0.4s ease; }
+    .cx-dim-label { font-size: 12px; color: var(--secondary); white-space: nowrap; min-width: 200px; }
 
     /* ── Insights ── */
-    .insights-body { display: flex; flex-direction: column; gap: 10px; }
-    .insight-item {
-      display: flex;
-      gap: 12px;
-      padding: 11px 14px;
-      background: #f8fafc;
-      border-radius: 8px;
-      border-left: 3px solid var(--blue);
-      font-size: 14px;
-      line-height: 1.55;
-    }
-    .insight-arrow { color: var(--blue); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
-    .alpha-badge {
-      display: inline-block;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      background: var(--amber-bg);
-      color: var(--amber);
-      padding: 2px 7px;
-      border-radius: 100px;
-      margin-left: 8px;
-      vertical-align: middle;
-    }
-    .insights-note {
-      margin-top: 12px;
+    .number-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 14px; font-weight: 600; flex-shrink: 0; }
+    .insight-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+    .insight-text { flex: 1; font-size: 14px; color: var(--primary); }
+    .disclaimer { font-size: 13px; color: var(--secondary); margin-top: 12px; }
+
+    /* ── Grade level distribution (CSS bars) ── */
+    .dist-chart { margin-top: 8px; }
+    .dist-row { display: flex; align-items: center; margin-bottom: 10px; }
+    .dist-row .band { width: 60px; font-size: 12px; font-weight: 600; color: var(--primary); flex-shrink: 0; }
+    .dist-row .bars { flex: 1; height: 24px; display: flex; }
+    .dist-row .bar-on  { background: var(--on-band); }
+    .dist-row .bar-adj { background: var(--adjacent); }
+    .dist-row .bar-off { background: var(--off-target); }
+    .dist-row .bars > .bar-seg:first-child { border-radius: 4px 0 0 4px; }
+    .dist-row .bars > .bar-seg:last-child  { border-radius: 0 4px 4px 4px; }
+    .dist-row .bars > .bar-seg:only-child  { border-radius: 4px; }
+    .dist-legend { display: flex; justify-content: center; gap: 24px; margin-top: 16px; font-size: 12px; color: var(--primary); }
+    .dist-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .dist-legend .dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── Bar segment tooltips ── */
+    .bar-seg { position: relative; cursor: default; }
+    .bar-seg::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary);
+      color: #fff;
+      padding: 5px 9px;
+      border-radius: 5px;
       font-size: 12px;
-      color: var(--text-muted);
-      font-style: italic;
-    }
-
-    /* ── Chart ── */
-    .chart-container { position: relative; height: 280px; }
-
-    /* ── Heatmap table ── */
-    .heatmap-wrap { overflow-x: auto; }
-    .heatmap-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-    .heatmap-table th {
-      padding: 10px 16px;
-      text-align: left;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-      border-bottom: 2px solid var(--border);
       white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.12s;
+      z-index: 20;
     }
-    .heatmap-table td {
-      padding: 10px 16px;
-      border-bottom: 1px solid var(--border);
-      text-align: center;
+    .bar-seg::before {
+      content: '';
+      position: absolute;
+      bottom: calc(100% + 1px);
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: var(--primary);
+      opacity: 0;
+      transition: opacity 0.12s;
+      pointer-events: none;
+      z-index: 20;
     }
-    .heatmap-table td:first-child { text-align: left; font-weight: 600; }
+    .bar-seg:hover::after,
+    .bar-seg:hover::before { opacity: 1; }
+
+    /* ── Heatmap ── */
+    .heatmap-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .heatmap-table th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--neutral-muted); border-bottom: 2px solid var(--border); }
+    .heatmap-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+    .heatmap-table td:first-child { font-weight: 600; color: var(--primary); }
+    .heatmap-table .cell-num { text-align: center; }
     .heatmap-table tr:last-child td { border-bottom: none; }
-    .hm-cell {
-      display: inline-block;
-      padding: 5px 12px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
-    }
-    .hm-1 { background: var(--green-bg); color: #065f46; }
-    .hm-2 { background: var(--amber-bg); color: #78350f; }
-    .hm-3 { background: #fed7aa;         color: #7c2d12; }
-    .hm-4 { background: var(--red-bg);   color: #7f1d1d; }
-    .hm-null { background: #f1f5f9; color: var(--text-muted); }
+    .heatmap-cell { display: inline-block; padding: 5px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+    .heatmap-cell.favorable { background: var(--favorable-bg); color: var(--favorable); }
+    .heatmap-cell.warning   { background: var(--warning-bg);   color: var(--warning); }
+    .heatmap-cell.critical  { background: var(--critical-bg);  color: var(--critical); }
+    .heatmap-cell.neutral   { background: var(--neutral-bg);   color: var(--neutral-muted); }
 
-    /* ── Full Results table ── */
-    .results-outer {
-      overflow-x: auto;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: var(--surface);
-    }
-    .results-table {
-      border-collapse: collapse;
-      font-size: 13px;
-      min-width: 100%;
-      white-space: nowrap;
-    }
-    .results-table th {
-      padding: 10px 16px;
-      text-align: left;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      background: #f8fafc;
+    /* ── Full results table ── */
+    .results-scroll { overflow-x: auto; overflow-y: auto; max-height: 600px; }
+    table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 100%; white-space: nowrap; }
+    table.data-table th {
+      padding: 10px 16px; text-align: left; font-size: 12px; font-weight: 600;
+      color: var(--primary); background: var(--neutral-bg);
       border-bottom: 2px solid var(--border);
-      position: sticky;
-      top: 0;
-      z-index: 3;
+      position: sticky; top: 0; z-index: 3; white-space: nowrap;
     }
-    /* Frozen column headers sit above both sticky top AND sticky left */
-    .results-table th.frozen { z-index: 4; }
-    .results-table td {
-      padding: 10px 16px;
-      border-bottom: 1px solid var(--border);
-      vertical-align: top;
-      max-width: 280px;
-      white-space: normal;
+    table.data-table td {
+      padding: 10px 16px; border-bottom: 1px solid var(--border);
+      vertical-align: top; max-width: 280px; white-space: normal;
+      color: var(--primary);
     }
-    .results-table tr:last-child td { border-bottom: none; }
-    .results-table tr:hover td { background: #f8fafc; }
-    .results-table tr:hover td.frozen { background: #f1f5f9; }
-    /* Frozen (sticky-left) cells */
-    .results-table th.frozen,
-    .results-table td.frozen {
-      position: sticky;
-      background: #f8fafc;
-      z-index: 2;
+    table.data-table tr:last-child td { border-bottom: none; }
+    table.data-table tbody tr:hover td { background: rgba(0,0,0,0.02); }
+    table.data-table tbody tr:hover td.frozen { background: #f1f5f9; }
+    /* Frozen (sticky-left) columns */
+    table.data-table th.frozen,
+    table.data-table td.frozen { position: sticky; background: var(--neutral-bg); z-index: 2; }
+    table.data-table td.frozen { background: #fff; }
+    table.data-table th.frozen { z-index: 4; }
+    table.data-table th.frozen-last,
+    table.data-table td.frozen-last { border-right: 2px solid var(--border); }
+    table.data-table th.group-start,
+    table.data-table td.group-start { border-left: 2px solid var(--border); }
+    /* Reasoning cells */
+    table.data-table .cell-reasoning {
+      font-size: 12px; color: var(--secondary);
+      max-width: 280px; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; cursor: help;
     }
-    .results-table td.frozen { background: var(--surface); }
-    /* Visual separator after frozen columns */
-    .results-table th.frozen-last,
-    .results-table td.frozen-last {
-      border-right: 2px solid var(--border);
-    }
-    /* Column group separator */
-    .results-table th.group-start,
-    .results-table td.group-start {
-      border-left: 2px solid var(--border);
-    }
-    /* Reasoning cells — truncated with tooltip */
-    .reasoning-cell {
-      max-width: 280px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      color: var(--text-muted);
-      font-size: 12px;
-      cursor: help;
-    }
-    /* Status badges */
-    .badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 100px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      white-space: nowrap;
-    }
-    .badge-on-band  { background: var(--green-bg); color: var(--green); }
-    .badge-adjacent { background: var(--amber-bg); color: var(--amber); }
-    .badge-off-target { background: var(--red-bg);  color: var(--red); }
 
-    /* ── Empty / no-data states ── */
-    .no-data {
-      padding: 40px;
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 15px;
-    }
+    /* ── Empty / no-data ── */
+    .no-data { padding: 40px; text-align: center; color: var(--secondary); font-size: 15px; }
   </style>
 </head>
 <body>
 
-  <header class="report-header" id="app-header"></header>
-
-  <nav class="tab-bar" id="tab-bar"></nav>
-
-  <div id="tab-summary" class="tab-panel active"></div>
-  <div id="tab-results" class="tab-panel"></div>
+  <div class="container">
+    <header class="report-header" id="app-header"></header>
+    <div class="card" style="margin-bottom:0; overflow:visible;">
+      <div class="tabs" id="tab-bar"></div>
+      <div id="tab-summary" class="tab-panel active"></div>
+      <div id="tab-results" class="tab-panel"></div>
+    </div>
+  </div>
 
   <script>
     // ---------------------------------------------------------------------------
@@ -541,20 +386,19 @@
     }
 
     function hmClass(val) {
-      if (val === null || val === undefined) return 'hm-null';
-      if (val < 1.5) return 'hm-1';
-      if (val < 2.5) return 'hm-2';
-      if (val < 3.5) return 'hm-3';
-      return 'hm-4';
+      if (val === null || val === undefined) return 'neutral';
+      if (val < 1.5) return 'favorable';
+      if (val < 2.5) return 'warning';
+      return 'critical';
     }
 
     function statusBadge(status) {
       const cls = {
-        'On Band':   'badge-on-band',
-        'Adjacent':  'badge-adjacent',
-        'Off Target':'badge-off-target',
+        'On Band':   'tag-favorable',
+        'Adjacent':  'tag-warning',
+        'Off Target':'tag-critical',
       }[status] || '';
-      return `<span class="badge ${cls}">${esc(status)}</span>`;
+      return `<span class="tag ${cls}">${esc(status)}</span>`;
     }
 
     // ---------------------------------------------------------------------------
@@ -567,7 +411,6 @@
       );
       document.getElementById('tab-summary').classList.toggle('active', tab === 'summary');
       document.getElementById('tab-results').classList.toggle('active', tab === 'results');
-      if (tab === 'summary' && !window._chartDrawn) drawChart();
     }
 
     // ---------------------------------------------------------------------------
@@ -578,9 +421,7 @@
       const { meta } = REPORT_DATA;
       document.getElementById('app-header').innerHTML = `
         <h1>Evaluation Report</h1>
-        <div class="report-meta">
-          Generated: ${esc(meta.generatedAt)} &bull; Report ID: ${esc(meta.reportId)}
-        </div>
+        <p class="subtitle">Generated: ${esc(meta.generatedAt)} &bull; Report ID: ${esc(meta.reportId)}</p>
       `;
       document.title = `Report: ${meta.reportId}`;
     }
@@ -607,25 +448,27 @@
       // ── Snapshot ──
       const snapshotHtml = `
         <div class="card">
-          <div class="card-title">Snapshot</div>
-          <div class="snapshot-grid">
-            <div class="snapshot-item">
-              <span class="snapshot-label">Evaluators</span>
-              <div class="tags">
-                ${meta.evaluatorNames.map(n => `<span class="tag">${esc(n)}</span>`).join('')}
+          <div class="card-body">
+            <div class="card-label">Snapshot</div>
+            <div class="grid-4">
+              <div class="flex-col">
+                <span class="card-label-sm">Evaluators</span>
+                <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
+                  ${meta.evaluatorNames.map(n => `<span class="tag tag-informational">${esc(n)}</span>`).join('')}
+                </div>
               </div>
-            </div>
-            <div class="snapshot-item">
-              <span class="snapshot-label">Rows Processed</span>
-              <span class="snapshot-value">${meta.processedRows} of ${meta.totalRows}</span>
-            </div>
-            <div class="snapshot-item">
-              <span class="snapshot-label">Rows Errored</span>
-              <span class="snapshot-value">${meta.erroredRows}</span>
-            </div>
-            <div class="snapshot-item">
-              <span class="snapshot-label">Source File</span>
-              <span class="snapshot-value mono" title="${esc(meta.csvPath)}">${esc(meta.csvPath)}</span>
+              <div class="flex-col">
+                <span class="card-label-sm">Rows Processed</span>
+                <span style="font-weight:500; margin-top:4px;">${meta.processedRows} of ${meta.totalRows}</span>
+              </div>
+              <div class="flex-col">
+                <span class="card-label-sm">Rows Errored</span>
+                <span style="font-weight:500; margin-top:4px;">${meta.erroredRows}</span>
+              </div>
+              <div class="flex-col">
+                <span class="card-label-sm">Source File</span>
+                <span style="font-size:12px; font-family:monospace; word-break:break-all; color:var(--secondary); margin-top:4px;" title="${esc(meta.csvPath)}">${esc(meta.csvPath)}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -633,175 +476,155 @@
 
       // ── GLA stat cards ──
       const glsHtml = gls.hasData ? `
-        <div class="stat-row">
-          <div class="stat-card green">
-            <div class="stat-label">On Band</div>
-            <div class="stat-value">${gls.onBandPct}%</div>
-            <div class="stat-sub">${gls.onBand} texts match the target grade band</div>
+        <div class="grid-3">
+          <div class="card gla-card on-band" style="margin-bottom:0;">
+            <div class="top-stripe"></div>
+            <div class="card-body">
+              <div class="card-label-sm">On Band</div>
+              <div class="big-num">${gls.onBandPct}%</div>
+              <div class="desc">${gls.onBand} texts match the target grade band</div>
+            </div>
           </div>
-          <div class="stat-card amber">
-            <div class="stat-label">Adjacent</div>
-            <div class="stat-value">${gls.adjacentPct}%</div>
-            <div class="stat-sub">${gls.adjacent} texts within one band of target</div>
+          <div class="card gla-card adjacent" style="margin-bottom:0;">
+            <div class="top-stripe"></div>
+            <div class="card-body">
+              <div class="card-label-sm">Adjacent</div>
+              <div class="big-num">${gls.adjacentPct}%</div>
+              <div class="desc">${gls.adjacent} texts within one band of target</div>
+            </div>
           </div>
-          <div class="stat-card red">
-            <div class="stat-label">Off Target</div>
-            <div class="stat-value">${gls.offTargetPct}%</div>
-            <div class="stat-sub">${gls.offTarget} texts need review</div>
+          <div class="card gla-card off-target" style="margin-bottom:0;">
+            <div class="top-stripe"></div>
+            <div class="card-body">
+              <div class="card-label-sm">Off Target</div>
+              <div class="big-num">${gls.offTargetPct}%</div>
+              <div class="desc">${gls.offTarget} texts need review</div>
+            </div>
           </div>
         </div>
       ` : '';
 
-      // ── Complexity dimension cards ──
-      const COMPLEXITY_LABELS = ['Slightly Complex', 'Moderately Complex', 'Very Complex', 'Exceedingly Complex'];
-      const cxHtml = complexityStats.length > 0 ? `
-        <div class="complexity-row">
-          ${complexityStats.map(cs => {
-            const maxDist = Math.max(...cs.distribution, 1);
-            const bars = COMPLEXITY_LABELS.map((lbl, i) => `
-              <div class="dist-item">
-                <div class="dl" title="${lbl}">${lbl}</div>
-                <div class="dt">
-                  <div class="df" style="width:${Math.round((cs.distribution[i] / maxDist) * 100)}%"></div>
-                </div>
-                <div class="dc">${cs.distribution[i]}</div>
-              </div>
-            `).join('');
-            return `
-              <div class="complexity-card">
-                <div class="cx-name">${esc(cs.name)}</div>
-                <div class="cx-avg">${cs.average > 0 ? cs.average.toFixed(1) : '—'}</div>
-                <div class="cx-label">${esc(cs.label)}</div>
-                <div class="dist-bar">${bars}</div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      ` : '';
+      // ── Complexity dimension summary card ──
+      const cxHtml = complexityStats.length > 0 ? (() => {
+        const totalRows = meta.processedRows || meta.totalRows;
+        const rows = complexityStats.map(cs => {
+          const pct = Math.round((cs.average / 4.0) * 100);
+          const labelText = cs.average > 0
+            ? `${esc(cs.label)} (${cs.average.toFixed(1)} / 4.0)`
+            : '—';
+          return `
+            <div class="cx-dim-row">
+              <span class="cx-dim-name">${esc(cs.name)}</span>
+              <div class="cx-dim-track"><div class="cx-dim-fill" style="width:${pct}%"></div></div>
+              <span class="cx-dim-label">${labelText}</span>
+            </div>
+          `;
+        }).join('');
+        return `
+          <div class="card">
+            <div class="card-body">
+              <div class="card-label">Text Complexity Dimensions (avg. across ${totalRows} rows)</div>
+              ${rows}
+            </div>
+          </div>
+        `;
+      })() : '';
 
-      // ── Insights (Alpha) ──
+      // ── Insights ──
       const insightsHtml = `
         <div class="card">
-          <div class="card-title">
-            Insights <span class="alpha-badge">Alpha</span>
-          </div>
-          <div class="insights-body">
-            ${insights.map(i => `
-              <div class="insight-item">
-                <span class="insight-arrow">→</span>
-                <span>${esc(i)}</span>
-              </div>
-            `).join('')}
-          </div>
-          <div class="insights-note">
-            These insights are automatically generated and may not reflect the full context of your data.
+          <div class="card-body">
+            <div class="card-label" style="display:flex; align-items:center; gap:8px;">
+              Insights
+              <span class="tag tag-informational" style="font-size:10px; letter-spacing:0.06em; padding:2px 8px;">Alpha</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              ${insights.map((text, idx) => `
+                <div class="insight-row">
+                  <span class="number-icon" aria-label="Insight ${idx + 1}">${idx + 1}</span>
+                  <span class="insight-text">${esc(text)}</span>
+                </div>
+              `).join('')}
+            </div>
+            <p class="disclaimer">These insights are automatically generated and may not reflect the full context of your data.</p>
           </div>
         </div>
       `;
 
-      // ── Distribution chart ──
-      const distHtml = gls.hasData ? `
-        <div class="card">
-          <div class="card-title">Grade Level Distribution by Band</div>
-          <div class="chart-container">
-            <canvas id="dist-chart"></canvas>
+      // ── Grade level distribution (CSS stacked bars) ──
+      const distHtml = (() => {
+        const toPct = (n, total) => total > 0 ? Math.round((n / total) * 100) : 0;
+        const activeBands = gradeBandDistribution.bands.filter((_, i) => gradeBandDistribution.data[i].total > 0);
+        const activeData  = gradeBandDistribution.data.filter(d => d.total > 0);
+        if (activeBands.length === 0) return '';
+
+        const rows = activeBands.map((band, i) => {
+          const d = activeData[i];
+          const onPct  = toPct(d.onBand,   d.total);
+          const adjPct = toPct(d.adjacent,  d.total);
+          const offPct = toPct(d.offTarget, d.total);
+          const onSeg  = d.onBand   > 0 ? `<div class="bar-seg bar-on"  style="width:${onPct}%"  data-tip="On Band: ${d.onBand} (${onPct}%)"></div>`  : '';
+          const adjSeg = d.adjacent  > 0 ? `<div class="bar-seg bar-adj" style="width:${adjPct}%" data-tip="Adjacent: ${d.adjacent} (${adjPct}%)"></div>` : '';
+          const offSeg = d.offTarget > 0 ? `<div class="bar-seg bar-off" style="width:${offPct}%" data-tip="Off Target: ${d.offTarget} (${offPct}%)"></div>` : '';
+          return `
+            <div class="dist-row">
+              <span class="band">${esc(band)}</span>
+              <div class="bars">${onSeg}${adjSeg}${offSeg}</div>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="card">
+            <div class="card-body">
+              <div class="card-label">Grade Level Distribution by Band</div>
+              <div class="dist-chart">${rows}</div>
+              <div class="dist-legend">
+                <span><span class="dot" style="background:var(--on-band)"></span>On Band</span>
+                <span><span class="dot" style="background:var(--adjacent)"></span>Adjacent</span>
+                <span><span class="dot" style="background:var(--off-target)"></span>Off Target</span>
+              </div>
+            </div>
           </div>
-        </div>
-      ` : '';
+        `;
+      })();
 
       // ── Heatmap ──
       const heatmapHtml = complexityStats.length > 0 && complexityHeatmap.evaluators.length > 0 ? `
         <div class="card">
-          <div class="card-title">Text Complexity by Grade Band</div>
-          <div class="heatmap-wrap">
-            <table class="heatmap-table">
-              <thead>
-                <tr>
-                  <th>Grade Band</th>
-                  ${complexityHeatmap.evaluators.map(e => `<th>${esc(e)}</th>`).join('')}
-                </tr>
-              </thead>
-              <tbody>
-                ${complexityHeatmap.bands.map((band, bi) => `
+          <div class="card-body">
+            <div class="card-label">Text Complexity by Grade Band</div>
+            <div style="overflow-x:auto;">
+              <table class="heatmap-table">
+                <thead>
                   <tr>
-                    <td>${esc(band)}</td>
-                    ${complexityHeatmap.values[bi].map(val => {
-                      const cls = hmClass(val);
-                      const label = val !== null ? val.toFixed(1) : '—';
-                      return `<td><span class="hm-cell ${cls}">${label}</span></td>`;
-                    }).join('')}
+                    <th>Grade Band</th>
+                    ${complexityHeatmap.evaluators.map(e => `<th>${esc(e)}</th>`).join('')}
                   </tr>
-                `).join('')}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  ${complexityHeatmap.bands.map((band, bi) => `
+                    <tr>
+                      <td>${esc(band)}</td>
+                      ${complexityHeatmap.values[bi].map(val => {
+                        const cls = hmClass(val);
+                        const label = val !== null ? val.toFixed(1) : '—';
+                        return `<td class="cell-num"><span class="heatmap-cell ${cls}">${label}</span></td>`;
+                      }).join('')}
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       ` : '';
 
-      document.getElementById('tab-summary').innerHTML =
-        snapshotHtml + glsHtml + cxHtml + insightsHtml + distHtml + heatmapHtml;
-    }
-
-    // ---------------------------------------------------------------------------
-    // Distribution bar chart (Chart.js)
-    // ---------------------------------------------------------------------------
-
-    window._chartDrawn = false;
-
-    function drawChart() {
-      const { gradeBandDistribution: dist } = REPORT_DATA;
-      const ctx = document.getElementById('dist-chart');
-      if (!ctx) return;
-
-      // Only show bands that have at least one classified row
-      const activeBands = dist.bands.filter((_, i) => dist.data[i].total > 0);
-      const activeData  = dist.data.filter(d => d.total > 0);
-      const toPct = (n, total) => total > 0 ? Math.round((n / total) * 100) : 0;
-
-      new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: activeBands,
-          datasets: [
-            {
-              label: 'On Band',
-              data: activeData.map(d => toPct(d.onBand, d.total)),
-              backgroundColor: '#10b981',
-              borderRadius: 4,
-            },
-            {
-              label: 'Adjacent',
-              data: activeData.map(d => toPct(d.adjacent, d.total)),
-              backgroundColor: '#f59e0b',
-              borderRadius: 4,
-            },
-            {
-              label: 'Off Target',
-              data: activeData.map(d => toPct(d.offTarget, d.total)),
-              backgroundColor: '#ef4444',
-              borderRadius: 4,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'top' },
-            tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw}%` } },
-          },
-          scales: {
-            x: { grid: { display: false } },
-            y: {
-              max: 100,
-              ticks: { callback: v => v + '%' },
-              grid: { color: '#f1f5f9' },
-            },
-          },
-        },
-      });
-
-      window._chartDrawn = true;
+      document.getElementById('tab-summary').innerHTML = `
+        <div class="tab-content">
+          ${snapshotHtml}${glsHtml}${cxHtml}${insightsHtml}${distHtml}${heatmapHtml}
+        </div>
+      `;
     }
 
     // ---------------------------------------------------------------------------
@@ -812,13 +635,9 @@
       const { fullResults } = REPORT_DATA;
       const { originalColumns, hasGLA, complexityEvaluators, rows } = fullResults;
 
-      // We'll set sticky left offsets after the table is in the DOM.
-      // Assign each original column a preliminary min-width; real offsets are
-      // calculated in applyFrozenOffsets() below.
-      const COL_MIN_WIDTH = 160; // px — initial estimate
+      const COL_MIN_WIDTH = 160;
       const frozenCount = originalColumns.length;
 
-      // Header
       const thOriginal = originalColumns.map((col, i) => {
         const isLast = i === frozenCount - 1;
         return `<th class="frozen${isLast ? ' frozen-last' : ''}" data-frozen="${i}"
@@ -836,7 +655,6 @@
         <th style="min-width:260px">${esc(e.name)} Reasoning</th>
       `).join('');
 
-      // Rows
       const bodyRows = rows.map(row => {
         const tdOriginal = originalColumns.map((col, i) => {
           const isLast = i === frozenCount - 1;
@@ -848,14 +666,14 @@
         const tdGLA = hasGLA ? `
           <td class="group-start">${statusBadge(glaStatus)}</td>
           <td>${esc(row['__gla_band'])}</td>
-          <td class="reasoning-cell" title="${esc(row['__gla_reasoning'])}">${esc(row['__gla_reasoning'])}</td>
+          <td class="cell-reasoning" title="${esc(row['__gla_reasoning'])}">${esc(row['__gla_reasoning'])}</td>
         ` : '';
 
         const tdCX = complexityEvaluators.map(e => {
           const prefix = `__${e.prefix}`;
           return `
             <td class="group-start">${esc(row[prefix + '_score'])}</td>
-            <td class="reasoning-cell" title="${esc(row[prefix + '_reasoning'])}">${esc(row[prefix + '_reasoning'])}</td>
+            <td class="cell-reasoning" title="${esc(row[prefix + '_reasoning'])}">${esc(row[prefix + '_reasoning'])}</td>
           `;
         }).join('');
 
@@ -863,15 +681,16 @@
       }).join('');
 
       document.getElementById('tab-results').innerHTML = `
-        <div class="results-outer">
-          <table class="results-table" id="results-table">
-            <thead><tr>${thOriginal}${thGLA}${thCX}</tr></thead>
-            <tbody>${bodyRows}</tbody>
-          </table>
+        <div class="tab-content" style="max-width:100%;">
+          <div class="results-scroll">
+            <table class="data-table" id="results-table">
+              <thead><tr>${thOriginal}${thGLA}${thCX}</tr></thead>
+              <tbody>${bodyRows}</tbody>
+            </table>
+          </div>
         </div>
       `;
 
-      // Apply real sticky left offsets once the table is rendered
       applyFrozenOffsets('results-table', frozenCount);
     }
 
@@ -907,8 +726,6 @@
     renderTabs();
     renderSummary();
     renderResults();
-    // Draw chart after DOM is ready
-    setTimeout(drawChart, 80);
   </script>
 </body>
 </html>
