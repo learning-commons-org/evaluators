@@ -48,9 +48,9 @@ describe('getAvailableGroups', () => {
     expect(group.requiresOpenAIKey).toBe(true);
   });
 
-  it('text-complexity group enforces a row limit of 100', () => {
+  it('text-complexity group enforces a row limit of 50', () => {
     const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-    expect(group.maxInputRows).toBe(100);
+    expect(group.maxInputRows).toBe(50);
   });
 });
 
