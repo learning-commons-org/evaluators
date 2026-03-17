@@ -115,7 +115,6 @@ export class ProgressTracker {
       process.stdout.write('\x1b[J'); // Clear from cursor to end of screen
     }
 
-    console.log('\nProcessing evaluations...');
     console.log(
       `${this.getProgressBar()} ${this.getPercentage()}% (${this.completed}/${this.totalTasks})`
     );

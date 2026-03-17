@@ -174,7 +174,7 @@
     }
     table.data-table td {
       padding: 10px 16px; border-bottom: 1px solid var(--border);
-      vertical-align: top; max-width: 280px; white-space: normal;
+      vertical-align: top; white-space: normal;
       color: var(--primary);
     }
     table.data-table tr:last-child td { border-bottom: none; }
@@ -189,11 +189,23 @@
     table.data-table td.frozen-last { border-right: 2px solid var(--border); }
     table.data-table th.group-start,
     table.data-table td.group-start { border-left: 2px solid var(--border); }
-    /* Reasoning cells */
-    table.data-table .cell-reasoning {
-      font-size: 12px; color: var(--secondary);
-      max-width: 280px; white-space: nowrap;
-      overflow: hidden; text-overflow: ellipsis; cursor: help;
+    /* Text cell — 3-line clamp, full text on hover */
+    table.data-table .cell-text { cursor: help; }
+    table.data-table .cell-text-inner {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      white-space: normal;
+    }
+    /* Reasoning cells — 2-line clamp, full text on hover */
+    table.data-table .cell-reasoning { font-size: 12px; color: var(--secondary); cursor: help; }
+    table.data-table .cell-reasoning-inner {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      white-space: normal;
     }
 
     /* ── Empty / no-data ── */
@@ -635,13 +647,28 @@
       const { fullResults } = REPORT_DATA;
       const { originalColumns, hasGLA, complexityEvaluators, rows } = fullResults;
 
-      const COL_MIN_WIDTH = 160;
-      const frozenCount = originalColumns.length;
+      const KEPT_COLS = ['row_id', 'text', 'grade'];
+      const visibleColumns = originalColumns.filter(col => KEPT_COLS.includes(col.toLowerCase()));
+      const frozenCount = 1; // only Row # is sticky
 
-      const thOriginal = originalColumns.map((col, i) => {
-        const isLast = i === frozenCount - 1;
-        return `<th class="frozen${isLast ? ' frozen-last' : ''}" data-frozen="${i}"
-                    style="min-width:${COL_MIN_WIDTH}px">${esc(col)}</th>`;
+      function colLabel(col) {
+        const c = col.toLowerCase();
+        if (c === 'row_id') return 'Row #';
+        if (c === 'text')   return 'Text';
+        if (c === 'grade')  return 'Grade';
+        return col;
+      }
+      function colWidth(col) {
+        const c = col.toLowerCase();
+        if (c === 'row_id') return 60;
+        if (c === 'text')   return 340;
+        if (c === 'grade')  return 70;
+        return 160;
+      }
+
+      const thOriginal = visibleColumns.map((col, i) => {
+        const isFrozen = i === 0;
+        return `<th class="${isFrozen ? 'frozen frozen-last' : ''}" ${isFrozen ? 'data-frozen="0" style="min-width:' + colWidth(col) + 'px; left:0; z-index:4;"' : 'style="min-width:' + colWidth(col) + 'px;"'}>${colLabel(col)}</th>`;
       }).join('');
 
       const thGLA = hasGLA ? `
@@ -656,24 +683,32 @@
       `).join('');
 
       const bodyRows = rows.map(row => {
-        const tdOriginal = originalColumns.map((col, i) => {
-          const isLast = i === frozenCount - 1;
-          return `<td class="frozen${isLast ? ' frozen-last' : ''}" data-frozen="${i}"
-                      style="min-width:${COL_MIN_WIDTH}px">${esc(row[col])}</td>`;
+        const tdOriginal = visibleColumns.map((col, i) => {
+          const isFrozen = i === 0;
+          const isTextCol = col.toLowerCase() === 'text';
+          const content = isTextCol
+            ? `<div class="cell-text-inner">${esc(row[col])}</div>`
+            : esc(row[col]);
+          const classes = [
+            isFrozen ? 'frozen frozen-last' : '',
+            isTextCol ? 'cell-text' : '',
+          ].filter(Boolean).join(' ');
+          const style = `min-width:${colWidth(col)}px;${isFrozen ? ' left:0; z-index:2;' : ''}`;
+          return `<td${classes ? ` class="${classes}"` : ''} ${isFrozen ? 'data-frozen="0"' : ''} style="${style}"${isTextCol ? ` title="${esc(row[col])}"` : ''}>${content}</td>`;
         }).join('');
 
         const glaStatus = row['__gla_status'] || '';
         const tdGLA = hasGLA ? `
           <td class="group-start">${statusBadge(glaStatus)}</td>
           <td>${esc(row['__gla_band'])}</td>
-          <td class="cell-reasoning" title="${esc(row['__gla_reasoning'])}">${esc(row['__gla_reasoning'])}</td>
+          <td class="cell-reasoning" title="${esc(row['__gla_reasoning'])}"><div class="cell-reasoning-inner">${esc(row['__gla_reasoning'])}</div></td>
         ` : '';
 
         const tdCX = complexityEvaluators.map(e => {
           const prefix = `__${e.prefix}`;
           return `
             <td class="group-start">${esc(row[prefix + '_score'])}</td>
-            <td class="cell-reasoning" title="${esc(row[prefix + '_reasoning'])}">${esc(row[prefix + '_reasoning'])}</td>
+            <td class="cell-reasoning" title="${esc(row[prefix + '_reasoning'])}"><div class="cell-reasoning-inner">${esc(row[prefix + '_reasoning'])}</div></td>
           `;
         }).join('');
 
@@ -691,7 +726,7 @@
         </div>
       `;
 
-      applyFrozenOffsets('results-table', frozenCount);
+      requestAnimationFrame(() => applyFrozenOffsets('results-table', frozenCount));
     }
 
     /**

@@ -61,7 +61,7 @@ See `tests/fixtures/batch-test.csv` for a complete example.
 
 The batch evaluator runs a fixed group of evaluators together. The current available group is:
 
-- **text-complexity**: Runs vocabulary complexity, sentence structure, and grade-level appropriateness evaluators together (requires both Google and OpenAI API keys). Maximum 100 input rows. If you exceed the limit, the CLI will exit with an error and suggest splitting into smaller batches.
+- **text-complexity**: Runs vocabulary complexity, sentence structure, and grade-level appropriateness evaluators together (requires both Google and OpenAI API keys). Maximum 50 input rows. If you exceed the limit, the CLI will exit with an error and suggest splitting into smaller batches.
 
 ### Output Files
 

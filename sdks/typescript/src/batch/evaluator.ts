@@ -47,7 +47,7 @@ const EVALUATOR_GROUPS: EvaluatorGroup[] = [
     ],
     requiresGoogleKey: true,
     requiresOpenAIKey: true,
-    maxInputRows: 100,
+    maxInputRows: 50,
   },
 ];
 
