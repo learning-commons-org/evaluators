@@ -8,20 +8,14 @@
     :root {
       --primary:          #242423;
       --secondary:        #6B6A64;
-      --favorable:        #125B3A;
-      --favorable-bg:     #C2ECD9;
-      --warning:          #7E6701;
-      --warning-bg:       #FFFC83;
-      --critical:         #9D1F18;
-      --critical-bg:      #F9DFDF;
       --informational:    #125B3A;
       --informational-bg: #E0F5EC;
       --border:           #e2e8f0;
       --neutral-bg:       #f1f5f9;
       --neutral-muted:    #64748b;
       --on-band:          #177A4D;
-      --adjacent:         #FFFA55;
-      --off-target:       #9D1F18;
+      --within-reach:     #B79F15;
+      --off-target:       #C4352D;
       --card-bg:          rgba(255,255,255,0.6);
       --card-shadow:      0 4px 10px 0 rgba(36,36,35,0.1);
       --radius:           8px;
@@ -46,7 +40,7 @@
 
     /* ── Cards ── */
     .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--card-shadow); margin-bottom: 20px; overflow: hidden; }
-    .card-body { padding: 24px; }
+    .card-body { padding: 16px 20px; }
     .card-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--secondary); margin-bottom: 16px; }
     .card-label-sm { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--secondary); }
 
@@ -54,10 +48,10 @@
     .tabs { display: flex; border-bottom: 1px solid var(--border); }
     .tab-btn { padding: 12px 20px; font-size: 14px; font-weight: 500; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; color: var(--secondary); transition: color 0.15s, border-color 0.15s; }
     .tab-btn:hover { color: var(--primary); }
-    .tab-btn.active { color: var(--primary); border-bottom-color: var(--favorable); }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--on-band); }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
-    .tab-content { padding: 32px 40px; }
+    .tab-content { padding: 20px 28px; }
 
     /* ── Layout grids ── */
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
@@ -67,32 +61,28 @@
 
     /* ── Tags ── */
     .tag { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
-    .tag-favorable    { background: var(--favorable-bg);    color: var(--favorable); }
-    .tag-warning      { background: var(--warning-bg);      color: var(--warning); }
-    .tag-critical     { background: var(--critical-bg);     color: var(--critical); }
-    .tag-informational{ background: var(--informational-bg); color: var(--informational); }
+    .tag-on-band      { background: var(--on-band);      color: #fff; }
+    .tag-within-reach { background: var(--within-reach);  color: #fff; }
+    .tag-off-target   { background: var(--off-target);    color: #fff; }
+    .tag-informational{ background: var(--neutral-bg); color: var(--neutral-muted); }
 
     /* ── GLA stat cards ── */
     .gla-card .top-stripe { height: 4px; }
-    .gla-card.on-band  .top-stripe  { background: var(--favorable-bg); }
-    .gla-card.adjacent .top-stripe  { background: var(--warning-bg); }
-    .gla-card.off-target .top-stripe{ background: var(--critical-bg); }
-    .gla-card.on-band  .card-label-sm { color: var(--favorable); }
-    .gla-card.adjacent .card-label-sm { color: var(--warning); }
-    .gla-card.off-target .card-label-sm{ color: var(--critical); }
+    .gla-card.on-band     .top-stripe  { background: var(--on-band); }
+    .gla-card.within-reach .top-stripe  { background: var(--within-reach); }
+    .gla-card.off-target  .top-stripe  { background: var(--off-target); }
+    .gla-card.on-band     .card-label-sm { color: var(--on-band); }
+    .gla-card.within-reach .card-label-sm { color: var(--within-reach); }
+    .gla-card.off-target  .card-label-sm { color: var(--off-target); }
     .gla-card .big-num { font-size: 28px; font-weight: 700; margin: 6px 0; }
-    .gla-card.on-band  .big-num { color: var(--favorable); }
-    .gla-card.adjacent .big-num { color: var(--warning); }
-    .gla-card.off-target .big-num{ color: var(--critical); }
+    .gla-card.on-band     .big-num { color: var(--on-band); }
+    .gla-card.within-reach .big-num { color: var(--within-reach); }
+    .gla-card.off-target  .big-num { color: var(--off-target); }
     .gla-card .desc { font-size: 13px; color: var(--secondary); }
 
     /* ── Complexity dimension summary bars ── */
-    .cx-dim-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-    .cx-dim-row:last-child { margin-bottom: 0; }
-    .cx-dim-name  { width: 148px; font-size: 13px; font-weight: 500; color: var(--primary); flex-shrink: 0; }
-    .cx-dim-track { flex: 1; height: 10px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .cx-dim-track { height: 10px; background: var(--border); border-radius: 99px; overflow: hidden; }
     .cx-dim-fill  { height: 100%; border-radius: 99px; background: var(--neutral-muted); transition: width 0.4s ease; }
-    .cx-dim-label { font-size: 12px; color: var(--secondary); white-space: nowrap; min-width: 200px; }
 
     /* ── Insights ── */
     .number-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 14px; font-weight: 600; flex-shrink: 0; }
@@ -106,10 +96,12 @@
     .dist-row .band { width: 60px; font-size: 12px; font-weight: 600; color: var(--primary); flex-shrink: 0; }
     .dist-row .bars { flex: 1; height: 24px; display: flex; }
     .dist-row .bar-on  { background: var(--on-band); }
-    .dist-row .bar-adj { background: var(--adjacent); }
+    .dist-row .bar-wr  { background: var(--within-reach); }
     .dist-row .bar-off { background: var(--off-target); }
     .dist-row .bars > .bar-seg:first-child { border-radius: 4px 0 0 4px; }
     .dist-row .bars > .bar-seg:last-child  { border-radius: 0 4px 4px 4px; }
+    .dist-row .bars > .bar-seg.bar-off:last-child { border-radius: 0 4px 4px 0; }
+    .dist-row .bars > .bar-seg.bar-off:only-child  { border-radius: 4px; }
     .dist-row .bars > .bar-seg:only-child  { border-radius: 4px; }
     .dist-legend { display: flex; justify-content: center; gap: 24px; margin-top: 16px; font-size: 12px; color: var(--primary); }
     .dist-legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -157,11 +149,7 @@
     .heatmap-table td:first-child { font-weight: 600; color: var(--primary); }
     .heatmap-table .cell-num { text-align: center; }
     .heatmap-table tr:last-child td { border-bottom: none; }
-    .heatmap-cell { display: inline-block; padding: 5px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; }
-    .heatmap-cell.favorable { background: var(--favorable-bg); color: var(--favorable); }
-    .heatmap-cell.warning   { background: var(--warning-bg);   color: var(--warning); }
-    .heatmap-cell.critical  { background: var(--critical-bg);  color: var(--critical); }
-    .heatmap-cell.neutral   { background: var(--neutral-bg);   color: var(--neutral-muted); }
+    .heatmap-cell { display: inline-block; padding: 5px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; background: var(--neutral-bg); color: var(--neutral-muted); }
 
     /* ── Full results table ── */
     .results-scroll { overflow-x: auto; overflow-y: auto; max-height: 600px; }
@@ -179,7 +167,7 @@
     }
     table.data-table tr:last-child td { border-bottom: none; }
     table.data-table tbody tr:hover td { background: rgba(0,0,0,0.02); }
-    table.data-table tbody tr:hover td.frozen { background: #f1f5f9; }
+    table.data-table tbody tr:hover td.frozen { background: var(--neutral-bg); }
     /* Frozen (sticky-left) columns */
     table.data-table th.frozen,
     table.data-table td.frozen { position: sticky; background: var(--neutral-bg); z-index: 2; }
@@ -248,12 +236,12 @@
       complexityStats: [
         {
           evaluatorId: 'vocabulary', name: 'Vocabulary',
-          average: 2.4, label: 'Moderately Complex',
+          average: 2.4, label: 'Moderately complex',
           distribution: [45, 120, 95, 27],
         },
         {
           evaluatorId: 'sentence-structure', name: 'Sentence Structure',
-          average: 1.9, label: 'Moderately Complex',
+          average: 1.9, label: 'Slightly complex',
           distribution: [88, 105, 72, 22],
         },
       ],
@@ -299,9 +287,9 @@
             text: 'The water cycle describes how water evaporates from surfaces, rises into the atmosphere, cools and condenses into clouds, and falls back to the ground as precipitation.',
             __gla_status: 'On Band', __gla_band: '4-5',
             __gla_reasoning: 'Uses grade-appropriate science vocabulary with a clear explanatory structure suitable for grades 4–5.',
-            __vocabulary_score: 'moderately complex',
+            __vocabulary_score: 'Moderately complex',
             __vocabulary_reasoning: 'Contains domain-specific terms (evaporates, condenses, precipitation) that require pre-teaching for grade 5 students.',
-            __sentence_structure_score: 'Slightly Complex',
+            __sentence_structure_score: 'Slightly complex',
             __sentence_structure_reasoning: 'Primarily compound sentences with clear connective structure appropriate for grade 5.',
           },
           {
@@ -309,9 +297,9 @@
             text: 'Photosynthesis is the process by which green plants use sunlight, water and carbon dioxide to produce food and oxygen.',
             __gla_status: 'Adjacent', __gla_band: '4-5',
             __gla_reasoning: 'Content is accessible but slightly below typical grade 6 complexity expectations.',
-            __vocabulary_score: 'moderately complex',
+            __vocabulary_score: 'Moderately complex',
             __vocabulary_reasoning: 'Key scientific terms are present but relatively straightforward for grade 6 readers.',
-            __sentence_structure_score: 'Slightly Complex',
+            __sentence_structure_score: 'Slightly complex',
             __sentence_structure_reasoning: 'Single main clause with a relative clause; well within grade 6 reading ability.',
           },
           {
@@ -319,9 +307,9 @@
             text: 'The mitochondria, often described as the powerhouse of the cell, are organelles found in the cytoplasm of eukaryotic cells, where they generate most of the adenosine triphosphate used for cellular energy.',
             __gla_status: 'Off Target', __gla_band: '11-CCR',
             __gla_reasoning: 'Text uses advanced biochemical terminology (adenosine triphosphate, eukaryotic) more appropriate for upper secondary or college-level readers.',
-            __vocabulary_score: 'exceedingly complex',
+            __vocabulary_score: 'Exceedingly complex',
             __vocabulary_reasoning: 'High density of Tier 3 domain-specific words significantly exceeds typical grade 8 vocabulary expectations.',
-            __sentence_structure_score: 'Very Complex',
+            __sentence_structure_score: 'Very complex',
             __sentence_structure_reasoning: 'Long, embedded clauses with multiple modifying phrases create significant syntactic complexity for grade 8.',
           },
           {
@@ -329,9 +317,9 @@
             text: 'Rain falls from clouds when tiny water droplets join together and become heavy enough to fall to the ground.',
             __gla_status: 'On Band', __gla_band: '2-3',
             __gla_reasoning: 'Simple vocabulary and sentence structure are appropriate for grades 2–3.',
-            __vocabulary_score: 'slightly complex',
+            __vocabulary_score: 'Slightly complex',
             __vocabulary_reasoning: 'Common everyday vocabulary with no domain-specific terms requiring pre-teaching.',
-            __sentence_structure_score: 'Slightly Complex',
+            __sentence_structure_score: 'Slightly complex',
             __sentence_structure_reasoning: 'Short simple sentences with basic connective structure.',
           },
           {
@@ -339,9 +327,9 @@
             text: 'Ecosystems are communities of organisms that interact with each other and their physical environment, shaped by both biotic and abiotic factors that influence population dynamics over time.',
             __gla_status: 'On Band', __gla_band: '9-10',
             __gla_reasoning: 'Appropriate complexity and terminology for a grade 9–10 biology curriculum.',
-            __vocabulary_score: 'very complex',
+            __vocabulary_score: 'Very complex',
             __vocabulary_reasoning: 'Multiple Tier 3 terms (biotic, abiotic, population dynamics) require strong background knowledge.',
-            __sentence_structure_score: 'Moderately Complex',
+            __sentence_structure_score: 'Moderately complex',
             __sentence_structure_reasoning: 'Compound-complex sentence with a relative clause; manageable for grade 9 readers.',
           },
           {
@@ -349,9 +337,9 @@
             text: 'Ancient Egyptians built pyramids as tombs for their pharaohs and used a picture-based writing system called hieroglyphics.',
             __gla_status: 'On Band', __gla_band: '4-5',
             __gla_reasoning: 'Vocabulary and sentence length are well-matched to grade 4–5 social studies content.',
-            __vocabulary_score: 'moderately complex',
+            __vocabulary_score: 'Moderately complex',
             __vocabulary_reasoning: 'Domain-specific proper nouns (pharaohs, hieroglyphics) may need brief glossing.',
-            __sentence_structure_score: 'Slightly Complex',
+            __sentence_structure_score: 'Slightly complex',
             __sentence_structure_reasoning: 'Two coordinated independent clauses; clear and accessible structure.',
           },
           {
@@ -359,9 +347,9 @@
             text: 'Shakespeare\'s use of dramatic irony in Othello functions as a mechanism of tragic inevitability, positioning the audience as unwilling witnesses to the protagonist\'s epistemological collapse.',
             __gla_status: 'On Band', __gla_band: '11-CCR',
             __gla_reasoning: 'Sophisticated literary analysis vocabulary and complex syntax are well-suited to grades 11–CCR.',
-            __vocabulary_score: 'exceedingly complex',
+            __vocabulary_score: 'Exceedingly complex',
             __vocabulary_reasoning: 'Tier 3 literary and philosophical vocabulary (epistemological, dramatic irony, tragic inevitability) demands high reading proficiency.',
-            __sentence_structure_score: 'Exceedingly Complex',
+            __sentence_structure_score: 'Exceedingly complex',
             __sentence_structure_reasoning: 'Noun phrase and participial phrase stacking creates a dense, highly embedded syntactic structure.',
           },
           {
@@ -369,9 +357,9 @@
             text: 'The Industrial Revolution transformed European societies by shifting labor from farms to factories, driving rapid urban growth and fundamentally changing how goods were produced and traded.',
             __gla_status: 'Adjacent', __gla_band: '9-10',
             __gla_reasoning: 'Vocabulary and conceptual density exceed typical grade 7 expectations; better suited for grades 9–10.',
-            __vocabulary_score: 'very complex',
+            __vocabulary_score: 'Very complex',
             __vocabulary_reasoning: 'Abstract economic and historical vocabulary (urban growth, fundamentally) adds significant reading demand.',
-            __sentence_structure_score: 'Moderately Complex',
+            __sentence_structure_score: 'Moderately complex',
             __sentence_structure_reasoning: 'Participial phrases and coordinated verb phrases add structural complexity but remain readable.',
           },
         ],
@@ -386,6 +374,47 @@
     REPORT_DATA = REPORT_DATA || MOCK_REPORT_DATA;
 
     // ---------------------------------------------------------------------------
+    // Canonical evaluator order
+    // ---------------------------------------------------------------------------
+
+    const EVALUATOR_ORDER = [
+      'grade-level-appropriateness',
+      'subject-matter-knowledge',
+      'vocabulary',
+      'sentence-structure',
+      'conventions',
+    ];
+
+    function evalSortIndex(id) {
+      const i = EVALUATOR_ORDER.indexOf(id);
+      return i === -1 ? 999 : i;
+    }
+
+    // Sort meta.evaluatorIds / evaluatorNames in tandem
+    const _metaPairs = REPORT_DATA.meta.evaluatorIds
+      .map((id, i) => ({ id, name: REPORT_DATA.meta.evaluatorNames[i] }))
+      .sort((a, b) => evalSortIndex(a.id) - evalSortIndex(b.id));
+    REPORT_DATA.meta.evaluatorIds   = _metaPairs.map(x => x.id);
+    REPORT_DATA.meta.evaluatorNames = _metaPairs.map(x => x.name);
+
+    // Sort complexityStats
+    REPORT_DATA.complexityStats = [...REPORT_DATA.complexityStats]
+      .sort((a, b) => evalSortIndex(a.evaluatorId) - evalSortIndex(b.evaluatorId));
+
+    // Sort complexityHeatmap evaluators and their value columns
+    const _hmPairs = REPORT_DATA.complexityHeatmap.evaluators
+      .map((name, i) => ({ name, id: REPORT_DATA.complexityHeatmap.evaluatorIds[i], i }))
+      .sort((a, b) => evalSortIndex(a.id) - evalSortIndex(b.id));
+    REPORT_DATA.complexityHeatmap.evaluators   = _hmPairs.map(x => x.name);
+    REPORT_DATA.complexityHeatmap.evaluatorIds = _hmPairs.map(x => x.id);
+    REPORT_DATA.complexityHeatmap.values = REPORT_DATA.complexityHeatmap.values
+      .map(row => _hmPairs.map(x => row[x.i]));
+
+    // Sort fullResults.complexityEvaluators
+    REPORT_DATA.fullResults.complexityEvaluators = [...REPORT_DATA.fullResults.complexityEvaluators]
+      .sort((a, b) => evalSortIndex(a.evaluatorId) - evalSortIndex(b.evaluatorId));
+
+    // ---------------------------------------------------------------------------
     // Utilities
     // ---------------------------------------------------------------------------
 
@@ -397,20 +426,14 @@
         .replace(/"/g, '&quot;');
     }
 
-    function hmClass(val) {
-      if (val === null || val === undefined) return 'neutral';
-      if (val < 1.5) return 'favorable';
-      if (val < 2.5) return 'warning';
-      return 'critical';
-    }
-
     function statusBadge(status) {
       const cls = {
-        'On Band':   'tag-favorable',
-        'Adjacent':  'tag-warning',
-        'Off Target':'tag-critical',
+        'On Band':   'tag-on-band',
+        'Adjacent':  'tag-within-reach',
+        'Off Target':'tag-off-target',
       }[status] || '';
-      return `<span class="tag ${cls}">${esc(status)}</span>`;
+      const display = status === 'Adjacent' ? 'Within Reach' : status;
+      return `<span class="tag ${cls}">${esc(display)}</span>`;
     }
 
     // ---------------------------------------------------------------------------
@@ -462,24 +485,26 @@
         <div class="card">
           <div class="card-body">
             <div class="card-label">Snapshot</div>
-            <div class="grid-4">
+            <div style="display:flex; flex-direction:column; gap:14px;">
               <div class="flex-col">
                 <span class="card-label-sm">Evaluators</span>
                 <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
                   ${meta.evaluatorNames.map(n => `<span class="tag tag-informational">${esc(n)}</span>`).join('')}
                 </div>
               </div>
-              <div class="flex-col">
-                <span class="card-label-sm">Rows Processed</span>
-                <span style="font-weight:500; margin-top:4px;">${meta.processedRows} of ${meta.totalRows}</span>
-              </div>
-              <div class="flex-col">
-                <span class="card-label-sm">Rows Errored</span>
-                <span style="font-weight:500; margin-top:4px;">${meta.erroredRows}</span>
-              </div>
-              <div class="flex-col">
-                <span class="card-label-sm">Source File</span>
-                <span style="font-size:12px; font-family:monospace; word-break:break-all; color:var(--secondary); margin-top:4px;" title="${esc(meta.csvPath)}">${esc(meta.csvPath)}</span>
+              <div style="display:grid; grid-template-columns:1fr 1fr 3fr; gap:12px 32px;">
+                <div class="flex-col">
+                  <span class="card-label-sm">Rows Processed</span>
+                  <span style="font-weight:500; margin-top:4px;">${meta.processedRows} of ${meta.totalRows}</span>
+                </div>
+                <div class="flex-col">
+                  <span class="card-label-sm">Errors / Skipped</span>
+                  <span style="font-weight:500; margin-top:4px;">${meta.erroredRows}</span>
+                </div>
+                <div class="flex-col">
+                  <span class="card-label-sm">Source File</span>
+                  <span style="font-size:12px; font-family:monospace; word-break:break-all; color:var(--secondary); margin-top:4px;" title="${esc(meta.csvPath)}">${esc(meta.csvPath)}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -494,15 +519,15 @@
             <div class="card-body">
               <div class="card-label-sm">On Band</div>
               <div class="big-num">${gls.onBandPct}%</div>
-              <div class="desc">${gls.onBand} texts match the target grade band</div>
+              <div class="desc">${gls.onBand} of ${meta.processedRows} rows where the evaluated grade band matches intended</div>
             </div>
           </div>
-          <div class="card gla-card adjacent" style="margin-bottom:0;">
+          <div class="card gla-card within-reach" style="margin-bottom:0;">
             <div class="top-stripe"></div>
             <div class="card-body">
-              <div class="card-label-sm">Adjacent</div>
+              <div class="card-label-sm">Within Reach</div>
               <div class="big-num">${gls.adjacentPct}%</div>
-              <div class="desc">${gls.adjacent} texts within one band of target</div>
+              <div class="desc">${gls.adjacent} rows where the alternative grade band aligns with intended</div>
             </div>
           </div>
           <div class="card gla-card off-target" style="margin-bottom:0;">
@@ -510,7 +535,7 @@
             <div class="card-body">
               <div class="card-label-sm">Off Target</div>
               <div class="big-num">${gls.offTargetPct}%</div>
-              <div class="desc">${gls.offTarget} texts need review</div>
+              <div class="desc">${gls.offTarget} rows where neither evaluated nor alternative matches intended</div>
             </div>
           </div>
         </div>
@@ -519,16 +544,16 @@
       // ── Complexity dimension summary card ──
       const cxHtml = complexityStats.length > 0 ? (() => {
         const totalRows = meta.processedRows || meta.totalRows;
-        const rows = complexityStats.map(cs => {
+        const items = complexityStats.map(cs => {
           const pct = Math.round((cs.average / 4.0) * 100);
           const labelText = cs.average > 0
             ? `${esc(cs.label)} (${cs.average.toFixed(1)} / 4.0)`
             : '—';
           return `
-            <div class="cx-dim-row">
-              <span class="cx-dim-name">${esc(cs.name)}</span>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <span style="font-size:13px; font-weight:500; color:var(--primary);">${esc(cs.name)}</span>
               <div class="cx-dim-track"><div class="cx-dim-fill" style="width:${pct}%"></div></div>
-              <span class="cx-dim-label">${labelText}</span>
+              <span style="font-size:12px; color:var(--secondary);">${labelText}</span>
             </div>
           `;
         }).join('');
@@ -536,7 +561,9 @@
           <div class="card">
             <div class="card-body">
               <div class="card-label">Text Complexity Dimensions (avg. across ${totalRows} rows)</div>
-              ${rows}
+              <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px 24px;">
+                ${items}
+              </div>
             </div>
           </div>
         `;
@@ -544,11 +571,11 @@
 
       // ── Insights ──
       const insightsHtml = `
-        <div class="card">
+        <div class="card" style="display: none;">
           <div class="card-body">
             <div class="card-label" style="display:flex; align-items:center; gap:8px;">
               Insights
-              <span class="tag tag-informational" style="font-size:10px; letter-spacing:0.06em; padding:2px 8px;">Alpha</span>
+              <span class="tag tag-informational" style="font-size:10px; letter-spacing:0.06em; padding:2px 8px;">Early Access</span>
             </div>
             <div style="display:flex; flex-direction:column; gap:10px;">
               ${insights.map((text, idx) => `
@@ -576,7 +603,7 @@
           const adjPct = toPct(d.adjacent,  d.total);
           const offPct = toPct(d.offTarget, d.total);
           const onSeg  = d.onBand   > 0 ? `<div class="bar-seg bar-on"  style="width:${onPct}%"  data-tip="On Band: ${d.onBand} (${onPct}%)"></div>`  : '';
-          const adjSeg = d.adjacent  > 0 ? `<div class="bar-seg bar-adj" style="width:${adjPct}%" data-tip="Adjacent: ${d.adjacent} (${adjPct}%)"></div>` : '';
+          const adjSeg = d.adjacent  > 0 ? `<div class="bar-seg bar-wr" style="width:${adjPct}%" data-tip="Within Reach: ${d.adjacent} (${adjPct}%)"></div>` : '';
           const offSeg = d.offTarget > 0 ? `<div class="bar-seg bar-off" style="width:${offPct}%" data-tip="Off Target: ${d.offTarget} (${offPct}%)"></div>` : '';
           return `
             <div class="dist-row">
@@ -589,11 +616,11 @@
         return `
           <div class="card">
             <div class="card-body">
-              <div class="card-label">Grade Level Distribution by Band</div>
+              <div class="card-label">Grade Band Alignment by Intended Grade</div>
               <div class="dist-chart">${rows}</div>
               <div class="dist-legend">
                 <span><span class="dot" style="background:var(--on-band)"></span>On Band</span>
-                <span><span class="dot" style="background:var(--adjacent)"></span>Adjacent</span>
+                <span><span class="dot" style="background:var(--within-reach)"></span>Within Reach</span>
                 <span><span class="dot" style="background:var(--off-target)"></span>Off Target</span>
               </div>
             </div>
@@ -605,23 +632,23 @@
       const heatmapHtml = complexityStats.length > 0 && complexityHeatmap.evaluators.length > 0 ? `
         <div class="card">
           <div class="card-body">
-            <div class="card-label">Text Complexity by Grade Band</div>
+            <div class="card-label">Text Complexity Dimensions by Intended Grade</div>
             <div style="overflow-x:auto;">
               <table class="heatmap-table">
                 <thead>
                   <tr>
-                    <th>Grade Band</th>
-                    ${complexityHeatmap.evaluators.map(e => `<th>${esc(e)}</th>`).join('')}
+                    <th>Dimension</th>
+                    ${complexityHeatmap.bands.map(b => `<th style="text-align:center; padding:8px 10px; white-space:nowrap; min-width:56px;">${esc(b)}</th>`).join('')}
                   </tr>
                 </thead>
                 <tbody>
-                  ${complexityHeatmap.bands.map((band, bi) => `
+                  ${complexityHeatmap.evaluators.map((evaluator, ei) => `
                     <tr>
-                      <td>${esc(band)}</td>
-                      ${complexityHeatmap.values[bi].map(val => {
-                        const cls = hmClass(val);
+                      <td>${esc(evaluator)}</td>
+                      ${complexityHeatmap.bands.map((band, bi) => {
+                        const val = complexityHeatmap.values[bi][ei];
                         const label = val !== null ? val.toFixed(1) : '—';
-                        return `<td class="cell-num"><span class="heatmap-cell ${cls}">${label}</span></td>`;
+                        return `<td class="cell-num" style="padding:8px 10px;"><span class="heatmap-cell" style="padding:4px 8px;">${label}</span></td>`;
                       }).join('')}
                     </tr>
                   `).join('')}
