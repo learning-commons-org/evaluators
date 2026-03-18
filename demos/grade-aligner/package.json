@@ -1,0 +1,40 @@
+{
+  "name": "@learning-commons/grade-aligner",
+  "version": "0.1.0",
+  "description": "Align text passages to a target grade reading level",
+  "type": "module",
+  "main": "./dist/lib.js",
+  "types": "./dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/lib.ts --format esm --dts",
+    "dev": "node --import tsx/esm src/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^3.0.7",
+    "@ai-sdk/openai": "^3.0.9",
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@learning-commons/evaluators": "^0.1.0",
+    "ai": "^6.0.30"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "dotenv": "^17.3.1",
+    "tsup": "^8.0.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}
