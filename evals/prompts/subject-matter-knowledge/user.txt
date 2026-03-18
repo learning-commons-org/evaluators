@@ -1,0 +1,4 @@
+Analyze:
+Text: {text}
+Grade: {grade}
+FK Score: {fk_score}

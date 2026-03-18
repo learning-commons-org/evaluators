@@ -49,6 +49,9 @@ export {
 // Vocabulary exports
 export type { VocabularyInternal } from './schemas/vocabulary.js';
 
+// Subject Matter Knowledge exports
+export type { SmkInternal } from './schemas/smk.js';
+
 // Grade Level Appropriateness exports
 export type { GradeLevelAppropriatenessInternal } from './schemas/grade-level-appropriateness.js';
 
@@ -59,6 +62,8 @@ export {
   evaluateVocabulary,
   SentenceStructureEvaluator,
   evaluateSentenceStructure,
+  SmkEvaluator,
+  evaluateSmk,
   GradeLevelAppropriatenessEvaluator,
   evaluateGradeLevelAppropriateness,
   TextComplexityEvaluator,

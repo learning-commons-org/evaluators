@@ -96,6 +96,7 @@ describe('TextComplexityEvaluator', () => {
     let evaluator: TextComplexityEvaluator;
     let vocabSpy: any;
     let sentenceSpy: any;
+    let smkSpy: any;
 
     beforeEach(() => {
       evaluator = new TextComplexityEvaluator({
@@ -124,6 +125,16 @@ describe('TextComplexityEvaluator', () => {
         },
         _internal: {},
       });
+
+      smkSpy = vi.spyOn((evaluator as any).smkEvaluator, 'evaluate').mockResolvedValue({
+        score: 'Moderately complex',
+        reasoning: 'Subject matter knowledge test reasoning',
+        metadata: {
+          model: 'google:gemini-3-flash-preview',
+          processingTimeMs: 100,
+        },
+        _internal: {},
+      });
     });
 
     afterEach(() => {
@@ -139,8 +150,10 @@ describe('TextComplexityEvaluator', () => {
       expect(result).toBeDefined();
       expect(result.vocabulary).toBeDefined();
       expect(result.sentenceStructure).toBeDefined();
+      expect(result.subjectMatterKnowledge).toBeDefined();
       expect('error' in result.vocabulary).toBe(false);
       expect('error' in result.sentenceStructure).toBe(false);
+      expect('error' in result.subjectMatterKnowledge).toBe(false);
     });
 
     it('should validate text input', async () => {
@@ -179,7 +192,7 @@ describe('TextComplexityEvaluator', () => {
       }
     });
 
-    it('should run both evaluators in parallel', async () => {
+    it('should run all three evaluators in parallel', async () => {
       const text = 'The cat sat on the mat.';
       const grade = '5';
 
@@ -188,19 +201,20 @@ describe('TextComplexityEvaluator', () => {
       const duration = Date.now() - startTime;
 
       // With mocked providers that take ~100ms each, parallel execution should be faster than sequential
-      // Sequential would be ~200ms, parallel should be ~100ms
-      // Allow some overhead but should be significantly less than 200ms
-      expect(duration).toBeLessThan(200);
+      // Sequential would be ~300ms, parallel should be ~100ms
+      // Allow some overhead but should be significantly less than 300ms
+      expect(duration).toBeLessThan(300);
 
       expect('error' in result.vocabulary).toBe(false);
       expect('error' in result.sentenceStructure).toBe(false);
+      expect('error' in result.subjectMatterKnowledge).toBe(false);
     });
 
     it('should handle partial failures gracefully', async () => {
       const text = 'The cat sat on the mat.';
       const grade = '5';
 
-      // Override the spy to make vocabulary fail but sentence structure succeed
+      // Override the spy to make vocabulary fail but others succeed
       vocabSpy.mockRejectedValue(new Error('Vocabulary evaluation failed'));
 
       const result = await evaluator.evaluate(text, grade);
@@ -209,15 +223,17 @@ describe('TextComplexityEvaluator', () => {
       expect('error' in result.vocabulary).toBe(true);
       expect((result.vocabulary as { error: Error }).error).toBeDefined();
       expect('error' in result.sentenceStructure).toBe(false);
+      expect('error' in result.subjectMatterKnowledge).toBe(false);
     });
 
-    it('should throw when both evaluators fail', async () => {
+    it('should throw when all three evaluators fail', async () => {
       const text = 'The cat sat on the mat.';
       const grade = '5';
 
-      // Override both spies to fail
+      // Override all spies to fail
       vocabSpy.mockRejectedValue(new Error('Vocabulary evaluation failed'));
       sentenceSpy.mockRejectedValue(new Error('Sentence structure evaluation failed'));
+      smkSpy.mockRejectedValue(new Error('SMK evaluation failed'));
 
       await expect(evaluator.evaluate(text, grade)).rejects.toThrow(
         'Text complexity evaluation failed'
@@ -250,15 +266,30 @@ describe('TextComplexityEvaluator', () => {
         _internal: {},
       });
 
+      // Override SMK to return "Very complex"
+      smkSpy.mockResolvedValue({
+        score: 'Very complex',
+        reasoning: 'SMK reasoning',
+        metadata: {
+          model: 'google:gemini-3-flash-preview',
+          processingTimeMs: 100,
+        },
+        _internal: {},
+      });
+
       const result = await evaluator.evaluate(text, grade);
 
       expect('error' in result.vocabulary).toBe(false);
       expect('error' in result.sentenceStructure).toBe(false);
+      expect('error' in result.subjectMatterKnowledge).toBe(false);
       if (!('error' in result.vocabulary)) {
         expect(result.vocabulary.score).toBe('Moderately complex');
       }
       if (!('error' in result.sentenceStructure)) {
         expect(result.sentenceStructure.score).toBe('Slightly complex');
+      }
+      if (!('error' in result.subjectMatterKnowledge)) {
+        expect(result.subjectMatterKnowledge.score).toBe('Very complex');
       }
     });
 
@@ -266,7 +297,7 @@ describe('TextComplexityEvaluator', () => {
       const text = 'The cat sat on the mat.';
       const grade = '5';
 
-      // Override both evaluators with specific reasoning
+      // Override all evaluators with specific reasoning
       vocabSpy.mockResolvedValue({
         score: 'Moderately complex',
         reasoning: 'This is the vocabulary reasoning.',
@@ -287,6 +318,16 @@ describe('TextComplexityEvaluator', () => {
         _internal: {},
       });
 
+      smkSpy.mockResolvedValue({
+        score: 'Very complex',
+        reasoning: 'This is the SMK reasoning.',
+        metadata: {
+          model: 'google:gemini-3-flash-preview',
+          processingTimeMs: 100,
+        },
+        _internal: {},
+      });
+
       const result = await evaluator.evaluate(text, grade);
 
       if (!('error' in result.vocabulary)) {
@@ -294,6 +335,9 @@ describe('TextComplexityEvaluator', () => {
       }
       if (!('error' in result.sentenceStructure)) {
         expect(result.sentenceStructure.reasoning).toBe('This is the sentence structure reasoning.');
+      }
+      if (!('error' in result.subjectMatterKnowledge)) {
+        expect(result.subjectMatterKnowledge.reasoning).toBe('This is the SMK reasoning.');
       }
     });
   });
