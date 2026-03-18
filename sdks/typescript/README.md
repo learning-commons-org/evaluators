@@ -1,5 +1,7 @@
 # @learning-commons/evaluators
 
+[![npm version](https://img.shields.io/npm/v/@learning-commons/evaluators)](https://www.npmjs.com/package/@learning-commons/evaluators)
+
 TypeScript SDK for Learning Commons educational text complexity evaluators.
 
 ## Installation
