@@ -8,8 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [1.4.0] - 2026-02-19
 
 ### Added
-- `conventionality/system.txt` — system prompt for early release Conventionality evaluator
-- `conventionality/user.txt` — user prompt for early release Conventionality evaluator 
+- `conventionality/system.txt` — system prompt for early access Conventionality evaluator
+- `conventionality/user.txt` — user prompt for early access Conventionality evaluator 
 
 ## [1.3.0] - 2026-03-18
 

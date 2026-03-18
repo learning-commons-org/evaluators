@@ -42,5 +42,3 @@ Provide a JSON object containing ONLY the following keys:
 - conventionality_features: (List of Strings) The specific language features driving the complexity (e.g., literal narrative, concrete actions, less familiar expressions, sustained irony, abstract qualities, rhetorical idealization, archaic phrasing) with direct quotes from the text.
 - grade_context: (String) How the conventionality demands compare to general expectations for the provided target grade.
 - instructional_insights: (String) Actionable pedagogical suggestions for scaffolding the conventionality features in the classroom.
-
-{format_instructions}
