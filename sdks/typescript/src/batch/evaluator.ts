@@ -3,6 +3,7 @@ import {
   VocabularyEvaluator,
   SentenceStructureEvaluator,
   GradeLevelAppropriatenessEvaluator,
+  SmkEvaluator,
 } from '../evaluators/index.js';
 import type { BaseEvaluatorConfig } from '../evaluators/base.js';
 import type { EvaluationResult } from '../schemas/index.js';
@@ -29,6 +30,7 @@ const EVALUATOR_MAP = new Map<string, EvaluatorConstructor>([
   [VocabularyEvaluator.metadata.id, VocabularyEvaluator],
   [SentenceStructureEvaluator.metadata.id, SentenceStructureEvaluator],
   [GradeLevelAppropriatenessEvaluator.metadata.id, GradeLevelAppropriatenessEvaluator],
+  [SmkEvaluator.metadata.id, SmkEvaluator],
 ]);
 
 /**
@@ -39,11 +41,12 @@ const EVALUATOR_GROUPS: EvaluatorGroup[] = [
   {
     id: 'text-complexity',
     name: 'Text Complexity Analysis',
-    description: 'Evaluates vocabulary complexity, sentence structure, and grade-level appropriateness',
+    description: 'Evaluates vocabulary complexity, sentence structure, subject matter knowledge, and grade-level appropriateness',
     evaluatorIds: [
       VocabularyEvaluator.metadata.id,
       SentenceStructureEvaluator.metadata.id,
       GradeLevelAppropriatenessEvaluator.metadata.id,
+      SmkEvaluator.metadata.id,
     ],
     requiresGoogleKey: true,
     requiresOpenAIKey: true,

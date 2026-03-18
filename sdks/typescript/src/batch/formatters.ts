@@ -309,6 +309,7 @@ export function formatAsHTML(output: BatchOutput, meta: ReportMeta): string {
       }),
       csvPath: meta.csvPath,
       groupId: meta.groupId,
+      evaluatorIds: allEvaluatorIds,
       evaluatorNames: allEvaluatorIds.map(evaluatorDisplayName),
       totalRows: meta.totalInputRows,
       processedRows,
