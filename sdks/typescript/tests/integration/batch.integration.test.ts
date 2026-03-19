@@ -6,8 +6,8 @@ import type { BatchInput } from '../../src/batch/index.js';
 /**
  * Batch Evaluator Integration Tests
  *
- * Lightweight integration test with 2 rows and 1 evaluator (sentence-structure).
- * Verifies the full batch evaluation flow works end-to-end with real API calls.
+ * Runs the full text-complexity group (all evaluators) against a sample CSV.
+ * Verifies end-to-end batch flow with real API calls.
  *
  * To run:
  * ```bash
@@ -15,11 +15,16 @@ import type { BatchInput } from '../../src/batch/index.js';
  * ```
  */
 
-// text-complexity group requires both keys
-const SKIP_INTEGRATION = !process.env.RUN_INTEGRATION_TESTS ||
-                         !process.env.OPENAI_API_KEY ||
-                         !process.env.GOOGLE_API_KEY;
+// If integration tests are explicitly requested, missing keys should be a hard failure
+// so CI/CD misconfiguration is caught immediately rather than silently skipping.
+const RUN_INTEGRATION = process.env.RUN_INTEGRATION_TESTS === 'true';
 
+if (RUN_INTEGRATION) {
+  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is required when RUN_INTEGRATION_TESTS is set');
+  if (!process.env.GOOGLE_API_KEY) throw new Error('GOOGLE_API_KEY is required when RUN_INTEGRATION_TESTS is set');
+}
+
+const SKIP_INTEGRATION = !RUN_INTEGRATION;
 const describeIntegration = SKIP_INTEGRATION ? describe.skip : describe;
 
 // Test timeout: 2 minutes (generous for API calls)
@@ -29,11 +34,6 @@ describeIntegration('Batch Evaluator - Integration', () => {
   let evaluator: BatchEvaluator;
 
   beforeAll(() => {
-    if (SKIP_INTEGRATION) {
-      console.log('⏭️  Skipping batch integration tests (set RUN_INTEGRATION_TESTS=true and provide both GOOGLE_API_KEY and OPENAI_API_KEY)');
-      return;
-    }
-
     evaluator = new BatchEvaluator({
       googleApiKey: process.env.GOOGLE_API_KEY!,
       openaiApiKey: process.env.OPENAI_API_KEY!,

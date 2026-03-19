@@ -13,7 +13,28 @@ import {
 } from './index.js';
 import { ProgressTracker } from './progress.js';
 
+function parseArgs(): { concurrency?: number; maxRetries?: number; noTelemetry?: boolean } {
+  const args = process.argv.slice(2);
+  const result: { concurrency?: number; maxRetries?: number; noTelemetry?: boolean } = {};
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--concurrency' && args[i + 1]) {
+      const v = parseInt(args[++i], 10);
+      if (!isNaN(v) && v > 0) result.concurrency = v;
+    } else if (args[i] === '--max-retries' && args[i + 1]) {
+      const v = parseInt(args[++i], 10);
+      if (!isNaN(v) && v >= 0) result.maxRetries = v;
+    } else if (args[i] === '--no-telemetry') {
+      result.noTelemetry = true;
+    }
+  }
+
+  return result;
+}
+
 async function main() {
+  const cliArgs = parseArgs();
+
   console.log('\n📊 Batch CSV Evaluator\n');
   console.log('This tool will evaluate multiple texts using one or more evaluators.\n');
 
@@ -36,7 +57,7 @@ async function main() {
     });
 
     if (!csvPath) {
-      console.log('Cancelled.');
+      console.log('No file path provided. Run the command again to start over.');
       process.exit(0);
     }
 
@@ -129,7 +150,7 @@ async function main() {
     });
 
     if (!outputDir) {
-      console.log('Cancelled.');
+      console.log('No output directory provided. Run the command again to start over.');
       process.exit(0);
     }
 
@@ -152,6 +173,8 @@ async function main() {
     console.log(`  Input rows: ${inputs.length}`);
     console.log(`  Evaluators: ${group.evaluatorIds.length}`);
     console.log(`  Total tasks: ${totalTasks}`);
+    console.log(`  Concurrency: ${cliArgs.concurrency ?? 3}`);
+    console.log(`  Max retries: ${cliArgs.maxRetries ?? 2}`);
     console.log(`  Output: ${outputDir}\n`);
 
     const { confirm } = await prompts({
@@ -174,9 +197,9 @@ async function main() {
     const evaluator = new BatchEvaluator({
       googleApiKey,
       openaiApiKey,
-      concurrency: 3,
-      maxRetries: 2,
-      telemetry: false,
+      concurrency: cliArgs.concurrency ?? 3,
+      maxRetries: cliArgs.maxRetries ?? 2,
+      telemetry: !cliArgs.noTelemetry,
     });
 
     // Handle Ctrl+C gracefully

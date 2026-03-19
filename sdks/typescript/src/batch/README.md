@@ -61,7 +61,7 @@ See `tests/fixtures/batch-test.csv` for a complete example.
 
 The batch evaluator runs a fixed group of evaluators together. The current available group is:
 
-- **text-complexity**: Runs vocabulary complexity, sentence structure, and grade-level appropriateness evaluators together (requires both Google and OpenAI API keys). Maximum 50 input rows. If you exceed the limit, the CLI will exit with an error and suggest splitting into smaller batches.
+- **text-complexity**: Runs vocabulary complexity, sentence structure, subject matter knowledge, and grade-level appropriateness evaluators together (requires both Google and OpenAI API keys). Maximum 50 input rows. If you exceed the limit, the CLI will exit with an error and suggest splitting into smaller batches.
 
 ### Output Files
 
@@ -87,6 +87,20 @@ Processing evaluations...
 
 ⏱  Elapsed: 2m 15s | Estimated remaining: 1m 30s
 ```
+
+### CLI Flags
+
+You can override defaults by passing flags when running the command:
+
+```bash
+evaluators-batch --concurrency 5 --max-retries 3 --no-telemetry
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--concurrency <n>` | `3` | Number of evaluations to run in parallel |
+| `--max-retries <n>` | `2` | Number of times to retry a failed evaluation |
+| `--no-telemetry` | telemetry on | Disable telemetry reporting |
 
 ### API Keys
 
