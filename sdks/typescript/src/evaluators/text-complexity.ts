@@ -2,12 +2,14 @@ import pLimit from 'p-limit';
 import { VocabularyEvaluator } from './vocabulary.js';
 import { SentenceStructureEvaluator } from './sentence-structure.js';
 import { SmkEvaluator } from './smk.js';
+import { ConventionalityEvaluator } from './conventionality.js';
 import type { SentenceStructureInternal } from '../schemas/sentence-structure.js';
 import type { BaseEvaluatorConfig } from './base.js';
 import { BaseEvaluator } from './base.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import type { VocabularyInternal } from '../schemas/vocabulary.js';
 import type { SmkInternal } from '../schemas/smk.js';
+import type { ConventionalityInternal } from '../schemas/conventionality.js';
 
 /**
  * Result map returned by TextComplexityEvaluator.
@@ -17,6 +19,7 @@ export interface TextComplexityResult {
   vocabulary: EvaluationResult<TextComplexityLevel, VocabularyInternal> | { error: Error };
   sentenceStructure: EvaluationResult<TextComplexityLevel, SentenceStructureInternal> | { error: Error };
   subjectMatterKnowledge: EvaluationResult<TextComplexityLevel, SmkInternal> | { error: Error };
+  conventionality: EvaluationResult<TextComplexityLevel, ConventionalityInternal> | { error: Error };
 }
 
 /**
@@ -29,6 +32,7 @@ export interface TextComplexityResult {
  * - VocabularyEvaluator (Google Gemini 2.5 Pro + OpenAI GPT-4o)
  * - SentenceStructureEvaluator (OpenAI GPT-4o)
  * - SmkEvaluator (Google Gemini 3 Flash Preview)
+ * - ConventionalityEvaluator (Google Gemini 3 Flash Preview)
  *
  * @example
  * ```typescript
@@ -56,6 +60,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
   private vocabularyEvaluator: VocabularyEvaluator;
   private sentenceStructureEvaluator: SentenceStructureEvaluator;
   private smkEvaluator: SmkEvaluator;
+  private conventionalityEvaluator: ConventionalityEvaluator;
   private limit: ReturnType<typeof pLimit>;
 
   constructor(config: BaseEvaluatorConfig) {
@@ -66,6 +71,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
     this.vocabularyEvaluator = new VocabularyEvaluator(config);
     this.sentenceStructureEvaluator = new SentenceStructureEvaluator(config);
     this.smkEvaluator = new SmkEvaluator(config);
+    this.conventionalityEvaluator = new ConventionalityEvaluator(config);
 
     // Create concurrency limiter (max 3 concurrent operations)
     this.limit = pLimit(3);
@@ -99,27 +105,31 @@ export class TextComplexityEvaluator extends BaseEvaluator {
     const startTime = Date.now();
 
     // Run all evaluators in parallel with concurrency control
-    const [vocabResult, sentenceResult, smkResult]: [
+    const [vocabResult, sentenceResult, smkResult, conventionalityResult]: [
       EvaluationResult<TextComplexityLevel, VocabularyInternal> | { error: Error },
       EvaluationResult<TextComplexityLevel, SentenceStructureInternal> | { error: Error },
       EvaluationResult<TextComplexityLevel, SmkInternal> | { error: Error },
+      EvaluationResult<TextComplexityLevel, ConventionalityInternal> | { error: Error },
     ] = await Promise.all([
       this.limit(() => this.runSubEvaluator(this.vocabularyEvaluator, text, grade)),
       this.limit(() => this.runSubEvaluator(this.sentenceStructureEvaluator, text, grade)),
       this.limit(() => this.runSubEvaluator(this.smkEvaluator, text, grade)),
+      this.limit(() => this.runSubEvaluator(this.conventionalityEvaluator, text, grade)),
     ]);
 
     const latencyMs = Date.now() - startTime;
     const vocabFailed = 'error' in vocabResult;
     const sentenceFailed = 'error' in sentenceResult;
     const smkFailed = 'error' in smkResult;
-    const hasFailures = vocabFailed || sentenceFailed || smkFailed;
+    const conventionalityFailed = 'error' in conventionalityResult;
+    const hasFailures = vocabFailed || sentenceFailed || smkFailed || conventionalityFailed;
 
     if (hasFailures) {
       const errors: string[] = [];
       if (vocabFailed) errors.push(`Vocabulary: ${vocabResult.error.message}`);
       if (sentenceFailed) errors.push(`Sentence structure: ${sentenceResult.error.message}`);
       if (smkFailed) errors.push(`Subject matter knowledge: ${smkResult.error.message}`);
+      if (conventionalityFailed) errors.push(`Conventionality: ${conventionalityResult.error.message}`);
 
       this.logger.error('Text complexity evaluation completed with errors', {
         evaluator: 'text-complexity',
@@ -129,7 +139,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
         processingTimeMs: latencyMs,
       });
 
-      if (vocabFailed && sentenceFailed && smkFailed) {
+      if (vocabFailed && sentenceFailed && smkFailed && conventionalityFailed) {
         throw new Error(`Text complexity evaluation failed: ${errors.join('; ')}`);
       }
     }
@@ -155,7 +165,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
       hasFailures,
     });
 
-    return { vocabulary: vocabResult, sentenceStructure: sentenceResult, subjectMatterKnowledge: smkResult };
+    return { vocabulary: vocabResult, sentenceStructure: sentenceResult, subjectMatterKnowledge: smkResult, conventionality: conventionalityResult };
   }
 
   /**

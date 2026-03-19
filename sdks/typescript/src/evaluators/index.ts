@@ -26,6 +26,11 @@ export {
 } from './smk.js';
 
 export {
+  ConventionalityEvaluator,
+  evaluateConventionality,
+} from './conventionality.js';
+
+export {
   TextComplexityEvaluator,
   evaluateTextComplexity,
   type TextComplexityResult,
