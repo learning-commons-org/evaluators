@@ -18,3 +18,7 @@ In file `vocab_prompts.py`, we provide system and user prompts used in the Vocab
 ### Subject Matter Knowledge Evaluator
 
 In file `smk_prompts.py`, we provide system and user prompts used in the Subject Matter Knowledge (SMK) Evaluator's code. These prompts can help assess the background knowledge demands of texts and serve as a starting point for your own prompt development.
+
+### Conventionality Evaluator
+
+In file `conventionality_prompts.py`, we provide system and user prompts used in the Conventionality Evaluator's code. These prompts help assess how explicit, literal, and straightforward a text's meaning is — measuring the degree to which language is conventional versus abstract, figurative, or ironic — and serve as a starting point for your own prompt development.
