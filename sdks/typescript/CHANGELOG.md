@@ -2,6 +2,15 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
+## [0.3.0] — 2026-03-20
+
+### Added
+
+- **Conventionality Evaluator** — evaluates how explicit, literal, and straightforward a text's meaning is versus how abstract, ironic, figurative, or archaic it is, relative to grades 3–12.
+- **Conventionality added to TextComplexityEvaluator** — composite evaluator now runs vocabulary, sentence structure, SMK, and conventionality in parallel; result includes `conventionality` key.
+
+---
+
 ## [0.2.0] — 2026-03-18
 
 ### Added
