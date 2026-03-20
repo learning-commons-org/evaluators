@@ -180,9 +180,71 @@ console.log(result._internal.identified_topics); // ["hydraulics", "propulsion",
 
 ---
 
-### 4. Text Complexity Evaluator
+### 4. Conventionality Evaluator
 
-Composite evaluator that analyzes vocabulary, sentence structure, and subject matter knowledge complexity in parallel.
+Evaluates how explicit, literal, and straightforward a text's meaning is versus how abstract, ironic, figurative, or archaic it is for the target grade level. Based on the Common Core Qualitative Text Complexity Rubric.
+
+**Supported Grades:** 3-12
+
+**Uses:** Google Gemini 3 Flash Preview
+
+**Constructor:**
+```typescript
+const evaluator = new ConventionalityEvaluator({
+  googleApiKey?: string;  // Google API key (required by this evaluator)
+  maxRetries?: number;    // Optional - Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Optional (default: true)
+  logger?: Logger;        // Optional - Custom logger
+  logLevel?: LogLevel;    // Optional - Logging verbosity (default: WARN)
+});
+```
+
+**API:**
+```typescript
+await evaluator.evaluate(text: string, grade: string)
+```
+
+**Returns:**
+```typescript
+{
+  score: 'Slightly complex' | 'Moderately complex' | 'Very complex' | 'Exceedingly complex';
+  reasoning: string;
+  metadata: {
+    model: string;
+    processingTimeMs: number;
+  };
+  _internal: {
+    conventionality_features: string[];
+    grade_context: string;
+    instructional_insights: string;
+    complexity_score: 'Slightly complex' | 'Moderately complex' | 'Very complex' | 'Exceedingly complex';
+    reasoning: string;
+  };
+}
+```
+
+**Example:**
+```typescript
+import { ConventionalityEvaluator } from '@learning-commons/evaluators';
+
+const evaluator = new ConventionalityEvaluator({
+  googleApiKey: process.env.GOOGLE_API_KEY,
+});
+
+const result = await evaluator.evaluate(
+  "The author uses sustained irony to critique societal norms throughout the passage.",
+  "10"
+);
+console.log(result.score);          // "Very complex"
+console.log(result.reasoning);
+console.log(result._internal.conventionality_features); // ["sustained irony", ...]
+```
+
+---
+
+### 5. Text Complexity Evaluator
+
+Composite evaluator that analyzes vocabulary, sentence structure, subject matter knowledge, and conventionality complexity in parallel.
 
 **Supported Grades:** 3-12
 
@@ -211,10 +273,11 @@ await evaluator.evaluate(text: string, grade: string)
   vocabulary: EvaluationResult<TextComplexityLevel> | { error: Error };
   sentenceStructure: EvaluationResult<TextComplexityLevel> | { error: Error };
   subjectMatterKnowledge: EvaluationResult<TextComplexityLevel> | { error: Error };
+  conventionality: EvaluationResult<TextComplexityLevel> | { error: Error };
 }
 ```
 
-Each sub-evaluator result is either a full `EvaluationResult` or `{ error: Error }` if that evaluator failed. An error is only thrown if all three fail.
+Each sub-evaluator result is either a full `EvaluationResult` or `{ error: Error }` if that evaluator failed. An error is only thrown if all four fail.
 
 **Example:**
 ```typescript
@@ -236,11 +299,14 @@ if (!('error' in result.sentenceStructure)) {
 if (!('error' in result.subjectMatterKnowledge)) {
   console.log('Subject matter knowledge:', result.subjectMatterKnowledge.score);
 }
+if (!('error' in result.conventionality)) {
+  console.log('Conventionality:', result.conventionality.score);
+}
 ```
 
 ---
 
-### 5. Grade Level Appropriateness Evaluator
+### 6. Grade Level Appropriateness Evaluator
 
 Determines appropriate grade level for text.
 
@@ -388,6 +454,7 @@ interface BaseEvaluatorConfig {
 - **Vocabulary**: Requires both `googleApiKey` and `openaiApiKey`
 - **Sentence Structure**: Requires `openaiApiKey` only
 - **Subject Matter Knowledge**: Requires `googleApiKey` only
+- **Conventionality**: Requires `googleApiKey` only
 - **Text Complexity**: Requires both `googleApiKey` and `openaiApiKey`
 - **Grade Level Appropriateness**: Requires `googleApiKey` only
 

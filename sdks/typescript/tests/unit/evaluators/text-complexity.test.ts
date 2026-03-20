@@ -97,6 +97,7 @@ describe('TextComplexityEvaluator', () => {
     let vocabSpy: any;
     let sentenceSpy: any;
     let smkSpy: any;
+    let conventionalitySpy: any;
 
     beforeEach(() => {
       evaluator = new TextComplexityEvaluator({
@@ -135,6 +136,16 @@ describe('TextComplexityEvaluator', () => {
         },
         _internal: {},
       });
+
+      conventionalitySpy = vi.spyOn((evaluator as any).conventionalityEvaluator, 'evaluate').mockResolvedValue({
+        score: 'Moderately complex',
+        reasoning: 'Conventionality test reasoning',
+        metadata: {
+          model: 'google:gemini-3-flash-preview',
+          processingTimeMs: 100,
+        },
+        _internal: {},
+      });
     });
 
     afterEach(() => {
@@ -151,9 +162,11 @@ describe('TextComplexityEvaluator', () => {
       expect(result.vocabulary).toBeDefined();
       expect(result.sentenceStructure).toBeDefined();
       expect(result.subjectMatterKnowledge).toBeDefined();
+      expect(result.conventionality).toBeDefined();
       expect('error' in result.vocabulary).toBe(false);
       expect('error' in result.sentenceStructure).toBe(false);
       expect('error' in result.subjectMatterKnowledge).toBe(false);
+      expect('error' in result.conventionality).toBe(false);
     });
 
     it('should validate text input', async () => {
@@ -192,7 +205,7 @@ describe('TextComplexityEvaluator', () => {
       }
     });
 
-    it('should run all three evaluators in parallel', async () => {
+    it('should run all four evaluators in parallel', async () => {
       const text = 'The cat sat on the mat.';
       const grade = '5';
 
@@ -201,13 +214,14 @@ describe('TextComplexityEvaluator', () => {
       const duration = Date.now() - startTime;
 
       // With mocked providers that take ~100ms each, parallel execution should be faster than sequential
-      // Sequential would be ~300ms, parallel should be ~100ms
-      // Allow some overhead but should be significantly less than 300ms
-      expect(duration).toBeLessThan(300);
+      // Sequential would be ~400ms, parallel should be ~100ms
+      // Allow some overhead but should be significantly less than 400ms
+      expect(duration).toBeLessThan(400);
 
       expect('error' in result.vocabulary).toBe(false);
       expect('error' in result.sentenceStructure).toBe(false);
       expect('error' in result.subjectMatterKnowledge).toBe(false);
+      expect('error' in result.conventionality).toBe(false);
     });
 
     it('should handle partial failures gracefully', async () => {
@@ -224,9 +238,10 @@ describe('TextComplexityEvaluator', () => {
       expect((result.vocabulary as { error: Error }).error).toBeDefined();
       expect('error' in result.sentenceStructure).toBe(false);
       expect('error' in result.subjectMatterKnowledge).toBe(false);
+      expect('error' in result.conventionality).toBe(false);
     });
 
-    it('should throw when all three evaluators fail', async () => {
+    it('should throw when all four evaluators fail', async () => {
       const text = 'The cat sat on the mat.';
       const grade = '5';
 
@@ -234,10 +249,27 @@ describe('TextComplexityEvaluator', () => {
       vocabSpy.mockRejectedValue(new Error('Vocabulary evaluation failed'));
       sentenceSpy.mockRejectedValue(new Error('Sentence structure evaluation failed'));
       smkSpy.mockRejectedValue(new Error('SMK evaluation failed'));
+      conventionalitySpy.mockRejectedValue(new Error('Conventionality evaluation failed'));
 
       await expect(evaluator.evaluate(text, grade)).rejects.toThrow(
         'Text complexity evaluation failed'
       );
+    });
+
+    it('should handle conventionality failure while others succeed', async () => {
+      const text = 'The cat sat on the mat.';
+      const grade = '5';
+
+      conventionalitySpy.mockRejectedValue(new Error('Conventionality evaluation failed'));
+
+      const result = await evaluator.evaluate(text, grade);
+
+      expect(result).toBeDefined();
+      expect('error' in result.conventionality).toBe(true);
+      expect((result.conventionality as { error: Error }).error).toBeDefined();
+      expect('error' in result.vocabulary).toBe(false);
+      expect('error' in result.sentenceStructure).toBe(false);
+      expect('error' in result.subjectMatterKnowledge).toBe(false);
     });
 
     it('should determine overall complexity correctly', async () => {
@@ -277,11 +309,23 @@ describe('TextComplexityEvaluator', () => {
         _internal: {},
       });
 
+      // Override conventionality to return "Exceedingly complex"
+      conventionalitySpy.mockResolvedValue({
+        score: 'Exceedingly complex',
+        reasoning: 'Conventionality reasoning',
+        metadata: {
+          model: 'google:gemini-3-flash-preview',
+          processingTimeMs: 100,
+        },
+        _internal: {},
+      });
+
       const result = await evaluator.evaluate(text, grade);
 
       expect('error' in result.vocabulary).toBe(false);
       expect('error' in result.sentenceStructure).toBe(false);
       expect('error' in result.subjectMatterKnowledge).toBe(false);
+      expect('error' in result.conventionality).toBe(false);
       if (!('error' in result.vocabulary)) {
         expect(result.vocabulary.score).toBe('Moderately complex');
       }
@@ -290,6 +334,9 @@ describe('TextComplexityEvaluator', () => {
       }
       if (!('error' in result.subjectMatterKnowledge)) {
         expect(result.subjectMatterKnowledge.score).toBe('Very complex');
+      }
+      if (!('error' in result.conventionality)) {
+        expect(result.conventionality.score).toBe('Exceedingly complex');
       }
     });
 
@@ -328,6 +375,16 @@ describe('TextComplexityEvaluator', () => {
         _internal: {},
       });
 
+      conventionalitySpy.mockResolvedValue({
+        score: 'Moderately complex',
+        reasoning: 'This is the conventionality reasoning.',
+        metadata: {
+          model: 'google:gemini-3-flash-preview',
+          processingTimeMs: 100,
+        },
+        _internal: {},
+      });
+
       const result = await evaluator.evaluate(text, grade);
 
       if (!('error' in result.vocabulary)) {
@@ -338,6 +395,9 @@ describe('TextComplexityEvaluator', () => {
       }
       if (!('error' in result.subjectMatterKnowledge)) {
         expect(result.subjectMatterKnowledge.reasoning).toBe('This is the SMK reasoning.');
+      }
+      if (!('error' in result.conventionality)) {
+        expect(result.conventionality.reasoning).toBe('This is the conventionality reasoning.');
       }
     });
   });
