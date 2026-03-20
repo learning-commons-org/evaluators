@@ -306,7 +306,7 @@ if (!('error' in result.conventionality)) {
 
 ---
 
-### 5. Grade Level Appropriateness Evaluator
+### 6. Grade Level Appropriateness Evaluator
 
 Determines appropriate grade level for text.
 

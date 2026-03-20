@@ -25,7 +25,7 @@ export interface TextComplexityResult {
 /**
  * Text Complexity Evaluator
  *
- * Composite evaluator that analyzes vocabulary, sentence structure, and subject matter knowledge.
+ * Composite evaluator that analyzes vocabulary, sentence structure, subject matter knowledge, and conventionality.
  * Runs all evaluations in parallel with concurrency control to avoid rate limiting.
  *
  * Uses:
@@ -51,7 +51,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
   static readonly metadata = {
     id: 'text-complexity',
     name: 'Text Complexity',
-    description: 'Composite evaluator analyzing vocabulary, sentence structure, and subject matter knowledge complexity',
+    description: 'Composite evaluator analyzing vocabulary, sentence structure, subject matter knowledge, and conventionality complexity',
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
     requiresGoogleKey: true,
     requiresOpenAIKey: true,
