@@ -4,6 +4,7 @@ import {
   SentenceStructureEvaluator,
   GradeLevelAppropriatenessEvaluator,
   SmkEvaluator,
+  ConventionalityEvaluator,
 } from '../evaluators/index.js';
 import type { BaseEvaluatorConfig } from '../evaluators/base.js';
 import type { EvaluationResult } from '../schemas/index.js';
@@ -27,10 +28,11 @@ type EvaluatorConstructor = new (config: BaseEvaluatorConfig) => SimpleEvaluator
  * Map of evaluator IDs to their constructors — internal to this module.
  */
 const EVALUATOR_MAP = new Map<string, EvaluatorConstructor>([
-  [VocabularyEvaluator.metadata.id, VocabularyEvaluator],
-  [SentenceStructureEvaluator.metadata.id, SentenceStructureEvaluator],
   [GradeLevelAppropriatenessEvaluator.metadata.id, GradeLevelAppropriatenessEvaluator],
   [SmkEvaluator.metadata.id, SmkEvaluator],
+  [VocabularyEvaluator.metadata.id, VocabularyEvaluator],
+  [SentenceStructureEvaluator.metadata.id, SentenceStructureEvaluator],
+  [ConventionalityEvaluator.metadata.id, ConventionalityEvaluator],
 ]);
 
 /**
@@ -41,12 +43,13 @@ const EVALUATOR_GROUPS: EvaluatorGroup[] = [
   {
     id: 'text-complexity',
     name: 'Text Complexity Analysis',
-    description: 'Evaluates vocabulary complexity, sentence structure, subject matter knowledge, and grade-level appropriateness',
+    description: 'Evaluates vocabulary complexity, sentence structure, subject matter knowledge, conventionality, and grade-level appropriateness',
     evaluatorIds: [
-      VocabularyEvaluator.metadata.id,
-      SentenceStructureEvaluator.metadata.id,
       GradeLevelAppropriatenessEvaluator.metadata.id,
       SmkEvaluator.metadata.id,
+      VocabularyEvaluator.metadata.id,
+      SentenceStructureEvaluator.metadata.id,
+      ConventionalityEvaluator.metadata.id,
     ],
     requiresGoogleKey: true,
     requiresOpenAIKey: true,
