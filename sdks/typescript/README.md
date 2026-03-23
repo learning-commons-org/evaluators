@@ -356,7 +356,7 @@ For evaluating many texts at once, the SDK ships a CLI tool that reads a CSV fil
 
 ```bash
 # Run from the directory containing your CSV
-npx @learning-commons/evaluators
+npx evaluators-batch
 ```
 
 The CLI will prompt for your CSV path, API keys, and output directory, then process all rows in parallel with real-time progress.

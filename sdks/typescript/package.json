@@ -23,7 +23,9 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "CHANGELOG.md",
+    "LICENSE",
+    "src/batch/README.md"
   ],
   "scripts": {
     "build": "tsup",

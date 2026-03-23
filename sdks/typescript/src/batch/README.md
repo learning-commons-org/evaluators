@@ -13,7 +13,7 @@ After publishing to npm:
 npm install -g @learning-commons/evaluators
 
 # Or run directly with npx
-npx @learning-commons/evaluators
+npx evaluators-batch
 ```
 
 ### Interactive Mode
@@ -25,7 +25,7 @@ Run the batch evaluator interactively from any directory:
 evaluators-batch
 
 # Or with npx
-npx @learning-commons/evaluators
+npx evaluators-batch
 ```
 
 **Important:** Run this command from the directory containing your CSV file, or provide an absolute path to your CSV.
@@ -55,13 +55,13 @@ text,grade
 "The mitochondria are the powerhouse of the cell.",8
 ```
 
-See `tests/fixtures/batch-test.csv` for a complete example.
+Any additional columns beyond `text` and `grade` are preserved as-is in the output.
 
 ### Evaluator Groups
 
 The batch evaluator runs a fixed group of evaluators together. The current available group is:
 
-- **text-complexity**: Runs vocabulary complexity, sentence structure, subject matter knowledge, and grade-level appropriateness evaluators together (requires both Google and OpenAI API keys). Maximum 50 input rows. If you exceed the limit, the CLI will exit with an error and suggest splitting into smaller batches.
+- **text-complexity**: Runs grade-level appropriateness, subject matter knowledge, vocabulary complexity, sentence structure, and conventionality evaluators together (requires both Google and OpenAI API keys). Maximum 50 input rows. If you exceed the limit, the CLI will exit with an error and suggest splitting into smaller batches.
 
 ### Output Files
 
@@ -80,10 +80,12 @@ During evaluation, real-time progress is displayed:
 
 ```
 Processing evaluations...
-████████████░░░░░░░░ 60% (18/30)
+████████████░░░░░░░░ 60% (30/50)
+  ✓ grade-level-appropriateness: 6/10 successful
+  ✓ subject-matter-knowledge: 6/10 successful
   ✓ vocabulary: 6/10 successful
   ✓ sentence-structure: 6/10 successful
-  ⏳ grade-level-appropriateness: 6/10 successful
+  ⏳ conventionality: 6/10 successful
 
 ⏱  Elapsed: 2m 15s | Estimated remaining: 1m 30s
 ```
