@@ -1,0 +1,3 @@
+row_id,TEXT,  Grade  ,source,category
+1,"The cat sat on the mat. It was a warm, sunny day.",3,textbook,simple
+2,"The photosynthesis process converts light energy into chemical energy.",5,science,biology

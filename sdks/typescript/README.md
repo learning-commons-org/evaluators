@@ -350,6 +350,21 @@ await evaluator.evaluate(text: string)
 
 ---
 
+## Batch CSV Evaluation
+
+For evaluating many texts at once, the SDK ships a CLI tool that reads a CSV file, runs all evaluators in a group, and produces CSV and HTML reports.
+
+```bash
+# Run from the directory containing your CSV
+npx evaluators-batch
+```
+
+The CLI will prompt for your CSV path, API keys, and output directory, then process all rows in parallel with real-time progress.
+
+See [`src/batch/README.md`](./src/batch/README.md) for full documentation.
+
+---
+
 ## Error Handling
 
 The SDK provides specific error types to help you handle different scenarios:

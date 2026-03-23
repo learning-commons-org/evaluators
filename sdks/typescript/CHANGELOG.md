@@ -2,6 +2,14 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
+## [0.4.0] — 2026-03-23
+
+### Added
+
+- **Batch CSV Evaluator** — CLI tool and programmatic API for evaluating multiple texts from a CSV file in parallel. Runs the `text-complexity` group (GLA, SMK, Vocabulary, Sentence Structure, and Conventionality) across up to 50 rows and produces CSV and HTML reports.
+
+---
+
 ## [0.3.0] — 2026-03-20
 
 ### Added
