@@ -1,6 +1,8 @@
 <img style="width:100%" alt="evaluator_banner" src="https://raw.githubusercontent.com/learning-commons-org/.github/refs/heads/main/assets/evals_hero.png" />
 
 <p align="center">
+  <a href="https://platform.learningcommons.org/apps/evaluators/playground" target="_blank">Try it in the Playground </a>
+   •
   <a href="https://docs.learningcommons.org/evaluators/quick-start/getting-set-up" target="_blank">Getting set up</a>
   •
   <a href="https://docs.learningcommons.org/evaluators/using-evaluators/tutorial-evaluating-grade-level-appropriateness" target="_blank">Tutorials</a>
@@ -22,7 +24,7 @@ Use cases include:
 
 Evaluators and the supporting datasets are built in collaboration with leading literacy experts from Student Achievement Partners and the Achievement Network.
 
-## **Repository Contents**
+## **Repository contents**
 
 | Path | Description |
 | :---- | :---- |
@@ -32,10 +34,13 @@ Evaluators and the supporting datasets are built in collaboration with leading l
 
 Check out the [full docs](https://docs.learningcommons.org/evaluators) for complete setup instructions and usage examples.
 
+## **Try the evaluators**
 
-## **Quick Start**
+You can test the evaluators with your own text in the [Evaluators Playground](https://platform.learningcommons.org/apps/evaluators/playground) on the Learning Commons Platform.
 
-To try or use the evaluators, clone the repository and follow the instructions below.
+## **Quick start**
+
+To use the evaluators, clone the repository and follow the instructions below.
 
 If you’d like to download or access our evaluators and datasets directly, follow the links below.
 
@@ -154,7 +159,7 @@ $env:GOOGLE_API_KEY="your-key-here"
 ```
 </details>
 
-## Run the Evaluator Code
+## Run the Evaluators' code
 
 You are now ready to run the evaluator examples. We recommend using a Jupyter Notebook for interactive exploration.
 
@@ -171,19 +176,13 @@ Jupyter will open in your web browser (usually at `http://localhost:8888`).
 
 If you prefer using an IDE with Python and Jupyter notebook support, such as VSCode with Microsoft's Python and Jupyter extensions, please refer to Microsoft's instructions for their installation and configuration.)
 
-## **Support & Feedback**
+## **Support & feedback**
 
 We want to hear from you. For questions or feedback, please [open an issue](https://github.com/learning-commons-org/evaluators/issues) or reach out to us at [support@learningcommons.org](mailto:support@learningcommons.org)
 
-## **Partner with us**
-
-**Learn more about our Evaluators or join** our private beta to access:
-
-* Full set of Evaluators focused on Literacy and Student Feedback
-* Early access to new features, including our API and dashboards
-* Personalized support from the Evaluators team
-
-Contact us [here](https://learningcommons.org/contact/?utm_source=github&utm_medium=evals&utm_campaign=privatebeta).
+## **Stay up to date**
+Sign up for a <a href="https://platform.learningcommons.org" target="_blank">Learning Commons account</a> to receive news about the latest Evaluators  
+updates, and releases.
 
 ## **Reporting Security Issues**
 
