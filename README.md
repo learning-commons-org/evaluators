@@ -7,7 +7,7 @@
   •
   <a href="https://docs.learningcommons.org/evaluators/using-evaluators/tutorial-evaluating-grade-level-appropriateness" target="_blank">Tutorials</a>
   •
-  <a href="https://docs.learningcommons.org/evaluators/quick-start/core-concepts" target="_blank">Core Concepts</a>
+  <a href="https://docs.learningcommons.org/evaluators/quick-start/core-concepts" target="_blank">Core concepts</a>
 </p>
 
 ## **Evaluators**
@@ -181,8 +181,7 @@ If you prefer using an IDE with Python and Jupyter notebook support, such as VSC
 We want to hear from you. For questions or feedback, please [open an issue](https://github.com/learning-commons-org/evaluators/issues) or reach out to us at [support@learningcommons.org](mailto:support@learningcommons.org)
 
 ## **Stay up to date**
-Sign up for a <a href="https://platform.learningcommons.org" target="_blank">Learning Commons account</a> to receive news about the latest Evaluators  
-updates, and releases.
+Sign up for a <a href="https://platform.learningcommons.org" target="_blank">Learning Commons account</a> to receive news about the latest Evaluators updates, and releases.
 
 ## **Reporting Security Issues**
 
