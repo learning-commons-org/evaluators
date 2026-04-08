@@ -2,6 +2,16 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
+## [0.5.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v0.4.0...sdks-typescript-v0.5.0) (2026-04-08)
+
+
+### Features
+
+* Add Conventionality evaluator to TypeScript SDK ([#25](https://github.com/learning-commons-org/evaluators/issues/25)) ([5ca6976](https://github.com/learning-commons-org/evaluators/commit/5ca69768168eb47458693b9abd8a6a5e9402e523))
+* Add SMK evaluator to TypeScript SDK ([#21](https://github.com/learning-commons-org/evaluators/issues/21)) ([a90fb42](https://github.com/learning-commons-org/evaluators/commit/a90fb429b6df112e3095f9f361d17d9d42152cf1))
+* Implement Batch Evaluator ([#16](https://github.com/learning-commons-org/evaluators/issues/16)) ([a0c78ab](https://github.com/learning-commons-org/evaluators/commit/a0c78ab24fe4b6e7b1a57586b288d842ca954ec2))
+* Release TypeScript SDK 0.1.0 ([#20](https://github.com/learning-commons-org/evaluators/issues/20)) ([46eeea9](https://github.com/learning-commons-org/evaluators/commit/46eeea9c1222b8c28761d8ddc795e3364fa55726))
+
 ## [0.4.0] — 2026-03-23
 
 ### Added
