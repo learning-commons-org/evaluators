@@ -38,7 +38,7 @@ Check out the [full docs](https://docs.learningcommons.org/evaluators) for compl
 
 You can test the evaluators with your own text in the [Evaluators Playground](https://platform.learningcommons.org/apps/evaluators/playground) on the Learning Commons Platform.
 
-## **Quick start**
+## **Quickstart**
 
 To use the evaluators, clone the repository and follow the instructions below.
 
@@ -52,7 +52,7 @@ If you’d like to download or access our evaluators and datasets directly, foll
 
 ## **Requirements**
 
-We rely on the python interpreter to power the evaluators. All examples and tutorials are provided as python code snippets.
+We rely on the Python interpreter to power the evaluators. All examples and tutorials are provided as Python code snippets.
 
 ---
 <details open>
@@ -60,7 +60,7 @@ We rely on the python interpreter to power the evaluators. All examples and tuto
 
 ## **Setup on Mac/Linux**
 
-You’ll need Python 3.10 or newer. To verify your version of python, run the following code in the terminal:
+You’ll need Python 3.10 or newer. To verify your version of Python, run the following code in the terminal:
 
 ```shell
 python3 --version
@@ -79,7 +79,7 @@ Remember to activate the virtual environment for each new shell session when wor
 
 ### 2. Install dependencies
 
-The list of required packages is provided in the `requirements.txt` file.
+The required packages are listed in the `requirements.txt` file.
 
 ```shell
 pip install -r evals/requirements.txt
@@ -183,7 +183,7 @@ We want to hear from you. For questions or feedback, please [open an issue](http
 ## **Stay up to date**
 Sign up for a <a href="https://platform.learningcommons.org" target="_blank">Learning Commons account</a> to receive news about the latest Evaluators updates, and releases.
 
-## **Reporting Security Issues**
+## **Reporting security issues**
 
 If you believe you have found a security issue, please responsibly disclose by contacting us at [security@learningcommons.org](mailto:security@learningcommons.org).
 
