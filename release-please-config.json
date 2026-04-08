@@ -29,7 +29,7 @@
         },
         {
             "type": "build",
-            "section": "Dependencies",
+            "section": "Build System",
             "hidden": false
         },
         {
@@ -51,13 +51,11 @@
     "packages": {
         "sdks/typescript": {
             "release-type": "node",
-            "changelog-path": "CHANGELOG.md",
-            "component": "typescript-sdk"
+            "changelog-path": "CHANGELOG.md"
         },
         "evals/prompts": {
             "release-type": "simple",
-            "changelog-path": "CHANGELOG.md",
-            "component": "prompts"
+            "changelog-path": "CHANGELOG.md"
         }
     }
 }
