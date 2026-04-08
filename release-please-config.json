@@ -51,11 +51,13 @@
     "packages": {
         "sdks/typescript": {
             "release-type": "node",
-            "changelog-path": "CHANGELOG.md"
+            "changelog-path": "CHANGELOG.md",
+            "component": "sdks-typescript"
         },
         "evals/prompts": {
             "release-type": "simple",
-            "changelog-path": "CHANGELOG.md"
+            "changelog-path": "CHANGELOG.md",
+            "component": "evals-prompts"
         }
     }
 }
