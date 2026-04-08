@@ -5,6 +5,13 @@ All notable changes to the evaluator prompt files will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.5.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.4.0...evals-prompts-v1.5.0) (2026-04-08)
+
+
+### Features
+
+* add Conventionality evaluator notebooks ([#23](https://github.com/learning-commons-org/evaluators/issues/23)) ([b17cfb7](https://github.com/learning-commons-org/evaluators/commit/b17cfb728723d27277fcc4a986d95c6189010cd4))
+
 ## [1.4.0] - 2026-03-20
 
 ### Added
