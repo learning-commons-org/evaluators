@@ -16,7 +16,10 @@ on:
 
 permissions:
   contents: read
-  actions: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
@@ -26,9 +29,6 @@ jobs:
       run:
         working-directory: sdks/typescript
     steps:
-      - name: ⛔ Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.13.0
-
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v6
 
@@ -52,9 +52,6 @@ jobs:
       run:
         working-directory: sdks/typescript
     steps:
-      - name: ⛔ Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.13.0
-
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v6
 
@@ -81,9 +78,6 @@ jobs:
       matrix:
         node-version: ['20.19.0', '22', '24']
     steps:
-      - name: ⛔ Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.13.0
-
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v6
 
@@ -111,9 +105,6 @@ jobs:
       matrix:
         node-version: ['20.19.0', '22', '24']
     steps:
-      - name: ⛔ Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.13.0
-
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v6
 
@@ -147,9 +138,6 @@ jobs:
       run:
         working-directory: sdks/typescript
     steps:
-      - name: ⛔ Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.13.0
-
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v6
 
