@@ -1,5 +1,4 @@
 {
-    "release-type": "simple",
     "include-v-in-tag": true,
     "pull-request-title-pattern": "chore${scope}: release${component} ${version}",
     "changelog-sections": [
@@ -14,8 +13,13 @@
             "hidden": false
         },
         {
-            "type": "chore",
-            "section": "Miscellaneous",
+            "type": "perf",
+            "section": "Performance Improvements",
+            "hidden": false
+        },
+        {
+            "type": "revert",
+            "section": "Reverts",
             "hidden": false
         },
         {
@@ -24,37 +28,36 @@
             "hidden": false
         },
         {
-            "type": "perf",
-            "section": "Performance Improvements",
+            "type": "build",
+            "section": "Build System",
             "hidden": false
+        },
+        {
+            "type": "chore",
+            "section": "Miscellaneous",
+            "hidden": true
         },
         {
             "type": "test",
             "section": "Tests",
-            "hidden": false
+            "hidden": true
         },
         {
             "type": "refactor",
             "section": "Code Refactoring",
-            "hidden": false
-        },
-        {
-            "type": "deps",
-            "section": "Dependencies",
-            "hidden": false
-        },
-        {
-            "type": "security",
-            "section": "Security",
-            "hidden": false
-        },
-        {
-            "type": "revert",
-            "section": "Reverts",
-            "hidden": false
+            "hidden": true
         }
     ],
     "packages": {
-        ".": {}
+        "sdks/typescript": {
+            "release-type": "node",
+            "changelog-path": "CHANGELOG.md",
+            "component": "sdks-typescript"
+        },
+        "evals/prompts": {
+            "release-type": "simple",
+            "changelog-path": "CHANGELOG.md",
+            "component": "evals-prompts"
+        }
     }
 }
