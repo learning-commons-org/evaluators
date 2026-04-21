@@ -1,4 +1,4 @@
 {
   "sdks/typescript": "0.4.0",
-  "evals/prompts": "1.4.0"
+  "evals": "1.4.0"
 }

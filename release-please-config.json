@@ -1,5 +1,6 @@
 {
     "include-v-in-tag": true,
+    "last-release-sha": "b17cfb728723d27277fcc4a986d95c6189010cd4",
     "pull-request-title-pattern": "chore${scope}: release${component} ${version}",
     "changelog-sections": [
         {
@@ -54,10 +55,10 @@
             "changelog-path": "CHANGELOG.md",
             "component": "sdks-typescript"
         },
-        "evals/prompts": {
+        "evals": {
             "release-type": "simple",
             "changelog-path": "CHANGELOG.md",
-            "component": "evals-prompts"
+            "component": "evals"
         }
     }
 }
