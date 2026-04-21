@@ -45,8 +45,8 @@ To use the evaluators, clone the repository and follow the instructions below.
 If you’d like to download or access our evaluators and datasets directly, follow the links below.
 
 * Evaluators literacy package
-  * [Prompts](./evals/prompts)
-  * [Notebooks](./evals)
+  * [Qualitative Text Complexity](./evals/literacy/qualitative-text-complexity/)
+  * [Examples (Python notebooks)](./evals/literacy/qualitative-text-complexity/examples/)
 * Datasets
   * [Learning Commons annotations of CLEAR for qualitative text complexity v1.0 2025-09-02.csv](https://aidt-evaluators-files-public-prod.s3.us-west-2.amazonaws.com/Learning+Commons+annotations+of+CLEAR+for+qualitative+text+complexity+v1.0+2025-09-02.csv)
 
@@ -82,7 +82,7 @@ Remember to activate the virtual environment for each new shell session when wor
 The required packages are listed in the `requirements.txt` file.
 
 ```shell
-pip install -r evals/requirements.txt
+pip install -r evals/utils/requirements.txt
 ```
 
 ### 3. Set your API keys
@@ -132,7 +132,7 @@ Remember to activate the virtual environment for each new shell session when wor
 ### 2. Install dependencies
 
 ```cmd
-pip install -r evals/requirements.txt
+pip install -r evals/utils/requirements.txt
 ```
 
 ### 3. Set your API keys
@@ -171,7 +171,7 @@ jupyter lab
 
 Jupyter will open in your web browser (usually at `http://localhost:8888`).
 
-2. Browse into the `evals` folder, then double click on the evaluator you want to try.
+2. Browse into `evals/literacy/qualitative-text-complexity/examples/`, then double click on the evaluator you want to try.
 3. You can now copy the text you want to evaluate into the last code cell of the notebook to run an evaluator on your text sample.
 
 If you prefer using an IDE with Python and Jupyter notebook support, such as VSCode with Microsoft's Python and Jupyter extensions, please refer to Microsoft's instructions for their installation and configuration.)
