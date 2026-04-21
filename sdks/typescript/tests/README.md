@@ -194,7 +194,7 @@ interface TestResult {
 ## Test Strategy
 
 ### Local Development
-Tests run against `src/` with prompts copied from `../../evals/prompts/`:
+Tests run against `src/` with prompts copied from `../../evals/literacy/qualitative-text-complexity/`:
 ```bash
 npm run test:unit
 npm run test:integration

@@ -1,8 +1,8 @@
-import SYSTEM_PROMPT_COMPLEXITY_TEMPLATE from '../../../../../evals/prompts/sentence-structure/complexity-system.txt';
-import USER_PROMPT_COMPLEXITY_TEMPLATE from '../../../../../evals/prompts/sentence-structure/complexity-user.txt';
-import RUBRIC_GRADE_3 from '../../../../../evals/prompts/sentence-structure/rubric-grade-3.txt';
-import RUBRIC_GRADE_4 from '../../../../../evals/prompts/sentence-structure/rubric-grade-4.txt';
-import RUBRIC_GRADES_5_12 from '../../../../../evals/prompts/sentence-structure/rubric-grades-5-12.txt';
+import SYSTEM_PROMPT_COMPLEXITY_TEMPLATE from '../../../../../evals/literacy/qualitative-text-complexity/sentence-structure/complexity-system.txt';
+import USER_PROMPT_COMPLEXITY_TEMPLATE from '../../../../../evals/literacy/qualitative-text-complexity/sentence-structure/complexity-user.txt';
+import RUBRIC_GRADE_3 from '../../../../../evals/literacy/qualitative-text-complexity/sentence-structure/rubric-grade-3.txt';
+import RUBRIC_GRADE_4 from '../../../../../evals/literacy/qualitative-text-complexity/sentence-structure/rubric-grade-4.txt';
+import RUBRIC_GRADES_5_12 from '../../../../../evals/literacy/qualitative-text-complexity/sentence-structure/rubric-grades-5-12.txt';
 
 /**
  * Get the system prompt for sentence structure complexity evaluation

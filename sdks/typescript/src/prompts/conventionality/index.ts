@@ -1,5 +1,5 @@
-import SYSTEM_PROMPT from '../../../../../evals/prompts/conventionality/system.txt';
-import USER_PROMPT_TEMPLATE from '../../../../../evals/prompts/conventionality/user.txt';
+import SYSTEM_PROMPT from '../../../../../evals/literacy/qualitative-text-complexity/conventionality/system.txt';
+import USER_PROMPT_TEMPLATE from '../../../../../evals/literacy/qualitative-text-complexity/conventionality/user.txt';
 
 /**
  * Get the Conventionality evaluator system prompt

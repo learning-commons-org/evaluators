@@ -1,5 +1,5 @@
-import SYSTEM_PROMPT from '../../../../../evals/prompts/subject-matter-knowledge/system.txt';
-import USER_PROMPT_TEMPLATE from '../../../../../evals/prompts/subject-matter-knowledge/user.txt';
+import SYSTEM_PROMPT from '../../../../../evals/literacy/qualitative-text-complexity/subject-matter-knowledge/system.txt';
+import USER_PROMPT_TEMPLATE from '../../../../../evals/literacy/qualitative-text-complexity/subject-matter-knowledge/user.txt';
 
 /**
  * Get the SMK evaluator system prompt

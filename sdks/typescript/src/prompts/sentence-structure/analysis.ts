@@ -1,5 +1,5 @@
-import SYSTEM_PROMPT_ANALYSIS_TEMPLATE from '../../../../../evals/prompts/sentence-structure/analysis-system.txt';
-import USER_PROMPT_ANALYSIS_TEMPLATE from '../../../../../evals/prompts/sentence-structure/analysis-user.txt';
+import SYSTEM_PROMPT_ANALYSIS_TEMPLATE from '../../../../../evals/literacy/qualitative-text-complexity/sentence-structure/analysis-system.txt';
+import USER_PROMPT_ANALYSIS_TEMPLATE from '../../../../../evals/literacy/qualitative-text-complexity/sentence-structure/analysis-user.txt';
 
 /**
  * Get the system prompt for sentence grammatical analysis
