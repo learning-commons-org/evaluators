@@ -21,12 +21,15 @@ const DEFAULT_MODELS = {
  * Supports OpenAI, Anthropic, and Google Gemini
  */
 export class VercelAIProvider implements LLMProvider {
+  readonly label: string;
+
   constructor(private config: ProviderConfig) {
     if (config.type === 'custom') {
       throw new Error(
         'VercelAIProvider does not support custom type. Use config.customProvider directly.'
       );
     }
+    this.label = `${config.type}:${config.model ?? DEFAULT_MODELS[config.type]}`;
   }
 
   /**

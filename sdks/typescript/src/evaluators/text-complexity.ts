@@ -4,8 +4,7 @@ import { SentenceStructureEvaluator } from './sentence-structure.js';
 import { SmkEvaluator } from './smk.js';
 import { ConventionalityEvaluator } from './conventionality.js';
 import type { SentenceStructureInternal } from '../schemas/sentence-structure.js';
-import type { BaseEvaluatorConfig } from './base.js';
-import { BaseEvaluator } from './base.js';
+import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import type { VocabularyInternal } from '../schemas/vocabulary.js';
 import type { SmkInternal } from '../schemas/smk.js';
@@ -53,8 +52,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
     name: 'Text Complexity',
     description: 'Composite evaluator analyzing vocabulary, sentence structure, subject matter knowledge, and conventionality complexity',
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
-    requiresGoogleKey: true,
-    requiresOpenAIKey: true,
+    defaultProviders: [Provider.Google, Provider.OpenAI] as const,
   };
 
   private vocabularyEvaluator: VocabularyEvaluator;
@@ -150,7 +148,9 @@ export class TextComplexityEvaluator extends BaseEvaluator {
       latencyMs,
       textLength: text.length,
       grade,
-      provider: 'composite:google+openai',
+      provider: this.config.modelOverride
+        ? `${this.config.modelOverride.provider}:${this.config.modelOverride.model}`
+        : 'composite:google+openai',
       errorCode: hasFailures ? 'PartialFailure' : undefined,
       inputText: text,
     }).catch(() => {

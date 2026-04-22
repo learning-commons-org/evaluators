@@ -7,6 +7,8 @@ import {
 } from '../telemetry/index.js';
 import { ConfigurationError, ValidationError } from '../errors.js';
 import { createLogger, LogLevel, type Logger } from '../logger.js';
+import { createProvider } from '../providers/index.js';
+import type { LLMProvider } from '../providers/index.js';
 
 /**
  * Validation constants for input text
@@ -17,6 +19,15 @@ export const VALIDATION_LIMITS = {
   /** Maximum text length in characters (100K chars ≈ 25K tokens) */
   MAX_TEXT_LENGTH: 100_000,
 } as const;
+
+/**
+ * Supported LLM providers
+ */
+export enum Provider {
+  OpenAI = 'openai',
+  Google = 'google',
+  Anthropic = 'anthropic',
+}
 
 /**
  * Granular telemetry configuration options
@@ -30,6 +41,21 @@ export interface TelemetryOptions {
 }
 
 /**
+ * Override the provider and model used by an evaluator.
+ *
+ * When set, all LLM calls use this provider and model instead of the defaults.
+ * The evaluator's normal key requirements are bypassed — provide the key for
+ * the chosen provider via the matching top-level config field
+ * (e.g. `anthropicApiKey` for `Provider.Anthropic`).
+ *
+ * Results may vary; evaluators are validated against their recommended models.
+ */
+export interface ModelOverride {
+  provider: Provider;
+  model: string;
+}
+
+/**
  * Base configuration for all evaluators
  */
 export interface BaseEvaluatorConfig {
@@ -39,8 +65,18 @@ export interface BaseEvaluatorConfig {
   /** OpenAI API key (for evaluators using GPT) */
   openaiApiKey?: string;
 
+  /** Anthropic API key (for evaluators using Claude) */
+  anthropicApiKey?: string;
+
   /** Learning Commons partner key for authenticated telemetry (optional) */
   partnerKey?: string;
+
+  /**
+   * Override the provider and model used by this evaluator.
+   * When set, all LLM calls use this provider and model instead of the defaults.
+   * See {@link ModelOverride} for details.
+   */
+  modelOverride?: ModelOverride;
 
   /**
    * Maximum number of retries for failed API calls (default: 2)
@@ -93,10 +129,8 @@ export interface EvaluatorMetadata {
   readonly description: string;
   /** Supported grade levels (e.g., ['3', '4', '5', ...]) */
   readonly supportedGrades: readonly string[];
-  /** Whether this evaluator requires a Google API key */
-  readonly requiresGoogleKey: boolean;
-  /** Whether this evaluator requires an OpenAI API key */
-  readonly requiresOpenAIKey: boolean;
+  /** Providers required by this evaluator's default configuration */
+  readonly defaultProviders: readonly Provider[];
 }
 
 /**
@@ -116,6 +150,10 @@ export abstract class BaseEvaluator {
   protected logger: Logger;
   protected config: Required<Pick<BaseEvaluatorConfig, 'maxRetries'>> & {
     telemetry: Required<TelemetryOptions>;
+    modelOverride?: ModelOverride;
+    googleApiKey?: string;
+    openaiApiKey?: string;
+    anthropicApiKey?: string;
   };
 
   /**
@@ -131,8 +169,7 @@ export abstract class BaseEvaluator {
    *     name: 'My Evaluator',
    *     description: 'Does something useful',
    *     supportedGrades: ['3', '4', '5'],
-   *     requiresGoogleKey: true,
-   *     requiresOpenAIKey: false,
+   *     defaultProviders: [Provider.Google],
    *   };
    * }
    * ```
@@ -153,7 +190,18 @@ export abstract class BaseEvaluator {
     this.config = {
       maxRetries: config.maxRetries ?? 2,
       telemetry: telemetryConfig,
+      modelOverride: config.modelOverride,
+      googleApiKey: config.googleApiKey,
+      openaiApiKey: config.openaiApiKey,
+      anthropicApiKey: config.anthropicApiKey,
     };
+
+    if (config.modelOverride) {
+      this.logger.warn(
+        `modelOverride is active: using ${config.modelOverride.provider}:${config.modelOverride.model} instead of the default model. ` +
+        'Evaluation quality may differ from recommended defaults.'
+      );
+    }
 
     // Initialize telemetry if enabled
     if (this.config.telemetry.enabled) {
@@ -186,16 +234,37 @@ export abstract class BaseEvaluator {
    * @throws {ConfigurationError} If required API keys are missing
    */
   private validateApiKeys(config: BaseEvaluatorConfig): void {
-    if (this.metadata.requiresGoogleKey && !config.googleApiKey) {
-      throw new ConfigurationError(
-        `Google API key is required for ${this.metadata.name} evaluator. Pass googleApiKey in config.`
-      );
+    const keyFor: Record<Provider, string | undefined> = {
+      [Provider.OpenAI]: config.openaiApiKey,
+      [Provider.Google]: config.googleApiKey,
+      [Provider.Anthropic]: config.anthropicApiKey,
+    };
+    const humanName: Record<Provider, string> = {
+      [Provider.OpenAI]: 'OpenAI API key',
+      [Provider.Google]: 'Google API key',
+      [Provider.Anthropic]: 'Anthropic API key',
+    };
+    const configKey: Record<Provider, string> = {
+      [Provider.OpenAI]: 'openaiApiKey',
+      [Provider.Google]: 'googleApiKey',
+      [Provider.Anthropic]: 'anthropicApiKey',
+    };
+
+    if (config.modelOverride) {
+      if (!keyFor[config.modelOverride.provider]) {
+        throw new ConfigurationError(
+          `${humanName[config.modelOverride.provider]} is required when using modelOverride with provider "${config.modelOverride.provider}". Pass ${configKey[config.modelOverride.provider]} in config.`
+        );
+      }
+      return;
     }
 
-    if (this.metadata.requiresOpenAIKey && !config.openaiApiKey) {
-      throw new ConfigurationError(
-        `OpenAI API key is required for ${this.metadata.name} evaluator. Pass openaiApiKey in config.`
-      );
+    for (const provider of this.metadata.defaultProviders) {
+      if (!keyFor[provider]) {
+        throw new ConfigurationError(
+          `${humanName[provider]} is required for ${this.metadata.name} evaluator. Pass ${configKey[provider]} in config.`
+        );
+      }
     }
   }
 
@@ -300,6 +369,41 @@ export abstract class BaseEvaluator {
   }
 
   /**
+   * Create an LLM provider, honouring modelOverride if set.
+   * When override is active, the key for the override provider is resolved
+   * from the matching top-level config field (e.g. anthropicApiKey for Anthropic).
+   */
+  protected createConfiguredProvider(
+    defaultType: Provider,
+    defaultModel: string,
+    defaultApiKey: string | undefined,
+    options?: { maxTokens?: number }
+  ): LLMProvider {
+    const override = this.config.modelOverride;
+    if (override) {
+      const apiKeyFor: Record<Provider, string | undefined> = {
+        [Provider.OpenAI]: this.config.openaiApiKey,
+        [Provider.Google]: this.config.googleApiKey,
+        [Provider.Anthropic]: this.config.anthropicApiKey,
+      };
+      return createProvider({
+        type: override.provider,
+        model: override.model,
+        apiKey: apiKeyFor[override.provider],
+        maxRetries: this.config.maxRetries,
+        ...options,
+      });
+    }
+    return createProvider({
+      type: defaultType,
+      model: defaultModel,
+      apiKey: defaultApiKey,
+      maxRetries: this.config.maxRetries,
+      ...options,
+    });
+  }
+
+  /**
    * Send telemetry event to analytics service
    * Common helper for all evaluators
    */
@@ -330,6 +434,7 @@ export abstract class BaseEvaluator {
       provider: params.provider,
       token_usage: params.tokenUsage,
       metadata: params.metadata,
+      model_override: this.config.modelOverride ? true : undefined,
       // Include input text only if recording is enabled
       input_text: this.config.telemetry.recordInputs ? params.inputText : undefined,
     });

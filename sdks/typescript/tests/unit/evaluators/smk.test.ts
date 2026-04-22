@@ -1,15 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SmkEvaluator } from '../../../src/evaluators/smk.js';
+import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 // Mock providers
-const createMockProvider = (): LLMProvider => ({
+const createMockProvider = (config?: { type?: string; model?: string }): LLMProvider => ({
+  label: config?.type && config?.model ? `${config.type}:${config.model}` : 'mock:model',
   generateStructured: vi.fn(),
   generateText: vi.fn(),
 });
 
 vi.mock('../../../src/providers/index.js', () => ({
-  createProvider: vi.fn(() => createMockProvider()),
+  createProvider: vi.fn((config) => createMockProvider(config)),
 }));
 
 vi.mock('../../../src/telemetry/client.js', () => ({
@@ -30,8 +32,7 @@ describe('SmkEvaluator - Metadata', () => {
   it('should have correct metadata', () => {
     expect(SmkEvaluator.metadata.id).toBe('subject-matter-knowledge');
     expect(SmkEvaluator.metadata.name).toBe('Subject Matter Knowledge');
-    expect(SmkEvaluator.metadata.requiresGoogleKey).toBe(true);
-    expect(SmkEvaluator.metadata.requiresOpenAIKey).toBe(false);
+    expect(SmkEvaluator.metadata.defaultProviders).toEqual(['google']);
     expect(SmkEvaluator.metadata.supportedGrades).toEqual([
       '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
     ]);
@@ -89,6 +90,36 @@ describe('SmkEvaluator - Evaluation Flow', () => {
     expect(call[0].messages[1].content).toContain(testGrade);
     expect(call[0].schema).toBeDefined();
     expect(call[0].temperature).toBe(0);
+  });
+
+  it('should reflect modelOverride in metadata.model', async () => {
+    const overrideEvaluator = new SmkEvaluator({
+      anthropicApiKey: 'test-key',
+      modelOverride: { provider: Provider.Anthropic, model: 'claude-haiku-4-5-20251001' },
+      telemetry: false,
+    });
+    // @ts-expect-error Accessing private property for testing
+    const overrideProvider: LLMProvider = overrideEvaluator.provider;
+
+    vi.mocked(overrideProvider.generateStructured).mockResolvedValue({
+      data: {
+        identified_topics: ['biology'],
+        curriculum_check: 'Standard.',
+        assumptions_and_scaffolding: 'None.',
+        friction_analysis: 'Low.',
+        complexity_score: 'Slightly complex',
+        reasoning: 'Simple text.',
+      },
+      model: 'claude-haiku-4-5-20251001',
+      usage: { inputTokens: 150, outputTokens: 50 },
+      latencyMs: 400,
+    });
+
+    const result = await overrideEvaluator.evaluate(
+      'The mitochondria is the powerhouse of the cell.', '5'
+    );
+
+    expect(result.metadata.model).toBe('anthropic:claude-haiku-4-5-20251001');
   });
 
   it('should propagate LLM API errors', async () => {

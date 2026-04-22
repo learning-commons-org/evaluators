@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { VocabularyEvaluator } from '../../../src/evaluators/vocabulary.js';
+import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 /**
@@ -15,14 +16,15 @@ import type { LLMProvider } from '../../../src/providers/base.js';
  */
 
 // Mock providers
-const createMockProvider = (): LLMProvider => ({
+const createMockProvider = (config?: { type?: string; model?: string }): LLMProvider => ({
+  label: config?.type && config?.model ? `${config.type}:${config.model}` : 'mock:model',
   generateStructured: vi.fn(),
   generateText: vi.fn(),
 });
 
 // Mock the createProvider factory
 vi.mock('../../../src/providers/index.js', () => ({
-  createProvider: vi.fn(() => createMockProvider()),
+  createProvider: vi.fn((config) => createMockProvider(config)),
 }));
 
 // Mock telemetry to avoid real HTTP calls
@@ -214,6 +216,35 @@ describe('VocabularyEvaluator - Evaluation Flow', () => {
       // Verify metadata values
       expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20 + openai:gpt-4.1-2025-04-14');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0); // Mocked calls can be instant (0ms)
+    });
+
+    it('should reflect modelOverride in metadata.model for both stages', async () => {
+      const overrideEvaluator = new VocabularyEvaluator({
+        openaiApiKey: 'test-key',
+        modelOverride: { provider: Provider.OpenAI, model: 'gpt-4o-mini' },
+        telemetry: false,
+      });
+      // @ts-expect-error Accessing private property for testing
+      const bgProvider: LLMProvider = overrideEvaluator.backgroundKnowledgeProvider;
+      // @ts-expect-error Accessing private property for testing
+      const complexityProvider: LLMProvider = overrideEvaluator.otherGradesComplexityProvider;
+
+      vi.mocked(bgProvider.generateText).mockResolvedValue({
+        text: 'Background knowledge',
+        usage: { inputTokens: 100, outputTokens: 50 },
+        latencyMs: 300,
+      });
+      vi.mocked(complexityProvider.generateStructured).mockResolvedValue({
+        data: { complexity_score: 'Slightly complex', reasoning: 'Simple.', factors: [] },
+        model: 'gpt-4o-mini',
+        usage: { inputTokens: 200, outputTokens: 80 },
+        latencyMs: 400,
+      });
+
+      const result = await overrideEvaluator.evaluate('Test text here', '5');
+
+      // All providers resolve to the same model under override — label is a single entry
+      expect(result.metadata.model).toBe('openai:gpt-4o-mini');
     });
 
     it('should include internal data', async () => {

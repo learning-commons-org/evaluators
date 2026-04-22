@@ -48,6 +48,9 @@ export interface TextGenerationResponse {
  * Base interface for LLM provider implementations
  */
 export interface LLMProvider {
+  /** Canonical label for the provider and model in use (e.g. "openai:gpt-4o") */
+  readonly label: string;
+
   /**
    * Generate structured output from LLM using Zod schema
    */

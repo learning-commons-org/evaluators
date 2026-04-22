@@ -1,5 +1,4 @@
 import type { LLMProvider } from '../providers/index.js';
-import { createProvider } from '../providers/index.js';
 import {
   VocabularyComplexitySchema,
   type VocabularyInternal,
@@ -12,7 +11,7 @@ import {
   getUserPrompt,
 } from '../prompts/vocabulary/index.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
-import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
+import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { ValidationError, wrapProviderError } from '../errors.js';
 
@@ -48,8 +47,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
     name: 'Vocabulary',
     description: 'Evaluates vocabulary complexity of educational texts relative to grade level',
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
-    requiresGoogleKey: true,
-    requiresOpenAIKey: true,
+    defaultProviders: [Provider.Google, Provider.OpenAI] as const,
   };
 
   private grades34ComplexityProvider: LLMProvider;
@@ -61,28 +59,19 @@ export class VocabularyEvaluator extends BaseEvaluator {
     super(config);
 
     // Create Google Gemini provider for complexity evaluation (grades 3-4)
-    this.grades34ComplexityProvider = createProvider({
-      type: 'google',
-      model: 'gemini-2.5-pro',
-      apiKey: config.googleApiKey,
-      maxRetries: this.config.maxRetries,
-    });
+    this.grades34ComplexityProvider = this.createConfiguredProvider(
+      Provider.Google, 'gemini-2.5-pro', config.googleApiKey
+    );
 
     // Create OpenAI GPT-4.1 provider for complexity evaluation (grades 5-12)
-    this.otherGradesComplexityProvider = createProvider({
-      type: 'openai',
-      model: 'gpt-4.1-2025-04-14',
-      apiKey: config.openaiApiKey,
-      maxRetries: this.config.maxRetries,
-    });
+    this.otherGradesComplexityProvider = this.createConfiguredProvider(
+      Provider.OpenAI, 'gpt-4.1-2025-04-14', config.openaiApiKey
+    );
 
     // Create OpenAI GPT-4o provider for background knowledge generation
-    this.backgroundKnowledgeProvider = createProvider({
-      type: 'openai',
-      model: 'gpt-4o-2024-11-20',
-      apiKey: config.openaiApiKey,
-      maxRetries: this.config.maxRetries,
-    });
+    this.backgroundKnowledgeProvider = this.createConfiguredProvider(
+      Provider.OpenAI, 'gpt-4o-2024-11-20', config.openaiApiKey
+    );
   }
 
   /**
@@ -107,9 +96,14 @@ export class VocabularyEvaluator extends BaseEvaluator {
 
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
-    const complexityProviderName = (grade === '3' || grade === '4')
-      ? 'google:gemini-2.5-pro'
-      : 'openai:gpt-4.1-2025-04-14';
+    const complexityProviderLabel = (grade === '3' || grade === '4')
+      ? this.grades34ComplexityProvider.label
+      : this.otherGradesComplexityProvider.label;
+    const backgroundProviderLabel = this.backgroundKnowledgeProvider.label;
+    // When override is active all providers resolve to the same model — show a single label.
+    const modelLabel = this.config.modelOverride
+      ? backgroundProviderLabel
+      : `${backgroundProviderLabel} + ${complexityProviderLabel}`;
 
     try {
       // Validate inputs — inside try so validation errors are telemetered.
@@ -125,7 +119,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
 
       stageDetails.push({
         stage: 'background_knowledge',
-        provider: 'openai:gpt-4o-2024-11-20',
+        provider: backgroundProviderLabel,
         latency_ms: bgResponse.latencyMs,
         token_usage: {
           input_tokens: bgResponse.usage.inputTokens,
@@ -146,7 +140,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
 
       stageDetails.push({
         stage: 'complexity_evaluation',
-        provider: complexityProviderName,
+        provider: complexityProviderLabel,
         latency_ms: complexityResponse.latencyMs,
         token_usage: {
           input_tokens: complexityResponse.usage.inputTokens,
@@ -166,7 +160,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
         score: complexityResponse.data.complexity_score,
         reasoning: complexityResponse.data.reasoning,
         metadata: {
-          model: `openai:gpt-4o-2024-11-20 + ${complexityProviderName}`,
+          model: modelLabel,
           processingTimeMs: latencyMs,
         },
         _internal: complexityResponse.data,
@@ -178,7 +172,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
         latencyMs,
         textLength: text.length,
         grade,
-        provider: `openai:gpt-4o-2024-11-20 + ${complexityProviderName}`,
+        provider: modelLabel,
         tokenUsage: totalTokenUsage,
         metadata: {
           stage_details: stageDetails,
@@ -222,7 +216,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
         latencyMs,
         textLength: text.length,
         grade,
-        provider: `openai:gpt-4o-2024-11-20 + ${complexityProviderName}`,
+        provider: modelLabel,
         tokenUsage: totalTokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,
