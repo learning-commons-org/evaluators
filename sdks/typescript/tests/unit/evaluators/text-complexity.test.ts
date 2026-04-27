@@ -111,7 +111,7 @@ describe('TextComplexityEvaluator', () => {
         score: 'Moderately complex',
         reasoning: 'Vocabulary test reasoning',
         metadata: {
-          model: 'gemini-2.5-pro + gpt-4o',
+          model: 'gemini-2.5-pro+gpt-4o',
           processingTimeMs: 100,
         },
         _internal: {},

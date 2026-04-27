@@ -29,7 +29,7 @@ If you prefer not to send any telemetry, you can disable it entirely — see [Di
   "status": "success",
   "latency_ms": 3500,
   "text_length_chars": 456,
-  "provider": "openai:gpt-4o-2024-11-20 + google:gemini-2.5-pro",
+  "provider": "openai:gpt-4o-2024-11-20+google:gemini-2.5-pro",
   "token_usage": {
     "input_tokens": 650,
     "output_tokens": 350

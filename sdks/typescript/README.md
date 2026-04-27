@@ -575,7 +575,7 @@ All evaluators use the same `BaseEvaluatorConfig` interface:
 interface BaseEvaluatorConfig {
   googleApiKey?: string;                  // Google API key (required by some evaluators)
   openaiApiKey?: string;                  // OpenAI API key (required by some evaluators)
-  anthropicApiKey?: string;               // Anthropic API key (required if an evaluator defaults to Claude)
+  anthropicApiKey?: string;               // Anthropic API key (required if an evaluator defaults to Claude or when `modelOverride` uses `Provider.Anthropic`)
   modelOverride?: ModelOverride;          // Override the provider and model (see Model Override section)
   maxRetries?: number;                    // Max retry attempts (default: 2)
   telemetry?: boolean | TelemetryOptions; // Telemetry settings (default: enabled)

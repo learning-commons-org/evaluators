@@ -103,7 +103,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
     // When override is active all providers resolve to the same model — show a single label.
     const modelLabel = this.config.modelOverride
       ? backgroundProviderLabel
-      : `${backgroundProviderLabel} + ${complexityProviderLabel}`;
+      : `${backgroundProviderLabel}+${complexityProviderLabel}`;
 
     try {
       // Validate inputs — inside try so validation errors are telemetered.

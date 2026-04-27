@@ -117,7 +117,7 @@ describe('VocabularyEvaluator - Evaluation Flow', () => {
       expect(result.score).toBe('Moderately complex');
       expect(result.reasoning).toContain('grade-appropriate vocabulary');
       expect(result.metadata).toBeDefined();
-      expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20 + openai:gpt-4.1-2025-04-14');
+      expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20+openai:gpt-4.1-2025-04-14');
       expect(result.metadata.processingTimeMs).toBeGreaterThan(0);
 
       // Verify both providers were called
@@ -214,7 +214,7 @@ describe('VocabularyEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toHaveProperty('processingTimeMs');
 
       // Verify metadata values
-      expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20 + openai:gpt-4.1-2025-04-14');
+      expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20+openai:gpt-4.1-2025-04-14');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0); // Mocked calls can be instant (0ms)
     });
 

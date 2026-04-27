@@ -377,7 +377,6 @@ export abstract class BaseEvaluator {
     defaultType: Provider,
     defaultModel: string,
     defaultApiKey: string | undefined,
-    options?: { maxTokens?: number }
   ): LLMProvider {
     const override = this.config.modelOverride;
     if (override) {
@@ -391,7 +390,6 @@ export abstract class BaseEvaluator {
         model: override.model,
         apiKey: apiKeyFor[override.provider],
         maxRetries: this.config.maxRetries,
-        ...options,
       });
     }
     return createProvider({
@@ -399,7 +397,6 @@ export abstract class BaseEvaluator {
       model: defaultModel,
       apiKey: defaultApiKey,
       maxRetries: this.config.maxRetries,
-      ...options,
     });
   }
 
