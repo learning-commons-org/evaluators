@@ -1,0 +1,64 @@
+{
+  "prompts": {
+    "system": {
+      "path": "system.txt",
+      "variables": [],
+      "model": null
+    },
+    "user": {
+      "path": "user.txt",
+      "variables": [
+        {
+          "name": "text",
+          "description": "The passage to evaluate",
+          "source": "input"
+        },
+        {
+          "name": "grade",
+          "description": "The target student grade level (integer, 3–11)",
+          "source": "input"
+        },
+        {
+          "name": "fk_score",
+          "description": "Flesch-Kincaid Grade Level score, computed from the text",
+          "source": "computed"
+        }
+      ],
+      "model": null
+    }
+  },
+  "model": {
+    "provider": "google",
+    "name": "gemini-2.5-flash-preview-04-17",
+    "temperature": 0,
+    "_comment": "Default model used for all prompts unless a prompt section defines its own model override."
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "complexity_score": {
+        "type": "string",
+        "enum": ["slightly_complex", "moderately_complex", "very_complex", "exceedingly_complex"],
+        "description": "The conventionality complexity level of the text"
+      },
+      "reasoning": {
+        "type": "string",
+        "description": "A synthesis of why the text fits the chosen rubric level, citing specific features"
+      },
+      "conventionality_features": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Specific language features driving complexity with direct quotes from the text"
+      },
+      "grade_context": {
+        "type": "string",
+        "description": "How the conventionality demands compare to general expectations for the target grade"
+      },
+      "instructional_insights": {
+        "type": "string",
+        "description": "Actionable pedagogical suggestions for scaffolding the conventionality features"
+      }
+    },
+    "required": ["complexity_score", "reasoning", "conventionality_features", "grade_context", "instructional_insights"]
+  }
+}
