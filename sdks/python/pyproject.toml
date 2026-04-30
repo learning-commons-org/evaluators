@@ -1,0 +1,129 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "learning-commons-evaluators"
+version = "0.1.0"
+description = "Python SDK for Learning Commons educational evaluators"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Learning Commons" }]
+keywords = ["education", "evaluators", "literacy", "text-complexity"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Education",
+]
+dependencies = [
+    # LLM access is via LangChain; the langchain-* packages pull in provider SDKs as needed.
+    "pydantic>=2.0.0",
+    "textstat>=0.7.0",
+    "langchain-anthropic>=0.2.0",
+    "langchain-core>=0.3.0",
+    "langchain-google-genai>=2.0.0",
+    "langchain-openai>=0.2.0",
+    "tomli>=2.0.0; python_version < \"3.11\"",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.9.0",
+    "mypy>=1.14.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/learning-commons-org/evaluators"
+Repository = "https://github.com/learning-commons-org/evaluators/tree/main/sdks/python"
+"Bug Tracker" = "https://github.com/learning-commons-org/evaluators/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+learning_commons_evaluators = [
+    "py.typed",
+    "settings/**/*.toml",
+]
+
+# The settings TOML files inside the package are the bundled copy used when the
+# SDK is installed via pip.  The authoritative shared copy lives at sdks/settings/
+# (shared with TypeScript and other SDKs); keep the two in sync after any prompt
+# or settings change — see the README for instructions.
+#
+# When developing inside the monorepo, set EVALUATORS_SETTINGS_DIR to
+# sdks/settings/ so the SDK reads the shared copy instead of the bundled one:
+#
+#   export EVALUATORS_SETTINGS_DIR=/path/to/evaluators/sdks/settings
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+# ── Ruff (lint + format) ──────────────────────────────────────────────────────
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+extend-exclude = [
+    "src/learning_commons_evaluators/settings/_generated_conventionality_settings.py",
+    "src/learning_commons_evaluators/settings/_generated_vocabulary_settings.py",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+]
+ignore = ["E501"]  # line length — formatter wraps where it matters
+
+[tool.ruff.lint.per-file-ignores]
+"../../scripts/generate_settings.py" = ["E402"]
+
+# ── Mypy ──────────────────────────────────────────────────────────────────────
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = ["src", "tests"]
+explicit_package_bases = true
+plugins = ["pydantic.mypy"]
+warn_unused_configs = true
+show_error_codes = true
+# Intentional `validate(self) -> None` on models shadows Pydantic v2's classmethod `validate`.
+disable_error_code = ["override"]
+
+[[tool.mypy.overrides]]
+module = "learning_commons_evaluators.settings.load_settings"
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = "contract_tests.loader"
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = "learning_commons_evaluators.providers.langchain"
+# LangChain stubs lag the runtime API (e.g. ChatAnthropic kwargs).
+disable_error_code = ["call-arg", "arg-type"]
+
+[[tool.mypy.overrides]]
+module = "learning_commons_evaluators.evaluators.conventionality"
+disable_error_code = ["import-untyped", "call-arg"]
+
+[[tool.mypy.overrides]]
+module = "learning_commons_evaluators.evaluators.vocabulary"
+disable_error_code = ["import-untyped", "call-arg"]
