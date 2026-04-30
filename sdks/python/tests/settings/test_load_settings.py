@@ -3,8 +3,11 @@
 Covers: load_settings(), _require(), _parse_prompts() (including prompt whitespace
 normalization), load_evaluator_settings(),
 and shared_settings_root() — including every conditional branch in each function.
+Also contains the settings-sync guard: a test that fails if the bundled package
+copies of settings diverge from the canonical sdks/settings/ source of truth.
 """
 
+import importlib.resources
 import os
 from pathlib import Path
 from unittest.mock import patch
@@ -330,3 +333,79 @@ class TestSharedSettingsRoot:
         with patch.dict(os.environ, env, clear=True):
             root = shared_settings_root()
         assert root.exists(), f"shared_settings_root() resolved to non-existent path: {root}"
+
+    def test_bundled_contract_tests_are_present(self) -> None:
+        """The bundled package must contain contracts.toml for each evaluator.
+
+        The evaluator settings TOML is intentionally NOT bundled (evaluators use _generated_*_settings.py).
+        contracts.toml IS bundled so contract tests work against an installed package.
+        """
+        env = {k: v for k, v in os.environ.items() if k != "EVALUATORS_SETTINGS_DIR"}
+        with patch.dict(os.environ, env, clear=True):
+            root = shared_settings_root()
+        for evaluator in ("conventionality",):
+            assert (root / evaluator / "contracts.toml").exists(), (
+                f"Bundled {evaluator}/contracts.toml not found — "
+                f"run 'python scripts/generate_settings.py --sync'"
+            )
+
+
+# ---------------------------------------------------------------------------
+# Settings bundle sync guard
+# ---------------------------------------------------------------------------
+#
+# What is and isn't bundled in the package:
+#
+#   BUNDLED:   contracts.toml — needed so contract tests run against an
+#              installed package without access to sdks/settings/.
+#
+#   NOT BUNDLED: settings.toml — not needed at runtime; evaluators import
+#              from _generated_*_settings.py (pre-built at generation time).
+#              The canonical copy lives in sdks/settings/ and is the input to
+#              `make generate-settings`.
+#
+# If a sync test fails, run from the repo root:
+#   python scripts/generate_settings.py --sync    — copies contracts.toml canonical → bundled
+#   python scripts/generate_settings.py --check   — verifies generated .py files are up to date
+
+
+def _bundled_settings_root() -> Path:
+    """Return the importlib.resources path for bundled settings, bypassing EVALUATORS_SETTINGS_DIR."""
+    pkg = importlib.resources.files("learning_commons_evaluators.settings")
+    return Path(str(pkg))
+
+
+def _canonical_settings_root() -> Path | None:
+    """Return sdks/settings/ relative to this file, or None if not in the monorepo."""
+    # This file lives at: sdks/python/tests/settings/test_load_settings.py
+    # parents[3] = sdks/
+    candidate = Path(__file__).parents[3] / "settings"
+    return candidate if candidate.is_dir() else None
+
+
+@pytest.mark.parametrize("evaluator", ["conventionality"])
+def test_bundled_contract_tests_match_canonical(evaluator: str) -> None:
+    """Bundled contracts.toml must be byte-for-byte identical to sdks/settings/.
+
+    Skipped when running outside the monorepo (e.g., from an installed package).
+    If this fails, run ``python scripts/generate_settings.py --sync`` from the repo root.
+    """
+    canonical_root = _canonical_settings_root()
+    if canonical_root is None:
+        pytest.skip("sdks/settings/ not found — running outside the monorepo")
+
+    canonical = canonical_root / evaluator / "contracts.toml"
+    if not canonical.exists():
+        pytest.skip(f"Canonical file not found: {canonical}")
+
+    bundled = _bundled_settings_root() / evaluator / "contracts.toml"
+    assert bundled.exists(), (
+        f"Bundled {evaluator}/contracts.toml not found.\n"
+        f"Run: python scripts/generate_settings.py --sync"
+    )
+    assert canonical.read_bytes() == bundled.read_bytes(), (
+        f"{evaluator}/contracts.toml is out of sync.\n"
+        f"  canonical: {canonical}\n"
+        f"  bundled:   {bundled}\n"
+        f"Fix: python scripts/generate_settings.py --sync"
+    )
