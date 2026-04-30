@@ -35,6 +35,8 @@ from learning_commons_evaluators.evaluators import (
     ConventionalityEvaluator,
     InputT,
     OutputT,
+    VocabularyEvaluationInput,
+    VocabularyEvaluator,
 )
 from learning_commons_evaluators.evaluators.conventionality import (
     ConventionalityEvaluationInput,
@@ -81,6 +83,12 @@ from learning_commons_evaluators.schemas.metadata import (
 )
 from learning_commons_evaluators.schemas.text_complexity import (
     TextComplexityEvaluationInput,
+)
+from learning_commons_evaluators.schemas.vocabulary import (
+    VOCABULARY_SUPPORTED_GRADES,
+    VocabularyEvaluationSettings,
+    VocabularyOutputGrades34,
+    VocabularyOutputOtherGrades,
 )
 
 __all__ = [
@@ -129,6 +137,12 @@ __all__ = [
     "TextInputField",
     "TokenUsage",
     "ValidationError",
+    "VOCABULARY_SUPPORTED_GRADES",
+    "VocabularyEvaluationInput",
+    "VocabularyEvaluationSettings",
+    "VocabularyEvaluator",
+    "VocabularyOutputGrades34",
+    "VocabularyOutputOtherGrades",
     "create_config",
     "create_config_no_telemetry",
     "create_config_telemetry_with_full_input",
