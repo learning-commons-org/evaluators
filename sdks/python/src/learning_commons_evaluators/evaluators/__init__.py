@@ -11,6 +11,10 @@ from learning_commons_evaluators.evaluators.conventionality import (
     ConventionalityEvaluationInput,
     ConventionalityEvaluator,
 )
+from learning_commons_evaluators.evaluators.vocabulary import (
+    VocabularyEvaluationInput,
+    VocabularyEvaluator,
+)
 
 __all__ = [
     "BaseEvaluator",
@@ -18,4 +22,6 @@ __all__ = [
     "ConventionalityEvaluator",
     "InputT",
     "OutputT",
+    "VocabularyEvaluationInput",
+    "VocabularyEvaluator",
 ]
