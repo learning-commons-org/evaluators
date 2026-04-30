@@ -1,0 +1,51 @@
+name: 🐍 Test Python SDK
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "sdks/python/**"
+      - "scripts/generate_settings.py"
+      - "sdks/settings/**"
+      - ".github/workflows/test-sdk-python.yml"
+  pull_request:
+    paths:
+      - "sdks/python/**"
+      - "scripts/generate_settings.py"
+      - "sdks/settings/**"
+      - ".github/workflows/test-sdk-python.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/python
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package and dev tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: make verify
+        run: make verify

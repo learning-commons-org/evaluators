@@ -1,0 +1,7 @@
+# Machine-generated / capture-synced paths: GitHub shows "Generated" in PRs
+# (diff collapsed by default, expandable; omitted from language stats).
+#   _generated_*.py  →  make generate-settings
+#   contracts.toml   →  notebook/contract capture + make sync-settings (bundled copy)
+sdks/python/src/learning_commons_evaluators/settings/_generated_*.py linguist-generated=true
+sdks/python/src/learning_commons_evaluators/settings/**/contracts.toml linguist-generated=true
+sdks/settings/**/contracts.toml linguist-generated=true
