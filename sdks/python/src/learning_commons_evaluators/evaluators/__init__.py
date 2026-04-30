@@ -7,9 +7,15 @@ you want to be explicit about the source.
 """
 
 from learning_commons_evaluators.evaluators.base import BaseEvaluator, InputT, OutputT
+from learning_commons_evaluators.evaluators.conventionality import (
+    ConventionalityEvaluationInput,
+    ConventionalityEvaluator,
+)
 
 __all__ = [
     "BaseEvaluator",
+    "ConventionalityEvaluationInput",
+    "ConventionalityEvaluator",
     "InputT",
     "OutputT",
 ]
