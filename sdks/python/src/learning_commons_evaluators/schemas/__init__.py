@@ -9,6 +9,10 @@ from learning_commons_evaluators.schemas.config import (
     LlmProvider,
     PromptSettings,
 )
+from learning_commons_evaluators.schemas.conventionality import (
+    ConventionalityEvaluationSettings,
+    ConventionalityOutput,
+)
 from learning_commons_evaluators.schemas.errors import ValidationError
 from learning_commons_evaluators.schemas.evaluator import (
     EvaluationAnswer,
@@ -41,6 +45,8 @@ from learning_commons_evaluators.schemas.text_complexity import (
 
 __all__ = [
     "AnyInputSpec",
+    "ConventionalityEvaluationSettings",
+    "ConventionalityOutput",
     "GradeInputSpec",
     "InputSpec",
     "TextInputSpec",

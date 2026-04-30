@@ -3,20 +3,15 @@
 import pytest
 
 from learning_commons_evaluators import create_config_no_telemetry
-from learning_commons_evaluators.schemas.config import (
-    EvaluationSettings,
-    LlmProvider,
-    PromptSettings,
+from learning_commons_evaluators.schemas.config import LlmProvider, PromptSettings
+from learning_commons_evaluators.schemas.conventionality import (
+    ConventionalityEvaluationSettings,
 )
 from learning_commons_evaluators.schemas.metadata import (
     EvaluationMetadata,
     EvaluatorMaturity,
     EvaluatorMetadata,
 )
-
-
-class _StubEvaluationSettings(EvaluationSettings):
-    """Minimal concrete EvaluationSettings for fixtures; replaced once a real evaluator lands."""
 
 
 @pytest.fixture
@@ -36,7 +31,7 @@ def evaluation_metadata(evaluator_metadata):
     """EvaluationMetadata with sensible defaults for unit tests."""
     return EvaluationMetadata(
         evaluator_metadata=evaluator_metadata,
-        evaluation_settings=_StubEvaluationSettings(),
+        evaluation_settings=ConventionalityEvaluationSettings(),
         input_metadata={},
     )
 

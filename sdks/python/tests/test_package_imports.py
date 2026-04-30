@@ -5,12 +5,14 @@ def test_main_package_imports():
     """All advertised public symbols can be imported from the root package."""
     from learning_commons_evaluators import (
         BaseEvaluator,
+        ConventionalityEvaluator,
         __version__,
         create_config_no_telemetry,
     )
 
     assert __version__ is not None
     assert create_config_no_telemetry is not None
+    assert ConventionalityEvaluator is not None
     assert BaseEvaluator is not None
 
 
