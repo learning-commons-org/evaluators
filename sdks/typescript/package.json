@@ -86,7 +86,7 @@
     "@ai-sdk/anthropic": "^3.0.12",
     "@ai-sdk/google": "^3.0.7",
     "@ai-sdk/openai": "^3.0.9",
-    "@types/node": "^20.11.5",
+    "@types/node": "^25.6.0",
     "@types/prompts": "^2.4.9",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
