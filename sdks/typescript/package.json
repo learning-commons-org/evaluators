@@ -89,7 +89,7 @@
     "@types/node": "^25.6.0",
     "@types/prompts": "^2.4.9",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
-    "@typescript-eslint/parser": "^6.19.0",
+    "@typescript-eslint/parser": "^8.59.1",
     "@vitest/coverage-v8": "^4.0.17",
     "ai": "^6.0.30",
     "eslint": "^8.56.0",
