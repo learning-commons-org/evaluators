@@ -56,12 +56,20 @@ The set of supported LLM providers. Used in `model_override.provider` and evalua
 
 Runs before every LLM call. Must run inside the error-handling boundary so validation failures are captured in telemetry.
 
-- Strip leading/trailing whitespace before measuring length
-- Whitespace-only input → `ValidationError`
-- Length < 10 chars (trimmed) → `ValidationError`
-- Length > 100,000 chars (trimmed) → `ValidationError`
+Strip leading/trailing whitespace before measuring length. Then validate in this order:
 
-These are SDK-level constants. They are not configurable per-evaluator and must not silently become no-ops if per-evaluator settings are absent.
+- Whitespace-only input → `ValidationError("Text cannot be empty or contain only whitespace")`
+- Length < min chars (trimmed) → `ValidationError("Text is too short. Minimum length is X characters...")`
+- Length > max chars (trimmed) → `ValidationError("Text is too long. Maximum length is X characters...")`
+
+Default limits:
+
+| Limit | Default |
+|---|---|
+| `min_text_length` | `10` |
+| `max_text_length` | `10,000` |
+
+Limits may be overridden per-evaluator. When overridden, the evaluator's values apply. Overrides must not be silently ignored.
 
 ---
 
@@ -76,17 +84,32 @@ These are SDK-level constants. They are not configurable per-evaluator and must 
 
 ## 4. Result Shape
 
-Every `evaluate()` call returns:
+Every `evaluate()` call returns a result with three top-level objects: `answer`, `explanation`, and `metadata`.
+
+### `answer`
 
 | Field | Type | Description |
 |---|---|---|
-| `score` | string | Complexity level label (e.g. `"Moderately complex"`) |
-| `reasoning` | string | Model's explanation |
-| `metadata.model` | string | Model(s) used. Single provider: `"provider:model-id"`. Multi-provider: `"provider1:model1+provider2:model2"` (no spaces around `+`). Reflects the actual model used, including any override. |
-| `metadata.processing_time_ms` | int | Wall-clock time for the full evaluation in milliseconds |
-| `internal` | object | Full structured LLM output — all fields returned by the model, for all grade paths |
+| `score` | any | Raw score value returned by the model (e.g. a string label or numeric value) |
+| `label` | string | Human-friendly display label (e.g. `"Moderately complex"`) |
 
-The `internal` field must be populated for every evaluator and every grade path. It must never be an empty object or omitted.
+### `explanation`
+
+| Field | Type | Description |
+|---|---|---|
+| `summary` | string | Model's reasoning — full explanation of how the score was determined |
+| `details` | object | Full structured LLM output — all fields returned by the model, for all grade paths. Must be populated for every evaluator and every grade path. Must never be an empty object or omitted. |
+
+### `metadata`
+
+| Field | Type | Description |
+|---|---|---|
+| `model` | string | Model(s) used. Single provider: `"provider:model-id"`. Multi-provider: `"provider1:model1+provider2:model2"` (no spaces around `+`). Reflects the actual model used, including any override. |
+| `processing_time_ms` / `processingTimeMs` | int | Wall-clock time for the full evaluation in milliseconds |
+
+> **Language naming:** TypeScript uses camelCase (`processingTimeMs`). Python uses snake_case (`processing_time_ms`).
+
+> **Migration note:** The TypeScript SDK currently returns `score`, `reasoning`, and `_internal` as top-level fields. It should be updated to match this shape.
 
 > **TS naming:** `processingTimeMs`, `_internal`
 
@@ -135,17 +158,61 @@ Each object in `phase_details`:
 
 ## 6. Error Taxonomy
 
-| Class | Trigger | Retryable |
-|---|---|---|
-| `ConfigurationError` | Missing required API key at construction | No |
-| `ValidationError` | Invalid text or unsupported grade | No |
-| `APIError` | Base class for all LLM provider errors | — |
-| `AuthenticationError` | 401 / 403 from provider | No |
-| `RateLimitError` | 429 from provider | Yes |
-| `NetworkError` | Connection failure | Yes |
-| `TimeoutError` | Request timeout | Yes |
+### Naming principle
 
-> **Python note:** Python uses `EvaluatorTimeoutError` instead of `TimeoutError` to avoid shadowing the builtin. Python may also expose an `EvaluatorRetryableError` base class for `isinstance` checks across all retryable errors — this is a Python-idiomatic addition, not a divergence from the spec.
+Error class names must match across SDKs exactly as specified below. This ensures that documentation, error handling guides, and support answers are portable between languages without translation.
+
+The only permitted divergence is a **builtin conflict** — when a name shadows a language builtin, prefix it with `Evaluator` (e.g. `TimeoutError` is a Python 3 builtin, so Python uses `EvaluatorTimeoutError`). Any such divergence must be documented in the permitted divergences table below.
+
+If an error pattern is useful in one SDK, it must be implemented in both.
+
+### Error classes
+
+| Class | Code | Trigger | Retryable |
+|---|---|---|---|
+| `EvaluatorError` | — | Base class for all SDK errors | — |
+| `ConfigurationError` | `CONFIGURATION_ERROR` | Missing required API key at construction | No |
+| `ValidationError` | `VALIDATION_ERROR` | Invalid text or unsupported grade | No |
+| `APIError` | — | Base class for all LLM provider errors | — |
+| `AuthenticationError` | `AUTHENTICATION_ERROR` | 401 / 403 from provider | No |
+| `RateLimitError` | `RATE_LIMIT_ERROR` | 429 from provider | Yes |
+| `NetworkError` | `NETWORK_ERROR` | Connection failure | Yes |
+| `TimeoutError` | `TIMEOUT_ERROR` | Request timeout | Yes |
+
+### Fields
+
+`APIError` and all its subclasses expose:
+
+| Field | Type | Description |
+|---|---|---|
+| `statusCode` / `status_code` | `int \| null` | HTTP status code from the provider, if available |
+| `retryable` | `bool` | Whether the caller may retry this error |
+
+`RateLimitError` additionally exposes:
+
+| Field | Type | Description |
+|---|---|---|
+| `retryAfter` / `retry_after` | `int \| null` | Milliseconds to wait before retrying, if the provider returned a value |
+
+### Permitted divergences
+
+| Spec class | TypeScript | Python | Reason |
+|---|---|---|---|
+| `TimeoutError` | `TimeoutError` | `EvaluatorTimeoutError` | `TimeoutError` is a Python 3 builtin |
+
+### Cross-language error name reference
+
+| Spec class | TypeScript | Python | Status |
+|---|---|---|---|
+| `EvaluatorError` | `EvaluatorError` | `EvaluatorError` | ✓ Both |
+| `RetryableError` | `RetryableError` | `RetryableError` | ⚠ Python: rename from `EvaluatorRetryableError`; TS: not yet implemented |
+| `ConfigurationError` | `ConfigurationError` | `ConfigurationError` | ✓ Both |
+| `ValidationError` | `ValidationError` | `ValidationError` | ✓ Both |
+| `APIError` | `APIError` | `APIError` | ✓ Both |
+| `AuthenticationError` | `AuthenticationError` | `AuthenticationError` | ✓ Both |
+| `RateLimitError` | `RateLimitError` | `RateLimitError` | ✓ Both |
+| `NetworkError` | `NetworkError` | `NetworkError` | ✓ Both |
+| `TimeoutError` | `TimeoutError` | `EvaluatorTimeoutError` | ✓ Both (permitted divergence) |
 
 ---
 
