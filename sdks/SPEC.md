@@ -12,13 +12,43 @@ Every evaluator accepts a config object at construction time.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `google_api_key` | string | none | Google API key — required by evaluators whose `default_providers` includes `google` |
+| `openai_api_key` | string | none | OpenAI API key — required by evaluators whose `default_providers` includes `openai` |
+| `anthropic_api_key` | string | none | Anthropic API key — required when `model_override.provider` is `anthropic` |
+| `model_override` | object | none | Override the provider and model for all LLM calls (see below) |
 | `partner_key` | string | none | Learning Commons partner key, forwarded as auth in telemetry requests |
 | `max_retries` | int | `2` | Max retry attempts on transient LLM failures. Total attempts = 1 + max_retries. Set to 0 to disable |
 | `telemetry.enabled` | bool | `true` | Whether to fire telemetry events |
 | `telemetry.record_inputs` | bool | `false` | Whether to include raw input text in telemetry. Off by default to avoid PII exposure |
 | `log_level` | enum | `WARN` | Minimum log level: `DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT` |
 
-> **Language naming:** TypeScript uses camelCase (`partnerKey`, `maxRetries`, `logLevel`). Python uses snake_case (`partner_key`, `max_retries`, `log_level`). The `telemetry` field may be `true`/`false` as a shorthand for fully enabled/disabled.
+> **Language naming:** TypeScript uses camelCase (`googleApiKey`, `openaiApiKey`, `anthropicApiKey`, `modelOverride`, `partnerKey`, `maxRetries`, `logLevel`). Python uses snake_case. The `telemetry` field may be `true`/`false` as a shorthand for fully enabled/disabled.
+
+### `model_override`
+
+Overrides the provider and model used for all LLM calls within the evaluator.
+
+```
+model_override: { provider: Provider, model: string }
+```
+
+- `provider` must be one of the supported `Provider` values (see below)
+- `model` is any model ID supported by that provider — must be a pinned snapshot ID (see section 7)
+- When `model_override` is set, **only the API key for the override provider is required** — default provider key requirements are bypassed
+- A warning is logged when override is active, since evaluators are validated against their default models
+- Telemetry records `model_override: true` to flag override usage separately in analytics
+
+### Provider
+
+The set of supported LLM providers. Used in `model_override.provider` and evaluator `default_providers` metadata.
+
+| Value | Description |
+|---|---|
+| `openai` | OpenAI (GPT models) |
+| `google` | Google (Gemini models) |
+| `anthropic` | Anthropic (Claude models) |
+
+> **TS:** exported as a `Provider` enum. **Python:** a string literal type or equivalent enum.
 
 ---
 
@@ -52,7 +82,7 @@ Every `evaluate()` call returns:
 |---|---|---|
 | `score` | string | Complexity level label (e.g. `"Moderately complex"`) |
 | `reasoning` | string | Model's explanation |
-| `metadata.model` | string | Model(s) used in `provider:model-id` format (e.g. `"google:gemini-3-flash-preview"`) |
+| `metadata.model` | string | Model(s) used. Single provider: `"provider:model-id"`. Multi-provider: `"provider1:model1+provider2:model2"` (no spaces around `+`). Reflects the actual model used, including any override. |
 | `metadata.processing_time_ms` | int | Wall-clock time for the full evaluation in milliseconds |
 | `internal` | object | Full structured LLM output — all fields returned by the model, for all grade paths |
 
@@ -82,7 +112,8 @@ The `internal` field must be populated for every evaluator and every grade path.
 | `error_code` | Error class name on failure; null on success |
 | `latency_ms` | Total wall-clock time in milliseconds |
 | `text_length_chars` | Character length of the input text |
-| `provider` | Provider string(s) used (e.g. `"google:gemini-3-flash-preview"`) |
+| `provider` | Provider string(s) used. Same format as `metadata.model`: `"provider:model-id"` or `"provider1:model1+provider2:model2"` (no spaces around `+`) |
+| `model_override` | `true` if `model_override` was set by the caller; omitted otherwise |
 | `token_usage` | `{ input_tokens, output_tokens }` aggregated across all phases |
 | `phase_details` | Array of per-phase objects (see below) |
 | `input_text` | Raw input text — only when `telemetry.record_inputs = true` |
@@ -148,7 +179,7 @@ Where FK score is used (see evaluator specs below), it must be computed using th
 |---|---|
 | ID | `conventionality` |
 | Supported grades | 3–12 |
-| Required keys | Google |
+| Default providers | `google` |
 | Phases | 1 |
 | Temperature | 0 |
 
@@ -164,7 +195,7 @@ Where FK score is used (see evaluator specs below), it must be computed using th
 |---|---|
 | ID | `vocabulary` |
 | Supported grades | 3–12 |
-| Required keys | Google + OpenAI |
+| Default providers | `google`, `openai` |
 | Phases | 2 |
 | Temperature | 0 (both phases) |
 
@@ -186,7 +217,7 @@ Where FK score is used (see evaluator specs below), it must be computed using th
 |---|---|
 | ID | `subject-matter-knowledge` |
 | Supported grades | 3–12 |
-| Required keys | Google |
+| Default providers | `google` |
 | Phases | 1 |
 | Temperature | 0 |
 
@@ -202,7 +233,7 @@ Where FK score is used (see evaluator specs below), it must be computed using th
 |---|---|
 | ID | `sentence-structure` |
 | Supported grades | 3–12 |
-| Required keys | Google |
+| Default providers | `openai` |
 | Phases | 2 |
 | Temperature | 0 |
 
@@ -216,7 +247,7 @@ Where FK score is used (see evaluator specs below), it must be computed using th
 |---|---|
 | ID | `grade-level-appropriateness` |
 | Grade parameter | None — GLA determines grade appropriateness, it does not take a grade as input |
-| Required keys | Google |
+| Default providers | `google` |
 | Phases | 1 |
 | Temperature | 0.25 |
 
