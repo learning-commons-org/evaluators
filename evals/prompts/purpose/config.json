@@ -109,6 +109,10 @@
           "description": {
             "type": "string"
           },
+          "source": {
+            "type": "string",
+            "description": "Optional provenance label (e.g., the source CSV or dataset). Not required."
+          },
           "input": {
             "$ref": "input_schema.json"
           },
