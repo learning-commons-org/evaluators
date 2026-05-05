@@ -86,6 +86,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
    * @param grade - The target grade level (3-12)
    * @returns Map of sub-evaluator results
    * @throws {ValidationError} If text is empty or grade is invalid
+   * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {Error} If all sub-evaluators fail
    */
   async evaluate(text: string, grade: string): Promise<TextComplexityResult> {

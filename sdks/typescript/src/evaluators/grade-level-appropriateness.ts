@@ -61,6 +61,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
    * @param text - The text to evaluate
    * @returns Evaluation result with grade recommendations and scaffolding suggestions
    * @throws {ValidationError} If text is empty or too short/long
+   * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
    */
   async evaluate(text: string): Promise<EvaluationResult<GradeBand, GradeLevelAppropriatenessInternal>> {

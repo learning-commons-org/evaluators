@@ -152,7 +152,8 @@ describe('ModelOverride', () => {
         new Error("The model 'gpt-fake' does not exist"),
         { statusCode: 404 }
       );
-      vi.mocked((evaluator as any).provider.generateStructured).mockRejectedValueOnce(notFoundError);
+      // @ts-expect-error accessing private field for test
+      vi.mocked(evaluator.provider.generateStructured).mockRejectedValueOnce(notFoundError);
 
       await expect(
         evaluator.evaluate('This is a sample text long enough to pass validation.', '5')

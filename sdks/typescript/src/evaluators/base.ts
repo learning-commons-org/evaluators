@@ -180,6 +180,11 @@ export abstract class BaseEvaluator {
    */
   static readonly metadata: EvaluatorMetadata;
 
+  /**
+   * @throws {ConfigurationError} If the subclass has not defined static metadata
+   * @throws {ConfigurationError} If modelOverride has an invalid provider or empty model
+   * @throws {ConfigurationError} If a required API key is missing
+   */
   constructor(config: BaseEvaluatorConfig) {
     // Initialize logger
     this.logger = createLogger(config.logger, config.logLevel ?? LogLevel.WARN);
@@ -253,7 +258,7 @@ export abstract class BaseEvaluator {
 
     if (!config.modelOverride.model || config.modelOverride.model.trim() === '') {
       throw new ConfigurationError(
-        `modelOverride.model is required. Specify a model ID for provider "${config.modelOverride.provider}" (e.g. "gpt-4o" for openai).`
+        `modelOverride.model is required. Specify the model ID for provider "${config.modelOverride.provider}".`
       );
     }
   }

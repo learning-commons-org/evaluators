@@ -216,7 +216,7 @@ function parseProviderError(error: unknown): { message: string; statusCode?: num
  * Wrap a provider error into the appropriate error type.
  *
  * Returns `ConfigurationError` for model-not-found responses (HTTP 404, or HTTP 400
- * with a model-related message), since those indicate a bad model ID in config.
+ * with a model-related message), since those indicate a bad model ID in configuration.
  * Returns the appropriate `APIError` subclass for all other provider errors.
  *
  * @internal
@@ -230,7 +230,7 @@ export function wrapProviderError(error: unknown, defaultMessage: string = 'API 
     (statusCode === 400 && /\bmodel\b.*(not found|does not exist|invalid)/i.test(message))
   ) {
     return new ConfigurationError(
-      `Model not found or invalid: ${message}. Check the model ID in your modelOverride config.`
+      `Model not found or invalid: ${message}. Check the model ID passed to the provider.`
     );
   }
 
