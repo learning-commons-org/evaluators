@@ -193,12 +193,11 @@ function parseProviderError(error: unknown): { message: string; statusCode?: num
 
     // Prefer a statusCode/status property (Vercel AI SDK's APICallError sets these)
     // then fall back to parsing from the message string
+    const statusMatch = message.match(/\b(4\d{2}|5\d{2})\b/);
     const statusCode =
       err.statusCode ??
       err.status ??
-      (message.match(/\b(4\d{2}|5\d{2})\b/)?.[1] !== undefined
-        ? parseInt(message.match(/\b(4\d{2}|5\d{2})\b/)![1])
-        : undefined);
+      (statusMatch ? parseInt(statusMatch[1]) : undefined);
 
     return {
       message,

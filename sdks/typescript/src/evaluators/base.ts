@@ -271,9 +271,9 @@ export abstract class BaseEvaluator {
    */
   private validateApiKeys(config: BaseEvaluatorConfig): void {
     const keyFor: Record<Provider, string | undefined> = {
-      [Provider.OpenAI]: config.openaiApiKey,
-      [Provider.Google]: config.googleApiKey,
-      [Provider.Anthropic]: config.anthropicApiKey,
+      [Provider.OpenAI]: config.openaiApiKey?.trim() || undefined,
+      [Provider.Google]: config.googleApiKey?.trim() || undefined,
+      [Provider.Anthropic]: config.anthropicApiKey?.trim() || undefined,
     };
     const humanName: Record<Provider, string> = {
       [Provider.OpenAI]: 'OpenAI API key',
