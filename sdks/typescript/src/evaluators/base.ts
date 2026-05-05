@@ -48,6 +48,10 @@ export interface TelemetryOptions {
  * the chosen provider via the matching top-level config field
  * (e.g. `anthropicApiKey` for `Provider.Anthropic`).
  *
+ * Both `provider` and `model` are required. An empty or missing `model` throws
+ * `ConfigurationError` at construction time. An unrecognised model ID throws
+ * `ConfigurationError` at evaluation time when the provider rejects it.
+ *
  * Results may vary; evaluators are validated against their recommended models.
  */
 export interface ModelOverride {
@@ -180,6 +184,9 @@ export abstract class BaseEvaluator {
     // Initialize logger
     this.logger = createLogger(config.logger, config.logLevel ?? LogLevel.WARN);
 
+    // Validate modelOverride shape before key checks
+    this.validateModelOverride(config);
+
     // Validate required API keys based on metadata
     this.validateApiKeys(config);
 
@@ -230,8 +237,32 @@ export abstract class BaseEvaluator {
   }
 
   /**
-   * Validate that required API keys are provided based on metadata
-   * @throws {ConfigurationError} If required API keys are missing
+   * Validate modelOverride shape: provider must be a known Provider value and
+   * model must be a non-empty string.
+   * @throws {ConfigurationError} If the override is malformed
+   */
+  private validateModelOverride(config: BaseEvaluatorConfig): void {
+    if (!config.modelOverride) return;
+
+    const validProviders = Object.values(Provider) as string[];
+    if (!validProviders.includes(config.modelOverride.provider as string)) {
+      throw new ConfigurationError(
+        `Invalid provider "${config.modelOverride.provider}" in modelOverride. Valid providers are: ${validProviders.join(', ')}.`
+      );
+    }
+
+    if (!config.modelOverride.model || config.modelOverride.model.trim() === '') {
+      throw new ConfigurationError(
+        `modelOverride.model is required. Specify a model ID for provider "${config.modelOverride.provider}" (e.g. "gpt-4o" for openai).`
+      );
+    }
+  }
+
+  /**
+   * Validate that the required API key is present.
+   * When modelOverride is set, checks the override provider's key.
+   * Otherwise checks the keys required by the evaluator's default providers.
+   * @throws {ConfigurationError} If a required key is missing
    */
   private validateApiKeys(config: BaseEvaluatorConfig): void {
     const keyFor: Record<Provider, string | undefined> = {

@@ -540,6 +540,13 @@ When `modelOverride` is set:
 - A warning is logged to indicate results may differ from the defaults
 - Telemetry records `model_override: true` so override usage is tracked separately
 
+**Validation:** The SDK validates `modelOverride` at construction time and throws `ConfigurationError` if:
+- `provider` is not one of the supported `Provider` values (`openai`, `google`, `anthropic`)
+- `model` is empty or blank — no default is assumed; you must always specify the model ID explicitly
+- The API key for the chosen provider is missing
+
+If the model ID is valid at construction but doesn't exist on the provider's API, `ConfigurationError` is thrown when `evaluate()` is called.
+
 ```typescript
 import { VocabularyEvaluator, Provider } from '@learning-commons/evaluators';
 

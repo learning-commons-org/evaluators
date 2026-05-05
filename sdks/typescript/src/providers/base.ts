@@ -16,7 +16,6 @@ export interface LLMRequest<T> {
   schema: z.ZodSchema<T>;
   temperature?: number;
   maxTokens?: number;
-  model?: string;
 }
 
 /**
