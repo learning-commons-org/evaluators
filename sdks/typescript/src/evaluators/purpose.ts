@@ -163,7 +163,7 @@ export class PurposeEvaluator extends BaseEvaluator {
   }
 
   private parseAndValidateGrade(grade: string): number {
-    const num = parseInt(grade, 10);
+    const num = Number(grade.trim());
     if (!Number.isInteger(num) || num < GRADE_MIN || num > GRADE_MAX) {
       throw new ValidationError(
         `Invalid grade "${grade}". Purpose evaluator supports integer grades ${GRADE_MIN}–${GRADE_MAX}.`,

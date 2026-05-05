@@ -102,11 +102,9 @@ describe('PurposeEvaluator - Prompt contract', () => {
   });
 
   it('user prompt SHA256 matches config.json declaration', () => {
-    // The raw template (before placeholder substitution) is what the config hashes
     const expectedSha = CONFIG.steps[0].prompt.messages[1].sha256;
-    // We verify by checking the template file content via getUserPrompt with sentinel values
-    // and confirming placeholders are present (substitution correctness tested separately)
-    expect(expectedSha).toMatch(/^[a-f0-9]{64}$/);
+    const actualSha = createHash('sha256').update(getUserPrompt({})).digest('hex');
+    expect(actualSha).toBe(expectedSha);
   });
 
   it('user prompt substitutes {text}, {grade_level}, and {fk_score}', () => {

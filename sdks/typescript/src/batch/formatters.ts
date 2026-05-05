@@ -8,12 +8,17 @@ const GLA_EVALUATOR_ID = 'grade-level-appropriateness';
 const GRADE_BANDS = ['K-1', '2-3', '4-5', '6-8', '9-10', '11-CCR'] as const;
 type GradeBand = typeof GRADE_BANDS[number];
 
-// Complexity string scores → numeric (supports both Title Case and lowercase from evaluators)
+// Complexity string scores → numeric (supports space-separated and snake_case from evaluators)
 const COMPLEXITY_SCORE_MAP: Record<string, number> = {
   'slightly complex': 1,
   'moderately complex': 2,
   'very complex': 3,
   'exceedingly complex': 4,
+  'slightly_complex': 1,
+  'moderately_complex': 2,
+  'very_complex': 3,
+  'exceedingly_complex': 4,
+  // 'more_context_needed' has no numeric equivalent — intentionally excluded
 };
 
 // ---- Helpers ----
