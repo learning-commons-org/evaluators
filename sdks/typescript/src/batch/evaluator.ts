@@ -41,6 +41,9 @@ const EVALUATOR_MAP = new Map<string, EvaluatorConstructor>([
  * Evaluator groups available for batch processing.
  * Each group runs a fixed set of evaluators and maps to a specific HTML report format.
  */
+// Note: this batch group is a superset of TextComplexityEvaluator — it also includes
+// GradeLevelAppropriateness and Purpose (early access), which the programmatic evaluator
+// does not expose. This is intentional: the batch surface evolves independently.
 const EVALUATOR_GROUPS: EvaluatorGroup[] = [
   {
     id: 'text-complexity',

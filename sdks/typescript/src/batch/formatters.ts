@@ -18,7 +18,8 @@ const COMPLEXITY_SCORE_MAP: Record<string, number> = {
   'moderately_complex': 2,
   'very_complex': 3,
   'exceedingly_complex': 4,
-  // 'more_context_needed' has no numeric equivalent — intentionally excluded
+  // 'more_context_needed' has no numeric equivalent — rows with this score appear as N/A
+  // in individual results and are excluded from aggregate stats, same as failed evaluations.
 };
 
 // ---- Helpers ----
@@ -91,7 +92,8 @@ function groupResultsByRow(results: BatchResult[]): Map<number, BatchResult[]> {
 // ---- CSV Formatter ----
 
 function formatEvaluatorPrefix(evaluatorId: string): string {
-  return evaluatorId.replace(/-/g, '_');
+  const slug = evaluatorId.includes('.') ? evaluatorId.split('.').pop()! : evaluatorId;
+  return slug.replace(/-/g, '_');
 }
 
 function escapeCSV(field: string): string {
