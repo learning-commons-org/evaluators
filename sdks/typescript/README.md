@@ -352,6 +352,82 @@ await evaluator.evaluate(text: string)
 
 ---
 
+### 7. Purpose Evaluator
+
+Evaluates the Purpose dimension of qualitative text complexity — how explicitly the text's purpose is stated versus implied, and how that affects comprehension demands for the target grade level.
+
+**Supported Grades:** 3-12
+
+**Uses:** Google Gemini 3 Flash Preview
+
+**Constructor:**
+```typescript
+const evaluator = new PurposeEvaluator({
+  googleApiKey?: string;  // Google API key (required by this evaluator)
+  maxRetries?: number;    // Optional - Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Optional (default: true)
+  logger?: Logger;        // Optional - Custom logger
+  logLevel?: LogLevel;    // Optional - Logging verbosity (default: WARN)
+});
+```
+
+**API:**
+```typescript
+await evaluator.evaluate(text: string, grade: string)
+```
+
+**Returns:**
+```typescript
+{
+  score: 'slightly_complex' | 'moderately_complex' | 'very_complex' | 'exceedingly_complex' | 'more_context_needed';
+  reasoning: string;
+  metadata: {
+    model: string;
+    processingTimeMs: number;
+  };
+  _internal: {
+    complexity_score: 'slightly_complex' | 'moderately_complex' | 'very_complex' | 'exceedingly_complex' | 'more_context_needed';
+    reasoning: string;
+    details: {
+      detailed_summary: Array<{
+        factor: string;
+        description: string;
+        effect_on_complexity_dimension: string;
+      }>;
+      adjustment_and_scaffolding: Array<{
+        scaffolding_need: string;
+        suggestion: string;
+      }>;
+      recommended_use_cases: Array<{
+        opportunity: string;
+        suggestion: string;
+      }>;
+    };
+  };
+}
+```
+
+> **Note:** The `'more_context_needed'` score is used for cases where the text alone is insufficient to determine complexity.
+
+**Example:**
+```typescript
+import { PurposeEvaluator } from '@learning-commons/evaluators';
+
+const evaluator = new PurposeEvaluator({
+  googleApiKey: process.env.GOOGLE_API_KEY,
+});
+
+const result = await evaluator.evaluate(
+  "The author argues that renewable energy is the only viable solution to climate change.",
+  "9"
+);
+console.log(result.score);          // "moderately_complex"
+console.log(result.reasoning);
+console.log(result._internal.details.adjustment_and_scaffolding);
+```
+
+---
+
 ## Batch CSV Evaluation
 
 For evaluating many texts at once, the SDK ships a CLI tool that reads a CSV file, runs all evaluators in a group, and produces CSV and HTML reports.
@@ -474,6 +550,7 @@ interface BaseEvaluatorConfig {
 - **Conventionality**: Requires `googleApiKey` only
 - **Text Complexity**: Requires both `googleApiKey` and `openaiApiKey`
 - **Grade Level Appropriateness**: Requires `googleApiKey` only
+- **Purpose**: Requires `googleApiKey` only
 
 ---
 
