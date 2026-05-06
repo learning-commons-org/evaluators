@@ -60,6 +60,16 @@ export interface LLMProvider {
 }
 
 /**
+ * Named constants for LLM provider types — use instead of raw string literals.
+ */
+export const Providers = {
+  google: 'google',
+  openai: 'openai',
+  anthropic: 'anthropic',
+  custom: 'custom',
+} as const;
+
+/**
  * Configuration for LLM provider
  */
 export interface ProviderConfig {

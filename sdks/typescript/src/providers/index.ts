@@ -7,4 +7,6 @@ export type {
   ProviderConfig,
 } from './base.js';
 
+export { Providers } from './base.js';
+
 export { VercelAIProvider, createProvider } from './ai-sdk-provider.js';

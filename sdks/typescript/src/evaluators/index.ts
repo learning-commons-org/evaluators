@@ -35,3 +35,9 @@ export {
   evaluateTextComplexity,
   type TextComplexityResult,
 } from './text-complexity.js';
+
+export {
+  PurposeEvaluator,
+  evaluatePurpose,
+  type PurposeComplexityLevel,
+} from './purpose.js';

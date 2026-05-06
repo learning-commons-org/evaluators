@@ -33,6 +33,8 @@ export type {
   ProviderConfig,
 } from './providers/index.js';
 
+export { Providers } from './providers/index.js';
+
 // Sentence structure exports
 export type {
   SentenceAnalysis,
@@ -60,6 +62,9 @@ export type { GradeLevelAppropriatenessInternal } from './schemas/grade-level-ap
 
 export { GradeLevelAppropriatenessSchema } from './schemas/grade-level-appropriateness.js';
 
+// Purpose exports
+export type { PurposeInternal } from './schemas/purpose.js';
+
 export {
   VocabularyEvaluator,
   evaluateVocabulary,
@@ -74,6 +79,9 @@ export {
   TextComplexityEvaluator,
   evaluateTextComplexity,
   type TextComplexityResult,
+  PurposeEvaluator,
+  evaluatePurpose,
+  type PurposeComplexityLevel,
   type BaseEvaluatorConfig,
   type TelemetryOptions,
   type EvaluatorMetadata,
