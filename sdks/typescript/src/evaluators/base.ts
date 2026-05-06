@@ -39,6 +39,19 @@ export interface BaseEvaluatorConfig {
   /** OpenAI API key (for evaluators using GPT) */
   openaiApiKey?: string;
 
+  /**
+   * LiteLLM proxy API key — single key for all models (GPT, Gemini, Claude) via a LiteLLM proxy.
+   * When provided, all evaluators route through the proxy instead of calling provider APIs directly.
+   * Takes precedence over googleApiKey and openaiApiKey.
+   */
+  litellmApiKey?: string;
+
+  /**
+   * LiteLLM proxy base URL (default: https://llm.labxchange-dev.org).
+   * Only used when litellmApiKey is provided.
+   */
+  litellmBaseURL?: string;
+
   /** Learning Commons partner key for authenticated telemetry (optional) */
   partnerKey?: string;
 
@@ -186,6 +199,11 @@ export abstract class BaseEvaluator {
    * @throws {ConfigurationError} If required API keys are missing
    */
   private validateApiKeys(config: BaseEvaluatorConfig): void {
+    // litellmApiKey replaces both googleApiKey and openaiApiKey
+    if (config.litellmApiKey) {
+      return;
+    }
+
     if (this.metadata.requiresGoogleKey && !config.googleApiKey) {
       throw new ConfigurationError(
         `Google API key is required for ${this.metadata.name} evaluator. Pass googleApiKey in config.`

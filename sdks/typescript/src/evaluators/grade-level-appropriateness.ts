@@ -52,13 +52,12 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
     // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
 
-    // Create Google Gemini provider
-    this.provider = createProvider({
-      type: 'google',
-      model: 'gemini-2.5-pro',
-      apiKey: config.googleApiKey,
-      maxRetries: this.config.maxRetries,
-    });
+    const useLiteLLM = !!config.litellmApiKey;
+    const liteLLMBase = config.litellmBaseURL ?? 'https://llm.labxchange-dev.org';
+
+    this.provider = useLiteLLM
+      ? createProvider({ type: 'litellm', model: 'gemini-2.5-pro', apiKey: config.litellmApiKey, baseURL: liteLLMBase, maxRetries: this.config.maxRetries })
+      : createProvider({ type: 'google', model: 'gemini-2.5-pro', apiKey: config.googleApiKey, maxRetries: this.config.maxRetries });
   }
 
   /**

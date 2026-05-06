@@ -63,7 +63,7 @@ export interface LLMProvider {
  * Configuration for LLM provider
  */
 export interface ProviderConfig {
-  type: 'openai' | 'anthropic' | 'google' | 'custom';
+  type: 'openai' | 'anthropic' | 'google' | 'litellm' | 'custom';
   apiKey?: string;
   model?: string;
   temperature?: number;

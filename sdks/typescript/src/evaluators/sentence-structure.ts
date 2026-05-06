@@ -82,20 +82,14 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
 
-    // Create OpenAI GPT-4o provider for both stages
-    this.analysisProvider = createProvider({
-      type: 'openai',
-      model: 'gpt-4o',
-      apiKey: config.openaiApiKey,
-      maxRetries: this.config.maxRetries,
-    });
+    const useLiteLLM = !!config.litellmApiKey;
+    const liteLLMBase = config.litellmBaseURL ?? 'https://llm.labxchange-dev.org';
+    const providerConfig = useLiteLLM
+      ? { type: 'litellm' as const, model: 'gpt-4o', apiKey: config.litellmApiKey, baseURL: liteLLMBase, maxRetries: this.config.maxRetries }
+      : { type: 'openai' as const, model: 'gpt-4o', apiKey: config.openaiApiKey, maxRetries: this.config.maxRetries };
 
-    this.complexityProvider = createProvider({
-      type: 'openai',
-      model: 'gpt-4o',
-      apiKey: config.openaiApiKey,
-      maxRetries: this.config.maxRetries,
-    });
+    this.analysisProvider = createProvider(providerConfig);
+    this.complexityProvider = createProvider(providerConfig);
   }
 
   /**

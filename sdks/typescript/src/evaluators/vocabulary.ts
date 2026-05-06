@@ -60,29 +60,20 @@ export class VocabularyEvaluator extends BaseEvaluator {
     // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
 
-    // Create Google Gemini provider for complexity evaluation (grades 3-4)
-    this.grades34ComplexityProvider = createProvider({
-      type: 'google',
-      model: 'gemini-2.5-pro',
-      apiKey: config.googleApiKey,
-      maxRetries: this.config.maxRetries,
-    });
+    const useLiteLLM = !!config.litellmApiKey;
+    const liteLLMBase = config.litellmBaseURL ?? 'https://llm.labxchange-dev.org';
 
-    // Create OpenAI GPT-4.1 provider for complexity evaluation (grades 5-12)
-    this.otherGradesComplexityProvider = createProvider({
-      type: 'openai',
-      model: 'gpt-4.1-2025-04-14',
-      apiKey: config.openaiApiKey,
-      maxRetries: this.config.maxRetries,
-    });
+    this.grades34ComplexityProvider = useLiteLLM
+      ? createProvider({ type: 'litellm', model: 'gemini-2.5-pro', apiKey: config.litellmApiKey, baseURL: liteLLMBase, maxRetries: this.config.maxRetries })
+      : createProvider({ type: 'google', model: 'gemini-2.5-pro', apiKey: config.googleApiKey, maxRetries: this.config.maxRetries });
 
-    // Create OpenAI GPT-4o provider for background knowledge generation
-    this.backgroundKnowledgeProvider = createProvider({
-      type: 'openai',
-      model: 'gpt-4o-2024-11-20',
-      apiKey: config.openaiApiKey,
-      maxRetries: this.config.maxRetries,
-    });
+    this.otherGradesComplexityProvider = useLiteLLM
+      ? createProvider({ type: 'litellm', model: 'gpt-4.1-2025-04-14', apiKey: config.litellmApiKey, baseURL: liteLLMBase, maxRetries: this.config.maxRetries })
+      : createProvider({ type: 'openai', model: 'gpt-4.1-2025-04-14', apiKey: config.openaiApiKey, maxRetries: this.config.maxRetries });
+
+    this.backgroundKnowledgeProvider = useLiteLLM
+      ? createProvider({ type: 'litellm', model: 'gpt-4o-2024-11-20', apiKey: config.litellmApiKey, baseURL: liteLLMBase, maxRetries: this.config.maxRetries })
+      : createProvider({ type: 'openai', model: 'gpt-4o-2024-11-20', apiKey: config.openaiApiKey, maxRetries: this.config.maxRetries });
   }
 
   /**
