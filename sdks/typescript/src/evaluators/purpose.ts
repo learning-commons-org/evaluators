@@ -99,21 +99,18 @@ export class PurposeEvaluator extends BaseEvaluator {
       };
       const response = await this.callLLM(inputs);
 
-      stageDetails.push({
-        stage: STEP.id,
-        provider: PurposeEvaluator.MODEL_ID,
-        latency_ms: response.latencyMs,
-        token_usage: {
-          input_tokens: response.usage.inputTokens,
-          output_tokens: response.usage.outputTokens,
-        },
-      });
-
       const latencyMs = Date.now() - startTime;
       const tokenUsage = {
         input_tokens: response.usage.inputTokens,
         output_tokens: response.usage.outputTokens,
       };
+
+      stageDetails.push({
+        stage: STEP.id,
+        provider: PurposeEvaluator.MODEL_ID,
+        latency_ms: response.latencyMs,
+        token_usage: tokenUsage,
+      });
 
       const result: EvaluationResult<PurposeComplexityLevel, PurposeInternal> = {
         score: COMPLEXITY_SCORE_DISPLAY[response.data.complexity_score],
