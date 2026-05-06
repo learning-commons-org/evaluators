@@ -379,7 +379,7 @@ await evaluator.evaluate(text: string, grade: string)
 **Returns:**
 ```typescript
 {
-  score: 'slightly_complex' | 'moderately_complex' | 'very_complex' | 'exceedingly_complex' | 'more_context_needed';
+  score: 'Slightly complex' | 'Moderately complex' | 'Very complex' | 'Exceedingly complex' | 'More context needed';
   reasoning: string;
   metadata: {
     model: string;
@@ -407,7 +407,7 @@ await evaluator.evaluate(text: string, grade: string)
 }
 ```
 
-> **Note:** The `'more_context_needed'` score is used for cases where the text alone is insufficient to determine complexity.
+> **Note:** The `'More context needed'` score is used for cases where the text alone is insufficient to determine complexity.
 
 **Example:**
 ```typescript
@@ -421,7 +421,7 @@ const result = await evaluator.evaluate(
   "The author argues that renewable energy is the only viable solution to climate change.",
   "9"
 );
-console.log(result.score);          // "moderately_complex"
+console.log(result.score);          // "Moderately complex"
 console.log(result.reasoning);
 console.log(result._internal.details.adjustment_and_scaffolding);
 ```

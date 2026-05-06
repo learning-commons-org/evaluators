@@ -3,10 +3,10 @@ import { createProvider, Providers } from '../providers/index.js';
 import { PurposeOutputSchema, type PurposeInternal } from '../schemas/purpose.js';
 import { runPreprocessingStep } from '../features/preprocessing.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/purpose/index.js';
-import type { EvaluationResult } from '../schemas/index.js';
+import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
-import { ValidationError, wrapProviderError } from '../errors.js';
+import { ConfigurationError, ValidationError, wrapProviderError } from '../errors.js';
 import CONFIG from '../../../../evals/prompts/purpose/config.json';
 import INPUT_SCHEMA from '../../../../evals/prompts/purpose/input_schema.json';
 
@@ -21,7 +21,16 @@ const GRADE_MIN = INPUT_SCHEMA.properties.grade_level.minimum;
 const GRADE_MAX = INPUT_SCHEMA.properties.grade_level.maximum;
 const SUPPORTED_GRADES = Array.from({ length: GRADE_MAX - GRADE_MIN + 1 }, (_, i) => String(GRADE_MIN + i));
 
-export type PurposeComplexityLevel = PurposeInternal['complexity_score'];
+export type PurposeComplexityLevel = TextComplexityLevel | 'More context needed';
+
+// Maps snake_case LLM output → SDK-standard sentence case score.
+const COMPLEXITY_SCORE_DISPLAY: Record<PurposeInternal['complexity_score'], PurposeComplexityLevel> = {
+  'slightly_complex': 'Slightly complex',
+  'moderately_complex': 'Moderately complex',
+  'very_complex': 'Very complex',
+  'exceedingly_complex': 'Exceedingly complex',
+  'more_context_needed': 'More context needed',
+};
 
 export class PurposeEvaluator extends BaseEvaluator {
   static readonly metadata = {
@@ -48,7 +57,16 @@ export class PurposeEvaluator extends BaseEvaluator {
     super(config);
 
     const providerType = STEP.model.provider as ProviderConfig['type'];
-    const apiKey = providerType === Providers.google ? config.googleApiKey : config.openaiApiKey;
+    let apiKey: string | undefined;
+    if (providerType === Providers.google) {
+      apiKey = config.googleApiKey;
+    } else if (providerType === Providers.openai) {
+      apiKey = config.openaiApiKey;
+    } else {
+      throw new ConfigurationError(
+        `Unsupported provider "${providerType}" in purpose config. Supported: ${Providers.google}, ${Providers.openai}.`,
+      );
+    }
 
     this.provider = createProvider({
       type: providerType,
@@ -98,7 +116,7 @@ export class PurposeEvaluator extends BaseEvaluator {
       };
 
       const result: EvaluationResult<PurposeComplexityLevel, PurposeInternal> = {
-        score: response.data.complexity_score,
+        score: COMPLEXITY_SCORE_DISPLAY[response.data.complexity_score],
         reasoning: response.data.reasoning,
         metadata: {
           model: PurposeEvaluator.MODEL_ID,
