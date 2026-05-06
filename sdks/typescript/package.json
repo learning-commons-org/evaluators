@@ -95,7 +95,7 @@
     "@typescript-eslint/parser": "^6.19.0",
     "@vitest/coverage-v8": "^4.0.17",
     "ai": "^6.0.30",
-    "eslint": "^8.56.0",
+    "eslint": "^10.3.0",
     "json-schema-to-zod": "^2.8.1",
     "tsup": "^8.0.1",
     "tsx": "^4.21.0",
