@@ -71,7 +71,7 @@ await evaluator.evaluate(text: string, grade: string)
     model: string;
     processingTimeMs: number;
   };
-  _internal: VocabularyComplexity; // Detailed analysis
+  _internal: VocabularyInternal; // Detailed analysis
 }
 ```
 
@@ -369,7 +369,7 @@ Evaluates the Purpose dimension of qualitative text complexity — how explicitl
 **Constructor:**
 ```typescript
 const evaluator = new PurposeEvaluator({
-  googleApiKey?: string;                  // Google API key (required by this evaluator)
+  googleApiKey: string;                   // Google API key (required by this evaluator)
   modelOverride?: ModelOverride;          // Override the default provider and model
   maxRetries?: number;                    // Max retry attempts (default: 2)
   telemetry?: boolean | TelemetryOptions; // Telemetry settings (default: enabled)
