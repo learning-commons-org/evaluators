@@ -99,7 +99,7 @@
     "json-schema-to-zod": "^2.8.1",
     "tsup": "^8.0.1",
     "tsx": "^4.21.0",
-    "typescript": "^5.3.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.0.17"
   },
   "engines": {
