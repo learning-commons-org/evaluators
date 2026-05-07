@@ -15,14 +15,15 @@ import type { LLMProvider } from '../../../src/providers/base.js';
  */
 
 // Mock providers
-const createMockProvider = (): LLMProvider => ({
+const createMockProvider = (config?: { type?: string; model?: string }): LLMProvider => ({
+  label: config?.type && config?.model ? `${config.type}:${config.model}` : 'mock:model',
   generateStructured: vi.fn(),
   generateText: vi.fn(),
 });
 
 // Mock the createProvider factory
 vi.mock('../../../src/providers/index.js', () => ({
-  createProvider: vi.fn(() => createMockProvider()),
+  createProvider: vi.fn((config) => createMockProvider(config)),
 }));
 
 // Mock telemetry to avoid real HTTP calls

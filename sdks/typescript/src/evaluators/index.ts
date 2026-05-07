@@ -1,6 +1,8 @@
 export {
   BaseEvaluator,
+  Provider,
   type BaseEvaluatorConfig,
+  type ModelOverride,
   type TelemetryOptions,
   type EvaluatorMetadata,
 } from './base.js';

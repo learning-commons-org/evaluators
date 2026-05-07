@@ -1,10 +1,9 @@
 import type { LLMProvider } from '../providers/index.js';
-import { createProvider } from '../providers/index.js';
 import { SmkOutputSchema, type SmkInternal } from '../schemas/smk.js';
 import { calculateFleschKincaidGrade } from '../features/index.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/subject-matter-knowledge/index.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
-import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
+import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { ValidationError, wrapProviderError } from '../errors.js';
 
@@ -37,8 +36,7 @@ export class SmkEvaluator extends BaseEvaluator {
     name: 'Subject Matter Knowledge',
     description: 'Evaluates background knowledge demands of educational texts relative to grade level',
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
-    requiresGoogleKey: true,
-    requiresOpenAIKey: false,
+    defaultProviders: [Provider.Google] as const,
   };
 
   private provider: LLMProvider;
@@ -46,12 +44,9 @@ export class SmkEvaluator extends BaseEvaluator {
   constructor(config: BaseEvaluatorConfig) {
     super(config);
 
-    this.provider = createProvider({
-      type: 'google',
-      model: 'gemini-3-flash-preview',
-      apiKey: config.googleApiKey,
-      maxRetries: this.config.maxRetries,
-    });
+    this.provider = this.createConfiguredProvider(
+      Provider.Google, 'gemini-3-flash-preview', config.googleApiKey
+    );
   }
 
   /**
@@ -61,6 +56,7 @@ export class SmkEvaluator extends BaseEvaluator {
    * @param grade - The target grade level (3-12)
    * @returns Evaluation result with complexity score and detailed analysis
    * @throws {ValidationError} If text is empty, too short/long, or grade is invalid
+   * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
    */
   async evaluate(
@@ -92,7 +88,7 @@ export class SmkEvaluator extends BaseEvaluator {
 
       stageDetails.push({
         stage: 'smk_evaluation',
-        provider: 'google:gemini-3-flash-preview',
+        provider: this.provider.label,
         latency_ms: response.latencyMs,
         token_usage: {
           input_tokens: response.usage.inputTokens,
@@ -112,7 +108,7 @@ export class SmkEvaluator extends BaseEvaluator {
         score: response.data.complexity_score,
         reasoning: response.data.reasoning,
         metadata: {
-          model: 'google:gemini-3-flash-preview',
+          model: this.provider.label,
           processingTimeMs: latencyMs,
         },
         _internal: response.data,
@@ -124,7 +120,7 @@ export class SmkEvaluator extends BaseEvaluator {
         latencyMs,
         textLength: text.length,
         grade,
-        provider: 'google:gemini-3-flash-preview',
+        provider: this.provider.label,
         tokenUsage: totalTokenUsage,
         metadata: {
           stage_details: stageDetails,
@@ -165,7 +161,7 @@ export class SmkEvaluator extends BaseEvaluator {
         latencyMs,
         textLength: text.length,
         grade,
-        provider: 'google:gemini-3-flash-preview',
+        provider: this.provider.label,
         tokenUsage: totalTokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,

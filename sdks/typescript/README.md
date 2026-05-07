@@ -29,7 +29,7 @@ const evaluator = new VocabularyEvaluator({
 });
 
 const result = await evaluator.evaluate("Your text here", "5");
-console.log(result.score); // "moderately complex"
+console.log(result.score); // "Moderately complex"
 ```
 
 ---
@@ -38,7 +38,7 @@ console.log(result.score); // "moderately complex"
 
 ### 1. Vocabulary Evaluator
 
-Evaluates vocabulary complexity using the Qual Text Complexity rubric (SAP).
+Evaluates vocabulary complexity using the Qualitative Text Complexity rubric (SAP).
 
 **Supported Grades:** 3-12
 
@@ -47,12 +47,13 @@ Evaluates vocabulary complexity using the Qual Text Complexity rubric (SAP).
 **Constructor:**
 ```typescript
 const evaluator = new VocabularyEvaluator({
-  googleApiKey?: string;  // Google API key (required by this evaluator)
-  openaiApiKey?: string;  // OpenAI API key (required by this evaluator)
-  maxRetries?: number;    // Optional - Max retry attempts (default: 2)
-  telemetry?: boolean | TelemetryOptions; // Optional (default: true)
-  logger?: Logger;        // Optional - Custom logger
-  logLevel?: LogLevel;    // Optional - SILENT | ERROR | WARN | INFO | DEBUG (default: WARN)
+  googleApiKey: string;                   // Google API key
+  openaiApiKey: string;                   // OpenAI API key
+  modelOverride?: ModelOverride;          // Override the default provider and model
+  maxRetries?: number;                    // Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Telemetry settings (default: enabled)
+  logger?: Logger;                        // Custom logger
+  logLevel?: LogLevel;                    // Log verbosity (default: WARN)
 });
 ```
 
@@ -64,13 +65,13 @@ await evaluator.evaluate(text: string, grade: string)
 **Returns:**
 ```typescript
 {
-  score: 'slightly complex' | 'moderately complex' | 'very complex' | 'exceedingly complex';
+  score: 'Slightly complex' | 'Moderately complex' | 'Very complex' | 'Exceedingly complex';
   reasoning: string;
   metadata: {
     model: string;
     processingTimeMs: number;
   };
-  _internal: VocabularyComplexity; // Detailed analysis
+  _internal: VocabularyInternal; // Detailed analysis
 }
 ```
 
@@ -87,11 +88,12 @@ Evaluates sentence structure complexity based on grammatical features.
 **Constructor:**
 ```typescript
 const evaluator = new SentenceStructureEvaluator({
-  openaiApiKey?: string;  // OpenAI API key (required by this evaluator)
-  maxRetries?: number;    // Optional - Max retry attempts (default: 2)
-  telemetry?: boolean | TelemetryOptions; // Optional (default: true)
-  logger?: Logger;        // Optional - Custom logger
-  logLevel?: LogLevel;    // Optional - Logging verbosity (default: WARN)
+  openaiApiKey: string;                   // OpenAI API key
+  modelOverride?: ModelOverride;          // Override the default provider and model
+  maxRetries?: number;                    // Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Telemetry settings (default: enabled)
+  logger?: Logger;                        // Custom logger
+  logLevel?: LogLevel;                    // Log verbosity (default: WARN)
 });
 ```
 
@@ -103,7 +105,7 @@ await evaluator.evaluate(text: string, grade: string)
 **Returns:**
 ```typescript
 {
-  score: 'Slightly Complex' | 'Moderately Complex' | 'Very Complex' | 'Exceedingly Complex';
+  score: 'Slightly complex' | 'Moderately complex' | 'Very complex' | 'Exceedingly complex';
   reasoning: string;
   metadata: {
     model: string;
@@ -130,11 +132,12 @@ Evaluates the background knowledge demands of educational texts relative to grad
 **Constructor:**
 ```typescript
 const evaluator = new SmkEvaluator({
-  googleApiKey?: string;  // Google API key (required by this evaluator)
-  maxRetries?: number;    // Optional - Max retry attempts (default: 2)
-  telemetry?: boolean | TelemetryOptions; // Optional (default: true)
-  logger?: Logger;        // Optional - Custom logger
-  logLevel?: LogLevel;    // Optional - Logging verbosity (default: WARN)
+  googleApiKey: string;                   // Google API key
+  modelOverride?: ModelOverride;          // Override the default provider and model
+  maxRetries?: number;                    // Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Telemetry settings (default: enabled)
+  logger?: Logger;                        // Custom logger
+  logLevel?: LogLevel;                    // Log verbosity (default: WARN)
 });
 ```
 
@@ -193,11 +196,12 @@ Evaluates how explicit, literal, and straightforward a text's meaning is versus 
 **Constructor:**
 ```typescript
 const evaluator = new ConventionalityEvaluator({
-  googleApiKey?: string;  // Google API key (required by this evaluator)
-  maxRetries?: number;    // Optional - Max retry attempts (default: 2)
-  telemetry?: boolean | TelemetryOptions; // Optional (default: true)
-  logger?: Logger;        // Optional - Custom logger
-  logLevel?: LogLevel;    // Optional - Logging verbosity (default: WARN)
+  googleApiKey: string;                   // Google API key
+  modelOverride?: ModelOverride;          // Override the default provider and model
+  maxRetries?: number;                    // Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Telemetry settings (default: enabled)
+  logger?: Logger;                        // Custom logger
+  logLevel?: LogLevel;                    // Log verbosity (default: WARN)
 });
 ```
 
@@ -250,17 +254,18 @@ Composite evaluator that analyzes vocabulary, sentence structure, subject matter
 
 **Supported Grades:** 3-12
 
-**Uses:** Google Gemini 2.5 Pro + Google Gemini 3 Flash Preview + OpenAI GPT-4o (composite)
+**Uses:** Google Gemini 2.5 Pro + Google Gemini 3 Flash Preview + OpenAI GPT-4o + OpenAI GPT-4.1 (composite)
 
 **Constructor:**
 ```typescript
 const evaluator = new TextComplexityEvaluator({
-  googleApiKey?: string;  // Google API key (required by this evaluator)
-  openaiApiKey?: string;  // OpenAI API key (required by this evaluator)
-  maxRetries?: number;    // Optional - Max retry attempts (default: 2)
-  telemetry?: boolean | TelemetryOptions; // Optional (default: true)
-  logger?: Logger;        // Optional - Custom logger
-  logLevel?: LogLevel;    // Optional - Logging verbosity (default: WARN)
+  googleApiKey: string;                   // Google API key
+  openaiApiKey: string;                   // OpenAI API key
+  modelOverride?: ModelOverride;          // Override the default provider and model for all sub-evaluators
+  maxRetries?: number;                    // Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Telemetry settings (default: enabled)
+  logger?: Logger;                        // Custom logger
+  logLevel?: LogLevel;                    // Log verbosity (default: WARN)
 });
 ```
 
@@ -319,11 +324,12 @@ Determines appropriate grade level for text.
 **Constructor:**
 ```typescript
 const evaluator = new GradeLevelAppropriatenessEvaluator({
-  googleApiKey?: string;  // Google API key (required by this evaluator)
-  maxRetries?: number;    // Optional - Max retry attempts (default: 2)
-  telemetry?: boolean | TelemetryOptions; // Optional (default: true)
-  logger?: Logger;        // Optional - Custom logger
-  logLevel?: LogLevel;    // Optional - Logging verbosity (default: WARN)
+  googleApiKey: string;                   // Google API key
+  modelOverride?: ModelOverride;          // Override the default provider and model
+  maxRetries?: number;                    // Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Telemetry settings (default: enabled)
+  logger?: Logger;                        // Custom logger
+  logLevel?: LogLevel;                    // Log verbosity (default: WARN)
 });
 ```
 
@@ -363,11 +369,12 @@ Evaluates the Purpose dimension of qualitative text complexity — how explicitl
 **Constructor:**
 ```typescript
 const evaluator = new PurposeEvaluator({
-  googleApiKey?: string;  // Google API key (required by this evaluator)
-  maxRetries?: number;    // Optional - Max retry attempts (default: 2)
-  telemetry?: boolean | TelemetryOptions; // Optional (default: true)
-  logger?: Logger;        // Optional - Custom logger
-  logLevel?: LogLevel;    // Optional - Logging verbosity (default: WARN)
+  googleApiKey: string;                   // Google API key (required by this evaluator)
+  modelOverride?: ModelOverride;          // Override the default provider and model
+  maxRetries?: number;                    // Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Telemetry settings (default: enabled)
+  logger?: Logger;                        // Custom logger
+  logLevel?: LogLevel;                    // Log verbosity (default: WARN)
 });
 ```
 
@@ -477,6 +484,9 @@ try {
   } else if (error instanceof NetworkError) {
     // Network connectivity issues
     console.error('Network error:', error.message);
+  } else if (error instanceof TimeoutError) {
+    // Request timed out
+    console.error('Timeout:', error.message);
   } else if (error instanceof APIError) {
     // Other API errors
     console.error('API error:', error.message, 'Status:', error.statusCode);
@@ -521,6 +531,44 @@ const evaluator = new VocabularyEvaluator({
 
 ---
 
+## Model Override
+
+By default each evaluator uses a recommended provider and model tuned for that task. You can override this with any supported provider — OpenAI, Google, or Anthropic — using the `modelOverride` option.
+
+When `modelOverride` is set:
+- All LLM calls within the evaluator use the specified provider and model
+- Only the API key for the override provider is required (e.g. `anthropicApiKey` when using `Provider.Anthropic`); default provider keys are not validated
+- A warning is logged to indicate results may differ from the defaults
+- Telemetry records `model_override: true` so override usage is tracked separately
+
+**Validation:** The SDK validates `modelOverride` at construction time and throws `ConfigurationError` if:
+- `provider` is not one of the supported `Provider` values (`openai`, `google`, `anthropic`)
+- `model` is empty or blank — no default is assumed; you must always specify the model ID explicitly
+- The API key for the chosen provider is missing
+
+If the model ID is valid at construction but doesn't exist on the provider's API, `ConfigurationError` is thrown when `evaluate()` is called.
+
+```typescript
+import { VocabularyEvaluator, Provider } from '@learning-commons/evaluators';
+
+const evaluator = new VocabularyEvaluator({
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+  modelOverride: {
+    provider: Provider.Anthropic,
+    model: 'claude-sonnet-4-6',
+  },
+});
+
+const result = await evaluator.evaluate("Your text here", "5");
+console.log(result.metadata.model); // "anthropic:claude-sonnet-4-6"
+```
+
+See the [Installation](#installation) section for provider adapter setup if you haven't already.
+
+> **Note:** Evaluators are validated and quality-tested against their default models. Results with other models may vary. Check `result.metadata.model` to confirm which model was used.
+
+---
+
 ## Telemetry & Privacy
 
 See [docs/telemetry.md](./docs/telemetry.md) for telemetry configuration and privacy information.
@@ -533,13 +581,15 @@ All evaluators use the same `BaseEvaluatorConfig` interface:
 
 ```typescript
 interface BaseEvaluatorConfig {
-  googleApiKey?: string;  // Google API key (required by some evaluators)
-  openaiApiKey?: string;  // OpenAI API key (required by some evaluators)
-  maxRetries?: number;    // Max API retry attempts (default: 2)
-  telemetry?: boolean | TelemetryOptions; // Telemetry config (default: true)
-  logger?: Logger;        // Custom logger (optional)
-  logLevel?: LogLevel;    // Console log level (default: WARN)
-  partnerKey?: string;    // Learning Commons partner key for authenticated telemetry (optional)
+  googleApiKey?: string;                  // Google API key (required by some evaluators)
+  openaiApiKey?: string;                  // OpenAI API key (required by some evaluators)
+  anthropicApiKey?: string;               // Anthropic API key (required if an evaluator defaults to Claude or when `modelOverride` uses `Provider.Anthropic`)
+  modelOverride?: ModelOverride;          // Override the provider and model (see Model Override section)
+  maxRetries?: number;                    // Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Telemetry settings (default: enabled)
+  logger?: Logger;                        // Custom logger
+  logLevel?: LogLevel;                    // Log verbosity (default: WARN)
+  partnerKey?: string;                    // Learning Commons partner key for authenticated telemetry
 }
 ```
 
@@ -551,6 +601,8 @@ interface BaseEvaluatorConfig {
 - **Text Complexity**: Requires both `googleApiKey` and `openaiApiKey`
 - **Grade Level Appropriateness**: Requires `googleApiKey` only
 - **Purpose**: Requires `googleApiKey` only
+
+When `modelOverride` is set, the default key requirements are bypassed — only the key for the override provider is required (e.g. `anthropicApiKey` when using `Provider.Anthropic`).
 
 ---
 

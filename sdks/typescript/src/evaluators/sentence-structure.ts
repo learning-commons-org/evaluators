@@ -1,5 +1,4 @@
 import type { LLMProvider } from '../providers/index.js';
-import { createProvider } from '../providers/index.js';
 import {
   SentenceAnalysisSchema,
   ComplexityClassificationSchema,
@@ -16,7 +15,7 @@ import {
   getUserPromptComplexity,
 } from '../prompts/sentence-structure/index.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
-import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
+import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { ValidationError, wrapProviderError } from '../errors.js';
 
@@ -71,31 +70,17 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     name: 'Sentence Structure',
     description: 'Evaluates sentence structure complexity based on grammatical features',
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
-    requiresGoogleKey: false,
-    requiresOpenAIKey: true,
+    defaultProviders: [Provider.OpenAI] as const,
   };
 
-  private analysisProvider: LLMProvider;
-  private complexityProvider: LLMProvider;
+  private provider: LLMProvider;
 
   constructor(config: BaseEvaluatorConfig) {
     // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
 
-    // Create OpenAI GPT-4o provider for both stages
-    this.analysisProvider = createProvider({
-      type: 'openai',
-      model: 'gpt-4o',
-      apiKey: config.openaiApiKey,
-      maxRetries: this.config.maxRetries,
-    });
-
-    this.complexityProvider = createProvider({
-      type: 'openai',
-      model: 'gpt-4o',
-      apiKey: config.openaiApiKey,
-      maxRetries: this.config.maxRetries,
-    });
+    // Both stages use the same model — share a single provider instance
+    this.provider = this.createConfiguredProvider(Provider.OpenAI, 'gpt-4o', config.openaiApiKey);
   }
 
   /**
@@ -105,6 +90,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
    * @param grade - The target grade level (3-12)
    * @returns Evaluation result with complexity score and detailed analysis
    * @throws {ValidationError} If text is empty, too short/long, or grade is invalid
+   * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
    */
   async evaluate(
@@ -134,7 +120,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
 
       stageDetails.push({
         stage: 'sentence_analysis',
-        provider: 'openai:gpt-4o',
+        provider: this.provider.label,
         latency_ms: analysisResponse.latencyMs,
         token_usage: {
           input_tokens: analysisResponse.usage.inputTokens,
@@ -154,7 +140,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
 
       stageDetails.push({
         stage: 'complexity_classification',
-        provider: 'openai:gpt-4o',
+        provider: this.provider.label,
         latency_ms: complexityResponse.latencyMs,
         token_usage: {
           input_tokens: complexityResponse.usage.inputTokens,
@@ -174,7 +160,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         score: complexityResponse.data.answer,
         reasoning: complexityResponse.data.reasoning,
         metadata: {
-          model: 'openai:gpt-4o',
+          model: this.provider.label,
           processingTimeMs: latencyMs,
         },
         _internal: {
@@ -190,7 +176,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         latencyMs,
         textLength: text.length,
         grade,
-        provider: 'openai:gpt-4o',
+        provider: this.provider.label,
         tokenUsage: totalTokenUsage,
         metadata: {
           stage_details: stageDetails,
@@ -234,7 +220,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         latencyMs,
         textLength: text.length,
         grade,
-        provider: 'openai:gpt-4o',
+        provider: this.provider.label,
         tokenUsage: totalTokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,
@@ -274,7 +260,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
 
     const userPrompt = getUserPromptAnalysis(text, gtCountsStr);
 
-    const response = await this.analysisProvider.generateStructured({
+    const response = await this.provider.generateStructured({
       messages: [
         { role: 'system', content: getSystemPromptAnalysis() },
         { role: 'user', content: userPrompt },
@@ -305,7 +291,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
 
     const userPrompt = getUserPromptComplexity(featuresJSON, grade, excerpt);
 
-    const response = await this.complexityProvider.generateStructured({
+    const response = await this.provider.generateStructured({
       messages: [
         { role: 'system', content: getSystemPromptComplexity() },
         { role: 'user', content: userPrompt },

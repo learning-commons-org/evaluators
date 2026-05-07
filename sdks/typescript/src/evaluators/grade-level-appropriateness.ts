@@ -1,12 +1,11 @@
 import type { LLMProvider } from '../providers/index.js';
-import { createProvider } from '../providers/index.js';
 import {
   GradeLevelAppropriatenessSchema,
   type GradeLevelAppropriatenessInternal,
 } from '../schemas/grade-level-appropriateness.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/grade-level-appropriateness/index.js';
 import type { EvaluationResult, GradeBand } from '../schemas/index.js';
-import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
+import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import { ValidationError, wrapProviderError } from '../errors.js';
 
 /**
@@ -42,8 +41,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
     name: 'Grade Level Appropriateness',
     description: 'Determines appropriate grade level for text with scaffolding recommendations',
     supportedGrades: [] as const, // No grade parameter required - evaluates what grade the text is appropriate for
-    requiresGoogleKey: true,
-    requiresOpenAIKey: false,
+    defaultProviders: [Provider.Google] as const,
   };
 
   private provider: LLMProvider;
@@ -52,13 +50,9 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
     // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
 
-    // Create Google Gemini provider
-    this.provider = createProvider({
-      type: 'google',
-      model: 'gemini-2.5-pro',
-      apiKey: config.googleApiKey,
-      maxRetries: this.config.maxRetries,
-    });
+    this.provider = this.createConfiguredProvider(
+      Provider.Google, 'gemini-2.5-pro', config.googleApiKey
+    );
   }
 
   /**
@@ -67,6 +61,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
    * @param text - The text to evaluate
    * @returns Evaluation result with grade recommendations and scaffolding suggestions
    * @throws {ValidationError} If text is empty or too short/long
+   * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
    */
   async evaluate(text: string): Promise<EvaluationResult<GradeBand, GradeLevelAppropriatenessInternal>> {
@@ -107,7 +102,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
         score: response.data.grade,
         reasoning: response.data.reasoning,
         metadata: {
-          model: 'google:gemini-2.5-pro',
+          model: this.provider.label,
           processingTimeMs: latencyMs,
         },
         _internal: response.data,
@@ -118,7 +113,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
         status: 'success',
         latencyMs,
         textLength: text.length,
-        provider: 'google:gemini-2.5-pro',
+        provider: this.provider.label,
         tokenUsage,
         // No metadata.stage_details for single-stage evaluator
         inputText: text,
@@ -150,7 +145,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
         status: 'error',
         latencyMs,
         textLength: text.length,
-        provider: 'google:gemini-2.5-pro',
+        provider: this.provider.label,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         inputText: text,
       }).catch(() => {

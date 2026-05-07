@@ -3,13 +3,14 @@ import { ConventionalityEvaluator } from '../../../src/evaluators/conventionalit
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 // Mock providers
-const createMockProvider = (): LLMProvider => ({
+const createMockProvider = (config?: { type?: string; model?: string }): LLMProvider => ({
+  label: config?.type && config?.model ? `${config.type}:${config.model}` : 'mock:model',
   generateStructured: vi.fn(),
   generateText: vi.fn(),
 });
 
 vi.mock('../../../src/providers/index.js', () => ({
-  createProvider: vi.fn(() => createMockProvider()),
+  createProvider: vi.fn((config) => createMockProvider(config)),
 }));
 
 vi.mock('../../../src/telemetry/client.js', () => ({
@@ -30,8 +31,7 @@ describe('ConventionalityEvaluator - Metadata', () => {
   it('should have correct metadata', () => {
     expect(ConventionalityEvaluator.metadata.id).toBe('conventionality');
     expect(ConventionalityEvaluator.metadata.name).toBe('Conventionality');
-    expect(ConventionalityEvaluator.metadata.requiresGoogleKey).toBe(true);
-    expect(ConventionalityEvaluator.metadata.requiresOpenAIKey).toBe(false);
+    expect(ConventionalityEvaluator.metadata.defaultProviders).toEqual(['google']);
     expect(ConventionalityEvaluator.metadata.supportedGrades).toEqual([
       '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
     ]);

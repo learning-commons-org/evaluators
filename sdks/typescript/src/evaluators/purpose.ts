@@ -1,12 +1,11 @@
-import type { LLMProvider, ProviderConfig } from '../providers/index.js';
-import { createProvider, Providers } from '../providers/index.js';
+import type { LLMProvider } from '../providers/index.js';
 import { PurposeOutputSchema, type PurposeInternal } from '../schemas/purpose.js';
 import { runPreprocessingStep } from '../features/preprocessing.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/purpose/index.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
-import { BaseEvaluator, type BaseEvaluatorConfig } from './base.js';
+import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
-import { ConfigurationError, ValidationError, wrapProviderError } from '../errors.js';
+import { ValidationError, wrapProviderError } from '../errors.js';
 import CONFIG from '../../../../evals/prompts/purpose/config.json';
 import INPUT_SCHEMA from '../../../../evals/prompts/purpose/input_schema.json';
 
@@ -38,11 +37,9 @@ export class PurposeEvaluator extends BaseEvaluator {
     name: CONFIG.evaluator.name,
     description: CONFIG.evaluator.description,
     supportedGrades: SUPPORTED_GRADES,
-    requiresGoogleKey: CONFIG.steps.some(s => s.model.provider === Providers.google),
-    requiresOpenAIKey: CONFIG.steps.some(s => s.model.provider === Providers.openai),
+    defaultProviders: [Provider.Google] as const,
   };
 
-  private static readonly MODEL_ID = `${STEP.model.provider}:${STEP.model.name}`;
   private static readonly TEMPERATURE = STEP.generation.temperature;
 
   private static computeFkScore(text: string): number {
@@ -56,26 +53,21 @@ export class PurposeEvaluator extends BaseEvaluator {
   constructor(config: BaseEvaluatorConfig) {
     super(config);
 
-    const providerType = STEP.model.provider as ProviderConfig['type'];
-    let apiKey: string | undefined;
-    if (providerType === Providers.google) {
-      apiKey = config.googleApiKey;
-    } else if (providerType === Providers.openai) {
-      apiKey = config.openaiApiKey;
-    } else {
-      throw new ConfigurationError(
-        `Unsupported provider "${providerType}" in purpose config. Supported: ${Providers.google}, ${Providers.openai}.`,
-      );
-    }
-
-    this.provider = createProvider({
-      type: providerType,
-      model: STEP.model.name,
-      apiKey,
-      maxRetries: this.config.maxRetries,
-    });
+    this.provider = this.createConfiguredProvider(
+      Provider.Google, STEP.model.name, config.googleApiKey
+    );
   }
 
+  /**
+   * Evaluate purpose complexity for a given text and grade level
+   *
+   * @param text - The text to evaluate
+   * @param grade - The target grade level (3-12)
+   * @returns Evaluation result with complexity score and detailed analysis
+   * @throws {ValidationError} If text is empty, too short/long, or grade is invalid
+   * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
+   * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
+   */
   async evaluate(text: string, grade: string): Promise<EvaluationResult<PurposeComplexityLevel, PurposeInternal>> {
     this.logger.info('Starting Purpose evaluation', {
       evaluator: PurposeEvaluator.metadata.id,
@@ -107,7 +99,7 @@ export class PurposeEvaluator extends BaseEvaluator {
 
       stageDetails.push({
         stage: STEP.id,
-        provider: PurposeEvaluator.MODEL_ID,
+        provider: this.provider.label,
         latency_ms: response.latencyMs,
         token_usage: tokenUsage,
       });
@@ -116,7 +108,7 @@ export class PurposeEvaluator extends BaseEvaluator {
         score: COMPLEXITY_SCORE_DISPLAY[response.data.complexity_score],
         reasoning: response.data.reasoning,
         metadata: {
-          model: PurposeEvaluator.MODEL_ID,
+          model: this.provider.label,
           processingTimeMs: latencyMs,
         },
         _internal: response.data,
@@ -127,7 +119,7 @@ export class PurposeEvaluator extends BaseEvaluator {
         latencyMs,
         textLength: text.length,
         grade: String(gradeNum),
-        provider: PurposeEvaluator.MODEL_ID,
+        provider: this.provider.label,
         tokenUsage,
         metadata: { stage_details: stageDetails },
         inputText: text,
@@ -165,7 +157,7 @@ export class PurposeEvaluator extends BaseEvaluator {
         latencyMs,
         textLength: text.length,
         grade: String(grade),
-        provider: PurposeEvaluator.MODEL_ID,
+        provider: this.provider.label,
         tokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,

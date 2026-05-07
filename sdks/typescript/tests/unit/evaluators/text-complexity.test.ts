@@ -11,7 +11,8 @@ vi.mock('../../../src/telemetry/client.js', () => ({
 
 // Mock providers to avoid real API calls
 vi.mock('../../../src/providers/index.js', () => ({
-  createProvider: vi.fn(() => ({
+  createProvider: vi.fn((config) => ({
+    label: config?.type && config?.model ? `${config.type}:${config.model}` : 'mock:model',
     generateStructured: vi.fn().mockResolvedValue({
       data: {
         complexity_score: 'moderately complex',
@@ -34,8 +35,7 @@ describe('TextComplexityEvaluator', () => {
     it('should have correct metadata', () => {
       expect(TextComplexityEvaluator.metadata.id).toBe('text-complexity');
       expect(TextComplexityEvaluator.metadata.name).toBe('Text Complexity');
-      expect(TextComplexityEvaluator.metadata.requiresGoogleKey).toBe(true);
-      expect(TextComplexityEvaluator.metadata.requiresOpenAIKey).toBe(true);
+      expect(TextComplexityEvaluator.metadata.defaultProviders).toEqual(['google', 'openai']);
       expect(TextComplexityEvaluator.metadata.supportedGrades).toEqual([
         '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
       ]);
@@ -111,7 +111,7 @@ describe('TextComplexityEvaluator', () => {
         score: 'Moderately complex',
         reasoning: 'Vocabulary test reasoning',
         metadata: {
-          model: 'gemini-2.5-pro + gpt-4o',
+          model: 'gemini-2.5-pro+gpt-4o',
           processingTimeMs: 100,
         },
         _internal: {},

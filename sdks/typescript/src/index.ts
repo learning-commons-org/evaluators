@@ -82,7 +82,9 @@ export {
   PurposeEvaluator,
   evaluatePurpose,
   type PurposeComplexityLevel,
+  Provider,
   type BaseEvaluatorConfig,
+  type ModelOverride,
   type TelemetryOptions,
   type EvaluatorMetadata,
 } from './evaluators/index.js';
