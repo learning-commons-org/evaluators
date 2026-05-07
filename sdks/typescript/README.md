@@ -29,7 +29,7 @@ const evaluator = new VocabularyEvaluator({
 });
 
 const result = await evaluator.evaluate("Your text here", "5");
-console.log(result.score); // "moderately complex"
+console.log(result.score); // "Moderately complex"
 ```
 
 ---
@@ -65,7 +65,7 @@ await evaluator.evaluate(text: string, grade: string)
 **Returns:**
 ```typescript
 {
-  score: 'slightly complex' | 'moderately complex' | 'very complex' | 'exceedingly complex';
+  score: 'Slightly complex' | 'Moderately complex' | 'Very complex' | 'Exceedingly complex';
   reasoning: string;
   metadata: {
     model: string;
@@ -105,7 +105,7 @@ await evaluator.evaluate(text: string, grade: string)
 **Returns:**
 ```typescript
 {
-  score: 'Slightly Complex' | 'Moderately Complex' | 'Very Complex' | 'Exceedingly Complex';
+  score: 'Slightly complex' | 'Moderately complex' | 'Very complex' | 'Exceedingly complex';
   reasoning: string;
   metadata: {
     model: string;
@@ -369,11 +369,12 @@ Evaluates the Purpose dimension of qualitative text complexity — how explicitl
 **Constructor:**
 ```typescript
 const evaluator = new PurposeEvaluator({
-  googleApiKey?: string;  // Google API key (required by this evaluator)
-  maxRetries?: number;    // Optional - Max retry attempts (default: 2)
-  telemetry?: boolean | TelemetryOptions; // Optional (default: true)
-  logger?: Logger;        // Optional - Custom logger
-  logLevel?: LogLevel;    // Optional - Logging verbosity (default: WARN)
+  googleApiKey?: string;                  // Google API key (required by this evaluator)
+  modelOverride?: ModelOverride;          // Override the default provider and model
+  maxRetries?: number;                    // Max retry attempts (default: 2)
+  telemetry?: boolean | TelemetryOptions; // Telemetry settings (default: enabled)
+  logger?: Logger;                        // Custom logger
+  logLevel?: LogLevel;                    // Log verbosity (default: WARN)
 });
 ```
 

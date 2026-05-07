@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'node:crypto';
 import { PurposeEvaluator } from '../../../src/evaluators/purpose.js';
+import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import CONFIG from '../../../../../evals/prompts/purpose/config.json';
 import { getSystemPrompt, getUserPrompt } from '../../../src/prompts/purpose/index.js';
 
 const STEP = CONFIG.steps[0];
 
-const createMockProvider = (): LLMProvider => ({
+const createMockProvider = (config?: { type?: string; model?: string }): LLMProvider => ({
+  label: config?.type && config?.model ? `${config.type}:${config.model}` : 'mock:model',
   generateStructured: vi.fn(),
   generateText: vi.fn(),
 });
@@ -16,7 +18,7 @@ vi.mock('../../../src/providers/index.js', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...(actual as object),
-    createProvider: vi.fn(() => createMockProvider()),
+    createProvider: vi.fn((config) => createMockProvider(config)),
   };
 });
 
@@ -76,13 +78,12 @@ describe('PurposeEvaluator - Metadata', () => {
     expect(PurposeEvaluator.metadata.description).toBe(CONFIG.evaluator.description);
   });
 
-  it('requiresGoogleKey is true (config provider is google)', () => {
-    expect(PurposeEvaluator.metadata.requiresGoogleKey).toBe(STEP.model.provider === 'google');
-    expect(PurposeEvaluator.metadata.requiresGoogleKey).toBe(true);
+  it('defaultProviders includes Google', () => {
+    expect(PurposeEvaluator.metadata.defaultProviders).toContain(Provider.Google);
   });
 
-  it('requiresOpenAIKey is false', () => {
-    expect(PurposeEvaluator.metadata.requiresOpenAIKey).toBe(false);
+  it('defaultProviders does not include OpenAI', () => {
+    expect(PurposeEvaluator.metadata.defaultProviders).not.toContain(Provider.OpenAI);
   });
 
   it('supports integer grades 3–12', () => {
@@ -195,6 +196,37 @@ describe('PurposeEvaluator - LLM call contract', () => {
     expect(result._internal?.details.detailed_summary).toBeInstanceOf(Array);
     expect(result._internal?.details.adjustment_and_scaffolding).toBeInstanceOf(Array);
     expect(result._internal?.details.recommended_use_cases).toBeInstanceOf(Array);
+  });
+
+  it('reflects modelOverride in metadata.model', async () => {
+    const overrideEvaluator = new PurposeEvaluator({
+      anthropicApiKey: 'test-key',
+      modelOverride: { provider: Provider.Anthropic, model: 'claude-haiku-4-5-20251001' },
+      telemetry: false,
+    });
+    // @ts-expect-error accessing private for testing
+    const overrideProvider: LLMProvider = overrideEvaluator.provider;
+
+    vi.mocked(overrideProvider.generateStructured).mockResolvedValue({
+      data: {
+        complexity_score: 'slightly_complex' as const,
+        reasoning: 'Simple purpose.',
+        details: {
+          detailed_summary: [],
+          adjustment_and_scaffolding: [],
+          recommended_use_cases: [],
+        },
+      },
+      model: 'claude-haiku-4-5-20251001',
+      usage: { inputTokens: 100, outputTokens: 50 },
+      latencyMs: 300,
+    });
+
+    const result = await overrideEvaluator.evaluate(
+      'When going to the beach, find out which ones have lifeguards.', '3'
+    );
+
+    expect(result.metadata.model).toBe('anthropic:claude-haiku-4-5-20251001');
   });
 
   it('accepts string grade (consistent with all other evaluators)', async () => {
