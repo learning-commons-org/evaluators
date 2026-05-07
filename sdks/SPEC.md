@@ -20,9 +20,10 @@ Every evaluator accepts a config object at construction time.
 | `max_retries` | int | `2` | Max retry attempts on transient LLM failures. Total attempts = 1 + max_retries. Set to 0 to disable |
 | `telemetry.enabled` | bool | `true` | Whether to fire telemetry events |
 | `telemetry.record_inputs` | bool | `false` | Whether to include raw input text in telemetry. Off by default to avoid PII exposure |
-| `log_level` | enum | `WARN` | Minimum log level: `DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT` |
+| `logger` | object | none | Custom logger conforming to the SDK's `Logger` interface (`debug`/`info`/`warn`/`error`, each accepting `(message, context?)`). When provided, replaces the default console logger. |
+| `log_level` | enum | `WARN` | Minimum log level for the default console logger: `DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT`. Ignored when a custom `logger` is provided. |
 
-> **Language naming:** TypeScript uses camelCase (`googleApiKey`, `openaiApiKey`, `anthropicApiKey`, `modelOverride`, `partnerKey`, `maxRetries`, `logLevel`). Python uses snake_case. The `telemetry` field may be `true`/`false` as a shorthand for fully enabled/disabled.
+> **Language naming:** TypeScript uses camelCase (`googleApiKey`, `openaiApiKey`, `anthropicApiKey`, `modelOverride`, `partnerKey`, `maxRetries`, `logLevel`). Python uses snake_case. The `telemetry` field may be `true`/`false` as a shorthand for fully enabled/disabled, or an object for granular control.
 
 ### `model_override`
 
