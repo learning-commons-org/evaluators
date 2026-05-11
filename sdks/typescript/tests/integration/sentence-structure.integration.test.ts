@@ -21,6 +21,7 @@ import {
  */
 
 const SKIP_INTEGRATION = !process.env.RUN_INTEGRATION_TESTS &&
+                         !process.env.LITELLM_API_KEY &&
                          !process.env.OPENAI_API_KEY;
 
 const describeIntegration = SKIP_INTEGRATION ? describe.skip : describe;
@@ -78,9 +79,11 @@ describeIntegration.concurrent('Sentence Structure Evaluator - Comprehensive Tes
       return;
     }
 
-    evaluator = new SentenceStructureEvaluator({
-      openaiApiKey: process.env.OPENAI_API_KEY!,
-    });
+    evaluator = new SentenceStructureEvaluator(
+      process.env.LITELLM_API_KEY
+        ? { litellmApiKey: process.env.LITELLM_API_KEY, litellmBaseURL: process.env.LITELLM_BASE_URL }
+        : { openaiApiKey: process.env.OPENAI_API_KEY! }
+    );
 
     console.log('\n' + '='.repeat(80));
     console.log('SENTENCE STRUCTURE EVALUATOR - TEST SUITE (PARALLEL)');

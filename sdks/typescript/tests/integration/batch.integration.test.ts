@@ -19,7 +19,7 @@ import type { BatchInput } from '../../src/batch/index.js';
 // so CI/CD misconfiguration is caught immediately rather than silently skipping.
 const RUN_INTEGRATION = process.env.RUN_INTEGRATION_TESTS === 'true';
 
-if (RUN_INTEGRATION) {
+if (RUN_INTEGRATION && !process.env.LITELLM_API_KEY) {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is required when RUN_INTEGRATION_TESTS is set');
   if (!process.env.GOOGLE_API_KEY) throw new Error('GOOGLE_API_KEY is required when RUN_INTEGRATION_TESTS is set');
 }
@@ -34,9 +34,11 @@ describeIntegration('Batch Evaluator - Integration', () => {
   let evaluator: BatchEvaluator;
 
   beforeAll(() => {
+    const providerConfig = process.env.LITELLM_API_KEY
+      ? { litellmApiKey: process.env.LITELLM_API_KEY, litellmBaseURL: process.env.LITELLM_BASE_URL }
+      : { googleApiKey: process.env.GOOGLE_API_KEY!, openaiApiKey: process.env.OPENAI_API_KEY! };
     evaluator = new BatchEvaluator({
-      googleApiKey: process.env.GOOGLE_API_KEY!,
-      openaiApiKey: process.env.OPENAI_API_KEY!,
+      ...providerConfig,
       concurrency: 3,
       maxRetries: 2,
       telemetry: false,

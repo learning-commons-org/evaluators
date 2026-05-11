@@ -29,6 +29,7 @@ import {
  */
 
 const SKIP_INTEGRATION = !process.env.RUN_INTEGRATION_TESTS &&
+                         !process.env.LITELLM_API_KEY &&
                          !process.env.GOOGLE_API_KEY;
 
 const describeIntegration = SKIP_INTEGRATION ? describe.skip : describe;
@@ -141,9 +142,11 @@ describeIntegration.concurrent('Conventionality Evaluator - Comprehensive Test S
       return;
     }
 
-    evaluator = new ConventionalityEvaluator({
-      googleApiKey: process.env.GOOGLE_API_KEY!,
-    });
+    evaluator = new ConventionalityEvaluator(
+      process.env.LITELLM_API_KEY
+        ? { litellmApiKey: process.env.LITELLM_API_KEY, litellmBaseURL: process.env.LITELLM_BASE_URL }
+        : { googleApiKey: process.env.GOOGLE_API_KEY! }
+    );
 
     console.log('\n' + '='.repeat(80));
     console.log('CONVENTIONALITY EVALUATOR - TEST SUITE (PARALLEL)');
