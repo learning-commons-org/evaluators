@@ -34,6 +34,51 @@ console.log(result.score); // "moderately complex"
 
 ---
 
+## Using a LiteLLM Proxy
+
+If you have access to a [LiteLLM](https://docs.litellm.ai) proxy, you can use a single API key to route all evaluators through it — no separate Google or OpenAI keys needed. The proxy handles model routing internally.
+
+**Required adapter** (already listed in Installation above):
+
+```bash
+npm install @ai-sdk/openai
+```
+
+**Usage:**
+
+```typescript
+import {
+  VocabularyEvaluator,
+  SentenceStructureEvaluator,
+  SmkEvaluator,
+  ConventionalityEvaluator,
+  GradeLevelAppropriatenessEvaluator,
+} from '@learning-commons/evaluators';
+
+const config = {
+  litellmApiKey: process.env.LITELLM_API_KEY,
+  litellmBaseURL: process.env.LITELLM_BASE_URL, // e.g. 'https://llm.example.org'
+};
+
+const vocabulary    = new VocabularyEvaluator(config);
+const sentences     = new SentenceStructureEvaluator(config);
+const smk           = new SmkEvaluator(config);
+const conventionality = new ConventionalityEvaluator(config);
+const gradeLevel    = new GradeLevelAppropriatenessEvaluator(config);
+```
+
+When `litellmApiKey` is present it takes precedence over `googleApiKey` and `openaiApiKey` — you do not need to supply both.
+
+**Batch CLI with LiteLLM:**
+
+```bash
+LITELLM_API_KEY=your-key LITELLM_BASE_URL=https://llm.example.org npx evaluators-batch
+```
+
+The CLI prompts for API keys; setting them as environment variables skips those prompts.
+
+---
+
 ## Evaluators
 
 ### 1. Vocabulary Evaluator
@@ -457,23 +502,34 @@ All evaluators use the same `BaseEvaluatorConfig` interface:
 
 ```typescript
 interface BaseEvaluatorConfig {
-  googleApiKey?: string;  // Google API key (required by some evaluators)
-  openaiApiKey?: string;  // OpenAI API key (required by some evaluators)
-  maxRetries?: number;    // Max API retry attempts (default: 2)
+  // Direct provider keys (use one set or the other, not both)
+  googleApiKey?: string;   // Google API key (required by some evaluators when not using LiteLLM)
+  openaiApiKey?: string;   // OpenAI API key (required by some evaluators when not using LiteLLM)
+
+  // LiteLLM proxy — takes precedence over googleApiKey / openaiApiKey when set
+  litellmApiKey?: string;  // Single key for all models via a LiteLLM proxy
+  litellmBaseURL?: string; // Proxy base URL (e.g. 'https://llm.example.org')
+
+  maxRetries?: number;     // Max API retry attempts (default: 2)
   telemetry?: boolean | TelemetryOptions; // Telemetry config (default: true)
-  logger?: Logger;        // Custom logger (optional)
-  logLevel?: LogLevel;    // Console log level (default: WARN)
-  partnerKey?: string;    // Learning Commons partner key for authenticated telemetry (optional)
+  logger?: Logger;         // Custom logger (optional)
+  logLevel?: LogLevel;     // Console log level (default: WARN)
+  partnerKey?: string;     // Learning Commons partner key for authenticated telemetry (optional)
 }
 ```
 
-**Note:** Which API keys are required depends on the evaluator. The SDK validates required keys at runtime based on the evaluator's metadata:
-- **Vocabulary**: Requires both `googleApiKey` and `openaiApiKey`
-- **Sentence Structure**: Requires `openaiApiKey` only
-- **Subject Matter Knowledge**: Requires `googleApiKey` only
-- **Conventionality**: Requires `googleApiKey` only
-- **Text Complexity**: Requires both `googleApiKey` and `openaiApiKey`
-- **Grade Level Appropriateness**: Requires `googleApiKey` only
+**Note:** Which keys are required depends on the evaluator and the provider mode:
+
+| Evaluator | Direct provider keys | LiteLLM |
+|---|---|---|
+| Vocabulary | `googleApiKey` + `openaiApiKey` | `litellmApiKey` only |
+| Sentence Structure | `openaiApiKey` | `litellmApiKey` only |
+| Subject Matter Knowledge | `googleApiKey` | `litellmApiKey` only |
+| Conventionality | `googleApiKey` | `litellmApiKey` only |
+| Text Complexity | `googleApiKey` + `openaiApiKey` | `litellmApiKey` only |
+| Grade Level Appropriateness | `googleApiKey` | `litellmApiKey` only |
+
+`litellmApiKey` takes precedence — if it is present, `googleApiKey` and `openaiApiKey` are ignored.
 
 ---
 
