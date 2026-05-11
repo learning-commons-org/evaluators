@@ -126,7 +126,8 @@ export class VercelAIProvider implements LLMProvider {
             'LiteLLM provider requires a baseURL. Pass it in the provider config.'
           );
         }
-        return createOpenAI({ ...(apiKey ? { apiKey } : {}), baseURL })(modelId);
+        const litellmProvider = createOpenAI({ ...(apiKey ? { apiKey } : {}), baseURL });
+        return litellmProvider.chat(modelId);
       }
       default:
         throw new Error(`Unsupported provider type: ${this.config.type}`);

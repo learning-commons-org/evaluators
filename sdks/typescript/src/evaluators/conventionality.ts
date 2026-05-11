@@ -50,7 +50,7 @@ export class ConventionalityEvaluator extends BaseEvaluator {
     const liteLLMBase = config.litellmBaseURL ?? 'https://llm.labxchange-dev.org';
 
     this.provider = useLiteLLM
-      ? createProvider({ type: 'litellm', model: 'gemini-3-flash-preview', apiKey: config.litellmApiKey, baseURL: liteLLMBase, maxRetries: this.config.maxRetries })
+      ? createProvider({ type: 'litellm', model: 'gemini-3-flash', apiKey: config.litellmApiKey, baseURL: liteLLMBase, maxRetries: this.config.maxRetries })
       : createProvider({ type: 'google', model: 'gemini-3-flash-preview', apiKey: config.googleApiKey, maxRetries: this.config.maxRetries });
   }
 

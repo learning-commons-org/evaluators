@@ -80,6 +80,8 @@ export interface EvaluatorGroup {
 export interface BatchConfig {
   googleApiKey?: string;
   openaiApiKey?: string;
+  litellmApiKey?: string;
+  litellmBaseURL?: string;
   concurrency?: number;
   maxRetries?: number;
   telemetry?: boolean | TelemetryOptions;

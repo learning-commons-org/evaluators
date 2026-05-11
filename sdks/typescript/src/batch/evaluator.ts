@@ -111,6 +111,8 @@ export class BatchEvaluator {
       const evaluator = new EvaluatorClass({
         googleApiKey: this.config.googleApiKey,
         openaiApiKey: this.config.openaiApiKey,
+        litellmApiKey: this.config.litellmApiKey,
+        litellmBaseURL: this.config.litellmBaseURL,
         maxRetries: this.config.maxRetries,
         telemetry: this.config.telemetry,
       });

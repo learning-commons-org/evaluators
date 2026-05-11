@@ -68,11 +68,11 @@ export class VocabularyEvaluator extends BaseEvaluator {
       : createProvider({ type: 'google', model: 'gemini-2.5-pro', apiKey: config.googleApiKey, maxRetries: this.config.maxRetries });
 
     this.otherGradesComplexityProvider = useLiteLLM
-      ? createProvider({ type: 'litellm', model: 'gpt-4.1-2025-04-14', apiKey: config.litellmApiKey, baseURL: liteLLMBase, maxRetries: this.config.maxRetries })
+      ? createProvider({ type: 'litellm', model: 'gpt-4.1', apiKey: config.litellmApiKey, baseURL: liteLLMBase, maxRetries: this.config.maxRetries })
       : createProvider({ type: 'openai', model: 'gpt-4.1-2025-04-14', apiKey: config.openaiApiKey, maxRetries: this.config.maxRetries });
 
     this.backgroundKnowledgeProvider = useLiteLLM
-      ? createProvider({ type: 'litellm', model: 'gpt-4o-2024-11-20', apiKey: config.litellmApiKey, baseURL: liteLLMBase, maxRetries: this.config.maxRetries })
+      ? createProvider({ type: 'litellm', model: 'gpt-4o', apiKey: config.litellmApiKey, baseURL: liteLLMBase, maxRetries: this.config.maxRetries })
       : createProvider({ type: 'openai', model: 'gpt-4o-2024-11-20', apiKey: config.openaiApiKey, maxRetries: this.config.maxRetries });
   }
 
