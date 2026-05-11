@@ -110,6 +110,8 @@ export class PurposeEvaluator extends BaseEvaluator {
         metadata: {
           model: this.provider.label,
           processingTimeMs: latencyMs,
+          inputTokens: tokenUsage.input_tokens,
+          outputTokens: tokenUsage.output_tokens,
         },
         _internal: response.data,
       };

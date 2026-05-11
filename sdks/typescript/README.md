@@ -70,6 +70,8 @@ await evaluator.evaluate(text: string, grade: string)
   metadata: {
     model: string;
     processingTimeMs: number;
+    inputTokens: number;   // Total prompt tokens across all stages
+    outputTokens: number;  // Total completion tokens across all stages
   };
   _internal: VocabularyInternal; // Detailed analysis
 }
@@ -110,6 +112,8 @@ await evaluator.evaluate(text: string, grade: string)
   metadata: {
     model: string;
     processingTimeMs: number;
+    inputTokens: number;   // Total prompt tokens across all stages
+    outputTokens: number;  // Total completion tokens across all stages
   };
   _internal: {
     sentenceAnalysis: SentenceAnalysis;
@@ -154,6 +158,8 @@ await evaluator.evaluate(text: string, grade: string)
   metadata: {
     model: string;
     processingTimeMs: number;
+    inputTokens: number;   // Total prompt tokens across all stages
+    outputTokens: number;  // Total completion tokens across all stages
   };
   _internal: {
     identified_topics: string[];
@@ -218,6 +224,8 @@ await evaluator.evaluate(text: string, grade: string)
   metadata: {
     model: string;
     processingTimeMs: number;
+    inputTokens: number;   // Total prompt tokens across all stages
+    outputTokens: number;  // Total completion tokens across all stages
   };
   _internal: {
     conventionality_features: string[];
@@ -346,6 +354,8 @@ await evaluator.evaluate(text: string)
   metadata: {
     model: string;
     processingTimeMs: number;
+    inputTokens: number;   // Total prompt tokens across all stages
+    outputTokens: number;  // Total completion tokens across all stages
   };
   _internal: {
     grade: string;
@@ -391,6 +401,8 @@ await evaluator.evaluate(text: string, grade: string)
   metadata: {
     model: string;
     processingTimeMs: number;
+    inputTokens: number;   // Total prompt tokens across all stages
+    outputTokens: number;  // Total completion tokens across all stages
   };
   _internal: {
     complexity_score: 'slightly_complex' | 'moderately_complex' | 'very_complex' | 'exceedingly_complex' | 'more_context_needed';
