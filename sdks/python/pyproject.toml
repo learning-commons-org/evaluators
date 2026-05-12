@@ -76,8 +76,8 @@ testpaths = ["tests"]
 target-version = "py310"
 line-length = 100
 extend-exclude = [
-    "src/learning_commons_evaluators/settings/_generated_conventionality_settings.py",
-    "src/learning_commons_evaluators/settings/_generated_vocabulary_settings.py",
+    # Codegen output from ``make generate-settings`` — not hand-edited.
+    "src/learning_commons_evaluators/settings/_generated_*_settings.py",
 ]
 
 [tool.ruff.lint]
@@ -112,18 +112,6 @@ module = "learning_commons_evaluators.settings.load_settings"
 disable_error_code = ["import-untyped"]
 
 [[tool.mypy.overrides]]
-module = "contract_tests.loader"
-disable_error_code = ["import-untyped"]
-
-[[tool.mypy.overrides]]
 module = "learning_commons_evaluators.providers.langchain"
 # LangChain stubs lag the runtime API (e.g. ChatAnthropic kwargs).
 disable_error_code = ["call-arg", "arg-type"]
-
-[[tool.mypy.overrides]]
-module = "learning_commons_evaluators.evaluators.conventionality"
-disable_error_code = ["import-untyped", "call-arg"]
-
-[[tool.mypy.overrides]]
-module = "learning_commons_evaluators.evaluators.vocabulary"
-disable_error_code = ["import-untyped", "call-arg"]

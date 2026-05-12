@@ -79,4 +79,6 @@ class TestEvaluatorConfigFactory:
         """EvaluatorConfig is a frozen dataclass; mutation must raise."""
         config = create_config_no_telemetry()
         with pytest.raises(FrozenInstanceError):
-            config.telemetry = TelemetryConfig(telemetry_partner_id="x", send_full_input_with_telemetry=False)
+            config.telemetry = TelemetryConfig(
+                telemetry_partner_id="x", send_full_input_with_telemetry=False
+            )

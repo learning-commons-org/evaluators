@@ -2,6 +2,7 @@
 
 import re
 
+
 # TODO: rename name and message, and remove Evaluator prefix where appropriate
 class EvaluatorError(Exception):
     """Base error class for all evaluator errors."""
@@ -84,6 +85,7 @@ class EvaluatorTimeoutError(APIError, EvaluatorRetryableError):
     def __init__(self, message: str = "Request timed out"):
         super().__init__(message, 408, True, "TIMEOUT_ERROR")
         self.name = "EvaluatorTimeoutError"
+
 
 # TODO: OpenAI & Anthropic may return a status_code in the response.
 def _parse_provider_error(error: BaseException) -> tuple[str, int | None, str | None]:

@@ -40,8 +40,8 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 # Maps the ``type`` discriminator string to the concrete InputSpec class.
-# Used by the TOML parser to instantiate the right subclass and to build
-# the AnyInputSpec discriminated union below.
+# Used when building :class:`~learning_commons_evaluators.schemas.metadata.EvaluatorMetadata`
+# from TOML (via Pydantic's discriminated union on ``AnyInputSpec``).
 INPUT_SPEC_REGISTRY: dict[str, type["InputSpec"]] = {}
 
 
