@@ -126,6 +126,7 @@ class TestEvaluationMetadata:
         assert evaluation_metadata.step_details == {}
         assert evaluation_metadata.total_token_usage == {}
         assert evaluation_metadata.error_details is None
+        assert evaluation_metadata.input_metadata == {}
 
     def test_status_can_be_mutated(self, evaluation_metadata):
         evaluation_metadata.status = Status.succeeded

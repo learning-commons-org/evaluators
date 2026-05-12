@@ -56,6 +56,7 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
 
     def __init__(self, config: EvaluatorConfig) -> None:
         self.config = config
+        # TODO: validate config
 
     def evaluate(
         self,
@@ -94,9 +95,7 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         evaluation_metadata = EvaluationMetadata(
             evaluator_metadata=self.metadata,
             evaluation_settings=evaluation_settings,
-            input_metadata=input.input_values()
-            if self.config.send_full_input_with_telemetry
-            else input.input_metadata(),
+            input_metadata=input.input_metadata()
         )
         self.config.logger.info(
             "evaluation start",
@@ -118,6 +117,7 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
                 "evaluation end",
                 extra={"evaluation_metadata": evaluation_metadata},
             )
+            # TODO: add full input to telemetry if enabled
             # TODO: send_telemetry(evaluation_metadata)
 
     @abstractmethod
