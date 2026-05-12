@@ -32,10 +32,10 @@ source .venv/bin/activate  # macOS/Linux
 # Install in editable mode with dev dependencies
 pip install -e ".[dev]"
 
-# Static checks + unit tests (same gate as CI for the Python SDK)
+# Static checks + full test suite (unit + contract; same gate as CI for the Python SDK)
 make verify
 
-# Run the full test suite (unit + contract)
+# Tests only (same pytest invocation as the verify step)
 make test
 ```
 
