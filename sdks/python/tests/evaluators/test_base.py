@@ -357,7 +357,6 @@ class TestExecutePromptChainStep:
                 evaluation_metadata=evaluation_metadata,
                 template=template,
                 chain_inputs={"input": "Hello"},
-                parser_output_type=None,
             )
         assert out == "plain prose"
 

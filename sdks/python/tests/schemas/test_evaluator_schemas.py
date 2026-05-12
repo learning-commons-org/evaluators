@@ -29,7 +29,7 @@ from learning_commons_evaluators.schemas.metadata import (
     Status,
 )
 
-# A realistic sample long enough to satisfy the min_text_length=100 constraint.
+# Long sample text (well above ``min_text_length`` from conventionality settings TOML).
 _SAMPLE_TEXT = (
     "Marco Polo was a Venetian merchant and explorer who traveled through Asia "
     "in the late 13th century. He spent nearly two decades at the court of "
@@ -78,14 +78,14 @@ class TestEvaluationInput:
             inp.validate()
 
     def test_validate_raises_on_invalid_text_length(self):
-        # min_text_length=100 comes from the TOML settings; "x" is 1 char.
+        # "x" is shorter than ``min_text_length`` from the conventionality settings TOML.
         inp = ConventionalityEvaluationInput(text="x", grade=5)
         with pytest.raises(ValidationError):
             inp.validate()
 
     def test_validate_collects_all_errors_before_raising(self):
         """All field errors are collected; a single ValidationError is raised at the end."""
-        # "x" is below the 100-char minimum; grade 99 is outside the 0-12 range.
+        # "x" is below the configured minimum text length; grade 99 is outside the 0-12 range.
         inp = ConventionalityEvaluationInput(text="x", grade=99)
         with pytest.raises(ValidationError) as exc_info:
             inp.validate()

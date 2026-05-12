@@ -27,22 +27,24 @@ def evaluator_metadata():
 
 
 @pytest.fixture
-def evaluation_metadata(evaluator_metadata):
-    """EvaluationMetadata with sensible defaults for unit tests."""
-    return EvaluationMetadata(
-        evaluator_metadata=evaluator_metadata,
-        evaluation_settings=ConventionalityEvaluationSettings(),
-        input_metadata={},
-    )
-
-
-@pytest.fixture
 def prompt_settings_google():
     """PromptSettings configured for Google, usable in multiple test modules."""
     return PromptSettings(
         provider_type=LlmProvider.GOOGLE,
         model="gemini-2.0-flash",
         temperature=0.0,
+    )
+
+
+@pytest.fixture
+def evaluation_metadata(evaluator_metadata, prompt_settings_google):
+    """EvaluationMetadata with sensible defaults for unit tests."""
+    return EvaluationMetadata(
+        evaluator_metadata=evaluator_metadata,
+        evaluation_settings=ConventionalityEvaluationSettings(
+            prompt_settings_step_conventionality_evaluation=prompt_settings_google,
+        ),
+        input_metadata={},
     )
 
 

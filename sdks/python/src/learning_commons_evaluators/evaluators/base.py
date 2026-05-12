@@ -198,10 +198,10 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         """Run a prompt chain (template | LLM), record metadata, and return the result.
 
         When ``parser_output_type`` is a Pydantic model class, the LLM response is
-        parsed as JSON and returned as an instance of that class.  When
-        ``parser_output_type`` is ``None``, the raw response content is returned as
-        a plain ``str`` — use this for steps that produce unstructured prose (e.g. a
-        background-knowledge assumption).
+        parsed as JSON and returned as an instance of that class.  When it is
+        ``None`` (the default), the raw response content is returned as a plain
+        ``str`` (no JSON parser) — use that for steps that produce unstructured prose
+        (e.g. a background-knowledge assumption).
 
         Provider config (e.g. API key) is resolved from ``self.config`` by
         ``prompt_settings.provider_type``.
@@ -217,8 +217,8 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
                 to return the raw text response.
 
         Returns:
-            Parsed instance of ``parser_output_type`` when a type is given; plain
-            ``str`` when ``None``.
+            Parsed instance of ``parser_output_type`` when it is a model class; plain
+            ``str`` when ``parser_output_type`` is omitted or ``None``.
 
         Raises:
             ConfigurationError: No provider config for prompt_settings.provider_type.

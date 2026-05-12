@@ -21,10 +21,7 @@ _EVALUATOR_METADATA = EvaluatorMetadata(
     maturity=EvaluatorMaturity.beta,
     inputs={
         'text': TextInputSpec(name='text', min_text_length=10, max_text_length=10000),
-        'grade': GradeInputSpec(
-            name='grade',
-            allowed_grades=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-        ),
+        'grade': GradeInputSpec(name='grade', allowed_grades=[3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
     },
 )
 
@@ -88,7 +85,7 @@ FK Score: {fk_score}
 # ── Evaluation settings ───────────────────────────────────────────────────────
 
 _EVALUATION_SETTINGS = ConventionalityEvaluationSettings(
-    prompt_settings_step_main=PromptSettings(
+    prompt_settings_step_conventionality_evaluation=PromptSettings(
         provider_type=LlmProvider.GOOGLE,
         model='gemini-3-flash-preview',
         temperature=0.0,
