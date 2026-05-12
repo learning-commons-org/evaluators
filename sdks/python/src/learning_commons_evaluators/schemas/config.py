@@ -32,10 +32,6 @@ class PromptProviderConfig:
 
     api_key: str
     type: LlmProvider
-    # TODO: verify base_url functionality before enabling
-    # base_url: str | None = (
-    #     None  # Optional; for OpenAI-compatible endpoints (e.g. Azure, proxy). Used only when type is OPENAI.
-    # )
 
 
 @dataclass(frozen=True)
@@ -47,9 +43,13 @@ class GooglePromptProviderConfig(PromptProviderConfig):
 
 @dataclass(frozen=True)
 class OpenAIPromptProviderConfig(PromptProviderConfig):
-    """OpenAI prompt provider config. Takes an API key. Optional base_url for custom endpoints."""
+    """OpenAI prompt provider config. Takes an API key."""
 
     type: LlmProvider = LlmProvider.OPENAI
+    # TODO: verify base_url functionality before enabling
+    # base_url: str | None = (
+    #     None  # Optional; for OpenAI-compatible endpoints (e.g. Azure, proxy). Used only when type is OPENAI.
+    # )
 
 
 @dataclass(frozen=True)

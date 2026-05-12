@@ -211,7 +211,7 @@ from learning_commons_evaluators import (
 )
 
 google_config = GooglePromptProviderConfig(api_key="...")
-openai_config = OpenAIPromptProviderConfig(api_key="...", base_url=None)  # base_url for Azure/proxies
+openai_config = OpenAIPromptProviderConfig(api_key="...")
 anthropic_config = AnthropicPromptProviderConfig(api_key="...")
 ```
 

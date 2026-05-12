@@ -44,14 +44,6 @@ class TestPromptProviderConfigs:
         assert cfg.type == expected_type
         assert cfg.api_key == "test-key"
 
-    def test_openai_config_accepts_base_url(self):
-        cfg = OpenAIPromptProviderConfig(api_key="key", base_url="https://custom.example.com")
-        assert cfg.base_url == "https://custom.example.com"
-
-    def test_provider_config_base_url_defaults_to_none(self):
-        cfg = OpenAIPromptProviderConfig(api_key="key")
-        assert cfg.base_url is None
-
 
 class TestEvaluatorConfigFactory:
     def test_create_config_no_telemetry_defaults(self):
