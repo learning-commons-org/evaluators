@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any, Generic, TypeVar, cast
+from typing import Any, Generic, TypeVar, overload
 
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
@@ -41,7 +41,8 @@ from learning_commons_evaluators.schemas.metadata import (
 InputT = TypeVar("InputT", bound=EvaluationInput)
 OutputT = TypeVar("OutputT", bound=EvaluationResult)
 SettingsT = TypeVar("SettingsT", bound=EvaluationSettings)
-ResultT = TypeVar("ResultT", bound=BaseModel)
+StepResultT = TypeVar("StepResultT")
+ParsedT = TypeVar("ParsedT", bound=BaseModel)
 
 
 class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
@@ -134,14 +135,17 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         self,
         step_name: str,
         evaluation_metadata: EvaluationMetadata,
-        implementation_function: Callable[[], ResultT],
+        implementation_function: Callable[[], StepResultT],
         *,
         extras: dict[str, Any] | None = None,
-    ) -> ResultT:
+    ) -> StepResultT:
         """Run ``implementation_function`` and record step metadata on ``evaluation_metadata``.
 
         ``step_name`` is always the step id. Optional ``extras`` is copied into
         :attr:`StepMetadata.extras` (merged with any updates made during the step, e.g. token usage).
+
+        The step may return any type (e.g. a Pydantic model, a plain ``str``, or ``None``); the same
+        type is returned to the caller.
         """
         start = time.perf_counter()
         step_extras = dict(extras) if extras is not None else {}
@@ -160,6 +164,7 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
             self.config.logger.info("step end", extra={"step_metadata": step_metadata})
             evaluation_metadata.step_details[step_name] = step_metadata
 
+    @overload
     def execute_prompt_chain_step(
         self,
         step_name: str,
@@ -167,8 +172,29 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         evaluation_metadata: EvaluationMetadata,
         template: Any,
         chain_inputs: dict[str, Any],
-        parser_output_type: type[ResultT] | None = None,
-    ) -> ResultT | str:
+        parser_output_type: None = None,
+    ) -> str: ...
+
+    @overload
+    def execute_prompt_chain_step(
+        self,
+        step_name: str,
+        prompt_settings: PromptSettings,
+        evaluation_metadata: EvaluationMetadata,
+        template: Any,
+        chain_inputs: dict[str, Any],
+        parser_output_type: type[ParsedT],
+    ) -> ParsedT: ...
+
+    def execute_prompt_chain_step(
+        self,
+        step_name: str,
+        prompt_settings: PromptSettings,
+        evaluation_metadata: EvaluationMetadata,
+        template: Any,
+        chain_inputs: dict[str, Any],
+        parser_output_type: type[BaseModel] | None = None,
+    ) -> BaseModel | str:
         """Run a prompt chain (template | LLM), record metadata, and return the result.
 
         When ``parser_output_type`` is a Pydantic model class, the LLM response is
@@ -201,7 +227,7 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         # Populated after a successful LLM invoke so we can attach usage even if parsing fails.
         token_usage: TokenUsage | None = None
 
-        def _run_chain() -> ResultT | str:
+        def _run_chain() -> BaseModel | str:
             nonlocal token_usage
             try:
                 provider = create_provider(prompt_settings, self.config)
@@ -227,18 +253,15 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
                 raise wrap_provider_error(e) from e
 
         try:
-            return cast(
-                ResultT | str,
-                self.execute_step(
-                    step_name,
-                    evaluation_metadata,
-                    extras={
-                        PROMPT_STEP_EXTRA_PROMPT_SETTINGS: prompt_settings_to_extras_value(
-                            prompt_settings
-                        ),
-                    },
-                    implementation_function=cast(Callable[[], ResultT], _run_chain),
-                ),
+            return self.execute_step(
+                step_name,
+                evaluation_metadata,
+                extras={
+                    PROMPT_STEP_EXTRA_PROMPT_SETTINGS: prompt_settings_to_extras_value(
+                        prompt_settings
+                    ),
+                },
+                implementation_function=_run_chain,
             )
         finally:
             if token_usage is not None:
