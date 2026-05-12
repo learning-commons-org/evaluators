@@ -1,26 +1,35 @@
-"""Tests for BaseEvaluator.
+"""Tests for :class:`~learning_commons_evaluators.evaluators.base.BaseEvaluator`.
 
-Covers: config wiring, evaluate() telemetry branching, error handling,
-update_total_token_usage, execute_step, and execute_prompt_chain_step.
+Covers ``evaluate`` wiring (``EvaluationMetadata`` always uses ``input.input_metadata()``,
+including when ``send_full_input_with_telemetry`` is enabled), ``execute_step``,
+``execute_prompt_chain_step``, token usage, and error handling via both a minimal stub
+evaluator and conventionality-oriented helpers.
 """
+
+from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from learning_commons_evaluators import (
+    BaseEvaluator,
     ConventionalityEvaluationInput,
     ConventionalityEvaluator,
+    EvaluationExplanation,
+    TextComplexityEvaluationInput,
     create_config,
     create_config_no_telemetry,
 )
 from learning_commons_evaluators.errors import ConfigurationError
-from learning_commons_evaluators.schemas.config import LlmProvider, PromptSettings
+from learning_commons_evaluators.schemas.common_inputs import GradeInputField, TextInputField
+from learning_commons_evaluators.schemas.config import EvaluationSettings, LlmProvider, PromptSettings
 from learning_commons_evaluators.schemas.conventionality import (
     ConventionalityEvaluationSettings,
     ConventionalityOutput,
 )
 from learning_commons_evaluators.schemas.errors import APIError, ValidationError
+from learning_commons_evaluators.schemas.input_specs import GradeInputSpec, TextInputSpec
 from learning_commons_evaluators.schemas.metadata import (
     PROMPT_STEP_EXTRA_PROMPT_SETTINGS,
     PROMPT_STEP_EXTRA_TOKEN_USAGE,
@@ -30,14 +39,64 @@ from learning_commons_evaluators.schemas.metadata import (
     Status,
     TokenUsage,
 )
+from learning_commons_evaluators.schemas.text_complexity import (
+    TextComplexityAnswer,
+    TextComplexityResult,
+)
 
 # ---------------------------------------------------------------------------
-# Shared test helpers
+# Stub evaluator (incoming branch) — input_metadata shape on evaluate()
+# ---------------------------------------------------------------------------
+
+
+class _StubSettings(EvaluationSettings):
+    """Minimal settings model for stub evaluator."""
+
+
+def _stub_input() -> TextComplexityEvaluationInput:
+    return TextComplexityEvaluationInput(
+        text=TextInputField(spec=TextInputSpec(name="text"), value="hello world"),
+        grade_level=GradeInputField(spec=GradeInputSpec(name="grade_level"), value=3),
+    )
+
+
+class _StubEvaluator(
+    BaseEvaluator[TextComplexityEvaluationInput, TextComplexityResult, _StubSettings]
+):
+    metadata = EvaluatorMetadata(
+        id="stub-evaluator",
+        version="0",
+        name="Stub",
+        description="Unit test stub.",
+        maturity=EvaluatorMaturity.beta,
+    )
+    default_evaluation_settings = _StubSettings()
+
+    def evaluate_impl(
+        self,
+        input: TextComplexityEvaluationInput,
+        evaluation_settings: _StubSettings,
+        evaluation_metadata,
+    ) -> TextComplexityResult:
+        return TextComplexityResult(
+            answer=TextComplexityAnswer.SLIGHTLY_COMPLEX,
+            explanation=EvaluationExplanation(summary="stub", details={}),
+            metadata=evaluation_metadata,
+        )
+
+
+@pytest.fixture
+def stub_evaluator(config):
+    return _StubEvaluator(config)
+
+
+# ---------------------------------------------------------------------------
+# Conventionality-oriented helpers (HEAD branch)
 # ---------------------------------------------------------------------------
 
 
 def _evaluator(*, send_full_input=False):
-    """Return a ConventionalityEvaluator; use send_full_input=True to enable full-input telemetry."""
+    """Return a ConventionalityEvaluator; use send_full_input=True for full-input telemetry."""
     if send_full_input:
         config = create_config(telemetry_id="test", send_full_input_with_telemetry=True)
     else:
@@ -60,7 +119,7 @@ def _meta():
     )
 
 
-# A realistic sample long enough to satisfy the min_text_length=100 constraint.
+# Long sample text (well above configured ``min_text_length`` in settings TOML).
 _SAMPLE_TEXT = (
     "Marco Polo was a Venetian merchant and explorer who traveled through Asia "
     "in the late 13th century. He spent nearly two decades at the court of "
@@ -92,6 +151,30 @@ _CHAIN_PATCH = "learning_commons_evaluators.evaluators.base.create_provider"
 
 
 # ---------------------------------------------------------------------------
+# evaluate() — input_metadata (stub)
+# ---------------------------------------------------------------------------
+
+
+class TestEvaluateInputMetadata:
+    def test_evaluate_sets_metadata_from_input_metadata(self, stub_evaluator):
+        inp = _stub_input()
+        result = stub_evaluator.evaluate(inp)
+        assert result.metadata.input_metadata == inp.input_metadata()
+        assert result.metadata.input_metadata["text"] == {"textLength": "11"}
+        assert result.metadata.input_metadata["grade_level"] == {"grade": 3}
+
+    def test_full_telemetry_config_still_uses_input_metadata_not_raw_values(self, stub_evaluator):
+        """``send_full_input_with_telemetry`` does not replace ``input_metadata`` with raw values."""
+        cfg = create_config(telemetry_id="test", send_full_input_with_telemetry=True)
+        ev = _StubEvaluator(cfg)
+        inp = _stub_input()
+        result = ev.evaluate(inp)
+        assert result.metadata.input_metadata == inp.input_metadata()
+        assert result.metadata.input_metadata["text"] == {"textLength": "11"}
+        assert result.metadata.input_metadata["grade_level"] == {"grade": 3}
+
+
+# ---------------------------------------------------------------------------
 # BaseEvaluator.__init__
 # ---------------------------------------------------------------------------
 
@@ -103,7 +186,7 @@ class TestBaseEvaluatorInit:
 
 
 # ---------------------------------------------------------------------------
-# evaluate() — telemetry branching
+# evaluate() — telemetry (conventionality)
 # ---------------------------------------------------------------------------
 
 
@@ -113,17 +196,15 @@ class TestEvaluateTelemetryBranching:
         evaluator = _evaluator()
         with patch.object(evaluator, "execute_prompt_chain_step", return_value=_MOCK_OUTPUT):
             result = evaluator.evaluate(_inp())
-        # input_metadata() returns shape metadata, not the raw text value.
         assert result.metadata.input_metadata["text"] == {"textLength": str(len(_SAMPLE_TEXT))}
 
-    def test_uses_input_values_when_full_telemetry_enabled(self):
-        """When send_full_input_with_telemetry=True, input.input_values() is used."""
+    def test_full_telemetry_still_records_input_metadata_not_raw_values(self):
+        """``send_full_input_with_telemetry`` does not put raw field values on metadata."""
         evaluator = _evaluator(send_full_input=True)
         with patch.object(evaluator, "execute_prompt_chain_step", return_value=_MOCK_OUTPUT):
             result = evaluator.evaluate(_inp())
-        # input_values() returns the raw text string, not {"textLength": ...}.
-        assert result.metadata.input_metadata["text"] == _SAMPLE_TEXT
-        assert result.metadata.input_metadata["grade"] == 5
+        assert result.metadata.input_metadata["text"] == {"textLength": str(len(_SAMPLE_TEXT))}
+        assert result.metadata.input_metadata["grade"] == {"grade": 5}
 
 
 # ---------------------------------------------------------------------------
@@ -131,9 +212,8 @@ class TestEvaluateTelemetryBranching:
 # ---------------------------------------------------------------------------
 
 
-class TestEvaluateErrorHandling:
+class TestConventionalityEvaluateErrorHandling:
     def test_raises_validation_error_for_invalid_input(self):
-        # "x" is below the configured minimum text length in the TOML settings.
         evaluator = _evaluator()
         invalid = ConventionalityEvaluationInput(text="x", grade=5)
         with pytest.raises(ValidationError):
@@ -146,6 +226,26 @@ class TestEvaluateErrorHandling:
             pytest.raises(RuntimeError, match="boom"),
         ):
             evaluator.evaluate(_inp())
+
+
+class TestStubEvaluateErrorHandling:
+    def test_raises_validation_error_for_invalid_input(self, stub_evaluator):
+        inp = TextComplexityEvaluationInput(
+            text=TextInputField(
+                spec=TextInputSpec(name="text", min_text_length=100),
+                value="short",
+            ),
+            grade_level=GradeInputField(spec=GradeInputSpec(name="grade_level"), value=3),
+        )
+        with pytest.raises(ValidationError):
+            stub_evaluator.evaluate(inp)
+
+    def test_propagates_evaluate_impl_exception(self, stub_evaluator):
+        with (
+            patch.object(stub_evaluator, "evaluate_impl", side_effect=RuntimeError("boom")),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            stub_evaluator.evaluate(_stub_input())
 
 
 # ---------------------------------------------------------------------------
@@ -232,6 +332,28 @@ class TestExecutePromptChainStep:
     The fake LLM returns a real AIMessage so JsonOutputParser and
     token_usage_from_aimessage exercise the real code paths.
     """
+
+    def test_returns_raw_string_when_parser_output_type_omitted(self, evaluation_metadata):
+        from langchain_core.messages import AIMessage
+        from langchain_core.prompts import ChatPromptTemplate
+
+        def _fake_llm(_pv):
+            return AIMessage(content="plain prose")
+
+        template = ChatPromptTemplate.from_messages([("human", "{input}")])
+        with patch(_CHAIN_PATCH, return_value=_fake_llm):
+            out = _evaluator().execute_prompt_chain_step(
+                step_name="raw",
+                prompt_settings=PromptSettings(
+                    provider_type=LlmProvider.GOOGLE,
+                    model="gemini-2.0-flash",
+                    temperature=0.0,
+                ),
+                evaluation_metadata=evaluation_metadata,
+                template=template,
+                chain_inputs={"input": "Hello"},
+            )
+        assert out == "plain prose"
 
     def test_returns_parsed_pydantic_output(self, evaluation_metadata):
         from langchain_core.messages import AIMessage
