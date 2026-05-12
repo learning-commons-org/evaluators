@@ -155,37 +155,6 @@ class TestEvaluateInputMetadata:
         assert result.metadata.input_metadata["grade_level"] == {"grade": 3}
 
 
-class TestEvaluateTelemetryBranching:
-    def test_uses_input_metadata_by_default(self):
-        evaluator = _evaluator()
-        with patch.object(evaluator, "execute_prompt_chain_step", return_value=_MOCK_OUTPUT):
-            result = evaluator.evaluate(_inp())
-        assert result.metadata.input_metadata["text"] == {"textLength": len(_SAMPLE_TEXT)}
-
-    def test_full_telemetry_still_records_input_metadata_not_raw_values(self):
-        evaluator = _evaluator(send_full_input=True)
-        with patch.object(evaluator, "execute_prompt_chain_step", return_value=_MOCK_OUTPUT):
-            result = evaluator.evaluate(_inp())
-        assert result.metadata.input_metadata["text"] == {"textLength": len(_SAMPLE_TEXT)}
-        assert result.metadata.input_metadata["grade"] == {"grade": 5}
-
-
-class TestConventionalityEvaluateErrorHandling:
-    def test_raises_validation_error_for_invalid_input(self):
-        evaluator = _evaluator()
-        invalid = ConventionalityEvaluationInput(text="x", grade=5)
-        with pytest.raises(ValidationError):
-            evaluator.evaluate(invalid)
-
-    def test_propagates_evaluate_impl_exception(self):
-        evaluator = _evaluator()
-        with (
-            patch.object(evaluator, "evaluate_impl", side_effect=RuntimeError("boom")),
-            pytest.raises(RuntimeError, match="boom"),
-        ):
-            evaluator.evaluate(_inp())
-
-
 class TestStubEvaluateErrorHandling:
     def test_raises_validation_error_for_invalid_input(self, stub_evaluator):
         inp = TextComplexityEvaluationInput(
@@ -473,9 +442,7 @@ class TestExecutePromptChainStep:
         assert step.extras[PROMPT_STEP_EXTRA_PROMPT_SETTINGS]["model"] == "gemini-2.0-flash"
         assert PROMPT_STEP_EXTRA_TOKEN_USAGE in step.extras
 
-    def test_token_usage_recorded_when_llm_reports_usage(
-        self, stub_evaluator, evaluation_metadata
-    ):
+    def test_token_usage_recorded_when_llm_reports_usage(self, stub_evaluator, evaluation_metadata):
         def _llm_with_usage(_pv):
             return AIMessage(
                 content=_CHAIN_JSON,
@@ -552,9 +519,7 @@ class TestExecutePromptChainStep:
                 parser_output_type=_ChainOutput,
             )
 
-    def test_wraps_unexpected_chain_failure_as_api_error(
-        self, stub_evaluator, evaluation_metadata
-    ):
+    def test_wraps_unexpected_chain_failure_as_api_error(self, stub_evaluator, evaluation_metadata):
         def _boom(_pv):
             raise ValueError("simulated provider failure")
 

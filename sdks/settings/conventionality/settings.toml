@@ -73,6 +73,6 @@ FK Score: {fk_score}
 """
 
 [evaluation_settings.prompt_settings_step_conventionality_evaluation]
-type = "GOOGLE"
+provider_type = "GOOGLE"
 model = "gemini-3-flash-preview"
 temperature = 0
