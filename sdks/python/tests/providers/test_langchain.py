@@ -1,6 +1,6 @@
 """Tests for LangChain provider factory and token usage."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -52,22 +52,6 @@ class TestCreateProvider:
             provider_type=LlmProvider.OPENAI, model="gpt-4o-mini", temperature=0.0
         )
         assert create_provider(settings, config) is not None
-
-    def test_openai_provider_with_base_url_forwards_it_to_chat_model(self):
-        """When OpenAIPromptProviderConfig.base_url is set, it must be passed to ChatOpenAI."""
-        config = _config(
-            openai_prompt_provider_config=OpenAIPromptProviderConfig(
-                api_key="test-key",
-                base_url="https://custom.example.com/v1",
-            ),
-        )
-        settings = PromptSettings(
-            provider_type=LlmProvider.OPENAI, model="gpt-4o-mini", temperature=0.0
-        )
-        with patch("langchain_openai.ChatOpenAI") as mock_chat:
-            create_provider(settings, config)
-        _, kwargs = mock_chat.call_args
-        assert kwargs.get("base_url") == "https://custom.example.com/v1"
 
     def test_raises_when_google_config_missing(self):
         settings = PromptSettings(

@@ -56,8 +56,6 @@ def _create_openai_llm(
         "model": prompt_settings.model,
         "temperature": prompt_settings.temperature,
     }
-    if openai_config.base_url is not None:
-        kwargs["base_url"] = openai_config.base_url
     return ChatOpenAI(**kwargs)
 
 
