@@ -173,7 +173,7 @@ class TestEvaluateInputMetadata:
         inp = _stub_input()
         result = stub_evaluator.evaluate(inp)
         assert result.metadata.input_metadata == inp.input_metadata()
-        assert result.metadata.input_metadata["text"] == {"textLength": "11"}
+        assert result.metadata.input_metadata["text"] == {"textLength": 11}
         assert result.metadata.input_metadata["grade_level"] == {"grade": 3}
 
     def test_full_telemetry_config_still_uses_input_metadata_not_raw_values(self, stub_evaluator):
@@ -183,7 +183,7 @@ class TestEvaluateInputMetadata:
         inp = _stub_input()
         result = ev.evaluate(inp)
         assert result.metadata.input_metadata == inp.input_metadata()
-        assert result.metadata.input_metadata["text"] == {"textLength": "11"}
+        assert result.metadata.input_metadata["text"] == {"textLength": 11}
         assert result.metadata.input_metadata["grade_level"] == {"grade": 3}
 
 

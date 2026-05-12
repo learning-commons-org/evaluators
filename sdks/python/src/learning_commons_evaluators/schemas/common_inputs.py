@@ -53,7 +53,7 @@ class TextInputField(InputField[str]):
 
     def input_metadata(self) -> dict[str, Any]:
         """Return the character count — never the raw text (may contain PII)."""
-        return {"textLength": str(len(self.value))}
+        return {"textLength": len(self.value)}
 
 
 class GradeInputField(InputField[int]):
