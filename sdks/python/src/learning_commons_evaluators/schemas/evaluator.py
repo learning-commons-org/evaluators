@@ -46,7 +46,7 @@ class InputField(BaseModel, Generic[_V], ABC):
                     raise ValidationError(...)
 
             def input_metadata(self) -> dict[str, Any]:
-                return {"textLength": str(len(self.value))}
+                return {"textLength": len(self.value)}
     """
 
     spec: InputSpec

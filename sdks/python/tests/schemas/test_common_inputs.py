@@ -31,7 +31,7 @@ class TestTextInputField:
     def test_value_and_metadata(self):
         field = TextInputField(spec=_text_spec(), value="Hello, world!")
         assert field.value == "Hello, world!"
-        assert field.input_metadata() == {"textLength": "13"}
+        assert field.input_metadata() == {"textLength": 13}
 
     def test_validate_passes_within_limits(self):
         TextInputField(
