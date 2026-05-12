@@ -1,8 +1,7 @@
-VENV    := ../../.venv
-PYTHON  := $(VENV)/bin/python
-PYTEST  := $(VENV)/bin/pytest
-RUFF    := $(VENV)/bin/ruff
-MYPY    := $(VENV)/bin/mypy
+PYTHON  ?= python3
+PYTEST  := $(PYTHON) -m pytest
+RUFF    := $(PYTHON) -m ruff
+MYPY    := $(PYTHON) -m mypy
 
 # Bundled settings directory inside the package.
 SETTINGS_DST := src/learning_commons_evaluators/settings
