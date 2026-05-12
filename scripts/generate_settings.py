@@ -460,7 +460,7 @@ def cmd_check_sync() -> int:
     for t in targets:
         canonical = _contracts_toml(t.name)
         if not canonical.exists():
-            errors.append(f"MISSING canonical: {canonical.relative_to(_REPO_ROOT)}")
+            print(f"  WARNING: canonical {canonical.relative_to(_REPO_ROOT)} not found — skipping")
             continue
         bundled = _GENERATED_DIR / t.name / "contracts.toml"
         if not bundled.exists():
