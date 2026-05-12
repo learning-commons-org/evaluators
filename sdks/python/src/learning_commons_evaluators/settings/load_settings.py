@@ -2,21 +2,27 @@
 
 from __future__ import annotations
 
-import importlib.resources
 import os
+import sys
 from dataclasses import dataclass
-
-try:
-    from importlib.resources.abc import Traversable
-except ImportError:
-    from importlib.abc import Traversable  # Python < 3.11
+from importlib import resources
 from pathlib import Path
-from typing import Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
-try:
+if TYPE_CHECKING:
+    from importlib.abc import Traversable
+else:
+    # Runtime location moved to importlib.resources.abc in newer Python versions,
+    # while mypy's Python 3.10 types expose Traversable from importlib.abc.
+    try:
+        from importlib.resources.abc import Traversable
+    except ImportError:
+        from importlib.abc import Traversable
+
+if sys.version_info >= (3, 11):
     import tomllib
-except ImportError:
-    import tomli as tomllib  # type: ignore[import-not-found,no-redef]  # Python < 3.11
+else:
+    import tomli as tomllib
 
 from pydantic import TypeAdapter
 from pydantic import ValidationError as PydanticValidationError
@@ -56,7 +62,7 @@ def shared_settings_root() -> Path | Traversable:
     env = os.environ.get("EVALUATORS_SETTINGS_DIR")
     if env:
         return Path(env)
-    return importlib.resources.files("learning_commons_evaluators.settings")
+    return resources.files("learning_commons_evaluators.settings")
 
 
 def load_settings(path: Path | str | Traversable) -> dict:

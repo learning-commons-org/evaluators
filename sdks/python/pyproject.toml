@@ -40,11 +40,15 @@ dev = [
     "pytest-cov>=5.0.0",
     "ruff>=0.9.0",
     "mypy>=1.14.0",
+    # Mypy is configured for Python 3.10 even when dev tooling runs on newer Python,
+    # so it needs the 3.10 tomllib backport available for type checking.
+    "tomli>=2.0.0",
 ]
 
 [project.urls]
 Homepage = "https://github.com/learning-commons-org/evaluators"
 Repository = "https://github.com/learning-commons-org/evaluators/tree/main/sdks/python"
+Documentation = "https://docs.learningcommons.org/evaluators"
 "Bug Tracker" = "https://github.com/learning-commons-org/evaluators/issues"
 
 [tool.setuptools.packages.find]
