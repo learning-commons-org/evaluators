@@ -142,7 +142,7 @@ class TestEvaluateInputMetadata:
         assert result.metadata.input_metadata["grade_level"] == {"grade": 3}
 
     def test_full_telemetry_config_still_uses_input_metadata_not_raw_values(self, stub_evaluator):
-        cfg = create_config(telemetry_id="test", send_full_input_with_telemetry=True)
+        cfg = create_config(telemetry_partner_id="test", send_full_input_with_telemetry=True)
         ev = _StubEvaluator(cfg)
         inp = _stub_input()
         result = ev.evaluate(inp)
