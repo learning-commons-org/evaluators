@@ -60,7 +60,7 @@ class TestEvaluationInput:
         inp = ConventionalityEvaluationInput(text=_SAMPLE_TEXT, grade=5)
         inp.validate()
         meta = inp.input_metadata()
-        assert meta["text"] == {"textLength": str(len(_SAMPLE_TEXT))}
+        assert meta["text"] == {"textLength": len(_SAMPLE_TEXT)}
         assert meta["grade"] == {"grade": 5}
 
     def test_input_values_returns_primitive_values(self):
@@ -105,7 +105,7 @@ class TestEvaluationInput:
         """Fields that are not InputFields produce a None entry in the output dict."""
         inp = _MixedInput(text=TextInputField(spec=_BARE_TEXT_SPEC, value="hello"), weight=7.5)
         meta = inp.input_metadata()
-        assert meta["text"] == {"textLength": "5"}
+        assert meta["text"] == {"textLength": 5}
         assert meta["weight"] is None  # fallback for non-protocol fields
 
     def test_input_values_returns_field_itself_for_non_inputfield(self):
