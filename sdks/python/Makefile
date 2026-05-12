@@ -3,9 +3,6 @@ PYTEST  := $(PYTHON) -m pytest
 RUFF    := $(PYTHON) -m ruff
 MYPY    := $(PYTHON) -m mypy
 
-# Bundled settings directory inside the package.
-SETTINGS_DST := src/learning_commons_evaluators/settings
-
 .PHONY: help test unit-test generate-settings check-generated \
         lint format format-check typecheck pip-check verify coverage
 
