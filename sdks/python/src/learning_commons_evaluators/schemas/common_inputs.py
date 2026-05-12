@@ -57,6 +57,7 @@ class TextInputField(InputField[str]):
         if isinstance(spec, TextInputSpec) and spec.strip_whitespace:
             return {**data, "value": value.strip()}
         return data
+
     def validate(self) -> None:
         """Raise :class:`~.errors.ValidationError` if the value violates the spec constraints."""
         text_length = len(self.value)

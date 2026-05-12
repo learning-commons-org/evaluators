@@ -96,7 +96,7 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         evaluation_metadata = EvaluationMetadata(
             evaluator_metadata=self.metadata,
             evaluation_settings=evaluation_settings,
-            input_metadata=input.input_metadata()
+            input_metadata=input.input_metadata(),
         )
         self.config.logger.info(
             "evaluation start",

@@ -84,6 +84,7 @@ class TelemetryConfig:
     telemetry_partner_id: str | None = None
     send_full_input_with_telemetry: bool = False
 
+
 # --- Evaluator config ---
 
 
@@ -123,7 +124,10 @@ def create_config(
         openai_prompt_provider_config=openai_prompt_provider_config,
         anthropic_prompt_provider_config=anthropic_prompt_provider_config,
         logger=get_logger() if logger is None else logger,
-        telemetry=TelemetryConfig(telemetry_partner_id=telemetry_partner_id, send_full_input_with_telemetry=send_full_input_with_telemetry),
+        telemetry=TelemetryConfig(
+            telemetry_partner_id=telemetry_partner_id,
+            send_full_input_with_telemetry=send_full_input_with_telemetry,
+        ),
     )
 
 
@@ -158,5 +162,7 @@ def create_config_telemetry_with_full_input(
         openai_prompt_provider_config=openai_prompt_provider_config,
         anthropic_prompt_provider_config=anthropic_prompt_provider_config,
         logger=get_logger() if logger is None else logger,
-        telemetry=TelemetryConfig(telemetry_partner_id=telemetry_partner_id, send_full_input_with_telemetry=True),
+        telemetry=TelemetryConfig(
+            telemetry_partner_id=telemetry_partner_id, send_full_input_with_telemetry=True
+        ),
     )
