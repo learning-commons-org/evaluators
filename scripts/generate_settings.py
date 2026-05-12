@@ -53,9 +53,10 @@ import importlib
 import os
 import sys
 import types
-from dataclasses import MISSING, fields, is_dataclass
+from dataclasses import MISSING, dataclass, fields, is_dataclass
 from enum import Enum
 from pathlib import Path
+from string import Template
 from typing import Any
 
 # ---------------------------------------------------------------------------
@@ -68,6 +69,8 @@ _REPO_ROOT = _SCRIPT_DIR.parent
 _SDK_SRC = _REPO_ROOT / "sdks" / "python" / "src"
 _SETTINGS_DIR = _REPO_ROOT / "sdks" / "settings"
 _GENERATED_DIR = _SDK_SRC / "learning_commons_evaluators" / "settings"
+
+_LINE_WRAP = 88
 
 sys.path.insert(0, str(_SDK_SRC))
 
@@ -102,14 +105,14 @@ from learning_commons_evaluators.settings.load_settings import (  # noqa: E402
 _LCE_PACKAGE = "learning_commons_evaluators"
 
 # ---------------------------------------------------------------------------
-# Value emitter
+# Emit Python source literals (no third-party codegen: must handle Enum,
+# Pydantic, stdlib dataclass, and readable wrapping).
 # ---------------------------------------------------------------------------
 
 
 def _emit_string(s: str) -> str:
     """Emit a string literal, using triple-quotes for multiline / long strings."""
-    if "\n" in s or len(s) > 88:
-        # Escape any literal `"""` sequences inside the content.
+    if "\n" in s or len(s) > _LINE_WRAP:
         content = s.replace('"""', '""\\"')
         return f'"""{content}"""'
     return repr(s)
@@ -124,8 +127,6 @@ def _emit_value(obj: Any, indent: int = 0) -> str:
         return "None"
     if isinstance(obj, bool):
         return "True" if obj else "False"
-    # str- and int-backed enums (e.g. LlmProvider(str, Enum)) must be handled before
-    # str/int or we emit repr() and get invalid syntax like <LlmProvider.GOOGLE: 'google'>.
     if isinstance(obj, Enum):
         return f"{type(obj).__name__}.{obj.name}"
     if isinstance(obj, int):
@@ -139,7 +140,7 @@ def _emit_value(obj: Any, indent: int = 0) -> str:
             return "[]"
         items = [_emit_value(v, indent + 1) for v in obj]
         single = f"[{', '.join(items)}]"
-        if len(single) <= 88 - len(pad) and "\n" not in single:
+        if len(single) <= _LINE_WRAP - len(pad) and "\n" not in single:
             return single
         body = "\n".join(f"{inner}{item}," for item in items)
         return f"[\n{body}\n{pad}]"
@@ -148,7 +149,7 @@ def _emit_value(obj: Any, indent: int = 0) -> str:
             return "{}"
         pairs = [(repr(k), _emit_value(v, indent + 1)) for k, v in obj.items()]
         single = "{" + ", ".join(f"{k}: {v}" for k, v in pairs) + "}"
-        if len(single) <= 88 - len(pad) and "\n" not in single:
+        if len(single) <= _LINE_WRAP - len(pad) and "\n" not in single:
             return single
         body = "\n".join(f"{inner}{k}: {v}," for k, v in pairs)
         return f"{{\n{body}\n{pad}}}"
@@ -159,71 +160,57 @@ def _emit_value(obj: Any, indent: int = 0) -> str:
     raise TypeError(f"Cannot emit {type(obj).__name__}: {obj!r}")
 
 
-def _emit_model(obj: BaseModel, indent: int = 0) -> str:
-    """Emit a Pydantic model as a constructor call."""
-    cls = type(obj)
-    cls_name = cls.__name__
+def _format_constructor(cls_name: str, kw_args: list[tuple[str, str]], indent: int) -> str:
+    """Format ``ClsName(a=..., b=...)`` with optional line wrapping."""
     pad = "    " * indent
     inner = "    " * (indent + 1)
-
-    args: list[tuple[str, str]] = []
-    for field_name, field_info in cls.model_fields.items():
-        val = getattr(obj, field_name)
-
-        # Skip Literal discriminators (e.g. type="TextInputField").
-        if field_name == "type" and not field_info.is_required():
-            continue
-
-        # Skip fields that equal their default — keeps generated code clean.
-        default = field_info.default
-        if default is not PydanticUndefined and val == default:
-            continue
-
-        args.append((field_name, _emit_value(val, indent + 1)))
-
-    if not args:
+    if not kw_args:
         return f"{cls_name}()"
-
-    single = f"{cls_name}({', '.join(f'{n}={v}' for n, v in args)})"
-    if len(single) <= 88 - len(pad) and "\n" not in single:
+    single = f"{cls_name}({', '.join(f'{n}={v}' for n, v in kw_args)})"
+    if len(single) <= _LINE_WRAP - len(pad) and "\n" not in single:
         return single
-
-    body = "\n".join(f"{inner}{n}={v}," for n, v in args)
+    body = "\n".join(f"{inner}{n}={v}," for n, v in kw_args)
     return f"{cls_name}(\n{body}\n{pad})"
 
 
-def _emit_dataclass(obj: Any, indent: int = 0) -> str:
-    """Emit a stdlib dataclass instance as a constructor call (e.g. PromptSettings)."""
+def _pydantic_kw_args(obj: BaseModel, indent: int) -> list[tuple[str, str]]:
     cls = type(obj)
-    cls_name = cls.__name__
-    pad = "    " * indent
-    inner = "    " * (indent + 1)
+    out: list[tuple[str, str]] = []
+    for field_name, field_info in cls.model_fields.items():
+        val = getattr(obj, field_name)
+        if field_name == "type" and not field_info.is_required():
+            continue
+        default = field_info.default
+        if default is not PydanticUndefined and val == default:
+            continue
+        out.append((field_name, _emit_value(val, indent + 1)))
+    return out
 
-    args: list[tuple[str, str]] = []
+
+def _dataclass_kw_args(obj: Any, indent: int) -> list[tuple[str, str]]:
+    out: list[tuple[str, str]] = []
     for f in fields(obj):
         val = getattr(obj, f.name)
         if f.default is not MISSING and val == f.default:
             continue
-        args.append((f.name, _emit_value(val, indent + 1)))
+        out.append((f.name, _emit_value(val, indent + 1)))
+    return out
 
-    if not args:
-        return f"{cls_name}()"
 
-    single = f"{cls_name}({', '.join(f'{n}={v}' for n, v in args)})"
-    if len(single) <= 88 - len(pad) and "\n" not in single:
-        return single
+def _emit_model(obj: BaseModel, indent: int = 0) -> str:
+    return _format_constructor(type(obj).__name__, _pydantic_kw_args(obj, indent), indent)
 
-    body = "\n".join(f"{inner}{n}={v}," for n, v in args)
-    return f"{cls_name}(\n{body}\n{pad})"
+
+def _emit_dataclass(obj: Any, indent: int = 0) -> str:
+    return _format_constructor(type(obj).__name__, _dataclass_kw_args(obj, indent), indent)
 
 
 # ---------------------------------------------------------------------------
-# Import-block builder
+# Import block: walk values and import learning_commons_evaluators types used.
 # ---------------------------------------------------------------------------
 
 
 def _collect_lce_types(obj: Any, found: set[type]) -> None:
-    """Walk *obj* and collect types defined under learning_commons_evaluators for imports."""
     if isinstance(obj, Enum):
         found.add(type(obj))
     elif is_dataclass(obj) and not isinstance(obj, type):
@@ -246,7 +233,6 @@ def _build_import_block(
     config: EvaluatorSettingsResult,
     settings_cls: type[EvaluationSettings],
 ) -> str:
-    """Build ``from … import …`` lines for everything referenced in the generated module."""
     found: set[type] = set()
     _collect_lce_types(config.evaluator_metadata, found)
     _collect_lce_types(config.evaluation_settings, found)
@@ -272,13 +258,41 @@ def _build_import_block(
     return "\n".join(lines)
 
 
-# ---------------------------------------------------------------------------
-# File generator
-# ---------------------------------------------------------------------------
+_MODULE_TEMPLATE = Template(
+    """# !! AUTO-GENERATED — do not edit directly.
+# Source: $rel_toml
+# Regenerate : python scripts/generate_settings.py
+# Staleness check: python scripts/generate_settings.py --check
+
+from __future__ import annotations
+
+$imports
+
+# ── Evaluator metadata ────────────────────────────────────────────────────────
+
+_EVALUATOR_METADATA = $metadata_code
+
+# ── Prompt templates ──────────────────────────────────────────────────────────
+
+_PROMPTS: dict[str, str] = $prompts_code
+
+# ── Evaluation settings ───────────────────────────────────────────────────────
+
+_EVALUATION_SETTINGS = $settings_code
+
+# ── Public config object (imported by evaluator modules) ──────────────────────
+
+CONFIG: EvaluatorSettingsResult[$settings_cls_name] = EvaluatorSettingsResult(
+    evaluator_metadata=_EVALUATOR_METADATA,
+    evaluation_settings=_EVALUATION_SETTINGS,
+    prompts=_PROMPTS,
+)
+"""
+)
 
 
 def generate_module(
-    evaluator_name: str,
+    _evaluator_name: str,
     toml_path: Path,
     settings_cls: type[EvaluationSettings],
 ) -> str:
@@ -286,46 +300,14 @@ def generate_module(
     config = load_evaluator_settings(toml_path, settings_cls)
     settings_cls_name = settings_cls.__name__
 
-    imports = _build_import_block(config, settings_cls)
-    metadata_code = _emit_model(config.evaluator_metadata)
-    prompts_code = _emit_value(config.prompts)
-    settings_code = _emit_model(config.evaluation_settings)
-
-    rel_toml = toml_path.relative_to(_REPO_ROOT)
-
-    # Emit flush-left Python only. Do not wrap this in textwrap.dedent() while
-    # interpolating multi-line fragments (imports, *_code): continuation lines
-    # from those values start at column 0, which would make dedent's common
-    # margin zero and leave the header indented — IndentationError at import.
-    return f"""# !! AUTO-GENERATED — do not edit directly.
-# Source: {rel_toml}
-# Regenerate : python scripts/generate_settings.py
-# Staleness check: python scripts/generate_settings.py --check
-
-from __future__ import annotations
-
-{imports}
-
-# ── Evaluator metadata ────────────────────────────────────────────────────────
-
-_EVALUATOR_METADATA = {metadata_code}
-
-# ── Prompt templates ──────────────────────────────────────────────────────────
-
-_PROMPTS: dict[str, str] = {prompts_code}
-
-# ── Evaluation settings ───────────────────────────────────────────────────────
-
-_EVALUATION_SETTINGS = {settings_code}
-
-# ── Public config object (imported by evaluator modules) ──────────────────────
-
-CONFIG: EvaluatorSettingsResult[{settings_cls_name}] = EvaluatorSettingsResult(
-    evaluator_metadata=_EVALUATOR_METADATA,
-    evaluation_settings=_EVALUATION_SETTINGS,
-    prompts=_PROMPTS,
-)
-"""
+    return _MODULE_TEMPLATE.substitute(
+        rel_toml=str(toml_path.relative_to(_REPO_ROOT)),
+        imports=_build_import_block(config, settings_cls),
+        metadata_code=_emit_model(config.evaluator_metadata),
+        prompts_code=_emit_value(config.prompts),
+        settings_code=_emit_model(config.evaluation_settings),
+        settings_cls_name=settings_cls_name,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -365,11 +347,20 @@ def _resolve_settings_class(evaluator_name: str) -> type[EvaluationSettings]:
     return cls
 
 
-def _discover_evaluators() -> list[dict[str, Any]]:
-    """Return one entry per ``sdks/settings/<evaluator>/settings.toml`` found on disk."""
-    specs: list[dict[str, Any]] = []
+@dataclass(frozen=True)
+class _EvaluatorTarget:
+    """One evaluator with a canonical TOML and its generated module path."""
+
+    name: str
+    settings_cls: type[EvaluationSettings]
+    toml_path: Path
+    output_path: Path
+
+
+def _discover_evaluators() -> list[_EvaluatorTarget]:
     if not _SETTINGS_DIR.is_dir():
-        return specs
+        return []
+    out: list[_EvaluatorTarget] = []
     for child in sorted(_SETTINGS_DIR.iterdir()):
         if not child.is_dir():
             continue
@@ -379,19 +370,18 @@ def _discover_evaluators() -> list[dict[str, Any]]:
         name = child.name
         settings_cls = _resolve_settings_class(name)
         output = _GENERATED_DIR / f"_generated_{name}_settings.py"
-        specs.append(
-            {
-                "name": name,
-                "settings_cls": settings_cls,
-                "toml": toml_path,
-                "output": output,
-            }
+        out.append(
+            _EvaluatorTarget(
+                name=name,
+                settings_cls=settings_cls,
+                toml_path=toml_path,
+                output_path=output,
+            )
         )
-    return specs
+    return out
 
 
 def _contracts_toml(evaluator_name: str) -> Path:
-    """Return the canonical ``sdks/settings/<evaluator>/contracts.toml``."""
     return _SETTINGS_DIR / evaluator_name / "contracts.toml"
 
 
@@ -401,39 +391,38 @@ def _contracts_toml(evaluator_name: str) -> Path:
 
 
 def cmd_generate() -> None:
-    evaluators = _discover_evaluators()
-    if not evaluators:
+    targets = _discover_evaluators()
+    if not targets:
         print(f"No evaluators found under {_SETTINGS_DIR} (add */settings.toml).")
         return
-    for ev in evaluators:
-        content = generate_module(ev["name"], ev["toml"], ev["settings_cls"])
-        ev["output"].write_text(content, encoding="utf-8")
-        rel = ev["output"].relative_to(_REPO_ROOT)
-        print(f"  generated  {rel}")
+    for t in targets:
+        content = generate_module(t.name, t.toml_path, t.settings_cls)
+        t.output_path.write_text(content, encoding="utf-8")
+        print(f"  generated  {t.output_path.relative_to(_REPO_ROOT)}")
     print("Done.")
 
 
 def cmd_check() -> int:
-    evaluators = _discover_evaluators()
-    if not evaluators:
+    targets = _discover_evaluators()
+    if not targets:
         print(f"No evaluators found under {_SETTINGS_DIR} (nothing to check).")
         return 0
     stale: list[str] = []
-    for ev in evaluators:
-        expected = generate_module(ev["name"], ev["toml"], ev["settings_cls"])
-        actual = ev["output"].read_text(encoding="utf-8") if ev["output"].exists() else ""
+    for t in targets:
+        expected = generate_module(t.name, t.toml_path, t.settings_cls)
+        actual = t.output_path.read_text(encoding="utf-8") if t.output_path.exists() else ""
         if expected != actual:
             diff = "".join(
                 difflib.unified_diff(
                     actual.splitlines(keepends=True),
                     expected.splitlines(keepends=True),
-                    fromfile=str(ev["output"].relative_to(_REPO_ROOT)),
+                    fromfile=str(t.output_path.relative_to(_REPO_ROOT)),
                     tofile="(regenerated)",
                     n=3,
                 )
             )
-            print(f"STALE: {ev['output'].relative_to(_REPO_ROOT)}\n{diff}")
-            stale.append(ev["name"])
+            print(f"STALE: {t.output_path.relative_to(_REPO_ROOT)}\n{diff}")
+            stale.append(t.name)
 
     if stale:
         print(f"\nStale evaluators: {stale}")
@@ -445,22 +434,16 @@ def cmd_check() -> int:
 
 
 def cmd_sync() -> None:
-    """Copy ``contracts.toml`` from canonical (sdks/settings/) → bundled package.
-
-    The bundled package ships a copy of the contracts TOML so that contract
-    tests work correctly when installed via ``pip install`` (i.e. without
-    access to the monorepo ``sdks/settings/`` directory).
-    """
-    evaluators = _discover_evaluators()
-    if not evaluators:
+    targets = _discover_evaluators()
+    if not targets:
         print(f"No evaluators found under {_SETTINGS_DIR} (nothing to sync).")
         return
-    for ev in evaluators:
-        src = _contracts_toml(ev["name"])
+    for t in targets:
+        src = _contracts_toml(t.name)
         if not src.exists():
             print(f"  WARNING: canonical {src.relative_to(_REPO_ROOT)} not found — skipping")
             continue
-        dst_dir = _GENERATED_DIR / ev["name"]
+        dst_dir = _GENERATED_DIR / t.name
         dst_dir.mkdir(parents=True, exist_ok=True)
         dst = dst_dir / "contracts.toml"
         dst.write_bytes(src.read_bytes())
@@ -469,22 +452,17 @@ def cmd_sync() -> None:
 
 
 def cmd_check_sync() -> int:
-    """Verify bundled ``contracts.toml`` files match the canonical sdks/settings/ copies.
-
-    Exits with a non-zero status if any bundled file is missing or differs from
-    the canonical source.
-    """
-    evaluators = _discover_evaluators()
-    if not evaluators:
+    targets = _discover_evaluators()
+    if not targets:
         print(f"No evaluators found under {_SETTINGS_DIR} (nothing to verify).")
         return 0
     errors: list[str] = []
-    for ev in evaluators:
-        canonical = _contracts_toml(ev["name"])
+    for t in targets:
+        canonical = _contracts_toml(t.name)
         if not canonical.exists():
             errors.append(f"MISSING canonical: {canonical.relative_to(_REPO_ROOT)}")
             continue
-        bundled = _GENERATED_DIR / ev["name"] / "contracts.toml"
+        bundled = _GENERATED_DIR / t.name / "contracts.toml"
         if not bundled.exists():
             errors.append(
                 f"MISSING bundled: {bundled.relative_to(_REPO_ROOT)} "
@@ -492,7 +470,7 @@ def cmd_check_sync() -> int:
             )
         elif canonical.read_bytes() != bundled.read_bytes():
             errors.append(
-                f"OUT OF SYNC: {ev['name']}/contracts.toml "
+                f"OUT OF SYNC: {t.name}/contracts.toml "
                 f"(run: python scripts/generate_settings.py --sync)"
             )
 
