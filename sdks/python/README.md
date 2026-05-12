@@ -148,7 +148,7 @@ logging.basicConfig(level=logging.INFO)
 # Create config with provider credentials
 config = create_config(
     google_prompt_provider_config=GooglePromptProviderConfig(api_key="your-google-key"),
-    telemetry_id="your-telemetry-id",
+    telemetry_partner_id="your-telemetry-id",
 )
 
 # Create evaluator and run evaluation
@@ -181,7 +181,7 @@ from learning_commons_evaluators import (
 
 config = create_config(
     google_prompt_provider_config=GooglePromptProviderConfig(api_key="..."),
-    telemetry_id="your-telemetry-id",
+    telemetry_partner_id="your-telemetry-id",
 )
 evaluator = ConventionalityEvaluator(config)
 
@@ -225,7 +225,7 @@ from learning_commons_evaluators import create_config
 config = create_config(
     google_prompt_provider_config=google_config,
     openai_prompt_provider_config=openai_config,
-    telemetry_id="your-telemetry-id",
+    telemetry_partner_id="your-telemetry-id",
     logger=my_logger,  # Optional: any standard logging.Logger (default: package logger)
 )
 ```

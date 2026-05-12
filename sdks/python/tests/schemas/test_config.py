@@ -1,5 +1,7 @@
 """Tests for EvaluatorConfig, PromptProviderConfig subclasses, and factory functions."""
 
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 from learning_commons_evaluators.logger import SDK_LOGGER_NAME, get_logger
@@ -8,6 +10,7 @@ from learning_commons_evaluators.schemas.config import (
     GooglePromptProviderConfig,
     LlmProvider,
     OpenAIPromptProviderConfig,
+    TelemetryConfig,
     create_config,
     create_config_no_telemetry,
     create_config_telemetry_with_full_input,
@@ -46,15 +49,15 @@ class TestPromptProviderConfigs:
         assert cfg.base_url == "https://custom.example.com"
 
     def test_provider_config_base_url_defaults_to_none(self):
-        cfg = GooglePromptProviderConfig(api_key="key")
+        cfg = OpenAIPromptProviderConfig(api_key="key")
         assert cfg.base_url is None
 
 
 class TestEvaluatorConfigFactory:
     def test_create_config_no_telemetry_defaults(self):
         config = create_config_no_telemetry()
-        assert config.telemetry_id is None
-        assert config.send_full_input_with_telemetry is False
+        assert config.telemetry.telemetry_partner_id is None
+        assert config.telemetry.send_full_input_with_telemetry is False
         assert config.logger.name == SDK_LOGGER_NAME
 
     def test_create_config_no_telemetry_accepts_providers(self):
@@ -65,15 +68,15 @@ class TestEvaluatorConfigFactory:
         assert config.google_prompt_provider_config.api_key == "gk"
         assert config.openai_prompt_provider_config.api_key == "ok"
 
-    def test_create_config_sets_telemetry_id(self):
-        config = create_config(telemetry_id="tid-123")
-        assert config.telemetry_id == "tid-123"
-        assert config.send_full_input_with_telemetry is False
+    def test_create_config_sets_telemetry_partner_id(self):
+        config = create_config(telemetry_partner_id="tid-123")
+        assert config.telemetry.telemetry_partner_id == "tid-123"
+        assert config.telemetry.send_full_input_with_telemetry is False
 
     def test_create_config_telemetry_with_full_input_sets_flag(self):
-        config = create_config_telemetry_with_full_input(telemetry_id="tid")
-        assert config.telemetry_id == "tid"
-        assert config.send_full_input_with_telemetry is True
+        config = create_config_telemetry_with_full_input(telemetry_partner_id="tid")
+        assert config.telemetry.telemetry_partner_id == "tid"
+        assert config.telemetry.send_full_input_with_telemetry is True
 
     def test_explicit_logger_is_preserved(self):
         custom = get_logger("custom_test")
@@ -83,5 +86,5 @@ class TestEvaluatorConfigFactory:
     def test_config_is_frozen(self):
         """EvaluatorConfig is a frozen dataclass; mutation must raise."""
         config = create_config_no_telemetry()
-        with pytest.raises((AttributeError, TypeError)):
-            config.telemetry_id = "other"  # type: ignore[misc]
+        with pytest.raises(FrozenInstanceError):
+            config.telemetry = TelemetryConfig(telemetry_partner_id="x", send_full_input_with_telemetry=False)

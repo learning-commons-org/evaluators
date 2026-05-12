@@ -6,6 +6,7 @@ def test_main_package_imports():
     from learning_commons_evaluators import (
         BaseEvaluator,
         ConventionalityEvaluator,
+        TelemetryConfig,
         __version__,
         create_config_no_telemetry,
     )
@@ -14,6 +15,7 @@ def test_main_package_imports():
     assert create_config_no_telemetry is not None
     assert ConventionalityEvaluator is not None
     assert BaseEvaluator is not None
+    assert TelemetryConfig is not None
 
 
 def test_errors_import():

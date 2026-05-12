@@ -112,7 +112,7 @@ def stub_evaluator(config):
 def _evaluator(*, send_full_input=False):
     """Return a ConventionalityEvaluator; use send_full_input=True for full-input telemetry."""
     if send_full_input:
-        cfg = create_config(telemetry_id="test", send_full_input_with_telemetry=True)
+        cfg = create_config(telemetry_partner_id="test", send_full_input_with_telemetry=True)
     else:
         cfg = create_config_no_telemetry()
     return ConventionalityEvaluator(cfg)
@@ -178,7 +178,7 @@ class TestEvaluateInputMetadata:
 
     def test_full_telemetry_config_still_uses_input_metadata_not_raw_values(self, stub_evaluator):
         """``send_full_input_with_telemetry`` does not replace ``input_metadata`` with raw values."""
-        cfg = create_config(telemetry_id="test", send_full_input_with_telemetry=True)
+        cfg = create_config(telemetry_partner_id="test", send_full_input_with_telemetry=True)
         ev = _StubEvaluator(cfg)
         inp = _stub_input()
         result = ev.evaluate(inp)
@@ -192,13 +192,13 @@ class TestEvaluateTelemetryBranching:
         evaluator = _evaluator()
         with patch.object(evaluator, "execute_prompt_chain_step", return_value=_MOCK_OUTPUT):
             result = evaluator.evaluate(_inp())
-        assert result.metadata.input_metadata["text"] == {"textLength": str(len(_SAMPLE_TEXT))}
+        assert result.metadata.input_metadata["text"] == {"textLength": len(_SAMPLE_TEXT)}
 
     def test_full_telemetry_still_records_input_metadata_not_raw_values(self):
         evaluator = _evaluator(send_full_input=True)
         with patch.object(evaluator, "execute_prompt_chain_step", return_value=_MOCK_OUTPUT):
             result = evaluator.evaluate(_inp())
-        assert result.metadata.input_metadata["text"] == {"textLength": str(len(_SAMPLE_TEXT))}
+        assert result.metadata.input_metadata["text"] == {"textLength": len(_SAMPLE_TEXT)}
         assert result.metadata.input_metadata["grade"] == {"grade": 5}
 
 
