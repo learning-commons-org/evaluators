@@ -62,6 +62,35 @@ class TestTextInputField:
         field = TextInputField(spec=spec, value="abc")
         assert field.spec.min_text_length == 50
 
+    def test_strip_whitespace_false_preserves_padding(self):
+        field = TextInputField(spec=_text_spec(strip_whitespace=False), value="  ab  ")
+        assert field.value == "  ab  "
+
+    def test_strip_whitespace_true_trims_value_by_default(self):
+        field = TextInputField(spec=_text_spec(), value="  ab  ")
+        assert field.value == "ab"
+
+    def test_strip_whitespace_applies_before_length_validation(self):
+        TextInputField(
+            spec=_text_spec(min_text_length=2),
+            value="  xx  ",
+        ).validate()
+
+    def test_strip_whitespace_explicit_true_trims_value(self):
+        field = TextInputField(
+            spec=_text_spec(strip_whitespace=True),
+            value="  cd  ",
+        )
+        assert field.value == "cd"
+
+    def test_validate_raises_when_strip_shortens_below_min(self):
+        """Padding does not count toward ``min_text_length`` when stripping is on."""
+        with pytest.raises(ValidationError, match="below minimum"):
+            TextInputField(
+                spec=_text_spec(min_text_length=5, strip_whitespace=True),
+                value="  ab  ",
+            ).validate()
+
 
 class TestGradeInputField:
     def test_value_and_metadata(self):

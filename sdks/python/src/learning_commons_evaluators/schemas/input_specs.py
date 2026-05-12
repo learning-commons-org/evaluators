@@ -6,7 +6,7 @@ its corresponding field when the input object is constructed.
 Hierarchy::
 
     InputSpec          base: name, type, description, required
-    ├─ TextInputSpec   adds: min_text_length, max_text_length
+    ├─ TextInputSpec   adds: min_text_length, max_text_length, strip_whitespace
     └─ GradeInputSpec  adds: allowed_grades
 
 **Adding a new input spec type — checklist**
@@ -68,11 +68,16 @@ class TextInputSpec(InputSpec):
 
     Constraint fields are optional; omitting them means no length limit is
     enforced for that boundary.
+
+    When ``strip_whitespace`` is true (the default), leading and trailing whitespace is removed
+    from the value when a :class:`~.common_inputs.TextInputField` is constructed
+    (before length validation). Set it to false to keep the raw string unchanged.
     """
 
     type: Literal["TextInputField"] = "TextInputField"
     min_text_length: int | None = None
     max_text_length: int | None = None
+    strip_whitespace: bool = True
 
 
 class GradeInputSpec(InputSpec):
