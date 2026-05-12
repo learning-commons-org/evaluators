@@ -13,6 +13,8 @@ rather than constructing one directly::
 
 from typing import Any
 
+from pydantic import model_validator
+
 from learning_commons_evaluators.schemas.errors import ValidationError
 from learning_commons_evaluators.schemas.evaluator import InputField
 from learning_commons_evaluators.schemas.input_specs import (
@@ -34,12 +36,27 @@ class TextInputField(InputField[str]):
     Constraints (min/max text length) are read from ``spec`` rather than
     stored directly on the field, so the same spec object can be shared across
     many field instances.
+
+    By default ``spec.strip_whitespace`` is true, so ``value`` is trimmed when the field is built.
+    Set it to false to preserve leading and trailing whitespace.
     """
 
     # Narrows the abstract InputField.spec: InputSpec → TextInputSpec.
     # value: str is inherited from InputField[str] and does not need to be redeclared.
     spec: TextInputSpec
 
+    @model_validator(mode="before")
+    @classmethod
+    def _strip_value_if_spec_requests(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        spec = data.get("spec")
+        value = data.get("value")
+        if not isinstance(value, str) or spec is None:
+            return data
+        if isinstance(spec, TextInputSpec) and spec.strip_whitespace:
+            return {**data, "value": value.strip()}
+        return data
     def validate(self) -> None:
         """Raise :class:`~.errors.ValidationError` if the value violates the spec constraints."""
         text_length = len(self.value)

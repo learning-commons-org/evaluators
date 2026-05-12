@@ -72,6 +72,10 @@ class TestTextInputSpec:
         assert spec.min_text_length is None
         assert spec.max_text_length is None
 
+    def test_strip_whitespace_defaults_true(self):
+        spec = TextInputSpec(name="text")
+        assert spec.strip_whitespace is True
+
 
 class TestGradeInputSpec:
     def test_default_type_discriminator(self):
