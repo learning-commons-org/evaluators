@@ -1,6 +1,6 @@
 [evaluator_metadata]
 id = "conventionality"
-version = 0.1
+version = "0.1"
 name = "Conventionality"
 description = "Conventionality Evaluator"
 maturity = "beta"
