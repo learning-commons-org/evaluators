@@ -20,8 +20,6 @@ from pydantic import ValidationError as PydanticValidationError
 
 from learning_commons_evaluators import (
     BaseEvaluator,
-    ConventionalityEvaluationInput,
-    ConventionalityEvaluator,
     EvaluationExplanation,
     TextComplexityEvaluationInput,
     create_config,
@@ -34,7 +32,6 @@ from learning_commons_evaluators.schemas.config import (
     LlmProvider,
     PromptSettings,
 )
-from learning_commons_evaluators.schemas.conventionality import ConventionalityOutput
 from learning_commons_evaluators.schemas.errors import APIError, EvaluatorError, ValidationError
 from learning_commons_evaluators.schemas.input_specs import GradeInputSpec, TextInputSpec
 from learning_commons_evaluators.schemas.metadata import (
@@ -109,48 +106,19 @@ def stub_evaluator(config):
     return _StubEvaluator(config)
 
 
-def _evaluator(*, send_full_input=False):
-    """Return a ConventionalityEvaluator; use send_full_input=True for full-input telemetry."""
-    if send_full_input:
-        cfg = create_config(telemetry_partner_id="test", send_full_input_with_telemetry=True)
-    else:
-        cfg = create_config_no_telemetry()
-    return ConventionalityEvaluator(cfg)
-
-
-_SAMPLE_TEXT = (
-    "Marco Polo was a Venetian merchant and explorer who traveled through Asia "
-    "in the late 13th century. He spent nearly two decades at the court of "
-    "Kublai Khan, the Mongol ruler of China, and described his experiences in "
-    "a book that introduced Europeans to the Far East."
-)
-
-
-def _inp(text=_SAMPLE_TEXT, grade=5):
-    return ConventionalityEvaluationInput(text=text, grade=grade)
-
-
-_MOCK_OUTPUT = ConventionalityOutput(
-    complexity_score="moderately_complex",
-    reasoning="Uses some conventional language.",
-    conventionality_features=["idioms"],
-    grade_context="Grade-appropriate.",
-    instructional_insights="Consider scaffolding.",
-)
-
-_CONV_JSON = (
-    '{"complexity_score": "slightly_complex", "reasoning": "Clear.",'
-    ' "conventionality_features": [], "grade_context": "Fine.", "instructional_insights": "None."}'
-)
+# ---------------------------------------------------------------------------
+# BaseEvaluator.__init__
+# ---------------------------------------------------------------------------
 
 
 class TestBaseEvaluatorInit:
-    def test_stub_config_is_stored(self, stub_evaluator, config):
-        assert stub_evaluator.config is config
+    def test_config_is_stored(self, config):
+        assert _StubEvaluator(config).config is config
 
-    def test_conventionality_config_is_stored(self):
-        config = create_config_no_telemetry()
-        assert ConventionalityEvaluator(config).config is config
+
+# ---------------------------------------------------------------------------
+# evaluate()
+# ---------------------------------------------------------------------------
 
 
 class TestEvaluateSuccess:
@@ -267,6 +235,11 @@ class TestStubEvaluateErrorHandling:
         assert captured[-1].error_details
 
 
+# ---------------------------------------------------------------------------
+# update_total_token_usage
+# ---------------------------------------------------------------------------
+
+
 class TestUpdateTotalTokenUsage:
     def test_inserts_usage_for_new_provider(self, stub_evaluator, evaluation_metadata):
         usage = TokenUsage(
@@ -301,6 +274,11 @@ class TestUpdateTotalTokenUsage:
         assert stored.output_tokens == 20
 
 
+# ---------------------------------------------------------------------------
+# execute_step
+# ---------------------------------------------------------------------------
+
+
 class TestExecuteStep:
     def test_returns_implementation_result(self, stub_evaluator, evaluation_metadata):
         assert (
@@ -332,6 +310,11 @@ class TestExecuteStep:
         assert evaluation_metadata.step_details["s"].extras["k"] == "v"
 
 
+# ---------------------------------------------------------------------------
+# execute_prompt_chain_step
+# ---------------------------------------------------------------------------
+
+
 class TestExecutePromptChainStep:
     """Mock ``create_provider`` so ``template | provider`` runs in-process.
 
@@ -346,8 +329,9 @@ class TestExecutePromptChainStep:
             return AIMessage(content="plain prose")
 
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
+        ev = _StubEvaluator(create_config_no_telemetry())
         with patch(_CHAIN_PATCH, return_value=_fake_llm):
-            out = stub_evaluator.execute_prompt_chain_step(
+            out = ev.execute_prompt_chain_step(
                 step_name="raw",
                 prompt_settings=PromptSettings(
                     provider_type=LlmProvider.GOOGLE,
@@ -357,31 +341,11 @@ class TestExecutePromptChainStep:
                 evaluation_metadata=evaluation_metadata,
                 template=template,
                 chain_inputs={"input": "Hello"},
+                parser_output_type=None,
             )
         assert out == "plain prose"
 
-    def test_returns_parsed_conventionality_output(self, evaluation_metadata):
-        def _fake_llm(_pv):
-            return AIMessage(content=_CONV_JSON)
-
-        template = ChatPromptTemplate.from_messages([("human", "{input}")])
-        with patch(_CHAIN_PATCH, return_value=_fake_llm):
-            result = _evaluator().execute_prompt_chain_step(
-                step_name="main",
-                prompt_settings=PromptSettings(
-                    provider_type=LlmProvider.GOOGLE,
-                    model="gemini-2.0-flash",
-                    temperature=0.0,
-                ),
-                evaluation_metadata=evaluation_metadata,
-                template=template,
-                chain_inputs={"input": "Hello"},
-                parser_output_type=ConventionalityOutput,
-            )
-        assert result.complexity_score == "slightly_complex"
-        assert result.reasoning == "Clear."
-
-    def test_returns_parsed_stub_chain_output(self, stub_evaluator, evaluation_metadata):
+    def test_returns_parsed_pydantic_output(self, stub_evaluator, evaluation_metadata):
         def _fake_llm(_pv):
             return AIMessage(content=_CHAIN_JSON)
 

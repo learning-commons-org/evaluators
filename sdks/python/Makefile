@@ -17,7 +17,7 @@ help:
 	@echo "  format-check       Fail if Ruff would reformat any file"
 	@echo "  typecheck          Mypy on src package + tests"
 	@echo "  pip-check          pip dependency consistency check"
-	@echo "  verify             check-generated + lint + format-check + typecheck + pip-check + unit-test"
+	@echo "  verify             check-generated + lint + format-check + typecheck + pip-check + test (unit + contract)"
 	@echo "  coverage           Unit tests with coverage report (requires dev install)"
 	@echo ""
 	@echo "  test               Run the full test suite"
@@ -47,7 +47,7 @@ typecheck:
 pip-check:
 	$(PYTHON) -m pip check
 
-verify: check-generated lint format-check typecheck pip-check unit-test
+verify: check-generated lint format-check typecheck pip-check test
 
 coverage:
 	$(PYTEST) tests/ -q --ignore=tests/contract_tests --cov=learning_commons_evaluators --cov-report=term-missing
