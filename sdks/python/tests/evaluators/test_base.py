@@ -133,7 +133,7 @@ class TestEvaluateTelemetryBranching:
 
 class TestEvaluateErrorHandling:
     def test_raises_validation_error_for_invalid_input(self):
-        # "x" is below the 100-char minimum defined in the TOML settings.
+        # "x" is below the configured minimum text length in the TOML settings.
         evaluator = _evaluator()
         invalid = ConventionalityEvaluationInput(text="x", grade=5)
         with pytest.raises(ValidationError):
