@@ -16,6 +16,7 @@ from learning_commons_evaluators.logger import Logger, get_logger
 # --- Prompt provider configs (for LLM calls in prompt steps) ---
 
 
+# TODO: rename to LLMProvider
 class LlmProvider(str, Enum):
     """LLM provider identifier. Subclass of str so it compares and serializes as the provider name."""
 
@@ -24,22 +25,23 @@ class LlmProvider(str, Enum):
     OPENAI = "openai"
 
 
+# TODO: rename to LLMProviderConfig and subclasses to GoogleLLMProviderConfig, OpenAILLMProviderConfig, AnthropicLLMProviderConfig.
 @dataclass(frozen=True)
 class PromptProviderConfig:
     """Base type for prompt provider configuration."""
 
     api_key: str
     type: LlmProvider
-    base_url: str | None = (
-        None  # Optional; for OpenAI-compatible endpoints (e.g. Azure, proxy). Used only when type is OPENAI.
-    )
+    # TODO: verify base_url functionality before enabling
+    # base_url: str | None = (
+    #     None  # Optional; for OpenAI-compatible endpoints (e.g. Azure, proxy). Used only when type is OPENAI.
+    # )
 
 
 @dataclass(frozen=True)
 class GooglePromptProviderConfig(PromptProviderConfig):
     """Google (Gemini) prompt provider config. Takes an API key."""
 
-    api_key: str
     type: LlmProvider = LlmProvider.GOOGLE
 
 
@@ -47,7 +49,6 @@ class GooglePromptProviderConfig(PromptProviderConfig):
 class OpenAIPromptProviderConfig(PromptProviderConfig):
     """OpenAI prompt provider config. Takes an API key. Optional base_url for custom endpoints."""
 
-    api_key: str
     type: LlmProvider = LlmProvider.OPENAI
 
 
@@ -55,7 +56,6 @@ class OpenAIPromptProviderConfig(PromptProviderConfig):
 class AnthropicPromptProviderConfig(PromptProviderConfig):
     """Anthropic (Claude) prompt provider config. Takes an API key."""
 
-    api_key: str
     type: LlmProvider = LlmProvider.ANTHROPIC
 
 
