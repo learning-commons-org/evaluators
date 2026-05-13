@@ -115,6 +115,15 @@ class TestBaseEvaluatorInit:
     def test_config_is_stored(self, config):
         assert _StubEvaluator(config).config is config
 
+    def test_constructor_default_evaluation_settings_overrides_class_default(self, config):
+        instance_default = _StubSettings(marker=99)
+        ev = _StubEvaluator(config, default_evaluation_settings=instance_default)
+        assert ev.default_evaluation_settings is instance_default
+
+    def test_omitted_constructor_default_falls_back_to_class_attribute(self, config):
+        ev = _StubEvaluator(config)
+        assert ev.default_evaluation_settings is _StubEvaluator.default_evaluation_settings
+
 
 # ---------------------------------------------------------------------------
 # evaluate()
@@ -132,6 +141,20 @@ class TestEvaluateSuccess:
         result = stub_evaluator.evaluate(_stub_input(), evaluation_settings=custom)
         assert result.metadata.evaluation_settings.marker == 42
         assert result.explanation.details.get("marker") == 42
+
+    def test_constructor_default_used_when_evaluate_settings_omitted(self, config):
+        ev = _StubEvaluator(config, default_evaluation_settings=_StubSettings(marker=77))
+        result = ev.evaluate(_stub_input())
+        assert result.metadata.evaluation_settings.marker == 77
+        assert result.explanation.details.get("marker") == 77
+
+    def test_evaluate_explicit_settings_override_constructor_default(self, config):
+        ev = _StubEvaluator(
+            config,
+            default_evaluation_settings=_StubSettings(marker=1),
+        )
+        result = ev.evaluate(_stub_input(), evaluation_settings=_StubSettings(marker=2))
+        assert result.explanation.details.get("marker") == 2
 
 
 class TestEvaluateInputMetadata:

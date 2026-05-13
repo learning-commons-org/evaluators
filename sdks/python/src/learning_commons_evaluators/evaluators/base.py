@@ -49,14 +49,25 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
     """
     Abstract base class for all evaluators.
     Subclasses must set metadata, default_evaluation_settings, and implement evaluate_impl().
+
+    Pass ``default_evaluation_settings`` at construction to override the class-level
+    defaults for that instance (used when :meth:`evaluate` is called without
+    ``evaluation_settings``).
     """
 
     config: EvaluatorConfig
     metadata: EvaluatorMetadata
     default_evaluation_settings: SettingsT
 
-    def __init__(self, config: EvaluatorConfig) -> None:
+    def __init__(
+        self,
+        config: EvaluatorConfig,
+        *,
+        default_evaluation_settings: SettingsT | None = None,
+    ) -> None:
         self.config = config
+        if default_evaluation_settings is not None:
+            self.default_evaluation_settings = default_evaluation_settings
         # TODO: validate config
 
     def evaluate(
@@ -68,13 +79,14 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
 
         Validates the input, delegates to :meth:`evaluate_impl`, records timing
         and status on the returned metadata, and logs start/end events via the
-        configured logger.  If ``evaluation_settings`` is ``None``, the
-        evaluator's :attr:`default_evaluation_settings` is used.
+        configured logger.  If ``evaluation_settings`` is ``None``, a deep copy of
+        the instance's :attr:`default_evaluation_settings` is used (from the
+        constructor keyword when given, otherwise the subclass class attribute).
 
         Args:
             input: Typed input for this evaluator.
             evaluation_settings: Optional override for evaluation settings.
-                Defaults to :attr:`default_evaluation_settings`.
+                Defaults to :attr:`default_evaluation_settings` (constructor or class).
 
         Returns:
             A typed result whose ``metadata.status`` is
