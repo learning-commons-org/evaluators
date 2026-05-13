@@ -25,6 +25,10 @@ Three-step workflow for notebook authors
            description="…",                 # optional human-readable label
        )
 
+   String values in ``input`` (e.g. ``text``) are ``.strip()``'d before writing
+   TOML so contract ``[input]`` matches common evaluator behavior. Run your
+   chains with the same stripped strings so captured ``user_prompt`` matches.
+
 3. Print the TOML block and paste it into ``contracts.toml`` (for example,
    ``sdks/settings/<evaluator>/contracts.toml``):
 
@@ -159,7 +163,8 @@ def capture_case(
     Args:
         name:              Case identifier used as the TOML key (e.g. ``"marco_polo_grade3"``).
         input:             The evaluator's input dict (e.g. ``{"text": ..., "grade": 4}``).
-                           Keys are written as-is to the ``[input]`` TOML section.
+                           String values are ``.strip()``'d before writing TOML.
+                           Keys are otherwise unchanged.
         llm_call_captures: Ordered list of capture prefixes to include as
                            ``prompt_steps`` in the TOML.  Must match the prefixes
                            passed to ``capture_llm()`` during this run, in call order.
@@ -185,7 +190,7 @@ def capture_case(
     """
     data: dict[str, Any] = dict(_captures)
     data["name"] = name
-    data["input"] = dict(input)
+    data["input"] = _strip_string_values(dict(input))
     data["llm_call_captures"] = llm_call_captures
     if expected_result is not None:
         # Normalise to a plain dict so capture_case() is always fully serializable.
@@ -221,6 +226,11 @@ def build_contract_toml(*cases: dict[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _strip_string_values(inp: dict[str, Any]) -> dict[str, Any]:
+    """Return a shallow copy of *inp* with leading/trailing whitespace removed from str values."""
+    return {k: v.strip() if isinstance(v, str) else v for k, v in inp.items()}
 
 
 def _extract_text_content(content: Any) -> str:
@@ -291,9 +301,7 @@ def _build_case(c: dict[str, Any]) -> str:
     # ── input section ────────────────────────────────────────────────────────
     lines.append(f"[cases.{name}.input]")
     for field, val in c.get("input", {}).items():
-        # Do NOT strip text — stripping would make input.text differ from the
-        # text that capture_llm used when formatting the user_prompt, causing
-        # the contract test's prompt-fidelity assertion to fail.
+        # ``capture_case`` applies ``.strip()`` to string fields in ``input``.
         lines.append(f"{field} = {_toml_value(val)}")
     lines.append("")
 

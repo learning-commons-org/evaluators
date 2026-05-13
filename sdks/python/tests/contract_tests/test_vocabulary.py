@@ -21,7 +21,11 @@ HOW TO REFRESH CONTRACT DATA
 -----------------------------
 Run the notebook ``evals/vocabulary_evaluator.ipynb`` with valid API keys.
 The final cells output a TOML block; paste it into ``contracts.toml``
-replacing the placeholder values.
+replacing the placeholder values (canonical copy under ``sdks/settings/vocabulary/``).
+
+Then run ``make sync-settings`` from ``sdks/python`` so the bundled
+``src/learning_commons_evaluators/settings/vocabulary/contracts.toml`` matches;
+contract tests load contracts from that package copy, not from ``sdks/settings/`` alone.
 
 IMPORTANT: ``system_prompt = ""`` for the background_knowledge step is the
 correct value (the prompt has no system message), not a placeholder. Only
@@ -60,7 +64,7 @@ class TestVocabularyContractGrades34:
         evaluator = VocabularyEvaluator(config)
         inp = VocabularyEvaluationInput(
             text=case.input["text"],
-            grade_level=case.input["grade_level"],
+            grade=case.input["grade"],
         )
 
         with ContractTestHarness(case) as harness:
@@ -104,7 +108,7 @@ class TestVocabularyContractOtherGrades:
         evaluator = VocabularyEvaluator(config)
         inp = VocabularyEvaluationInput(
             text=case.input["text"],
-            grade_level=case.input["grade_level"],
+            grade=case.input["grade"],
         )
 
         with ContractTestHarness(case) as harness:

@@ -24,8 +24,8 @@ _EVALUATOR_METADATA = EvaluatorMetadata(
             name='text',
             description='The text to evaluate for vocabulary complexity.',
         ),
-        'grade_level': GradeInputSpec(
-            name='grade_level',
+        'grade': GradeInputSpec(
+            name='grade',
             description='The grade level of the text (3–12).',
             allowed_grades=[3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         ),

@@ -82,7 +82,7 @@ class TestVocabularyEvaluatorGrades34:
     def test_evaluate_grade_3_returns_result(self):
         config = create_config_no_telemetry()
         evaluator = VocabularyEvaluator(config)
-        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=3)
+        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=3)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_grades34_output()):
             result = evaluator.evaluate(inp)
 
@@ -94,7 +94,7 @@ class TestVocabularyEvaluatorGrades34:
     def test_evaluate_grade_4_returns_result(self):
         config = create_config_no_telemetry()
         evaluator = VocabularyEvaluator(config)
-        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=4)
+        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=4)
         with _patch_steps(
             evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_grades34_output("very_complex")
         ):
@@ -106,7 +106,7 @@ class TestVocabularyEvaluatorGrades34:
         """The grades 3–4 prompt may return "slightly complex" (spaces); normalise to underscores."""
         config = create_config_no_telemetry()
         evaluator = VocabularyEvaluator(config)
-        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=3)
+        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=3)
         # The evaluator calls .lower().replace(" ", "_") before from_score(),
         # so we verify space-separated scores survive the normalisation path.
         output = _make_grades34_output("slightly_complex")
@@ -119,7 +119,7 @@ class TestVocabularyEvaluatorGrades34:
     def test_evaluate_grades34_explanation_has_word_breakdown(self):
         config = create_config_no_telemetry()
         evaluator = VocabularyEvaluator(config)
-        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=3)
+        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=3)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_grades34_output()):
             result = evaluator.evaluate(inp)
 
@@ -147,7 +147,7 @@ class TestVocabularyEvaluatorOtherGrades:
         """Each complexity label (passed as convenience int 1–4) maps to the right score."""
         config = create_config_no_telemetry()
         evaluator = VocabularyEvaluator(config)
-        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=7)
+        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=7)
         with _patch_steps(
             evaluator,
             _MOCK_BACKGROUND_KNOWLEDGE,
@@ -160,7 +160,7 @@ class TestVocabularyEvaluatorOtherGrades:
     def test_evaluate_grade_12_returns_result(self):
         config = create_config_no_telemetry()
         evaluator = VocabularyEvaluator(config)
-        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=12)
+        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=12)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_other_grades_output(1)):
             result = evaluator.evaluate(inp)
 
@@ -176,7 +176,7 @@ class TestVocabularyEvaluatorOtherGrades:
         """
         config = create_config_no_telemetry()
         evaluator = VocabularyEvaluator(config)
-        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=8)
+        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=8)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_other_grades_output(2)):
             result = evaluator.evaluate(inp)
 
@@ -189,15 +189,15 @@ class TestVocabularyEvaluatorOtherGrades:
 class TestVocabularyEvaluationInputValidation:
     def test_allowed_grades_set_from_toml(self):
         """VocabularyEvaluationInput picks up allowed_grades from the TOML spec."""
-        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=5)
-        assert set(inp.grade_level.spec.allowed_grades) == VOCABULARY_SUPPORTED_GRADES
+        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=5)
+        assert set(inp.grade.spec.allowed_grades) == VOCABULARY_SUPPORTED_GRADES
 
     @pytest.mark.parametrize("unsupported_grade", [0, 1, 2])
     def test_unsupported_grade_raises_via_framework(self, unsupported_grade):
         """BaseEvaluator.evaluate() calls input.validate(), which catches the bad grade."""
         config = create_config_no_telemetry()
         evaluator = VocabularyEvaluator(config)
-        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=unsupported_grade)
+        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=unsupported_grade)
         # The base evaluator catches the ValidationError, sets status=failed, then re-raises.
         with pytest.raises(ValidationError):
             evaluator.evaluate(inp)
@@ -206,7 +206,7 @@ class TestVocabularyEvaluationInputValidation:
         """Metadata status is set to failed when grade validation fails."""
         config = create_config_no_telemetry()
         evaluator = VocabularyEvaluator(config)
-        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=2)
+        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=2)
         with pytest.raises(ValidationError):
             evaluator.evaluate(inp)
 
@@ -230,7 +230,7 @@ class TestVocabularyEvaluatorMetadata:
     def test_evaluate_succeeds_and_records_metadata(self):
         config = create_config_no_telemetry()
         evaluator = VocabularyEvaluator(config)
-        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=5)
+        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=5)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_other_grades_output(2)):
             result = evaluator.evaluate(inp)
 
@@ -251,10 +251,10 @@ class TestVocabularyEvaluationInputConfiguration:
         """If 'text' is absent from _input_settings, ConfigurationError is raised immediately."""
         monkeypatch.setattr(VocabularyEvaluationInput, "_input_settings", {})
         with pytest.raises(ConfigurationError, match="'text'"):
-            VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=5)
+            VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=5)
 
-    def test_missing_grade_level_spec_raises_configuration_error(self, monkeypatch):
-        """If 'grade_level' is absent from _input_settings, ConfigurationError is raised."""
+    def test_missing_grade_spec_raises_configuration_error(self, monkeypatch):
+        """If 'grade' is absent from _input_settings, ConfigurationError is raised."""
         from learning_commons_evaluators.schemas.input_specs import TextInputSpec
 
         monkeypatch.setattr(
@@ -262,8 +262,8 @@ class TestVocabularyEvaluationInputConfiguration:
             "_input_settings",
             {"text": TextInputSpec(name="text")},
         )
-        with pytest.raises(ConfigurationError, match="'grade_level'"):
-            VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=5)
+        with pytest.raises(ConfigurationError, match="'grade'"):
+            VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=5)
 
     def test_wrong_text_spec_type_raises_configuration_error(self, monkeypatch):
         """If the 'text' spec has the wrong type, ConfigurationError names the type mismatch."""
@@ -275,10 +275,10 @@ class TestVocabularyEvaluationInputConfiguration:
             {"text": GradeInputSpec(name="text")},
         )
         with pytest.raises(ConfigurationError, match="TextInputSpec"):
-            VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=5)
+            VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=5)
 
-    def test_wrong_grade_level_spec_type_raises_configuration_error(self, monkeypatch):
-        """If the 'grade_level' spec has the wrong type, ConfigurationError names the mismatch."""
+    def test_wrong_grade_spec_type_raises_configuration_error(self, monkeypatch):
+        """If the 'grade' spec has the wrong type, ConfigurationError names the mismatch."""
         from learning_commons_evaluators.schemas.input_specs import TextInputSpec
 
         monkeypatch.setattr(
@@ -286,8 +286,8 @@ class TestVocabularyEvaluationInputConfiguration:
             "_input_settings",
             {
                 "text": TextInputSpec(name="text"),
-                "grade_level": TextInputSpec(name="grade_level"),  # wrong type
+                "grade": TextInputSpec(name="grade"),  # wrong type
             },
         )
         with pytest.raises(ConfigurationError, match="GradeInputSpec"):
-            VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade_level=5)
+            VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=5)

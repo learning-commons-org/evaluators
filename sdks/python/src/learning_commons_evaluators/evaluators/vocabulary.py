@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-import textstat
+import textstat  # type: ignore[import-untyped]
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import Field
@@ -51,16 +51,16 @@ class VocabularyEvaluationInput(EvaluationInput):
 
     Example::
 
-        inp = VocabularyEvaluationInput(text="The quick brown fox...", grade_level=5)
+        inp = VocabularyEvaluationInput(text="The quick brown fox...", grade=5)
     """
 
     _input_settings: ClassVar[dict] = _INPUT_SETTINGS
 
     text: TextInputField = Field(description="The text to evaluate.")
-    grade_level: GradeInputField = Field(description="The grade level of the text (3–12).")
+    grade: GradeInputField = Field(description="The grade level of the text (3–12).")
 
-    def __init__(self, *, text: str, grade_level: int, **kwargs):
-        super().__init__(text=text, grade_level=grade_level, **kwargs)
+    def __init__(self, *, text: str, grade: int, **kwargs):
+        super().__init__(text=text, grade=grade, **kwargs)
 
 
 class VocabularyEvaluator(
@@ -95,7 +95,7 @@ class VocabularyEvaluator(
         """Run the two-step vocabulary evaluation and return a TextComplexityResult.
 
         Grade validation is handled by the framework before this method is called:
-        ``VocabularyEvaluationInput`` automatically constrains ``grade_level`` to
+        ``VocabularyEvaluationInput`` automatically constrains ``grade`` to
         :data:`~learning_commons_evaluators.schemas.vocabulary.VOCABULARY_SUPPORTED_GRADES`
         (3–12), so ``BaseEvaluator.evaluate`` raises before reaching here for
         unsupported grades.
@@ -105,7 +105,7 @@ class VocabularyEvaluator(
         ps_og = evaluation_settings.prompt_settings_step_vocab_other_grades
         assert ps_bk is not None and ps_34 is not None and ps_og is not None
 
-        grade = input.grade_level.value
+        grade = input.grade.value
         fk_score = round(textstat.flesch_kincaid_grade(input.text.value), 2)
         prompts = _VOCABULARY_CONFIG.prompts
 

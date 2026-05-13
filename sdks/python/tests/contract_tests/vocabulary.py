@@ -59,7 +59,7 @@ def _placeholder_metadata() -> EvaluationMetadata:
             id="vocabulary",
             version="0.1",
             name="Vocabulary",
-            description="",
+            description="Contract test placeholder.",
             maturity=EvaluatorMaturity.alpha,
         ),
         evaluation_settings=None,  # type: ignore[arg-type]

@@ -42,12 +42,10 @@ description = "Marco Polo passage, grade 3 (grades 3-4 Gemini path)"
 
 [cases.marco_polo_grade3.input]
 text = '''
-
 Polo went on a 24-year trip to China with his father and uncle during the Mongol Dynasty. He left Venice at the age of 17 on a boat that went through the Mediterranean Sea, Ayas, Tabriz and Kerman. Then he travelled across Asia getting as far as Beijing. On the way there he had to go over mountains and through terrible deserts, across hot burning lands and places where the cold was horrible. He served in Kublai Khan's court for 17 years. He left the Far East and returned to Venice by sea. There was sickness on board and 600 passengers and crew died and some say pirates attacked. Nevertheless, Marco Polo survived it all.
 Some scholars believe that while Marco Polo did go to China, he did not go to all of the other places described in his book. He brought noodles back from China and the Italians came up with different sizes and shapes and called it pasta. Polo returned to Venice with treasures like ivory, jade, jewels, porcelain and silk.
-His father had borrowed money and bought a ship. He became wealthy because of his trading in the near East.
-'''
-grade_level = 3
+His father had borrowed money and bought a ship. He became wealthy because of his trading in the near East.'''
+grade = 3
 
 [cases.marco_polo_grade3.prompt_steps.background_knowledge]
 model = "gpt-4o-2024-11-20"
@@ -178,15 +176,13 @@ You can use the following list of topics that we know are covered for each grade
 
 Here is the text:
 [BEGIN TEXT]
-
 Polo went on a 24-year trip to China with his father and uncle during the Mongol Dynasty. He left Venice at the age of 17 on a boat that went through the Mediterranean Sea, Ayas, Tabriz and Kerman. Then he travelled across Asia getting as far as Beijing. On the way there he had to go over mountains and through terrible deserts, across hot burning lands and places where the cold was horrible. He served in Kublai Khan's court for 17 years. He left the Far East and returned to Venice by sea. There was sickness on board and 600 passengers and crew died and some say pirates attacked. Nevertheless, Marco Polo survived it all.
 Some scholars believe that while Marco Polo did go to China, he did not go to all of the other places described in his book. He brought noodles back from China and the Italians came up with different sizes and shapes and called it pasta. Polo returned to Venice with treasures like ivory, jade, jewels, porcelain and silk.
 His father had borrowed money and bought a ship. He became wealthy because of his trading in the near East.
-
 [END TEXT]
 '''
 llm_response = '''
-Background Knowledge Assumption: Students are likely familiar with basic geography (e.g., continents, oceans, and major regions like Asia and Europe) and the concept of trade. They are unlikely to be familiar with Marco Polo, the Mongol Dynasty, Kublai Khan, or the historical origins of pasta.'''
+Background Knowledge Assumption: Students are likely familiar with basic geography (e.g., continents, oceans, and major regions like Asia and Europe) and the concept of historical exploration. They are unlikely to be familiar with the Mongol Dynasty, Kublai Khan, or Marco Polo's specific travels and contributions.'''
 
 [cases.marco_polo_grade3.prompt_steps.vocab_complexity]
 model = "gemini-2.5-pro"
@@ -253,16 +249,14 @@ Below is the text you need to evaluate. Let's think step by step in order to pre
 
 - It is intended for grade 3.
 
-- You can assume the student has the following background knowledge about the text — this background knowledge influences which words from the text are familiar versus unfamiliar for the student: Background Knowledge Assumption: Students are likely familiar with basic geography (e.g., continents, oceans, and major regions like Asia and Europe) and the concept of trade. They are unlikely to be familiar with Marco Polo, the Mongol Dynasty, Kublai Khan, or the historical origins of pasta.
+- You can assume the student has the following background knowledge about the text — this background knowledge influences which words from the text are familiar versus unfamiliar for the student: Background Knowledge Assumption: Students are likely familiar with basic geography (e.g., continents, oceans, and major regions like Asia and Europe) and the concept of historical exploration. They are unlikely to be familiar with the Mongol Dynasty, Kublai Khan, or Marco Polo's specific travels and contributions.
 
 - Text Flesch-Kincaid grade level: 6.59
 
 - Text to evaluate: [BEGIN TEXT]
-
 Polo went on a 24-year trip to China with his father and uncle during the Mongol Dynasty. He left Venice at the age of 17 on a boat that went through the Mediterranean Sea, Ayas, Tabriz and Kerman. Then he travelled across Asia getting as far as Beijing. On the way there he had to go over mountains and through terrible deserts, across hot burning lands and places where the cold was horrible. He served in Kublai Khan's court for 17 years. He left the Far East and returned to Venice by sea. There was sickness on board and 600 passengers and crew died and some say pirates attacked. Nevertheless, Marco Polo survived it all.
 Some scholars believe that while Marco Polo did go to China, he did not go to all of the other places described in his book. He brought noodles back from China and the Italians came up with different sizes and shapes and called it pasta. Polo returned to Venice with treasures like ivory, jade, jewels, porcelain and silk.
 His father had borrowed money and bought a ship. He became wealthy because of his trading in the near East.
-
 [END TEXT]
 
 STRICT OUTPUT FORMAT:
@@ -283,27 +277,29 @@ Here is the output schema (shown in a code block for readability only — do not
 llm_response = '''
 ```json
 {
-  "tier_2_words": "served, nevertheless, survived, scholars, described, treasures, wealthy",
-  "tier_3_words": "Mongol Dynasty, Kublai Khan, ivory, jade, porcelain, silk",
-  "archaic_words": "",
-  "other_complex_words": "Venice, Ayas, Tabriz, Kerman, Beijing, Far East, near East",
+  "tier_2_words": "served, nevertheless, scholars, described, treasures, wealthy, trading, survived, passengers",
+  "tier_3_words": "Mongol Dynasty, Kublai Khan, ivory, jade, porcelain",
+  "archaic_words": "None",
+  "other_complex_words": "Venice, Ayas, Tabriz, Kerman, Mediterranean Sea, Far East, near East",
   "complexity_score": "very complex",
-  "reasoning": "The vocabulary is rated as 'very complex' primarily due to the high density and conceptual load of unfamiliar proper nouns and domain-specific terms, presented with no contextual scaffolding. For a 3rd grader, the text introduces a large number of new names in rapid succession (Mongol Dynasty, Venice, Ayas, Tabriz, Kerman, Beijing, Kublai Khan) which function as challenging vocabulary. Additionally, the text lists specific, unfamiliar goods (ivory, jade, porcelain, silk) without any description. This barrage of new, undefined terms creates a significant cognitive load that would slow comprehension considerably, even if the student can grasp the basic gist of the story. While the main idea might be accessible, understanding the details of the journey and its significance is made very challenging by the vocabulary, aligning with the 'very complex' rating."
+  "reasoning": "The vocabulary is rated as very complex due to the high density and conceptual load of unfamiliar terms for a 3rd grader, combined with a near-total lack of contextual scaffolding. The text introduces a large number of proper nouns that function as new vocabulary concepts (Mongol Dynasty, Kublai Khan, Venice, Ayas, Tabriz, Kerman) in a very short space. In addition, it includes several Tier 3 words for unfamiliar goods (ivory, jade, porcelain) and challenging Tier 2 words (nevertheless, scholars). These terms are presented without definition or explanation, requiring the student to process multiple new concepts simultaneously. This density of unfamiliar vocabulary will often present challenges and significantly slow down comprehension, even if the student can grasp the general story of travel and trade. The cumulative effect of these words pushes the text beyond moderately complex into the very complex category for this grade level."
 }
 ```'''
 
 [cases.marco_polo_grade3.expected_result]
 tier_2_words = '''
-served, nevertheless, survived, scholars, described, treasures, wealthy'''
+served, nevertheless, scholars, described, treasures, wealthy, trading, survived, passengers'''
 tier_3_words = '''
-Mongol Dynasty, Kublai Khan, ivory, jade, porcelain, silk'''
-archaic_words = ""
+Mongol Dynasty, Kublai Khan, ivory, jade, porcelain'''
+archaic_words = '''
+None'''
 other_complex_words = '''
-Venice, Ayas, Tabriz, Kerman, Beijing, Far East, near East'''
+Venice, Ayas, Tabriz, Kerman, Mediterranean Sea, Far East, near East'''
 complexity_score = '''
 very complex'''
 reasoning = '''
-The vocabulary is rated as 'very complex' primarily due to the high density and conceptual load of unfamiliar proper nouns and domain-specific terms, presented with no contextual scaffolding. For a 3rd grader, the text introduces a large number of new names in rapid succession (Mongol Dynasty, Venice, Ayas, Tabriz, Kerman, Beijing, Kublai Khan) which function as challenging vocabulary. Additionally, the text lists specific, unfamiliar goods (ivory, jade, porcelain, silk) without any description. This barrage of new, undefined terms creates a significant cognitive load that would slow comprehension considerably, even if the student can grasp the basic gist of the story. While the main idea might be accessible, understanding the details of the journey and its significance is made very challenging by the vocabulary, aligning with the 'very complex' rating.'''
+The vocabulary is rated as very complex due to the high density and conceptual load of unfamiliar terms for a 3rd grader, combined with a near-total lack of contextual scaffolding. The text introduces a large number of proper nouns that function as new vocabulary concepts (Mongol Dynasty, Kublai Khan, Venice, Ayas, Tabriz, Kerman) in a very short space. In addition, it includes several Tier 3 words for unfamiliar goods (ivory, jade, porcelain) and challenging Tier 2 words (nevertheless, scholars). These terms are presented without definition or explanation, requiring the student to process multiple new concepts simultaneously. This density of unfamiliar vocabulary will often present challenges and significantly slow down comprehension, even if the student can grasp the general story of travel and trade. The cumulative effect of these words pushes the text beyond moderately complex into the very complex category for this grade level.'''
+
 
 # ===========================================================================
 # Case 2: hurricanes_grade7  (grades 5–12 path)
@@ -314,12 +310,10 @@ description = "Hurricane formation passage, grade 7 (grades 5-12 GPT path)"
 
 [cases.hurricanes_grade7.input]
 text = '''
-
 Great whirling storms roar out of the oceans in many parts of the world. They are called by several names — hurricane, typhoon, and cyclone are the three most familiar ones. But no matter what they are called, they are all the same sort of storm. They are born in the same way, in tropical waters. They develop the same way, feeding on warm, moist air. And they do the same kind of damage, both ashore and at sea. Other storms may cover a bigger area or have higher winds, but none can match both the size and the fury of hurricanes. They are earth's mightiest storms.
 
-Like all storms, they take place in the atmosphere, the envelope of air that surrounds the earth and presses on its surface. The pressure at any one place is always changing. There are days when air is sinking and the atmosphere presses harder on the surface. These are the times of high pressure. There are days when a lot of air is rising and the atmosphere does not press down as hard. These are times of low pressure. Low-pressure areas over warm oceans give birth to hurricanes.
-'''
-grade_level = 7
+Like all storms, they take place in the atmosphere, the envelope of air that surrounds the earth and presses on its surface. The pressure at any one place is always changing. There are days when air is sinking and the atmosphere presses harder on the surface. These are the times of high pressure. There are days when a lot of air is rising and the atmosphere does not press down as hard. These are times of low pressure. Low-pressure areas over warm oceans give birth to hurricanes.'''
+grade = 7
 
 [cases.hurricanes_grade7.prompt_steps.background_knowledge]
 model = "gpt-4o-2024-11-20"
@@ -450,15 +444,13 @@ You can use the following list of topics that we know are covered for each grade
 
 Here is the text:
 [BEGIN TEXT]
-
 Great whirling storms roar out of the oceans in many parts of the world. They are called by several names — hurricane, typhoon, and cyclone are the three most familiar ones. But no matter what they are called, they are all the same sort of storm. They are born in the same way, in tropical waters. They develop the same way, feeding on warm, moist air. And they do the same kind of damage, both ashore and at sea. Other storms may cover a bigger area or have higher winds, but none can match both the size and the fury of hurricanes. They are earth's mightiest storms.
 
 Like all storms, they take place in the atmosphere, the envelope of air that surrounds the earth and presses on its surface. The pressure at any one place is always changing. There are days when air is sinking and the atmosphere presses harder on the surface. These are the times of high pressure. There are days when a lot of air is rising and the atmosphere does not press down as hard. These are times of low pressure. Low-pressure areas over warm oceans give birth to hurricanes.
-
 [END TEXT]
 '''
 llm_response = '''
-Background Knowledge Assumption: Students are likely familiar with basic weather concepts, including storms, atmospheric pressure, and the water cycle, but may not yet have detailed knowledge of hurricanes or the specific mechanisms of their formation.'''
+Background Knowledge Assumption: Students are likely familiar with basic weather concepts, including storms, air pressure, and the water cycle, but may not yet have detailed knowledge of hurricanes, their formation, or their global naming conventions.'''
 
 [cases.hurricanes_grade7.prompt_steps.vocab_complexity]
 model = "gpt-4.1"
@@ -605,14 +597,12 @@ To determine the complexity rating of this text based on the vocabulary present,
 
 Below is the text you need to evaluate. It is intended for grade 7.
 
-As you read the text, you can assume the student has the following background knowledge about the text — this background knowledge influences which words from the text are familiar versus unfamiliar for the student: Background Knowledge Assumption: Students are likely familiar with basic weather concepts, including storms, atmospheric pressure, and the water cycle, but may not yet have detailed knowledge of hurricanes or the specific mechanisms of their formation.
+As you read the text, you can assume the student has the following background knowledge about the text — this background knowledge influences which words from the text are familiar versus unfamiliar for the student: Background Knowledge Assumption: Students are likely familiar with basic weather concepts, including storms, air pressure, and the water cycle, but may not yet have detailed knowledge of hurricanes, their formation, or their global naming conventions.
 
 [BEGIN TEXT]
-
 Great whirling storms roar out of the oceans in many parts of the world. They are called by several names — hurricane, typhoon, and cyclone are the three most familiar ones. But no matter what they are called, they are all the same sort of storm. They are born in the same way, in tropical waters. They develop the same way, feeding on warm, moist air. And they do the same kind of damage, both ashore and at sea. Other storms may cover a bigger area or have higher winds, but none can match both the size and the fury of hurricanes. They are earth's mightiest storms.
 
 Like all storms, they take place in the atmosphere, the envelope of air that surrounds the earth and presses on its surface. The pressure at any one place is always changing. There are days when air is sinking and the atmosphere presses harder on the surface. These are the times of high pressure. There are days when a lot of air is rising and the atmosphere does not press down as hard. These are times of low pressure. Low-pressure areas over warm oceans give birth to hurricanes.
-
 [END TEXT]
 
 In your response, when specifying the level of complexity, be sure to use only a single integer (e.g. 2) and don't include any other text (e.g. don't say "level 2").
@@ -633,16 +623,17 @@ Here is the output schema (shown in a code block for readability only — do not
 ```
 '''
 llm_response = '''
-{"tier_2_words": "roar, fury, envelope, damage, match, mightiest, rising, sinking, presses, surrounds, develop, feeding, cover", "tier_3_words": "hurricane, typhoon, cyclone, atmosphere, high pressure, low pressure, tropical, moist, ashore", "archaic_words": "", "other_complex_words": "", "complexity_score": "slightly complex", "reasoning": "The vocabulary in this text is mostly familiar and conversational for a 7th grader with the assumed background knowledge. Words like 'roar,' 'damage,' 'develop,' and 'feeding' are Tier 2 but are common in both everyday and academic contexts. The subject-specific (Tier 3) words include 'hurricane,' 'typhoon,' 'cyclone,' 'atmosphere,' 'high pressure,' 'low pressure,' and 'tropical.' However, these are either defined in context or are likely to be familiar due to prior exposure in science classes. There are no archaic or overly academic words. The proportion of subject-specific vocabulary is low to moderate, but not enough to make the text 'often complex.' The overall vocabulary is accessible, with only a few terms that might require brief pauses for clarification. Therefore, the text fits best at Level 2: mostly not complex, with a low proportion of subject-specific words."}'''
+{"tier_2_words": "roar, fury, envelope, damage, mightiest, develop, match, familiar, surface, rising, sinking, pressing", "tier_3_words": "hurricane, typhoon, cyclone, atmosphere, high pressure, low pressure, tropical, moist", "archaic_words": "", "other_complex_words": "ashore", "complexity_score": "slightly complex", "reasoning": "The vocabulary in this text is mostly contemporary, conversational, and familiar for a 7th grader with the assumed background knowledge. Words like 'hurricane,' 'typhoon,' 'cyclone,' 'atmosphere,' 'high pressure,' and 'low pressure' are subject-specific (Tier 3), but these are introduced with context and are not overly academic or dense. There are a few Tier 2 words such as 'roar,' 'fury,' 'envelope,' and 'damage,' but these are likely familiar from prior curriculum or everyday language. The word 'ashore' may be less familiar, but it is not enough to raise the overall complexity. There are no archaic or overly academic words. The proportion of complex words is low, and the text is accessible for independent reading at this grade level. Therefore, the vocabulary complexity is best described as 'slightly complex,' corresponding to a rubric level 2."}'''
 
 [cases.hurricanes_grade7.expected_result]
 tier_2_words = '''
-roar, fury, envelope, damage, match, mightiest, rising, sinking, presses, surrounds, develop, feeding, cover'''
+roar, fury, envelope, damage, mightiest, develop, match, familiar, surface, rising, sinking, pressing'''
 tier_3_words = '''
-hurricane, typhoon, cyclone, atmosphere, high pressure, low pressure, tropical, moist, ashore'''
+hurricane, typhoon, cyclone, atmosphere, high pressure, low pressure, tropical, moist'''
 archaic_words = ""
-other_complex_words = ""
+other_complex_words = '''
+ashore'''
 complexity_score = '''
 slightly complex'''
 reasoning = '''
-The vocabulary in this text is mostly familiar and conversational for a 7th grader with the assumed background knowledge. Words like 'roar,' 'damage,' 'develop,' and 'feeding' are Tier 2 but are common in both everyday and academic contexts. The subject-specific (Tier 3) words include 'hurricane,' 'typhoon,' 'cyclone,' 'atmosphere,' 'high pressure,' 'low pressure,' and 'tropical.' However, these are either defined in context or are likely to be familiar due to prior exposure in science classes. There are no archaic or overly academic words. The proportion of subject-specific vocabulary is low to moderate, but not enough to make the text 'often complex.' The overall vocabulary is accessible, with only a few terms that might require brief pauses for clarification. Therefore, the text fits best at Level 2: mostly not complex, with a low proportion of subject-specific words.'''
+The vocabulary in this text is mostly contemporary, conversational, and familiar for a 7th grader with the assumed background knowledge. Words like 'hurricane,' 'typhoon,' 'cyclone,' 'atmosphere,' 'high pressure,' and 'low pressure' are subject-specific (Tier 3), but these are introduced with context and are not overly academic or dense. There are a few Tier 2 words such as 'roar,' 'fury,' 'envelope,' and 'damage,' but these are likely familiar from prior curriculum or everyday language. The word 'ashore' may be less familiar, but it is not enough to raise the overall complexity. There are no archaic or overly academic words. The proportion of complex words is low, and the text is accessible for independent reading at this grade level. Therefore, the vocabulary complexity is best described as 'slightly complex,' corresponding to a rubric level 2.'''
