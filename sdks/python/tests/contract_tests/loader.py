@@ -2,7 +2,7 @@
 
 Each evaluator's ``contracts.toml`` lives next to its ``settings.toml`` in
 ``sdks/settings/<evaluator>/`` (e.g.
-``settings/conventionality/contracts.toml``).  This module provides the data
+``sdks/settings/conventionality/contracts.toml``).  This module provides the data
 models and a loader that reads those files into structured objects usable from
 tests.
 """
@@ -68,7 +68,7 @@ class ContractCase:
     Attributes:
         name:           Identifier matching the ``[cases.<name>]`` TOML key.
         description:    Human-readable label (optional).
-        input:          Raw evaluator input values (e.g. ``{"text": ..., "grade_level": 4}``).
+        input:          Raw evaluator input values (e.g. ``{"text": ..., "grade": 4}``).
         prompt_steps:   Ordered mapping of step name → :class:`PromptStepContract`.
                         The order matches the order of LLM calls made during evaluation.
         expected_result: Parsed LLM output in notebook format (i.e. the dict produced by
@@ -92,10 +92,11 @@ class ContractCase:
 
 
 def load_contract_case(evaluator_name: str, case_name: str) -> ContractCase:
-    """Load a named test case from ``settings/<evaluator_name>/contracts.toml``.
+    """Load a named test case from the evaluator's ``contracts.toml``.
 
-    The TOML file is resolved relative to the ``learning_commons_evaluators``
-    package's installed ``settings`` directory.
+    Resolved via :func:`~learning_commons_evaluators.settings.load_settings.shared_settings_root`
+    (bundled ``settings/<evaluator_name>/contracts.toml`` in the package; kept in sync
+    with the canonical ``sdks/settings/`` copy by ``make sync-settings``).
 
     Args:
         evaluator_name: Name of the evaluator (e.g. ``"conventionality"``).

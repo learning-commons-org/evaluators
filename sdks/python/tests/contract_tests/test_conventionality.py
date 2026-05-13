@@ -9,7 +9,7 @@ This test verifies two things for each contract case:
 HOW TO ADD A NEW CASE
 ---------------------
 1. Add a ``[cases.<name>]`` entry to
-   ``settings/conventionality/contracts.toml``.
+   ``sdks/settings/conventionality/contracts.toml``.
 2. Add a loader function to ``contract_tests/conventionality.py``.
 3. Add a test function here following the pattern below.
 

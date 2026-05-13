@@ -43,7 +43,7 @@ help:
 	@echo "  After editing evaluator settings TOML:  make generate-settings && make test"
 	@echo "  After editing contracts TOML:           make sync-settings && make contract-test"
 	@echo "  Fresh checkout / before release:        make build && make verify"
-	@echo "  CI:                                     make verify && make contract-test"
+	@echo "  CI:                                     make verify"
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 # Prepares all package build artifacts in one step.  Run after editing any

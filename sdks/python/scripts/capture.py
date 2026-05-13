@@ -14,7 +14,7 @@ Three-step workflow for notebook authors
    point-in-time copy of what was captured.  Pass the evaluator's input dict
    and output dict directly — no manual field extraction needed::
 
-       case_input  = {"text": my_text, "grade_level": 4}
+       case_input  = {"text": my_text, "grade": 4}
        case_output = run_evaluator(**case_input)
 
        _cap = capture_case(
@@ -25,7 +25,8 @@ Three-step workflow for notebook authors
            description="…",                 # optional human-readable label
        )
 
-3. Print the TOML block and paste it into ``contract_tests.toml``:
+3. Print the TOML block and paste it into ``contracts.toml`` (for example,
+   ``sdks/settings/<evaluator>/contracts.toml``):
 
        print(build_contract_toml(_cap_one, _cap_two))
 
@@ -38,7 +39,7 @@ previous run leaking into the next capture_case::
     output = run_evaluator(text, grade)
     _cap = capture_case(
         name="my_case",
-        input={"text": text, "grade_level": grade},
+        input={"text": text, "grade": grade},
         llm_call_captures=["main"],
         expected_result=output,
     )
@@ -157,7 +158,7 @@ def capture_case(
 
     Args:
         name:              Case identifier used as the TOML key (e.g. ``"marco_polo_grade3"``).
-        input:             The evaluator's input dict (e.g. ``{"text": ..., "grade_level": 4}``).
+        input:             The evaluator's input dict (e.g. ``{"text": ..., "grade": 4}``).
                            Keys are written as-is to the ``[input]`` TOML section.
         llm_call_captures: Ordered list of capture prefixes to include as
                            ``prompt_steps`` in the TOML.  Must match the prefixes
@@ -171,7 +172,7 @@ def capture_case(
 
     Example::
 
-        case_input  = {"text": text, "grade_level": 3}
+        case_input  = {"text": text, "grade": 3}
         case_output = run_evaluator(**case_input)
 
         _cap = capture_case(
@@ -207,7 +208,8 @@ def build_contract_toml(*cases: dict[str, Any]) -> str:
         *cases: One or more dicts as returned by :func:`capture_case`.
 
     Returns:
-        TOML string ready to paste into ``contract_tests.toml``.
+        TOML string ready to paste into ``contracts.toml`` (for example,
+        ``sdks/settings/<evaluator>/contracts.toml``).
 
     Example::
 

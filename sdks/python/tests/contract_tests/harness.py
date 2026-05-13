@@ -64,6 +64,12 @@ class ContractTestHarness:
         self._patch: Any = None
 
     def __enter__(self) -> ContractTestHarness:
+        if not self.case.is_populated():
+            raise ValueError(
+                "Contract case still contains PLACEHOLDER_* values in prompt_steps; "
+                "capture a real notebook run and refresh contracts.toml before running "
+                "contract tests."
+            )
         # Build a FIFO list of (step_name, response) pairs in definition order.
         self._response_queue: list[tuple[str, str]] = [
             (name, step.llm_response) for name, step in self.case.prompt_steps.items()
