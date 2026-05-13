@@ -7,11 +7,6 @@ from learning_commons_evaluators.schemas.config import (
     PromptSettings,
 )
 
-# Grades supported by the vocabulary evaluator.
-# Kept here for backwards-compatibility; the actual constraint is now enforced
-# via allowed_grades in [[evaluator_metadata.inputs]] in the vocabulary evaluator settings.
-VOCABULARY_SUPPORTED_GRADES: frozenset[int] = frozenset(range(3, 13))
-
 
 class VocabularyEvaluationSettings(EvaluationSettings):
     """Settings for a vocabulary complexity evaluation.
@@ -34,8 +29,7 @@ class VocabularyEvaluationSettings(EvaluationSettings):
 # that key (see ``contracts.toml``). Document behavior on fields / comments.
 
 
-class VocabularyOutputGrades34(BaseModel):
-    # LLM output for grades 3–4: rubric label + word breakdown; mirrors evals notebook Output.
+class VocabularyComplexityOutput(BaseModel):
     tier_2_words: str = Field(description="List of Tier 2 words")
     tier_3_words: str = Field(description="List of Tier 3 words")
     archaic_words: str = Field(description="List of Archaic words")
@@ -46,13 +40,29 @@ class VocabularyOutputGrades34(BaseModel):
     reasoning: str = Field(description="your reasoning for your answer")
 
 
-class VocabularyOutputOtherGrades(BaseModel):
-    # Same shape as grades 3–4; complexity_score is normalised to underscores before TextComplexityAnswer.
-    tier_2_words: str = Field(description="List of Tier 2 words")
-    tier_3_words: str = Field(description="List of Tier 3 words")
-    archaic_words: str = Field(description="List of Archaic words")
-    other_complex_words: str = Field(description="List of Other Complex words")
-    complexity_score: str = Field(
-        description="the complexity of the text, one of: slightly complex, moderately complex, very complex, or exceedingly complex"
-    )
-    reasoning: str = Field(description="your reasoning for your answer")
+def normalize_complexity_output(output: dict) -> dict:
+    """Mirror ``evals/vocabulary_evaluator.ipynb`` ``normalize_complexity_output``.
+
+    Maps integer ``answer`` (1–4, including string digits) from the grades 5–12
+    path to ``complexity_score`` using the same labels as the notebook. When
+    ``answer`` is absent, ``complexity_score`` is left unchanged.
+
+    Missing ``tier_*`` / ``archaic_words`` / ``other_complex_words`` keys are
+    filled with ``\"\"`` so minimal JSON still validates as ``VocabularyComplexityOutput``.
+    """
+    result = dict(output)
+    for key in ("tier_2_words", "tier_3_words", "archaic_words", "other_complex_words"):
+        if key not in result or result[key] is None:
+            result[key] = ""
+    mapping = {
+        1: "Slightly Complex",
+        2: "Moderately Complex",
+        3: "Very Complex",
+        4: "Exceedingly Complex",
+    }
+    if "answer" in result:
+        value = result["answer"]
+        if isinstance(value, str) and value.isdigit():
+            value = int(value)
+        result["complexity_score"] = mapping.get(value, str(value))
+    return result

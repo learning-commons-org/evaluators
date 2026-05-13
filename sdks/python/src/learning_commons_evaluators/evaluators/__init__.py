@@ -15,6 +15,7 @@ from learning_commons_evaluators.evaluators.vocabulary import (
     VocabularyEvaluationInput,
     VocabularyEvaluator,
 )
+from learning_commons_evaluators.schemas.vocabulary import normalize_complexity_output
 
 __all__ = [
     "BaseEvaluator",
@@ -24,4 +25,5 @@ __all__ = [
     "OutputT",
     "VocabularyEvaluationInput",
     "VocabularyEvaluator",
+    "normalize_complexity_output",
 ]

@@ -30,8 +30,10 @@
 # -----------------------
 # marco_polo_grade3  — grade 3, uses the grades 3–4 path (Gemini + rubric labels
 #                      + word-level breakdown in expected_result).
-# hurricanes_grade7  — grade 7, uses the grades 5–12 path (GPT + integer score
-#                      in expected_result).
+# hurricanes_grade7  — grade 7, uses the grades 5–12 path (GPT; expected_result
+#                      holds ``complexity_score`` as a string plus word-list fields,
+#                      matching the notebook ``Output`` shape. The SDK also accepts
+#                      legacy integer ``answer`` in raw JSON like ``normalize_complexity_output``.)
 
 # ===========================================================================
 # Case 1: marco_polo_grade3  (grades 3–4 path)

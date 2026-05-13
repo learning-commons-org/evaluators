@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import textstat  # type: ignore[import-untyped]
 from langchain_core.output_parsers import JsonOutputParser
@@ -28,9 +28,9 @@ from learning_commons_evaluators.schemas.text_complexity import (
     TextComplexityResult,
 )
 from learning_commons_evaluators.schemas.vocabulary import (
+    VocabularyComplexityOutput,
     VocabularyEvaluationSettings,
-    VocabularyOutputGrades34,
-    VocabularyOutputOtherGrades,
+    normalize_complexity_output,
 )
 from learning_commons_evaluators.settings._generated_vocabulary_settings import (
     CONFIG as _VOCABULARY_CONFIG,
@@ -73,11 +73,11 @@ class VocabularyEvaluator(
        students at the target grade already know about the text's topic.  This
        provides context that keeps the complexity rating from penalising familiar
        domain words.
-    2. **Vocabulary complexity** – a grade-specific prompt + model produces the
-       final score and reasoning.  Grades 3–4 use a Gemini model and return a
-       rubric label plus a word-level breakdown; grades 5–12 use a GPT model and
-       return a complexity label (e.g. ``"slightly complex"``). The results are
-       normalised and mapped to :class:`TextComplexityAnswer`.
+    2. **Vocabulary complexity** – a grade-specific prompt + model produces JSON
+       matching the notebook ``Output`` shape. Raw JSON is passed through
+       :func:`~learning_commons_evaluators.schemas.vocabulary.normalize_complexity_output`
+       (same behaviour as the notebook), then validated. Grades 3–4 use Gemini;
+       grades 5–12 use GPT. Scores are normalised to :class:`TextComplexityAnswer`.
 
     Supported grades: 3–12.
     """
@@ -96,21 +96,20 @@ class VocabularyEvaluator(
         """Run the two-step vocabulary evaluation and return a TextComplexityResult.
 
         Grade validation is handled by the framework before this method is called:
-        ``VocabularyEvaluationInput`` automatically constrains ``grade`` to
-        :data:`~learning_commons_evaluators.schemas.vocabulary.VOCABULARY_SUPPORTED_GRADES`
-        (3–12), so ``BaseEvaluator.evaluate`` raises before reaching here for
-        unsupported grades.
+        ``VocabularyEvaluationInput`` automatically constrains ``grade`` to the
+        evaluator's ``allowed_grades`` from settings (3–12), so
+        ``BaseEvaluator.evaluate`` raises before reaching here for unsupported grades.
         """
         ps_bk = evaluation_settings.prompt_settings_step_background_knowledge
         ps_34 = evaluation_settings.prompt_settings_step_vocab_grades_3_4
         ps_og = evaluation_settings.prompt_settings_step_vocab_other_grades
 
         grade = input.grade.value
-        fk_score = round(textstat.flesch_kincaid_grade(input.text.value), 2)
+        text = input.text.value
+        fk_score = round(textstat.flesch_kincaid_grade(text), 2)
         prompts = _VOCABULARY_CONFIG.prompts
 
         # ── Step 1: background knowledge ──────────────────────────────────────
-        # parser_output_type=None → execute_prompt_chain_step returns plain str.
         bk_template = ChatPromptTemplate.from_messages(
             [("human", prompts["background_knowledge_prompt"])]
         )
@@ -119,29 +118,32 @@ class VocabularyEvaluator(
             prompt_settings=ps_bk,
             evaluation_metadata=evaluation_metadata,
             template=bk_template,
-            chain_inputs={"text": input.text.value, "grade": grade},
+            chain_inputs={"text": text, "grade": grade},
             parser_output_type=None,
         )
 
-        # ── Step 2: vocabulary complexity (grade-specific) ────────────────────
+        # ── Step 2: vocabulary complexity (grade-specific prompts, shared Output shape)
+        chain_inputs: dict[str, Any] = {
+            "text": input.text.value,
+            "student_grade_level": grade,
+            "student_background_knowledge": background_knowledge,
+        }
         if grade in _GRADES_3_4:
-            answer, explanation = self._evaluate_grades_3_4(
-                input=input,
-                grade=grade,
-                fk_score=fk_score,
-                background_knowledge=background_knowledge,
+            chain_inputs["fk_level"] = fk_score
+            answer, explanation = self._run_vocab_complexity_chain(
+                chain_inputs=chain_inputs,
                 evaluation_metadata=evaluation_metadata,
-                prompts=prompts,
                 prompt_settings_vocab=ps_34,
+                system_prompt=prompts["vocab_grades_3_4_system_prompt"],
+                user_prompt_template=prompts["vocab_grades_3_4_user_prompt"],
             )
         else:
-            answer, explanation = self._evaluate_other_grades(
-                input=input,
-                grade=grade,
-                background_knowledge=background_knowledge,
+            answer, explanation = self._run_vocab_complexity_chain(
+                chain_inputs=chain_inputs,
                 evaluation_metadata=evaluation_metadata,
-                prompts=prompts,
                 prompt_settings_vocab=ps_og,
+                system_prompt=prompts["vocab_other_grades_system_prompt"],
+                user_prompt_template=prompts["vocab_other_grades_user_prompt"],
             )
 
         return TextComplexityResult(
@@ -150,28 +152,20 @@ class VocabularyEvaluator(
             metadata=evaluation_metadata,
         )
 
-    # ── Private helpers ───────────────────────────────────────────────────────
-
-    def _evaluate_grades_3_4(
+    def _run_vocab_complexity_chain(
         self,
         *,
-        input: VocabularyEvaluationInput,
-        grade: int,
-        fk_score: float,
-        background_knowledge: str,
+        chain_inputs: dict[str, Any],
         evaluation_metadata: EvaluationMetadata,
-        prompts: dict,
         prompt_settings_vocab: PromptSettings,
+        system_prompt: str,
+        user_prompt_template: str,
     ) -> tuple[TextComplexityAnswer, EvaluationExplanation]:
-        """Run the grades 3–4 vocabulary complexity step.
-
-        Returns a rubric-label score and a word-breakdown explanation.
-        """
-        parser = JsonOutputParser(pydantic_object=VocabularyOutputGrades34)
+        parser = JsonOutputParser(pydantic_object=VocabularyComplexityOutput)
         template = ChatPromptTemplate.from_messages(
             [
-                ("system", prompts["vocab_grades_3_4_system_prompt"]),
-                ("human", prompts["vocab_grades_3_4_user_prompt"]),
+                ("system", system_prompt),
+                ("human", user_prompt_template),
             ]
         ).partial(format_instructions=parser.get_format_instructions())
 
@@ -180,13 +174,9 @@ class VocabularyEvaluator(
             prompt_settings=prompt_settings_vocab,
             evaluation_metadata=evaluation_metadata,
             template=template,
-            chain_inputs={
-                "text": input.text.value,
-                "student_grade_level": grade,
-                "student_background_knowledge": background_knowledge,
-                "fk_level": fk_score,
-            },
-            parser_output_type=VocabularyOutputGrades34,
+            chain_inputs=chain_inputs,
+            parser_output_type=VocabularyComplexityOutput,
+            json_dict_normalizer=normalize_complexity_output,
         )
 
         # Normalise the score string: the prompt may return spaces ("very complex")
@@ -202,48 +192,4 @@ class VocabularyEvaluator(
                 "other_complex_words": output.other_complex_words,
             },
         )
-        return answer, explanation
-
-    def _evaluate_other_grades(
-        self,
-        *,
-        input: VocabularyEvaluationInput,
-        grade: int,
-        background_knowledge: str,
-        evaluation_metadata: EvaluationMetadata,
-        prompts: dict,
-        prompt_settings_vocab: PromptSettings,
-    ) -> tuple[TextComplexityAnswer, EvaluationExplanation]:
-        """Run the grades 5–12 vocabulary complexity step.
-
-        Returns a string-label score and a reasoning explanation.
-        The OTHER_GRADES prompt uses the same ``Output``-style schema as grades 3–4,
-        so the LLM returns a word-level breakdown and a string ``complexity_score``.
-        """
-        parser = JsonOutputParser(pydantic_object=VocabularyOutputOtherGrades)
-        template = ChatPromptTemplate.from_messages(
-            [
-                ("system", prompts["vocab_other_grades_system_prompt"]),
-                ("human", prompts["vocab_other_grades_user_prompt"]),
-            ]
-        ).partial(format_instructions=parser.get_format_instructions())
-
-        output = self.execute_prompt_chain_step(
-            step_name="vocab_complexity",
-            prompt_settings=prompt_settings_vocab,
-            evaluation_metadata=evaluation_metadata,
-            template=template,
-            chain_inputs={
-                "text": input.text.value,
-                "student_grade_level": grade,
-                "student_background_knowledge": background_knowledge,
-            },
-            parser_output_type=VocabularyOutputOtherGrades,
-        )
-
-        # Normalise the score string: the prompt may return spaces ("slightly complex")
-        # but TextComplexityAnswer expects underscores ("slightly_complex").
-        score = output.complexity_score.lower().replace(" ", "_")
-        answer = TextComplexityAnswer.from_score(score)
-        explanation = EvaluationExplanation(summary=output.reasoning, details={})
         return answer, explanation

@@ -86,10 +86,9 @@ from learning_commons_evaluators.schemas.text_complexity import (
     TextComplexityEvaluationInput,
 )
 from learning_commons_evaluators.schemas.vocabulary import (
-    VOCABULARY_SUPPORTED_GRADES,
+    VocabularyComplexityOutput,
     VocabularyEvaluationSettings,
-    VocabularyOutputGrades34,
-    VocabularyOutputOtherGrades,
+    normalize_complexity_output,
 )
 
 __all__ = [
@@ -139,12 +138,11 @@ __all__ = [
     "TextInputField",
     "TokenUsage",
     "ValidationError",
-    "VOCABULARY_SUPPORTED_GRADES",
     "VocabularyEvaluationInput",
     "VocabularyEvaluationSettings",
     "VocabularyEvaluator",
-    "VocabularyOutputGrades34",
-    "VocabularyOutputOtherGrades",
+    "VocabularyComplexityOutput",
+    "normalize_complexity_output",
     "create_config",
     "create_config_no_telemetry",
     "create_config_telemetry_with_full_input",

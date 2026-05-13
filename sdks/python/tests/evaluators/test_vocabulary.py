@@ -12,9 +12,8 @@ from learning_commons_evaluators import (
 from learning_commons_evaluators.schemas.errors import ConfigurationError, ValidationError
 from learning_commons_evaluators.schemas.metadata import Status
 from learning_commons_evaluators.schemas.vocabulary import (
-    VOCABULARY_SUPPORTED_GRADES,
-    VocabularyOutputGrades34,
-    VocabularyOutputOtherGrades,
+    VocabularyComplexityOutput,
+    normalize_complexity_output,
 )
 
 _SAMPLE_TEXT = "The cat sat on the mat."
@@ -26,8 +25,8 @@ _MOCK_BACKGROUND_KNOWLEDGE = "Students are familiar with household pets and basi
 
 def _make_grades34_output(
     score: str = "moderately_complex",
-) -> VocabularyOutputGrades34:
-    return VocabularyOutputGrades34(
+) -> VocabularyComplexityOutput:
+    return VocabularyComplexityOutput(
         tier_2_words="sat",
         tier_3_words="none",
         archaic_words="none",
@@ -45,14 +44,10 @@ _OTHER_GRADES_SCORE_MAP: dict[int, str] = {
 }
 
 
-def _make_other_grades_output(answer: int = 2) -> VocabularyOutputOtherGrades:
-    """Build a mock ``VocabularyOutputOtherGrades`` from a convenience integer (1–4).
+def _make_other_grades_output(answer: int = 2) -> VocabularyComplexityOutput:
+    """Build mock complexity output from a convenience integer rubric level (1–4)."""
 
-    The OTHER_GRADES LLM returns space-separated string labels ("slightly complex",
-    etc.).  Calling code keeps the same integer-based API for readability; this
-    helper maps it to the string the real model would return.
-    """
-    return VocabularyOutputOtherGrades(
+    return VocabularyComplexityOutput(
         tier_2_words="sat",
         tier_3_words="none",
         archaic_words="none",
@@ -167,20 +162,55 @@ class TestVocabularyEvaluatorOtherGrades:
         assert result.metadata.status == Status.succeeded
         assert result.answer.score == "slightly_complex"
 
-    def test_other_grades_explanation_details_is_empty(self):
-        """The grades 5–12 evaluator drops word-level breakdowns from explanation.details.
-
-        The LLM does return tier_2_words etc. in its output (same schema as grades
-        3–4), but the evaluator intentionally omits them from the explanation so
-        callers get a clean summary-only result for the higher-grade path.
-        """
+    def test_other_grades_explanation_includes_word_breakdown(self):
+        """Grades 5–12 mirror the notebook: word lists live in ``explanation.details``."""
         config = create_config_no_telemetry()
         evaluator = VocabularyEvaluator(config)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=8)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_other_grades_output(2)):
             result = evaluator.evaluate(inp)
 
-        assert result.explanation.details == {}
+        details = result.explanation.details
+        assert details["tier_2_words"] == "sat"
+        assert details["tier_3_words"] == "none"
+        assert details["archaic_words"] == "none"
+        assert details["other_complex_words"] == "none"
+
+    def test_other_grades_legacy_integer_answer_normalizes_like_notebook(self):
+        """``normalize_complexity_output`` then validate (same order as the notebook)."""
+        parsed = VocabularyComplexityOutput.model_validate(
+            normalize_complexity_output(
+                {"answer": 3, "reasoning": "Dense technical terms throughout."}
+            )
+        )
+        assert parsed.complexity_score == "Very Complex"
+        assert parsed.tier_2_words == ""
+        assert parsed.tier_3_words == ""
+
+    def test_other_grades_legacy_string_digit_answer(self):
+        parsed = VocabularyComplexityOutput.model_validate(
+            normalize_complexity_output({"answer": "2", "reasoning": "Accessible vocabulary."})
+        )
+        assert parsed.complexity_score == "Moderately Complex"
+
+
+class TestNormalizeComplexityOutput:
+    def test_preserves_complexity_score_when_answer_absent(self):
+        row = normalize_complexity_output(
+            {
+                "tier_2_words": "a",
+                "tier_3_words": "b",
+                "archaic_words": "c",
+                "other_complex_words": "d",
+                "complexity_score": "slightly complex",
+                "reasoning": "r",
+            }
+        )
+        assert row["complexity_score"] == "slightly complex"
+
+    def test_answer_overwrites_or_sets_complexity_score(self):
+        row = normalize_complexity_output({"answer": 1, "reasoning": "x"})
+        assert row["complexity_score"] == "Slightly Complex"
 
 
 # ── Grade validation via framework ────────────────────────────────────────────
@@ -190,7 +220,7 @@ class TestVocabularyEvaluationInputValidation:
     def test_allowed_grades_set_from_toml(self):
         """VocabularyEvaluationInput picks up allowed_grades from the TOML spec."""
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=5)
-        assert set(inp.grade.spec.allowed_grades) == VOCABULARY_SUPPORTED_GRADES
+        assert set(inp.grade.spec.allowed_grades) == frozenset(range(3, 13))
 
     @pytest.mark.parametrize("unsupported_grade", [0, 1, 2])
     def test_unsupported_grade_raises_via_framework(self, unsupported_grade):

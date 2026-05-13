@@ -114,10 +114,11 @@ def vocabulary_other_grades_notebook_to_sdk_result(
 
     The OTHER_GRADES path uses the same Output-style schema as grades 3–4, so
     ``expected_result`` contains a string ``complexity_score`` (e.g. "slightly
-    complex") which is normalised to underscore form before mapping.
+    complex") which is normalised to underscore form before mapping, plus the
+    same word-list fields as the notebook dict.
 
-    Only ``answer`` and ``explanation.summary`` are compared — ``metadata`` is
-    a placeholder because it contains non-deterministic fields.
+    Only ``answer`` and ``explanation`` are compared — ``metadata`` is a
+    placeholder because it contains non-deterministic fields.
 
     Args:
         case: A loaded :class:`~loader.ContractCase` with a populated
@@ -129,7 +130,15 @@ def vocabulary_other_grades_notebook_to_sdk_result(
     r = case.expected_result
     score = r["complexity_score"].lower().replace(" ", "_")
     answer = TextComplexityAnswer.from_score(score)
-    explanation = EvaluationExplanation(summary=r["reasoning"], details={})
+    explanation = EvaluationExplanation(
+        summary=r["reasoning"],
+        details={
+            "tier_2_words": r["tier_2_words"],
+            "tier_3_words": r["tier_3_words"],
+            "archaic_words": r["archaic_words"],
+            "other_complex_words": r["other_complex_words"],
+        },
+    )
     return TextComplexityResult(
         answer=answer,
         explanation=explanation,

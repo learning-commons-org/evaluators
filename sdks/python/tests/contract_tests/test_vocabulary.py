@@ -3,8 +3,8 @@
 Each test verifies two things for a known input:
   1. The SDK sends the same LLM requests as the notebook (fully-formatted
      system prompt, user prompt, model, and temperature — for both steps).
-  2. Given the same LLM responses, the SDK produces the same result as the
-     notebook.
+  2. Given the same LLM responses, the SDK produces the same structured result
+     as the notebook (score, reasoning, and word-list fields where applicable).
 
 The vocabulary evaluator makes two LLM calls per evaluation:
   - Step "background_knowledge": plain-text response (no system prompt).
@@ -99,8 +99,9 @@ class TestVocabularyContractOtherGrades:
 
         Verifies:
         - Both LLM requests match the notebook.
-        - Given the notebook's LLM responses, the SDK maps the integer score
-          to the correct TextComplexityAnswer and returns the same reasoning.
+        - Given the notebook's LLM responses, the SDK maps ``complexity_score``
+          to the correct ``TextComplexityAnswer`` and returns the same reasoning
+          and word-breakdown details as the notebook.
         """
         case = load_vocabulary_other_grades_case()
 
@@ -129,4 +130,7 @@ class TestVocabularyContractOtherGrades:
         )
         assert result.explanation.summary == expected.explanation.summary, (
             "explanation.summary (reasoning) differs between SDK and notebook"
+        )
+        assert result.explanation.details == expected.explanation.details, (
+            "explanation.details (word breakdown) differs between SDK and notebook"
         )
