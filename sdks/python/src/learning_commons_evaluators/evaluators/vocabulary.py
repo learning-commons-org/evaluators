@@ -103,7 +103,6 @@ class VocabularyEvaluator(
         ps_bk = evaluation_settings.prompt_settings_step_background_knowledge
         ps_34 = evaluation_settings.prompt_settings_step_vocab_grades_3_4
         ps_og = evaluation_settings.prompt_settings_step_vocab_other_grades
-        assert ps_bk is not None and ps_34 is not None and ps_og is not None
 
         grade = input.grade.value
         fk_score = round(textstat.flesch_kincaid_grade(input.text.value), 2)
@@ -188,7 +187,6 @@ class VocabularyEvaluator(
             },
             parser_output_type=VocabularyOutputGrades34,
         )
-        assert isinstance(output, VocabularyOutputGrades34)
 
         # Normalise the score string: the prompt may return spaces ("very complex")
         # but TextComplexityAnswer expects underscores ("very_complex").
@@ -241,7 +239,6 @@ class VocabularyEvaluator(
             },
             parser_output_type=VocabularyOutputOtherGrades,
         )
-        assert isinstance(output, VocabularyOutputOtherGrades)
 
         # Normalise the score string: the prompt may return spaces ("slightly complex")
         # but TextComplexityAnswer expects underscores ("slightly_complex").

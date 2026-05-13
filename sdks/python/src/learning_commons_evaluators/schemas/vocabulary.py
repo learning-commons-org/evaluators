@@ -23,9 +23,9 @@ class VocabularyEvaluationSettings(EvaluationSettings):
     - ``prompt_settings_step_vocab_other_grades``: vocabulary complexity for grades 5–12.
     """
 
-    prompt_settings_step_background_knowledge: PromptSettings | None = None
-    prompt_settings_step_vocab_grades_3_4: PromptSettings | None = None
-    prompt_settings_step_vocab_other_grades: PromptSettings | None = None
+    prompt_settings_step_background_knowledge: PromptSettings
+    prompt_settings_step_vocab_grades_3_4: PromptSettings
+    prompt_settings_step_vocab_other_grades: PromptSettings
 
 
 # Note: avoid class docstrings here — Pydantic adds them as a root ``description``
