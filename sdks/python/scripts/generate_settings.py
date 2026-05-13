@@ -18,10 +18,15 @@ Each such directory typically also has::
 
     sdks/settings/<evaluator>/contracts.toml  — captured LLM interactions for contract tests
 
-Usage::
+Usage (from ``sdks/python/``, e.g. after ``cd sdks/python`` or ``make generate-settings``)::
 
-    # Regenerate all evaluators:
     python scripts/generate_settings.py
+
+From the repository root::
+
+    python sdks/python/scripts/generate_settings.py
+
+Other flags::
 
     # Check whether generated files are stale (exits 1 if any differ):
     python scripts/generate_settings.py --check
@@ -32,7 +37,7 @@ Usage::
     # Verify bundled contracts.toml matches canonical sdks/settings/:
     python scripts/generate_settings.py --check-sync
 
-Typical CI configuration::
+Typical CI configuration (``working-directory: sdks/python``)::
 
     - name: Check settings are up to date
       run: python scripts/generate_settings.py --check
@@ -61,12 +66,13 @@ from typing import Any
 
 # ---------------------------------------------------------------------------
 # Path setup — resolve repo root and add SDK src to sys.path so we can import
-# the SDK without a full install.
+# the SDK without a full install.  This file lives under sdks/python/scripts/.
 # ---------------------------------------------------------------------------
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
-_REPO_ROOT = _SCRIPT_DIR.parent
-_SDK_SRC = _REPO_ROOT / "sdks" / "python" / "src"
+_PYTHON_SDK_ROOT = _SCRIPT_DIR.parent
+_REPO_ROOT = _PYTHON_SDK_ROOT.parent.parent
+_SDK_SRC = _PYTHON_SDK_ROOT / "src"
 _SETTINGS_DIR = _REPO_ROOT / "sdks" / "settings"
 _GENERATED_DIR = _SDK_SRC / "learning_commons_evaluators" / "settings"
 

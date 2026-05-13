@@ -97,7 +97,7 @@ select = [
 ignore = ["E501"]  # line length — formatter wraps where it matters
 
 [tool.ruff.lint.per-file-ignores]
-"../../scripts/generate_settings.py" = ["E402"]
+"scripts/generate_settings.py" = ["E402"]
 
 # ── Mypy ──────────────────────────────────────────────────────────────────────
 

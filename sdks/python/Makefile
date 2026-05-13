@@ -30,13 +30,13 @@ help:
 # ── Static checks (Ruff + Mypy) ───────────────────────────────────────────────
 
 lint:
-	$(RUFF) check src tests ../../scripts/generate_settings.py
+	$(RUFF) check src tests scripts/generate_settings.py
 
 format:
-	$(RUFF) format src tests ../../scripts/generate_settings.py
+	$(RUFF) format src tests scripts/generate_settings.py
 
 format-check:
-	$(RUFF) format --check src tests ../../scripts/generate_settings.py
+	$(RUFF) format --check src tests scripts/generate_settings.py
 
 typecheck:
 	$(MYPY) src/learning_commons_evaluators tests
@@ -61,7 +61,7 @@ unit-test:
 # Re-run when an evaluator settings TOML under sdks/settings/ changes.
 
 generate-settings:
-	$(PYTHON) ../../scripts/generate_settings.py
+	$(PYTHON) scripts/generate_settings.py
 
 check-generated:
-	$(PYTHON) ../../scripts/generate_settings.py --check
+	$(PYTHON) scripts/generate_settings.py --check
