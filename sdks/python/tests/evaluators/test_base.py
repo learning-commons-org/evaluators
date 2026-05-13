@@ -337,6 +337,25 @@ class TestExecutePromptChainStep:
             )
         assert out == "plain prose"
 
+    def test_json_dict_normalizer_without_parser_type_raises(
+        self, stub_evaluator, evaluation_metadata
+    ):
+        template = ChatPromptTemplate.from_messages([("human", "{input}")])
+        with pytest.raises(ValueError, match="json_dict_normalizer requires"):
+            stub_evaluator.execute_prompt_chain_step(
+                step_name="raw",
+                prompt_settings=PromptSettings(
+                    provider_type=LlmProvider.GOOGLE,
+                    model="gemini-2.0-flash",
+                    temperature=0.0,
+                ),
+                evaluation_metadata=evaluation_metadata,
+                template=template,
+                chain_inputs={"input": "Hello"},
+                parser_output_type=None,
+                json_dict_normalizer=lambda d: d,
+            )
+
     def test_returns_parsed_pydantic_output(self, stub_evaluator, evaluation_metadata):
         def _fake_llm(_pv):
             return AIMessage(content=_CHAIN_JSON)
@@ -358,6 +377,42 @@ class TestExecutePromptChainStep:
         assert isinstance(result, _ChainOutput)
         assert result.label == "ok"
         assert result.score == 7
+
+    def test_json_dict_normalizer_parses_dict_then_normalizes_then_validates(
+        self, stub_evaluator, evaluation_metadata
+    ):
+        """Optional ``json_dict_normalizer``: loose JSON → dict → user fn → ``model_validate``."""
+
+        def _fake_llm(_pv):
+            return AIMessage(content='{"n": 1}')
+
+        class _Out(BaseModel):
+            n: int = Field(description="n")
+            doubled: int = Field(description="doubled")
+
+        def _double(d: dict) -> dict:
+            d = dict(d)
+            d["doubled"] = int(d["n"]) * 2
+            return d
+
+        template = ChatPromptTemplate.from_messages([("human", "{input}")])
+        with patch(_CHAIN_PATCH, return_value=_fake_llm):
+            result = stub_evaluator.execute_prompt_chain_step(
+                step_name="main",
+                prompt_settings=PromptSettings(
+                    provider_type=LlmProvider.GOOGLE,
+                    model="gemini-2.0-flash",
+                    temperature=0.0,
+                ),
+                evaluation_metadata=evaluation_metadata,
+                template=template,
+                chain_inputs={"input": "Hello"},
+                parser_output_type=_Out,
+                json_dict_normalizer=_double,
+            )
+        assert isinstance(result, _Out)
+        assert result.n == 1
+        assert result.doubled == 2
 
     def test_parser_returning_model_instance_short_circuits_model_validate(
         self, stub_evaluator, evaluation_metadata
