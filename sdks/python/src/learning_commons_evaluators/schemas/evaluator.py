@@ -152,16 +152,17 @@ class EvaluationInput(BaseModel, ABC):
 
         Raises :class:`~.errors.ValidationError` if any field is invalid.
         """
-        errors: list[ValidationError] = []
+        errors: list[tuple[str, ValidationError]] = []
         for name in type(self).model_fields:
             field_val = getattr(self, name)
             if isinstance(field_val, InputField):
                 try:
                     field_val.validate()
                 except ValidationError as e:
-                    errors.append(e)
+                    errors.append((name, e))
         if errors:
-            raise ValidationError(f"Validation errors: {errors}")
+            parts = [f"{field}: {err.message}" for field, err in errors]
+            raise ValidationError("Validation errors: " + "; ".join(parts))
 
     def input_metadata(self) -> dict[str, Any]:
         """Return a mapping of field name → :meth:`InputField.input_metadata` for each field.

@@ -201,6 +201,30 @@ def test_load_evaluator_settings_prompt_settings_and_prompts(tmp_path: Path) -> 
     assert result.prompts["system_prompt"] == "hello\n\nworld"
 
 
+def test_load_evaluator_settings_rejects_non_string_prompt_value(tmp_path: Path) -> None:
+    path = tmp_path / "bad_prompt_type.toml"
+    path.write_text(
+        textwrap.dedent(
+            """
+            [evaluator_metadata]
+            id = "e"
+            version = "1.0"
+            name = "N"
+            description = "D"
+            maturity = "ga"
+
+            [evaluation_settings]
+            marker = 0
+
+            [prompts]
+            n = 3
+            """
+        ).strip()
+    )
+    with pytest.raises(ConfigurationError, match="Invalid \\[prompts\\].n"):
+        load_evaluator_settings(path, _MiniSettings)
+
+
 def test_load_evaluator_settings_invalid_prompt_settings_block(tmp_path: Path) -> None:
     path = tmp_path / "bad_prompt.toml"
     path.write_text(

@@ -126,14 +126,18 @@ def _normalize_prompt_whitespace(prompt: str) -> str:
 
 
 def _parse_prompts(data: dict) -> dict[str, str]:
-    """Build prompts dict from TOML [prompts] section. Optional; any string values are included."""
+    """Build prompts dict from TOML ``[prompts]`` section. Optional; values must be strings."""
     prompts_section = data.get("prompts")
     if prompts_section is None or not isinstance(prompts_section, dict):
         return {}
-    return {
-        k: _normalize_prompt_whitespace(v if isinstance(v, str) else str(v))
-        for k, v in prompts_section.items()
-    }
+    out: dict[str, str] = {}
+    for k, v in prompts_section.items():
+        if not isinstance(v, str):
+            raise ConfigurationError(
+                f"Invalid [prompts].{k}: expected a string prompt, got {type(v).__name__}."
+            )
+        out[k] = _normalize_prompt_whitespace(v)
+    return out
 
 
 @dataclass(frozen=True)

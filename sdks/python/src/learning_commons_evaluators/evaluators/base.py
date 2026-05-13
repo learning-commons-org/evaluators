@@ -91,7 +91,7 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         evaluation end log record; no result object is returned because this method re-raises.
         """
         if evaluation_settings is None:
-            evaluation_settings = self.default_evaluation_settings
+            evaluation_settings = self.default_evaluation_settings.model_copy(deep=True)
         start = time.perf_counter()
         evaluation_metadata = EvaluationMetadata(
             evaluator_metadata=self.metadata,
