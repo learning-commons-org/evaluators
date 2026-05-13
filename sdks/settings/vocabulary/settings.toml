@@ -395,16 +395,16 @@ In your response, when specifying the level of complexity, be sure to use only a
 [evaluation_settings]
 
 [evaluation_settings.prompt_settings_step_background_knowledge]
-type = "OPENAI"
+provider_type = "OPENAI"
 model = "gpt-4o-2024-11-20"
 temperature = 0
 
 [evaluation_settings.prompt_settings_step_vocab_grades_3_4]
-type = "GOOGLE"
+provider_type = "GOOGLE"
 model = "gemini-2.5-pro"
 temperature = 0
 
 [evaluation_settings.prompt_settings_step_vocab_other_grades]
-type = "OPENAI"
+provider_type = "OPENAI"
 model = "gpt-4.1"
 temperature = 0
