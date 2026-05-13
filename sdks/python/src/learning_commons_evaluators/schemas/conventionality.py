@@ -13,7 +13,7 @@ from learning_commons_evaluators.schemas.config import (
 class ConventionalityEvaluationSettings(EvaluationSettings):
     """Settings for a conventionality evaluation."""
 
-    prompt_settings_step_main: PromptSettings | None = None
+    prompt_settings_step_conventionality_evaluation: PromptSettings
 
 
 class ConventionalityOutput(BaseModel):

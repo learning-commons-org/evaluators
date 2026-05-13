@@ -3,6 +3,7 @@
 import re
 
 
+# TODO: rename name and message, and remove Evaluator prefix where appropriate
 class EvaluatorError(Exception):
     """Base error class for all evaluator errors."""
 
@@ -86,6 +87,7 @@ class EvaluatorTimeoutError(APIError, EvaluatorRetryableError):
         self.name = "EvaluatorTimeoutError"
 
 
+# TODO: OpenAI & Anthropic may return a status_code in the response.
 def _parse_provider_error(error: BaseException) -> tuple[str, int | None, str | None]:
     message = str(error)
     status_code = None
@@ -120,6 +122,7 @@ def wrap_provider_error(
     # Timeouts before generic "Connection" — many stacks use "Connection timed out"
     if "timeout" in msg.lower() or "timed out" in msg.lower():
         return EvaluatorTimeoutError(msg)
+    # TODO: confirm if these apply to Python too. Based on TypeScript SDK implementation.
     if any(
         x in msg
         for x in (

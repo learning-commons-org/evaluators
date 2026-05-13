@@ -66,6 +66,22 @@ class TestCreateSilentLogger:
         assert captured.out == ""
         assert captured.err == ""
 
+    def test_clears_pre_existing_handlers(self, capsys) -> None:
+        log = logging.getLogger("learning_commons_evaluators.silent")
+        for h in list(log.handlers):
+            log.removeHandler(h)
+        noisy = logging.StreamHandler()
+        log.addHandler(noisy)
+        log.setLevel(logging.DEBUG)
+        silent = create_silent_logger()
+        assert silent is log
+        silent.info("still silent")
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err == ""
+        for h in log.handlers:
+            assert isinstance(h, logging.NullHandler)
+
 
 class TestFormatError:
     def test_format_error_returns_string(self) -> None:

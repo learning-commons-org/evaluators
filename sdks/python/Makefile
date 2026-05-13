@@ -1,8 +1,7 @@
-VENV    := ../../.venv
-PYTHON  := $(VENV)/bin/python
-PYTEST  := $(VENV)/bin/pytest
-RUFF    := $(VENV)/bin/ruff
-MYPY    := $(VENV)/bin/mypy
+PYTHON  ?= python3
+PYTEST  := $(PYTHON) -m pytest
+RUFF    := $(PYTHON) -m ruff
+MYPY    := $(PYTHON) -m mypy
 
 # Bundled settings directory inside the package.  Two things are maintained here:
 #   _generated_*_settings.py  — generated from settings.toml by `make generate-settings`
@@ -23,12 +22,12 @@ help:
 	@echo "  build              Prepare the package: generate settings + sync contracts TOML"
 	@echo "  check-build        Verify build artifacts are up to date (use in CI)"
 	@echo ""
-	@echo "  lint               Ruff linter (src, tests, settings generator script)"
+	@echo "  lint               Ruff linter (src/, tests/, scripts/)"
 	@echo "  format             Apply Ruff formatter"
 	@echo "  format-check       Fail if Ruff would reformat any file"
 	@echo "  typecheck          Mypy on src package + tests"
 	@echo "  pip-check          pip dependency consistency check"
-	@echo "  verify             check-build + lint + format-check + typecheck + pip-check + unit-test"
+	@echo "  verify             check-build + lint + format-check + typecheck + pip-check + test (unit + contract)"
 	@echo "  coverage           Unit tests with coverage report (requires dev install)"
 	@echo ""
 	@echo "  test               Run the full test suite (unit + contract)"
@@ -44,7 +43,7 @@ help:
 	@echo "  After editing evaluator settings TOML:  make generate-settings && make test"
 	@echo "  After editing contracts TOML:           make sync-settings && make contract-test"
 	@echo "  Fresh checkout / before release:        make build && make verify"
-	@echo "  CI:                                     make verify && make contract-test"
+	@echo "  CI:                                     make verify"
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 # Prepares all package build artifacts in one step.  Run after editing any
@@ -57,13 +56,13 @@ check-build: check-generated check-sync
 # ── Static checks (Ruff + Mypy) ───────────────────────────────────────────────
 
 lint:
-	$(RUFF) check src tests ../../scripts/generate_settings.py
+	$(RUFF) check src tests scripts
 
 format:
-	$(RUFF) format src tests ../../scripts/generate_settings.py
+	$(RUFF) format src tests scripts
 
 format-check:
-	$(RUFF) format --check src tests ../../scripts/generate_settings.py
+	$(RUFF) format --check src tests scripts
 
 typecheck:
 	$(MYPY) src/learning_commons_evaluators tests
@@ -71,7 +70,7 @@ typecheck:
 pip-check:
 	$(PYTHON) -m pip check
 
-verify: check-build lint format-check typecheck pip-check unit-test
+verify: check-build lint format-check typecheck pip-check test
 
 coverage:
 	$(PYTEST) tests/ -q --ignore=tests/contract_tests --cov=learning_commons_evaluators --cov-report=term-missing
@@ -92,10 +91,10 @@ contract-test:
 # The generator sets EVALUATORS_SETTINGS_DIR itself to point at sdks/settings/.
 
 generate-settings:
-	$(PYTHON) ../../scripts/generate_settings.py
+	$(PYTHON) scripts/generate_settings.py
 
 check-generated:
-	$(PYTHON) ../../scripts/generate_settings.py --check
+	$(PYTHON) scripts/generate_settings.py --check
 
 # ── Contract test bundling ────────────────────────────────────────────────────
 # contracts.toml is bundled so contract tests run consistently whether using
@@ -103,7 +102,7 @@ check-generated:
 # handled by the Python generator script.
 
 sync-settings:
-	$(PYTHON) ../../scripts/generate_settings.py --sync
+	$(PYTHON) scripts/generate_settings.py --sync
 
 check-sync:
-	$(PYTHON) ../../scripts/generate_settings.py --check-sync
+	$(PYTHON) scripts/generate_settings.py --check-sync
