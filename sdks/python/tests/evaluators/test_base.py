@@ -1,8 +1,8 @@
 """Tests for :class:`~learning_commons_evaluators.evaluators.base.BaseEvaluator`.
 
-Covers ``__init__``, ``evaluate`` / ``evaluate_sync``, metadata and settings override,
-success/failure paths, ``update_total_token_usage``, ``execute_step``, and
-``execute_prompt_chain_step``.
+Covers ``__init__``, ``evaluate`` / ``evaluate_sync`` (metadata, settings override,
+success/failure paths, ``schedule_send_telemetry`` wiring), ``update_total_token_usage``,
+``execute_step``, and ``execute_prompt_chain_step``.
 ``EvaluationMetadata`` always uses ``input.input_metadata()`` (including when
 ``send_full_input_with_telemetry`` is enabled). Helpers use both a minimal stub evaluator
 and conventionality-oriented fixtures where useful.
@@ -220,7 +220,12 @@ class TestEvaluateInputMetadata:
         assert result.metadata.input_metadata["text"] == {"textLength": 11}
         assert result.metadata.input_metadata["grade_level"] == {"grade": 3}
 
-    def test_full_telemetry_config_still_uses_input_metadata_not_raw_values(self, stub_evaluator):
+
+class TestEvaluateTelemetry:
+    """``evaluate`` always calls :func:`schedule_send_telemetry` (send vs skip lives in telemetry)."""
+
+    @patch("learning_commons_evaluators.evaluators.base.schedule_send_telemetry")
+    def test_send_full_input_config_preserves_input_metadata(self, mock_schedule):
         """``send_full_input_with_telemetry`` does not replace ``input_metadata`` with raw values."""
         cfg = create_config(telemetry_partner_id="test", send_full_input_with_telemetry=True)
         ev = _StubEvaluator(cfg)
@@ -229,6 +234,56 @@ class TestEvaluateInputMetadata:
         assert result.metadata.input_metadata == inp.input_metadata()
         assert result.metadata.input_metadata["text"] == {"textLength": 11}
         assert result.metadata.input_metadata["grade_level"] == {"grade": 3}
+        mock_schedule.assert_called_once()
+        meta_arg, input_arg, cfg_arg = mock_schedule.call_args.args
+        assert meta_arg is result.metadata
+        assert input_arg is inp
+        assert cfg_arg is cfg
+
+    @patch("learning_commons_evaluators.evaluators.base.schedule_send_telemetry")
+    def test_invokes_schedule_with_metadata_input_and_config(self, mock_schedule, stub_evaluator):
+        inp = _stub_input()
+        stub_evaluator.evaluate_sync(inp)
+        mock_schedule.assert_called_once()
+        meta, passed_inp, cfg = mock_schedule.call_args.args
+        assert cfg is stub_evaluator.config
+        assert passed_inp is inp
+        assert meta.status == Status.succeeded
+        assert meta.evaluator_metadata.id == "stub-evaluator"
+
+    @patch("learning_commons_evaluators.evaluators.base.schedule_send_telemetry")
+    def test_passes_failed_metadata_to_schedule_on_error(self, mock_schedule):
+        cfg = create_config(telemetry_partner_id="tid")
+        ev = _StubEvaluator(cfg)
+        inp = _stub_input()
+        with (
+            patch.object(ev, "evaluate_impl", side_effect=RuntimeError("boom")),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            ev.evaluate_sync(inp)
+        mock_schedule.assert_called_once()
+        meta, passed_inp, out_cfg = mock_schedule.call_args.args
+        assert out_cfg is ev.config
+        assert passed_inp is inp
+        assert meta.status == Status.failed
+        assert "boom" in (meta.error_details or "")
+
+    @patch("learning_commons_evaluators.evaluators.base.schedule_send_telemetry")
+    def test_invokes_schedule_on_validation_error(self, mock_schedule, stub_evaluator):
+        inp = TextComplexityEvaluationInput(
+            text=TextInputField(
+                spec=TextInputSpec(name="text", min_text_length=100),
+                value="short",
+            ),
+            grade_level=GradeInputField(spec=GradeInputSpec(name="grade_level"), value=3),
+        )
+        with pytest.raises(ValidationError):
+            stub_evaluator.evaluate_sync(inp)
+        mock_schedule.assert_called_once()
+        meta, passed_inp, cfg = mock_schedule.call_args.args
+        assert cfg is stub_evaluator.config
+        assert passed_inp is inp
+        assert meta.status == Status.failed
 
 
 class TestStubEvaluateErrorHandling:
