@@ -56,13 +56,13 @@ check-build: check-generated check-sync
 # ── Static checks (Ruff + Mypy) ───────────────────────────────────────────────
 
 lint:
-	$(RUFF) check src tests ../../scripts/generate_settings.py
+	$(RUFF) check src tests scripts/generate_settings.py
 
 format:
-	$(RUFF) format src tests ../../scripts/generate_settings.py
+	$(RUFF) format src tests scripts/generate_settings.py
 
 format-check:
-	$(RUFF) format --check src tests ../../scripts/generate_settings.py
+	$(RUFF) format --check src tests scripts/generate_settings.py
 
 typecheck:
 	$(MYPY) src/learning_commons_evaluators tests
@@ -91,10 +91,10 @@ contract-test:
 # The generator sets EVALUATORS_SETTINGS_DIR itself to point at sdks/settings/.
 
 generate-settings:
-	$(PYTHON) ../../scripts/generate_settings.py
+	$(PYTHON) scripts/generate_settings.py
 
 check-generated:
-	$(PYTHON) ../../scripts/generate_settings.py --check
+	$(PYTHON) scripts/generate_settings.py --check
 
 # ── Contract test bundling ────────────────────────────────────────────────────
 # contracts.toml is bundled so contract tests run consistently whether using
@@ -102,7 +102,7 @@ check-generated:
 # handled by the Python generator script.
 
 sync-settings:
-	$(PYTHON) ../../scripts/generate_settings.py --sync
+	$(PYTHON) scripts/generate_settings.py --sync
 
 check-sync:
-	$(PYTHON) ../../scripts/generate_settings.py --check-sync
+	$(PYTHON) scripts/generate_settings.py --check-sync

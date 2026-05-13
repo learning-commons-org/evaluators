@@ -6,13 +6,11 @@ on:
       - main
     paths:
       - "sdks/python/**"
-      - "scripts/generate_settings.py"
       - "sdks/settings/**"
       - ".github/workflows/test-sdk-python.yml"
   pull_request:
     paths:
       - "sdks/python/**"
-      - "scripts/generate_settings.py"
       - "sdks/settings/**"
       - ".github/workflows/test-sdk-python.yml"
 
