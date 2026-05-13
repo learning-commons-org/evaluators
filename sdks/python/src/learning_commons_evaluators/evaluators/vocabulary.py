@@ -76,7 +76,8 @@ class VocabularyEvaluator(
     2. **Vocabulary complexity** – a grade-specific prompt + model produces the
        final score and reasoning.  Grades 3–4 use a Gemini model and return a
        rubric label plus a word-level breakdown; grades 5–12 use a GPT model and
-       return an integer score (1–4).
+       return a complexity label (e.g. ``"slightly complex"``). The results are
+       normalised and mapped to :class:`TextComplexityAnswer`.
 
     Supported grades: 3–12.
     """

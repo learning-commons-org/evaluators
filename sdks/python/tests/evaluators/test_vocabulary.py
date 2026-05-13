@@ -108,8 +108,8 @@ class TestVocabularyEvaluatorGrades34:
         evaluator = VocabularyEvaluator(config)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=3)
         # The evaluator calls .lower().replace(" ", "_") before from_score(),
-        # so we verify space-separated scores survive the normalisation path.
-        output = _make_grades34_output("slightly_complex")
+        # so we feed a space-separated label and assert it survives the path.
+        output = _make_grades34_output("slightly complex")
 
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, output):
             result = evaluator.evaluate(inp)
