@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import importlib.resources
+import os
 import textwrap
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -12,6 +14,9 @@ from learning_commons_evaluators.schemas.config import (
     EvaluationSettings,
     LlmProvider,
     PromptSettings,
+)
+from learning_commons_evaluators.schemas.conventionality import (
+    ConventionalityEvaluationSettings,
 )
 from learning_commons_evaluators.schemas.errors import ConfigurationError
 from learning_commons_evaluators.schemas.input_specs import TextInputSpec
@@ -226,43 +231,31 @@ def test_load_evaluator_settings_rejects_non_string_prompt_value(tmp_path: Path)
 
 
 def test_load_evaluator_settings_invalid_prompt_settings_block(tmp_path: Path) -> None:
+    """Unknown ``[[evaluator_metadata.inputs]].type`` must raise a clear configuration error."""
     path = tmp_path / "bad_prompt.toml"
     path.write_text(
         textwrap.dedent(
             """
             [evaluator_metadata]
-            id = "e"
-            version = "1.0"
-            name = "N"
-            description = "D"
-            maturity = "ga"
+            id = "x"
+            version = "0.1"
+            name = "X"
+            description = "X"
+            maturity = "beta"
 
-            [evaluation_settings]
-            marker = 0
+            [[evaluator_metadata.inputs]]
+            name = "mystery"
+            type = "UnknownInputField"
 
-            [evaluation_settings.prompt_settings_main]
-            provider_type = "google"
-            model = "m"
+            [evaluation_settings.prompt_settings_step_conventionality_evaluation]
+            provider_type = "GOOGLE"
+            model = "gemini-2.0-flash"
+            temperature = 0
             """
-[evaluator_metadata]
-id = "x"
-version = "0.1"
-name = "X"
-description = "X"
-maturity = "beta"
-
-[[evaluator_metadata.inputs]]
-name = "mystery"
-type = "UnknownInputField"
-
-[evaluation_settings.prompt_settings_step_main]
-type = "GOOGLE"
-model = "gemini-2.0-flash"
-temperature = 0
-""",
-        )
-        with pytest.raises(ConfigurationError, match="Unknown input type"):
-            load_evaluator_settings(path, ConventionalityEvaluationSettings)
+        ).strip()
+    )
+    with pytest.raises(ConfigurationError, match="UnknownInputField"):
+        load_evaluator_settings(path, ConventionalityEvaluationSettings)
 
 
 # ---------------------------------------------------------------------------
@@ -279,7 +272,7 @@ class TestSharedSettingsRoot:
         env = {k: v for k, v in os.environ.items() if k != "EVALUATORS_SETTINGS_DIR"}
         with patch.dict(os.environ, env, clear=True):
             root = shared_settings_root()
-        assert root.exists(), f"shared_settings_root() resolved to non-existent path: {root}"
+        assert root.is_dir(), f"shared_settings_root() resolved to non-directory: {root}"
 
     def test_bundled_contract_tests_are_present(self) -> None:
         """The bundled package must contain contracts.toml for each evaluator.
@@ -291,7 +284,7 @@ class TestSharedSettingsRoot:
         with patch.dict(os.environ, env, clear=True):
             root = shared_settings_root()
         for evaluator in ("conventionality",):
-            assert (root / evaluator / "contracts.toml").exists(), (
+            assert (root / evaluator / "contracts.toml").is_file(), (
                 f"Bundled {evaluator}/contracts.toml not found — "
                 f"run 'python scripts/generate_settings.py --sync'"
             )

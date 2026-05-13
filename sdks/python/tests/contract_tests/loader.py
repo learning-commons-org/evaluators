@@ -12,13 +12,21 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-if sys.version_info >= (3, 11):
-    import tomllib
+if TYPE_CHECKING:
+    from importlib.abc import Traversable
 else:
     try:
-        import tomllib
+        from importlib.resources.abc import Traversable
+    except ImportError:
+        from importlib.abc import Traversable
+
+if sys.version_info >= (3, 11):
+    import tomllib  # type: ignore[import-untyped]
+else:
+    try:
+        import tomllib  # type: ignore[import-untyped]
     except ImportError:
         import tomli as tomllib  # type: ignore[import-not-found,no-redef]
 
@@ -101,13 +109,17 @@ def load_contract_case(evaluator_name: str, case_name: str) -> ContractCase:
         KeyError: If ``case_name`` is not found in the TOML.
     """
     toml_path = _settings_path(evaluator_name) / "contracts.toml"
-    if not toml_path.exists():
+    if not toml_path.is_file():
         raise FileNotFoundError(
             f"contracts.toml not found for evaluator '{evaluator_name}' (expected at {toml_path})"
         )
 
-    with open(toml_path, "rb") as fh:
-        data = tomllib.load(fh)
+    if isinstance(toml_path, Path):
+        with open(toml_path, "rb") as fh:
+            data = tomllib.load(fh)
+    else:
+        with toml_path.open("rb") as fh:
+            data = tomllib.load(fh)
 
     cases = data.get("cases", {})
     if case_name not in cases:
@@ -122,7 +134,7 @@ def load_contract_case(evaluator_name: str, case_name: str) -> ContractCase:
 # ---------------------------------------------------------------------------
 
 
-def _settings_path(evaluator_name: str) -> Path:
+def _settings_path(evaluator_name: str) -> Path | Traversable:
     """Resolve the settings directory for an evaluator from the shared settings root."""
     from learning_commons_evaluators.settings.load_settings import (
         shared_settings_root,  # noqa: PLC0415
