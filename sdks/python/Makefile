@@ -22,7 +22,7 @@ help:
 	@echo "  build              Prepare the package: generate settings + sync contracts TOML"
 	@echo "  check-build        Verify build artifacts are up to date (use in CI)"
 	@echo ""
-	@echo "  lint               Ruff linter (src, tests, settings generator script)"
+	@echo "  lint               Ruff linter (src/, tests/, scripts/)"
 	@echo "  format             Apply Ruff formatter"
 	@echo "  format-check       Fail if Ruff would reformat any file"
 	@echo "  typecheck          Mypy on src package + tests"
@@ -56,13 +56,13 @@ check-build: check-generated check-sync
 # ── Static checks (Ruff + Mypy) ───────────────────────────────────────────────
 
 lint:
-	$(RUFF) check src tests scripts/generate_settings.py
+	$(RUFF) check src tests scripts
 
 format:
-	$(RUFF) format src tests scripts/generate_settings.py
+	$(RUFF) format src tests scripts
 
 format-check:
-	$(RUFF) format --check src tests scripts/generate_settings.py
+	$(RUFF) format --check src tests scripts
 
 typecheck:
 	$(MYPY) src/learning_commons_evaluators tests

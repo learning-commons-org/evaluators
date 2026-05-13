@@ -56,7 +56,6 @@ from typing import Any
 
 from langchain_core.runnables import RunnableLambda
 
-
 # ---------------------------------------------------------------------------
 # Internal state
 # ---------------------------------------------------------------------------
@@ -104,7 +103,7 @@ def capture_llm(prefix: str, model: Any) -> RunnableLambda:
 
     Supports both ``invoke`` (sync) and ``ainvoke`` (async) chains.
     """
-    model_name  = getattr(model, "model", None) or getattr(model, "model_name", None) or ""
+    model_name = getattr(model, "model", None) or getattr(model, "model_name", None) or ""
     temperature = float(getattr(model, "temperature", 0))
 
     def _record(prompt_value: Any, ai_message: Any) -> None:
@@ -128,10 +127,10 @@ def capture_llm(prefix: str, model: Any) -> RunnableLambda:
                 (str(m.content) for m in messages if getattr(m, "type", None) == "human"), ""
             )
         _captures[f"{prefix}_system_prompt"] = system
-        _captures[f"{prefix}_user_prompt"]   = human
-        _captures[f"{prefix}_model"]         = model_name
-        _captures[f"{prefix}_temperature"]   = temperature
-        _captures[f"{prefix}_raw_response"]  = _extract_text_content(ai_message.content)
+        _captures[f"{prefix}_user_prompt"] = human
+        _captures[f"{prefix}_model"] = model_name
+        _captures[f"{prefix}_temperature"] = temperature
+        _captures[f"{prefix}_raw_response"] = _extract_text_content(ai_message.content)
 
     def _invoke(prompt_value: Any) -> Any:
         ai_message = model.invoke(prompt_value)
