@@ -1,12 +1,15 @@
-"""Tests for EvaluationInput, EvaluationAnswer, EvaluationExplanation, and EvaluationResult."""
+"""Tests for EvaluationInput, EvaluationAnswer, EvaluationExplanation, and EvaluationResult.
+
+Uses a minimal :class:`_ExampleEvaluationInput` (text + grade) wired to explicit
+:class:`~learning_commons_evaluators.schemas.input_specs.TextInputSpec` /
+:class:`~learning_commons_evaluators.schemas.input_specs.GradeInputSpec`
+instances so nothing depends on a real evaluator's TOML or class names.
+"""
 
 from typing import ClassVar
 
 import pytest
 
-from learning_commons_evaluators.evaluators.conventionality import (
-    ConventionalityEvaluationInput,
-)
 from learning_commons_evaluators.schemas.common_inputs import (
     GradeInputField,
     TextInputField,
@@ -20,6 +23,7 @@ from learning_commons_evaluators.schemas.evaluator import (
     EvaluationExplanation,
     EvaluationInput,
     EvaluationResult,
+    InputField,
 )
 from learning_commons_evaluators.schemas.input_specs import (
     GradeInputSpec,
@@ -29,21 +33,38 @@ from learning_commons_evaluators.schemas.metadata import (
     Status,
 )
 
-# A realistic sample long enough to satisfy the min_text_length=100 constraint.
-_SAMPLE_TEXT = (
+# Long sample text (well above ``min_text_length`` on :attr:`_EXAMPLE_TEXT_SPEC`).
+_LONG_TEXT = (
     "Marco Polo was a Venetian merchant and explorer who traveled through Asia "
     "in the late 13th century. He spent nearly two decades at the court of "
     "Kublai Khan, the Mongol ruler of China, and described his experiences in "
     "a book that introduced Europeans to the Far East."
 )
 
+_EXAMPLE_TEXT_SPEC = TextInputSpec(name="text", min_text_length=10)
+_EXAMPLE_GRADE_SPEC = GradeInputSpec(name="grade")
+# Unconstrained text spec for tests that only need an :class:`InputField` instance.
+_BARE_TEXT_SPEC = TextInputSpec(name="text")
+
+
+class _ExampleEvaluationInput(EvaluationInput):
+    """Minimal concrete :class:`EvaluationInput` for schema unit tests."""
+
+    _input_settings: ClassVar[dict] = {
+        "text": _EXAMPLE_TEXT_SPEC,
+        "grade": _EXAMPLE_GRADE_SPEC,
+    }
+    text: TextInputField
+    grade: GradeInputField
+
+    def __init__(self, *, text: str, grade: int, **kwargs):
+        super().__init__(text=text, grade=grade, **kwargs)
+
 
 # ---------------------------------------------------------------------------
-# A minimal EvaluationInput subclass that mixes a proper InputField with a
-# plain float — used to exercise the isinstance(..., InputField) False branches.
+# Mixes a proper InputField with a plain float — exercises the
+# isinstance(..., InputField) false branches on :class:`EvaluationInput`.
 # ---------------------------------------------------------------------------
-
-_BARE_TEXT_SPEC = TextInputSpec(name="text")  # no constraints — for testing base-class behaviour
 
 
 class _MixedInput(EvaluationInput):
@@ -57,39 +78,36 @@ class TestEvaluationInput:
     # --- happy-path construction, validation, and metadata ---
 
     def test_validate_and_input_metadata(self):
-        inp = ConventionalityEvaluationInput(text=_SAMPLE_TEXT, grade=5)
+        inp = _ExampleEvaluationInput(text=_LONG_TEXT, grade=5)
         inp.validate()
         meta = inp.input_metadata()
-        assert meta["text"] == {"textLength": str(len(_SAMPLE_TEXT))}
+        assert meta["text"] == {"textLength": len(_LONG_TEXT)}
         assert meta["grade"] == {"grade": 5}
 
     def test_input_values_returns_primitive_values(self):
         """input_values() should unwrap .value from each InputField."""
-        inp = ConventionalityEvaluationInput(text=_SAMPLE_TEXT, grade=7)
+        inp = _ExampleEvaluationInput(text=_LONG_TEXT, grade=7)
         values = inp.input_values()
-        assert values["text"] == _SAMPLE_TEXT
+        assert values["text"] == _LONG_TEXT
         assert values["grade"] == 7
 
     # --- validation error paths ---
 
     def test_validate_raises_on_invalid_grade(self):
-        inp = ConventionalityEvaluationInput(text=_SAMPLE_TEXT, grade=99)
+        inp = _ExampleEvaluationInput(text=_LONG_TEXT, grade=99)
         with pytest.raises(ValidationError):
             inp.validate()
 
     def test_validate_raises_on_invalid_text_length(self):
-        # min_text_length=100 comes from the TOML settings; "x" is 1 char.
-        inp = ConventionalityEvaluationInput(text="x", grade=5)
+        inp = _ExampleEvaluationInput(text="x", grade=5)
         with pytest.raises(ValidationError):
             inp.validate()
 
     def test_validate_collects_all_errors_before_raising(self):
         """All field errors are collected; a single ValidationError is raised at the end."""
-        # "x" is below the 100-char minimum; grade 99 is outside the 0-12 range.
-        inp = ConventionalityEvaluationInput(text="x", grade=99)
+        inp = _ExampleEvaluationInput(text="x", grade=99)
         with pytest.raises(ValidationError) as exc_info:
             inp.validate()
-        # Both errors should appear in the combined message.
         msg = str(exc_info.value)
         assert "below minimum" in msg
         assert "0-12" in msg
@@ -105,7 +123,7 @@ class TestEvaluationInput:
         """Fields that are not InputFields produce a None entry in the output dict."""
         inp = _MixedInput(text=TextInputField(spec=_BARE_TEXT_SPEC, value="hello"), weight=7.5)
         meta = inp.input_metadata()
-        assert meta["text"] == {"textLength": "5"}
+        assert meta["text"] == {"textLength": 5}
         assert meta["weight"] is None  # fallback for non-protocol fields
 
     def test_input_values_returns_field_itself_for_non_inputfield(self):
@@ -119,63 +137,34 @@ class TestEvaluationInput:
 
     def test_text_input_field_is_inputfield_subclass(self):
         """TextInputField must be an InputField subclass (checked via isinstance)."""
-        from learning_commons_evaluators.schemas.evaluator import InputField
-
         field = TextInputField(spec=_BARE_TEXT_SPEC, value="hello")
         assert isinstance(field, InputField)
 
     def test_grade_input_field_is_inputfield_subclass(self):
         """GradeInputField must be an InputField subclass (checked via isinstance)."""
-        from learning_commons_evaluators.schemas.common_inputs import GradeInputField
-        from learning_commons_evaluators.schemas.evaluator import InputField
-        from learning_commons_evaluators.schemas.input_specs import GradeInputSpec
-
         spec = GradeInputSpec(name="grade")
         field = GradeInputField(spec=spec, value=5)
         assert isinstance(field, InputField)
 
     def test_plain_value_is_not_an_inputfield(self):
         """Plain Python values must not be treated as InputField instances."""
-        from learning_commons_evaluators.schemas.evaluator import InputField
-
         assert not isinstance(7.5, InputField)
         assert not isinstance("raw string", InputField)
 
     def test_inputfield_cannot_be_instantiated_directly(self):
         """InputField is abstract and must not be instantiable without implementing validate() and input_metadata()."""
-        from learning_commons_evaluators.schemas.evaluator import InputField
-        from learning_commons_evaluators.schemas.input_specs import TextInputSpec
-
         with pytest.raises(TypeError, match="abstract"):
             InputField(spec=TextInputSpec(name="text"), value="hello")  # type: ignore[abstract]
 
 
 class TestCoerceRawToInputFields:
-    """Direct unit tests for EvaluationInput._coerce_raw_to_input_fields.
+    """Direct unit tests for :meth:`EvaluationInput._coerce_raw_to_input_fields`."""
 
-    These tests exercise the model_validator on a minimal concrete subclass
-    rather than through a full evaluator, so failures point directly at the
-    base-class behaviour rather than evaluator-specific configuration.
-    """
-
-    # Minimal concrete EvaluationInput subclass wired to known specs.
-    _TEXT_SPEC = TextInputSpec(name="text")
-    _GRADE_SPEC = GradeInputSpec(name="grade")
-
-    class _SimpleInput(EvaluationInput):
-        _input_settings: ClassVar[dict] = {
-            "text": TextInputSpec(name="text"),
-            "grade": GradeInputSpec(name="grade"),
-        }
-        text: TextInputField
-        grade: GradeInputField
-
-        def __init__(self, *, text: str, grade: int, **kwargs):
-            super().__init__(text=text, grade=grade, **kwargs)
+    _COERCE_TEXT_SPEC = TextInputSpec(name="text")
 
     def test_raw_values_are_wrapped_into_input_fields(self):
         """Raw str/int values should be wrapped into the declared InputField types."""
-        inp = self._SimpleInput(text="hello world", grade=5)
+        inp = _ExampleEvaluationInput(text="hello world", grade=5)
         assert isinstance(inp.text, TextInputField)
         assert inp.text.value == "hello world"
         assert isinstance(inp.grade, GradeInputField)
@@ -183,8 +172,8 @@ class TestCoerceRawToInputFields:
 
     def test_already_constructed_input_field_is_not_rewrapped(self):
         """Passing a fully-constructed InputField instance bypasses construction."""
-        pre_built = TextInputField(spec=self._TEXT_SPEC, value="pre-built")
-        inp = self._SimpleInput(text=pre_built, grade=3)  # type: ignore[arg-type]
+        pre_built = TextInputField(spec=self._COERCE_TEXT_SPEC, value="pre-built")
+        inp = _ExampleEvaluationInput(text=pre_built, grade=3)  # type: ignore[arg-type]
         assert inp.text is pre_built  # same object, not a copy
 
     def test_non_inputfield_field_is_left_unchanged(self):
@@ -203,27 +192,27 @@ class TestCoerceRawToInputFields:
 
     def test_missing_spec_raises_configuration_error(self, monkeypatch):
         """ConfigurationError is raised when a required spec is absent from _input_settings."""
-        monkeypatch.setattr(self._SimpleInput, "_input_settings", {})
+        monkeypatch.setattr(_ExampleEvaluationInput, "_input_settings", {})
         with pytest.raises(ConfigurationError, match="'text'"):
-            self._SimpleInput(text="hello", grade=5)
+            _ExampleEvaluationInput(text="hello", grade=5)
 
     def test_wrong_spec_type_raises_configuration_error(self, monkeypatch):
         """ConfigurationError is raised when the spec type doesn't match the field's expectation."""
         monkeypatch.setattr(
-            self._SimpleInput,
+            _ExampleEvaluationInput,
             "_input_settings",
-            {"text": GradeInputSpec(name="text"), "grade": self._GRADE_SPEC},
+            {"text": GradeInputSpec(name="text"), "grade": _EXAMPLE_GRADE_SPEC},
         )
         with pytest.raises(ConfigurationError, match="TextInputSpec"):
-            self._SimpleInput(text="hello", grade=5)
+            _ExampleEvaluationInput(text="hello", grade=5)
 
     def test_error_message_includes_class_and_field_name(self, monkeypatch):
         """ConfigurationError messages name both the class and the missing field."""
-        monkeypatch.setattr(self._SimpleInput, "_input_settings", {})
+        monkeypatch.setattr(_ExampleEvaluationInput, "_input_settings", {})
         with pytest.raises(ConfigurationError) as exc_info:
-            self._SimpleInput(text="hello", grade=5)
+            _ExampleEvaluationInput(text="hello", grade=5)
         msg = str(exc_info.value)
-        assert "_SimpleInput" in msg
+        assert "_ExampleEvaluationInput" in msg
         assert "'text'" in msg
 
 

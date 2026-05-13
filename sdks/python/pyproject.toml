@@ -40,11 +40,15 @@ dev = [
     "pytest-cov>=5.0.0",
     "ruff>=0.9.0",
     "mypy>=1.14.0",
+    # Mypy is configured for Python 3.10 even when dev tooling runs on newer Python,
+    # so it needs the 3.10 tomllib backport available for type checking.
+    "tomli>=2.0.0",
 ]
 
 [project.urls]
 Homepage = "https://github.com/learning-commons-org/evaluators"
 Repository = "https://github.com/learning-commons-org/evaluators/tree/main/sdks/python"
+Documentation = "https://docs.learningcommons.org/evaluators"
 "Bug Tracker" = "https://github.com/learning-commons-org/evaluators/issues"
 
 [tool.setuptools.packages.find]
@@ -76,8 +80,8 @@ testpaths = ["tests"]
 target-version = "py310"
 line-length = 100
 extend-exclude = [
-    "src/learning_commons_evaluators/settings/_generated_conventionality_settings.py",
-    "src/learning_commons_evaluators/settings/_generated_vocabulary_settings.py",
+    # Codegen output from ``make generate-settings`` — not hand-edited.
+    "src/learning_commons_evaluators/settings/_generated_*_settings.py",
 ]
 
 [tool.ruff.lint]
@@ -112,18 +116,6 @@ module = "learning_commons_evaluators.settings.load_settings"
 disable_error_code = ["import-untyped"]
 
 [[tool.mypy.overrides]]
-module = "contract_tests.loader"
-disable_error_code = ["import-untyped"]
-
-[[tool.mypy.overrides]]
 module = "learning_commons_evaluators.providers.langchain"
 # LangChain stubs lag the runtime API (e.g. ChatAnthropic kwargs).
 disable_error_code = ["call-arg", "arg-type"]
-
-[[tool.mypy.overrides]]
-module = "learning_commons_evaluators.evaluators.conventionality"
-disable_error_code = ["import-untyped", "call-arg"]
-
-[[tool.mypy.overrides]]
-module = "learning_commons_evaluators.evaluators.vocabulary"
-disable_error_code = ["import-untyped", "call-arg"]

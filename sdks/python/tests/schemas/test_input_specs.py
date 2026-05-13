@@ -31,6 +31,7 @@ class TestInputSpecRegistry:
         This verifies the registry mechanism works end-to-end.  New subclasses must
         also be added to AnyInputSpec manually (see module docstring checklist).
         """
+        canonical = dict(INPUT_SPEC_REGISTRY)
 
         class _TestInputSpec(InputSpec):
             type: Literal["_TestInputField"] = "_TestInputField"
@@ -40,9 +41,10 @@ class TestInputSpecRegistry:
             assert "_TestInputField" in INPUT_SPEC_REGISTRY
             assert INPUT_SPEC_REGISTRY["_TestInputField"] is _TestInputSpec
         finally:
-            # Restore the registry to the canonical state so other tests aren't affected.
-            INPUT_SPEC_REGISTRY.pop("_TestInputField", None)
-            _populate_input_spec_registry()
+            # Repopulating would re-register _TestInputSpec while the class still exists.
+            # Restore a snapshot so the rest of the session sees the canonical registry.
+            INPUT_SPEC_REGISTRY.clear()
+            INPUT_SPEC_REGISTRY.update(canonical)
 
 
 class TestAnyInputSpec:
@@ -71,6 +73,10 @@ class TestTextInputSpec:
         spec = TextInputSpec(name="text")
         assert spec.min_text_length is None
         assert spec.max_text_length is None
+
+    def test_strip_whitespace_defaults_true(self):
+        spec = TextInputSpec(name="text")
+        assert spec.strip_whitespace is True
 
 
 class TestGradeInputSpec:

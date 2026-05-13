@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, TypeAdapter, field_validator, model_validator
 
 from learning_commons_evaluators._version import __version__ as sdk_version
 from learning_commons_evaluators.schemas.config import LlmProvider, PromptSettings
@@ -31,13 +31,49 @@ InputMetadata = dict[str, Any]
 class EvaluatorMetadata(BaseModel):
     """Evaluator metadata: id, version, name, description; maturity (alpha, beta, rc, ga); sdk_version."""
 
-    id: str
-    version: str
-    name: str
-    description: str
+    id: str = Field(..., min_length=1)
+    version: str = Field(..., min_length=1)
+    name: str = Field(..., min_length=1)
+    description: str = Field(..., min_length=1)
     maturity: EvaluatorMaturity
     sdk_version: str = f"learning-commons-evaluators-python-{sdk_version}"
     inputs: dict[str, AnyInputSpec] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_toml_inputs(cls, data: Any) -> Any:
+        """Turn ``[[evaluator_metadata.inputs]]`` list rows into ``inputs`` keyed by field name."""
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        if "inputs" not in out:
+            return out
+        raw = out["inputs"]
+        if isinstance(raw, list):
+            adapter: TypeAdapter[Any] = TypeAdapter(AnyInputSpec)
+            parsed: dict[str, AnyInputSpec] = {}
+            for item in raw:
+                if not (isinstance(item, dict) and "name" in item):
+                    continue
+                parsed[str(item["name"])] = adapter.validate_python(item)
+            out["inputs"] = parsed
+        elif raw is None:
+            out["inputs"] = {}
+        return out
+
+    @field_validator("id", "version", "name", "description", mode="before")
+    @classmethod
+    def _strip_required_strings(cls, v: Any) -> Any:
+        if v is None:
+            return v
+        return str(v).strip()
+
+    @field_validator("maturity", mode="before")
+    @classmethod
+    def _normalize_maturity(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            return v.lower()
+        return v
 
 
 class TokenUsage(BaseModel):

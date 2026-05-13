@@ -3,10 +3,7 @@
 import pytest
 
 from learning_commons_evaluators import create_config_no_telemetry
-from learning_commons_evaluators.schemas.config import LlmProvider, PromptSettings
-from learning_commons_evaluators.schemas.conventionality import (
-    ConventionalityEvaluationSettings,
-)
+from learning_commons_evaluators.schemas.config import EvaluationSettings
 from learning_commons_evaluators.schemas.metadata import (
     EvaluationMetadata,
     EvaluatorMaturity,
@@ -28,21 +25,16 @@ def evaluator_metadata():
 
 @pytest.fixture
 def evaluation_metadata(evaluator_metadata):
-    """EvaluationMetadata with sensible defaults for unit tests."""
+    """EvaluationMetadata with sensible defaults for unit tests.
+
+    Uses base :class:`EvaluationSettings` so this stays evaluator-agnostic; tests for a
+    concrete evaluator should build that evaluator's settings (or a dedicated fixture)
+    when they need specific fields.
+    """
     return EvaluationMetadata(
         evaluator_metadata=evaluator_metadata,
-        evaluation_settings=ConventionalityEvaluationSettings(),
+        evaluation_settings=EvaluationSettings(),
         input_metadata={},
-    )
-
-
-@pytest.fixture
-def prompt_settings_google():
-    """PromptSettings configured for Google, usable in multiple test modules."""
-    return PromptSettings(
-        provider_type=LlmProvider.GOOGLE,
-        model="gemini-2.0-flash",
-        temperature=0.0,
     )
 
 

@@ -16,6 +16,7 @@ from learning_commons_evaluators.logger import Logger, get_logger
 # --- Prompt provider configs (for LLM calls in prompt steps) ---
 
 
+# TODO: rename to LLMProvider
 class LlmProvider(str, Enum):
     """LLM provider identifier. Subclass of str so it compares and serializes as the provider name."""
 
@@ -24,38 +25,37 @@ class LlmProvider(str, Enum):
     OPENAI = "openai"
 
 
+# TODO: rename to LLMProviderConfig and subclasses to GoogleLLMProviderConfig, OpenAILLMProviderConfig, AnthropicLLMProviderConfig.
 @dataclass(frozen=True)
 class PromptProviderConfig:
     """Base type for prompt provider configuration."""
 
     api_key: str
     type: LlmProvider
-    base_url: str | None = (
-        None  # Optional; for OpenAI-compatible endpoints (e.g. Azure, proxy). Used only when type is OPENAI.
-    )
 
 
 @dataclass(frozen=True)
 class GooglePromptProviderConfig(PromptProviderConfig):
     """Google (Gemini) prompt provider config. Takes an API key."""
 
-    api_key: str
     type: LlmProvider = LlmProvider.GOOGLE
 
 
 @dataclass(frozen=True)
 class OpenAIPromptProviderConfig(PromptProviderConfig):
-    """OpenAI prompt provider config. Takes an API key. Optional base_url for custom endpoints."""
+    """OpenAI prompt provider config. Takes an API key."""
 
-    api_key: str
     type: LlmProvider = LlmProvider.OPENAI
+    # TODO: verify base_url functionality before enabling
+    # base_url: str | None = (
+    #     None  # Optional; for OpenAI-compatible endpoints (e.g. Azure, proxy). Used only when type is OPENAI.
+    # )
 
 
 @dataclass(frozen=True)
 class AnthropicPromptProviderConfig(PromptProviderConfig):
     """Anthropic (Claude) prompt provider config. Takes an API key."""
 
-    api_key: str
     type: LlmProvider = LlmProvider.ANTHROPIC
 
 
@@ -75,6 +75,14 @@ class EvaluationSettings(BaseModel):
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+@dataclass(frozen=True)
+class TelemetryConfig:
+    """Config for telemetry."""
+
+    telemetry_partner_id: str | None = None
+    send_full_input_with_telemetry: bool = False
 
 
 # --- Evaluator config ---
@@ -98,8 +106,7 @@ class EvaluatorConfig:
     openai_prompt_provider_config: OpenAIPromptProviderConfig | None = None
     anthropic_prompt_provider_config: AnthropicPromptProviderConfig | None = None
     logger: Logger = field(default_factory=get_logger)
-    telemetry_id: str | None = None
-    send_full_input_with_telemetry: bool = False
+    telemetry: TelemetryConfig = field(default_factory=TelemetryConfig)
 
 
 def create_config(
@@ -108,17 +115,19 @@ def create_config(
     openai_prompt_provider_config: OpenAIPromptProviderConfig | None = None,
     anthropic_prompt_provider_config: AnthropicPromptProviderConfig | None = None,
     logger: Logger | None = None,
-    telemetry_id: str,
+    telemetry_partner_id: str,
     send_full_input_with_telemetry: bool = False,
 ) -> EvaluatorConfig:
-    """Create evaluator config with telemetry. telemetry_id is required."""
+    """Create evaluator config with telemetry. telemetry_partner_id is required."""
     return EvaluatorConfig(
         google_prompt_provider_config=google_prompt_provider_config,
         openai_prompt_provider_config=openai_prompt_provider_config,
         anthropic_prompt_provider_config=anthropic_prompt_provider_config,
         logger=get_logger() if logger is None else logger,
-        telemetry_id=telemetry_id,
-        send_full_input_with_telemetry=send_full_input_with_telemetry,
+        telemetry=TelemetryConfig(
+            telemetry_partner_id=telemetry_partner_id,
+            send_full_input_with_telemetry=send_full_input_with_telemetry,
+        ),
     )
 
 
@@ -135,8 +144,7 @@ def create_config_no_telemetry(
         openai_prompt_provider_config=openai_prompt_provider_config,
         anthropic_prompt_provider_config=anthropic_prompt_provider_config,
         logger=get_logger() if logger is None else logger,
-        telemetry_id=None,
-        send_full_input_with_telemetry=False,
+        telemetry=TelemetryConfig(telemetry_partner_id=None, send_full_input_with_telemetry=False),
     )
 
 
@@ -146,7 +154,7 @@ def create_config_telemetry_with_full_input(
     openai_prompt_provider_config: OpenAIPromptProviderConfig | None = None,
     anthropic_prompt_provider_config: AnthropicPromptProviderConfig | None = None,
     logger: Logger | None = None,
-    telemetry_id: str,
+    telemetry_partner_id: str,
 ) -> EvaluatorConfig:
     """Create evaluator config with telemetry and full input sent with telemetry."""
     return EvaluatorConfig(
@@ -154,6 +162,7 @@ def create_config_telemetry_with_full_input(
         openai_prompt_provider_config=openai_prompt_provider_config,
         anthropic_prompt_provider_config=anthropic_prompt_provider_config,
         logger=get_logger() if logger is None else logger,
-        telemetry_id=telemetry_id,
-        send_full_input_with_telemetry=True,
+        telemetry=TelemetryConfig(
+            telemetry_partner_id=telemetry_partner_id, send_full_input_with_telemetry=True
+        ),
     )

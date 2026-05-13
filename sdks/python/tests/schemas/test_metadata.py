@@ -7,8 +7,10 @@ StepMetadata, EvaluationMetadata, and prompt_settings_to_extras_value.
 from datetime import timezone
 
 import pytest
+from pydantic import ValidationError
 
 from learning_commons_evaluators.schemas.config import LlmProvider, PromptSettings
+from learning_commons_evaluators.schemas.input_specs import TextInputSpec
 from learning_commons_evaluators.schemas.metadata import (
     PROMPT_STEP_EXTRA_PROMPT_SETTINGS,
     PROMPT_STEP_EXTRA_TOKEN_USAGE,
@@ -61,8 +63,39 @@ class TestEvaluatorMetadata:
         # sdk_version is auto-populated from the installed package version.
         assert "learning-commons-evaluators-python" in meta.sdk_version
 
+    def test_model_validate_toml_like_inputs_and_maturity(self):
+        meta = EvaluatorMetadata.model_validate(
+            {
+                "id": " e ",
+                "version": 1.0,
+                "name": "N",
+                "description": "D",
+                "maturity": "GA",
+                "inputs": [
+                    {"name": "text", "type": "TextInputField"},
+                ],
+            }
+        )
+        assert meta.id == "e"
+        assert meta.version == "1.0"
+        assert meta.maturity == EvaluatorMaturity.ga
+        assert isinstance(meta.inputs["text"], TextInputSpec)
 
-class TestTokenUsage:
+    def test_model_validate_unknown_input_type_raises(self):
+        with pytest.raises(
+            ValidationError, match="TextInputField|GradeInputField|Unable to extract"
+        ):
+            EvaluatorMetadata.model_validate(
+                {
+                    "id": "e",
+                    "version": "1",
+                    "name": "N",
+                    "description": "D",
+                    "maturity": "ga",
+                    "inputs": [{"name": "x", "type": "UnknownType"}],
+                }
+            )
+
     def test_fields(self):
         usage = TokenUsage(
             provider_type=LlmProvider.GOOGLE,
@@ -126,6 +159,7 @@ class TestEvaluationMetadata:
         assert evaluation_metadata.step_details == {}
         assert evaluation_metadata.total_token_usage == {}
         assert evaluation_metadata.error_details is None
+        assert evaluation_metadata.input_metadata == {}
 
     def test_status_can_be_mutated(self, evaluation_metadata):
         evaluation_metadata.status = Status.succeeded

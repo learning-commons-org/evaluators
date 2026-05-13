@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-import textstat
+import textstat  # type: ignore[import-untyped]
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import Field
@@ -79,8 +79,7 @@ class ConventionalityEvaluator(
         evaluation_metadata: EvaluationMetadata,
     ) -> TextComplexityResult:
         """Run conventionality evaluation. Returns TextComplexityResult with answer, explanation, metadata."""
-        ps_main = evaluation_settings.prompt_settings_step_main
-        assert ps_main is not None
+        step_prompt_settings = evaluation_settings.prompt_settings_step_conventionality_evaluation
 
         fk_score = round(textstat.flesch_kincaid_grade(input.text.value), 2)
         prompt_inputs = input.input_values()
@@ -95,14 +94,13 @@ class ConventionalityEvaluator(
             ]
         ).partial(format_instructions=parser.get_format_instructions())
         conventionality_output = self.execute_prompt_chain_step(
-            step_name="main",
-            prompt_settings=ps_main,
+            step_name="conventionality_evaluation",
+            prompt_settings=step_prompt_settings,
             evaluation_metadata=evaluation_metadata,
             template=template,
             chain_inputs=prompt_inputs,
             parser_output_type=ConventionalityOutput,
         )
-        assert isinstance(conventionality_output, ConventionalityOutput)
 
         answer = TextComplexityAnswer.from_score(conventionality_output.complexity_score)
         return TextComplexityResult(

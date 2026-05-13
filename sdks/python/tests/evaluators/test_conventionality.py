@@ -13,7 +13,7 @@ from learning_commons_evaluators.schemas.conventionality import ConventionalityO
 from learning_commons_evaluators.schemas.errors import ConfigurationError
 from learning_commons_evaluators.schemas.metadata import Status
 
-# A realistic sample long enough to satisfy the min_text_length=100 constraint.
+# Long sample text (well above ``min_text_length`` from conventionality settings TOML).
 _SAMPLE_TEXT = (
     "Marco Polo was a Venetian merchant and explorer who traveled through Asia "
     "in the late 13th century. He spent nearly two decades at the court of "
@@ -57,7 +57,7 @@ class TestConventionalityEvaluator:
         config = create_config_no_telemetry()
         evaluator = ConventionalityEvaluator(config)
         settings = ConventionalityEvaluationSettings(
-            prompt_settings_step_main=PromptSettings(
+            prompt_settings_step_conventionality_evaluation=PromptSettings(
                 provider_type=LlmProvider.GOOGLE,
                 model="gemini-2.0-flash",
                 temperature=0.0,

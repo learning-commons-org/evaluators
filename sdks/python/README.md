@@ -32,10 +32,10 @@ source .venv/bin/activate  # macOS/Linux
 # Install in editable mode with dev dependencies
 pip install -e ".[dev]"
 
-# Static checks + unit tests (same gate as CI for the Python SDK)
+# Static checks + full test suite (unit + contract; same gate as CI for the Python SDK)
 make verify
 
-# Run the full test suite (unit + contract)
+# Tests only (same pytest invocation as the verify step)
 make test
 ```
 
@@ -148,7 +148,7 @@ logging.basicConfig(level=logging.INFO)
 # Create config with provider credentials
 config = create_config(
     google_prompt_provider_config=GooglePromptProviderConfig(api_key="your-google-key"),
-    telemetry_id="your-telemetry-id",
+    telemetry_partner_id="your-telemetry-id",
 )
 
 # Create evaluator and run evaluation
@@ -181,7 +181,7 @@ from learning_commons_evaluators import (
 
 config = create_config(
     google_prompt_provider_config=GooglePromptProviderConfig(api_key="..."),
-    telemetry_id="your-telemetry-id",
+    telemetry_partner_id="your-telemetry-id",
 )
 evaluator = ConventionalityEvaluator(config)
 
@@ -211,7 +211,7 @@ from learning_commons_evaluators import (
 )
 
 google_config = GooglePromptProviderConfig(api_key="...")
-openai_config = OpenAIPromptProviderConfig(api_key="...", base_url=None)  # base_url for Azure/proxies
+openai_config = OpenAIPromptProviderConfig(api_key="...")
 anthropic_config = AnthropicPromptProviderConfig(api_key="...")
 ```
 
@@ -225,7 +225,7 @@ from learning_commons_evaluators import create_config
 config = create_config(
     google_prompt_provider_config=google_config,
     openai_prompt_provider_config=openai_config,
-    telemetry_id="your-telemetry-id",
+    telemetry_partner_id="your-telemetry-id",
     logger=my_logger,  # Optional: any standard logging.Logger (default: package logger)
 )
 ```

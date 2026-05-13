@@ -87,8 +87,9 @@ def create_logger(
 def create_silent_logger() -> logging.Logger:
     """Logger that discards all records (no propagation). Use for ``logger=`` opt-out."""
     logger = logging.getLogger(f"{SDK_LOGGER_NAME}.silent")
-    if not logger.handlers:
-        logger.addHandler(logging.NullHandler())
+    for h in list(logger.handlers):
+        logger.removeHandler(h)
+    logger.addHandler(logging.NullHandler())
     logger.propagate = False
     return logger
 
