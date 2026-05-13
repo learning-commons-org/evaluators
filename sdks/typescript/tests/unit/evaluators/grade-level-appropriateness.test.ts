@@ -99,6 +99,8 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe('google:gemini-2.5-pro');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
+      expect(result.metadata.inputTokens).toBe(200);
+      expect(result.metadata.outputTokens).toBe(150);
 
       // Verify provider was called
       expect(mockProvider.generateStructured).toHaveBeenCalledTimes(1);
@@ -172,6 +174,8 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       // Verify metadata values
       expect(result.metadata.model).toBe('google:gemini-2.5-pro');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
+      expect(result.metadata.inputTokens).toBe(200);
+      expect(result.metadata.outputTokens).toBe(150);
 
       // Verify _internal values
       expect(result._internal!.grade).toBe('9-10');

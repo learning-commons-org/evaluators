@@ -163,6 +163,8 @@ export class VocabularyEvaluator extends BaseEvaluator {
         metadata: {
           model: modelLabel,
           processingTimeMs: latencyMs,
+          inputTokens: totalTokenUsage.input_tokens,
+          outputTokens: totalTokenUsage.output_tokens,
         },
         _internal: complexityResponse.data,
       };

@@ -113,6 +113,8 @@ describe('TextComplexityEvaluator', () => {
         metadata: {
           model: 'gemini-2.5-pro+gpt-4o',
           processingTimeMs: 100,
+          inputTokens: 100,
+          outputTokens: 50,
         },
         _internal: {},
       });
@@ -123,6 +125,8 @@ describe('TextComplexityEvaluator', () => {
         metadata: {
           model: 'gpt-4o',
           processingTimeMs: 100,
+          inputTokens: 100,
+          outputTokens: 50,
         },
         _internal: {},
       });
@@ -133,6 +137,8 @@ describe('TextComplexityEvaluator', () => {
         metadata: {
           model: 'google:gemini-3-flash-preview',
           processingTimeMs: 100,
+          inputTokens: 100,
+          outputTokens: 50,
         },
         _internal: {},
       });
@@ -143,6 +149,8 @@ describe('TextComplexityEvaluator', () => {
         metadata: {
           model: 'google:gemini-3-flash-preview',
           processingTimeMs: 100,
+          inputTokens: 100,
+          outputTokens: 50,
         },
         _internal: {},
       });
@@ -294,6 +302,8 @@ describe('TextComplexityEvaluator', () => {
         metadata: {
           model: 'gpt-4o',
           processingTimeMs: 100,
+          inputTokens: 100,
+          outputTokens: 50,
         },
         _internal: {},
       });
@@ -305,6 +315,8 @@ describe('TextComplexityEvaluator', () => {
         metadata: {
           model: 'google:gemini-3-flash-preview',
           processingTimeMs: 100,
+          inputTokens: 100,
+          outputTokens: 50,
         },
         _internal: {},
       });
@@ -316,6 +328,8 @@ describe('TextComplexityEvaluator', () => {
         metadata: {
           model: 'google:gemini-3-flash-preview',
           processingTimeMs: 100,
+          inputTokens: 100,
+          outputTokens: 50,
         },
         _internal: {},
       });
@@ -361,6 +375,8 @@ describe('TextComplexityEvaluator', () => {
         metadata: {
           model: 'gpt-4o',
           processingTimeMs: 100,
+          inputTokens: 100,
+          outputTokens: 50,
         },
         _internal: {},
       });
@@ -371,6 +387,8 @@ describe('TextComplexityEvaluator', () => {
         metadata: {
           model: 'google:gemini-3-flash-preview',
           processingTimeMs: 100,
+          inputTokens: 100,
+          outputTokens: 50,
         },
         _internal: {},
       });
@@ -381,6 +399,8 @@ describe('TextComplexityEvaluator', () => {
         metadata: {
           model: 'google:gemini-3-flash-preview',
           processingTimeMs: 100,
+          inputTokens: 100,
+          outputTokens: 50,
         },
         _internal: {},
       });

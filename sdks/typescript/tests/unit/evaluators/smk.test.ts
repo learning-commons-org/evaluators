@@ -83,6 +83,8 @@ describe('SmkEvaluator - Evaluation Flow', () => {
     expect(result.reasoning).toContain('hydraulic systems');
     expect(result.metadata.model).toBe('google:gemini-3-flash-preview');
     expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
+    expect(result.metadata.inputTokens).toBe(200);
+    expect(result.metadata.outputTokens).toBe(100);
 
     expect(mockProvider.generateStructured).toHaveBeenCalledTimes(1);
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0];

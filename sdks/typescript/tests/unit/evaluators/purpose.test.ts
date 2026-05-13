@@ -192,6 +192,8 @@ describe('PurposeEvaluator - LLM call contract', () => {
     expect(result.reasoning).toBe(MOCK_RESPONSE.data.reasoning);
     expect(result.metadata.model).toBe(`${STEP.model.provider}:${STEP.model.name}`);
     expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
+    expect(result.metadata.inputTokens).toBe(200);
+    expect(result.metadata.outputTokens).toBe(120);
     expect(result._internal).toEqual(MOCK_RESPONSE.data);
     expect(result._internal?.details.detailed_summary).toBeInstanceOf(Array);
     expect(result._internal?.details.adjustment_and_scaffolding).toBeInstanceOf(Array);

@@ -139,6 +139,9 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe('openai:gpt-4o');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
+      // Token usage is aggregated across both stages: stage 1 (150/100) + stage 2 (250/80)
+      expect(result.metadata.inputTokens).toBe(400);
+      expect(result.metadata.outputTokens).toBe(180);
 
       // Verify provider was called twice (once per stage)
       expect(mockProvider.generateStructured).toHaveBeenCalledTimes(2);
@@ -227,6 +230,8 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       // Verify metadata values
       expect(result.metadata.model).toBe('openai:gpt-4o');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
+      expect(result.metadata.inputTokens).toBe(400);
+      expect(result.metadata.outputTokens).toBe(180);
     });
   });
 });

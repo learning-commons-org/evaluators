@@ -110,6 +110,8 @@ export class ConventionalityEvaluator extends BaseEvaluator {
         metadata: {
           model: this.provider.label,
           processingTimeMs: latencyMs,
+          inputTokens: totalTokenUsage.input_tokens,
+          outputTokens: totalTokenUsage.output_tokens,
         },
         _internal: response.data,
       };
