@@ -115,6 +115,15 @@ class TestBaseEvaluatorInit:
     def test_config_is_stored(self, config):
         assert _StubEvaluator(config).config is config
 
+    def test_constructor_default_evaluation_settings_overrides_class_default(self, config):
+        instance_default = _StubSettings(marker=99)
+        ev = _StubEvaluator(config, default_evaluation_settings=instance_default)
+        assert ev.default_evaluation_settings is instance_default
+
+    def test_omitted_constructor_default_falls_back_to_class_attribute(self, config):
+        ev = _StubEvaluator(config)
+        assert ev.default_evaluation_settings is _StubEvaluator.default_evaluation_settings
+
 
 # ---------------------------------------------------------------------------
 # evaluate()
@@ -132,6 +141,20 @@ class TestEvaluateSuccess:
         result = stub_evaluator.evaluate(_stub_input(), evaluation_settings=custom)
         assert result.metadata.evaluation_settings.marker == 42
         assert result.explanation.details.get("marker") == 42
+
+    def test_constructor_default_used_when_evaluate_settings_omitted(self, config):
+        ev = _StubEvaluator(config, default_evaluation_settings=_StubSettings(marker=77))
+        result = ev.evaluate(_stub_input())
+        assert result.metadata.evaluation_settings.marker == 77
+        assert result.explanation.details.get("marker") == 77
+
+    def test_evaluate_explicit_settings_override_constructor_default(self, config):
+        ev = _StubEvaluator(
+            config,
+            default_evaluation_settings=_StubSettings(marker=1),
+        )
+        result = ev.evaluate(_stub_input(), evaluation_settings=_StubSettings(marker=2))
+        assert result.explanation.details.get("marker") == 2
 
 
 class TestEvaluateInputMetadata:
@@ -314,6 +337,25 @@ class TestExecutePromptChainStep:
             )
         assert out == "plain prose"
 
+    def test_json_dict_normalizer_without_parser_type_raises(
+        self, stub_evaluator, evaluation_metadata
+    ):
+        template = ChatPromptTemplate.from_messages([("human", "{input}")])
+        with pytest.raises(ValueError, match="json_dict_normalizer requires"):
+            stub_evaluator.execute_prompt_chain_step(
+                step_name="raw",
+                prompt_settings=PromptSettings(
+                    provider_type=LlmProvider.GOOGLE,
+                    model="gemini-2.0-flash",
+                    temperature=0.0,
+                ),
+                evaluation_metadata=evaluation_metadata,
+                template=template,
+                chain_inputs={"input": "Hello"},
+                parser_output_type=None,
+                json_dict_normalizer=lambda d: d,
+            )
+
     def test_returns_parsed_pydantic_output(self, stub_evaluator, evaluation_metadata):
         def _fake_llm(_pv):
             return AIMessage(content=_CHAIN_JSON)
@@ -335,6 +377,42 @@ class TestExecutePromptChainStep:
         assert isinstance(result, _ChainOutput)
         assert result.label == "ok"
         assert result.score == 7
+
+    def test_json_dict_normalizer_parses_dict_then_normalizes_then_validates(
+        self, stub_evaluator, evaluation_metadata
+    ):
+        """Optional ``json_dict_normalizer``: loose JSON → dict → user fn → ``model_validate``."""
+
+        def _fake_llm(_pv):
+            return AIMessage(content='{"n": 1}')
+
+        class _Out(BaseModel):
+            n: int = Field(description="n")
+            doubled: int = Field(description="doubled")
+
+        def _double(d: dict) -> dict:
+            d = dict(d)
+            d["doubled"] = int(d["n"]) * 2
+            return d
+
+        template = ChatPromptTemplate.from_messages([("human", "{input}")])
+        with patch(_CHAIN_PATCH, return_value=_fake_llm):
+            result = stub_evaluator.execute_prompt_chain_step(
+                step_name="main",
+                prompt_settings=PromptSettings(
+                    provider_type=LlmProvider.GOOGLE,
+                    model="gemini-2.0-flash",
+                    temperature=0.0,
+                ),
+                evaluation_metadata=evaluation_metadata,
+                template=template,
+                chain_inputs={"input": "Hello"},
+                parser_output_type=_Out,
+                json_dict_normalizer=_double,
+            )
+        assert isinstance(result, _Out)
+        assert result.n == 1
+        assert result.doubled == 2
 
     def test_parser_returning_model_instance_short_circuits_model_validate(
         self, stub_evaluator, evaluation_metadata

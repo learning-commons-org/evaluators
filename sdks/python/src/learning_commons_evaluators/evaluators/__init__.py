@@ -11,6 +11,11 @@ from learning_commons_evaluators.evaluators.conventionality import (
     ConventionalityEvaluationInput,
     ConventionalityEvaluator,
 )
+from learning_commons_evaluators.evaluators.vocabulary import (
+    VocabularyEvaluationInput,
+    VocabularyEvaluator,
+)
+from learning_commons_evaluators.schemas.vocabulary import normalize_complexity_output
 
 __all__ = [
     "BaseEvaluator",
@@ -18,4 +23,7 @@ __all__ = [
     "ConventionalityEvaluator",
     "InputT",
     "OutputT",
+    "VocabularyEvaluationInput",
+    "VocabularyEvaluator",
+    "normalize_complexity_output",
 ]

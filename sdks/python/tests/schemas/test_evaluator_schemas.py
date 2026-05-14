@@ -6,6 +6,8 @@ Uses a minimal :class:`_ExampleEvaluationInput` (text + grade) wired to explicit
 instances so nothing depends on a real evaluator's TOML or class names.
 """
 
+from __future__ import annotations
+
 from typing import ClassVar
 
 import pytest
@@ -57,7 +59,13 @@ class _ExampleEvaluationInput(EvaluationInput):
     text: TextInputField
     grade: GradeInputField
 
-    def __init__(self, *, text: str, grade: int, **kwargs):
+    def __init__(
+        self,
+        *,
+        text: str | TextInputField,
+        grade: int | GradeInputField,
+        **kwargs,
+    ):
         super().__init__(text=text, grade=grade, **kwargs)
 
 
@@ -173,7 +181,7 @@ class TestCoerceRawToInputFields:
     def test_already_constructed_input_field_is_not_rewrapped(self):
         """Passing a fully-constructed InputField instance bypasses construction."""
         pre_built = TextInputField(spec=self._COERCE_TEXT_SPEC, value="pre-built")
-        inp = _ExampleEvaluationInput(text=pre_built, grade=3)  # type: ignore[arg-type]
+        inp = _ExampleEvaluationInput(text=pre_built, grade=3)
         assert inp.text is pre_built  # same object, not a copy
 
     def test_non_inputfield_field_is_left_unchanged(self):
