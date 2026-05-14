@@ -170,7 +170,7 @@ class VocabularyEvaluator(
         ).partial(format_instructions=parser.get_format_instructions())
 
         output = self.execute_prompt_chain_step(
-            step_name="vocab_complexity",
+            step_name="complexity_evaluation",
             prompt_settings=prompt_settings_vocab,
             evaluation_metadata=evaluation_metadata,
             template=template,

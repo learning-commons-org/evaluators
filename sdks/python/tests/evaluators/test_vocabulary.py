@@ -193,6 +193,26 @@ class TestVocabularyEvaluatorOtherGrades:
         )
         assert parsed.complexity_score == "Moderately Complex"
 
+    def test_other_grades_unexpected_digit_answer_raises(self):
+        """Out-of-range rubric digit normalizes to a bare string; ``from_score`` rejects it."""
+        config = create_config_no_telemetry()
+        evaluator = VocabularyEvaluator(config)
+        inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=7)
+        # Same ``complexity_score`` as ``normalize_complexity_output({"answer": 9, ...})``.
+        unexpected = VocabularyComplexityOutput(
+            tier_2_words="sat",
+            tier_3_words="none",
+            archaic_words="none",
+            other_complex_words="none",
+            complexity_score="9",
+            reasoning="Model returned an invalid rubric code.",
+        )
+        with (
+            _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, unexpected),
+            pytest.raises(ValueError, match=r"Unknown text complexity score: '9'"),
+        ):
+            evaluator.evaluate(inp)
+
 
 class TestNormalizeComplexityOutput:
     def test_preserves_complexity_score_when_answer_absent(self):
@@ -211,6 +231,16 @@ class TestNormalizeComplexityOutput:
     def test_answer_overwrites_or_sets_complexity_score(self):
         row = normalize_complexity_output({"answer": 1, "reasoning": "x"})
         assert row["complexity_score"] == "Slightly Complex"
+
+    def test_unexpected_digit_answer_falls_back_to_string_value(self):
+        """Rubric is 1–4; other digits (int or string) become ``complexity_score == str(value)``."""
+        assert (
+            normalize_complexity_output({"answer": 5, "reasoning": "x"})["complexity_score"] == "5"
+        )
+        assert (
+            normalize_complexity_output({"answer": "9", "reasoning": "x"})["complexity_score"]
+            == "9"
+        )
 
 
 # ── Grade validation via framework ────────────────────────────────────────────
