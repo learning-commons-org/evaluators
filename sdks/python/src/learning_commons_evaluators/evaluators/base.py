@@ -49,14 +49,25 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
     """
     Abstract base class for all evaluators.
     Subclasses must set metadata, default_evaluation_settings, and implement evaluate_impl().
+
+    Pass ``default_evaluation_settings`` at construction to override the class-level
+    defaults for that instance (used when :meth:`evaluate` is called without
+    ``evaluation_settings``).
     """
 
     config: EvaluatorConfig
     metadata: EvaluatorMetadata
     default_evaluation_settings: SettingsT
 
-    def __init__(self, config: EvaluatorConfig) -> None:
+    def __init__(
+        self,
+        config: EvaluatorConfig,
+        *,
+        default_evaluation_settings: SettingsT | None = None,
+    ) -> None:
         self.config = config
+        if default_evaluation_settings is not None:
+            self.default_evaluation_settings = default_evaluation_settings
         # TODO: validate config
 
     def evaluate(
@@ -68,13 +79,14 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
 
         Validates the input, delegates to :meth:`evaluate_impl`, records timing
         and status on the returned metadata, and logs start/end events via the
-        configured logger.  If ``evaluation_settings`` is ``None``, the
-        evaluator's :attr:`default_evaluation_settings` is used.
+        configured logger.  If ``evaluation_settings`` is ``None``, a deep copy of
+        the instance's :attr:`default_evaluation_settings` is used (from the
+        constructor keyword when given, otherwise the subclass class attribute).
 
         Args:
             input: Typed input for this evaluator.
             evaluation_settings: Optional override for evaluation settings.
-                Defaults to :attr:`default_evaluation_settings`.
+                Defaults to :attr:`default_evaluation_settings` (constructor or class).
 
         Returns:
             A typed result whose ``metadata.status`` is
@@ -184,6 +196,7 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         template: Any,
         chain_inputs: dict[str, Any],
         parser_output_type: type[ParsedT],
+        json_dict_normalizer: Callable[[dict], dict] | None = None,
     ) -> ParsedT: ...
 
     def execute_prompt_chain_step(
@@ -194,14 +207,15 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         template: Any,
         chain_inputs: dict[str, Any],
         parser_output_type: type[BaseModel] | None = None,
+        json_dict_normalizer: Callable[[dict], dict] | None = None,
     ) -> BaseModel | str:
         """Run a prompt chain (template | LLM), record metadata, and return the result.
 
         When ``parser_output_type`` is a Pydantic model class, the LLM response is
-        parsed as JSON and returned as an instance of that class.  When
-        ``parser_output_type`` is ``None``, the raw response content is returned as
-        a plain ``str`` — use this for steps that produce unstructured prose (e.g. a
-        background-knowledge assumption).
+        parsed as JSON and returned as an instance of that class.  When it is
+        ``None`` (the default), the raw response content is returned as a plain
+        ``str`` (no JSON parser) — use that for steps that produce unstructured prose
+        (e.g. a background-knowledge assumption).
 
         Provider config (e.g. API key) is resolved from ``self.config`` by
         ``prompt_settings.provider_type``.
@@ -215,15 +229,24 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
             chain_inputs: Variables to format the template and invoke the chain.
             parser_output_type: Pydantic model class for JSON parsing, or ``None``
                 to return the raw text response.
+            json_dict_normalizer: When set with ``parser_output_type``, parse the
+                model response as JSON into a plain dict (no Pydantic parse),
+                apply this function (e.g. notebook-style ``normalize_complexity_output``),
+                then validate with ``parser_output_type``. Format instructions for the
+                prompt should still be built from the same ``parser_output_type`` via
+                :class:`~langchain_core.output_parsers.JsonOutputParser`.
 
         Returns:
-            Parsed instance of ``parser_output_type`` when a type is given; plain
-            ``str`` when ``None``.
+            Parsed instance of ``parser_output_type`` when it is a model class; plain
+            ``str`` when ``parser_output_type`` is omitted or ``None``.
 
         Raises:
             ConfigurationError: No provider config for prompt_settings.provider_type.
             EvaluatorError: SDK errors, including :func:`~learning_commons_evaluators.schemas.errors.wrap_provider_error` output for LangChain or HTTP failures (typically :class:`~learning_commons_evaluators.schemas.errors.APIError` subclasses). Pydantic :exc:`pydantic.ValidationError` from output parsing is re-raised unchanged.
+            ValueError: If ``json_dict_normalizer`` is set but ``parser_output_type`` is omitted.
         """
+        if json_dict_normalizer is not None and parser_output_type is None:
+            raise ValueError("json_dict_normalizer requires parser_output_type to be set")
         # Populated after a successful LLM invoke so we can attach usage even if parsing fails.
         token_usage: TokenUsage | None = None
 
@@ -237,6 +260,14 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
                 if parser_output_type is None:
                     return str(ai_message.content)
                 from langchain_core.output_parsers.json import JsonOutputParser
+
+                if json_dict_normalizer is not None:
+                    loose = JsonOutputParser()
+                    parsed_dict = loose.invoke(ai_message)
+                    if not isinstance(parsed_dict, dict):
+                        parsed_dict = dict(parsed_dict)
+                    normalized = json_dict_normalizer(parsed_dict)
+                    return parser_output_type.model_validate(normalized)
 
                 parser = JsonOutputParser(pydantic_object=parser_output_type)
                 raw = parser.invoke(ai_message)

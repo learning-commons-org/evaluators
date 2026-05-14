@@ -1,36 +1,21 @@
 """Smoke tests for package public API imports."""
 
-
-def test_main_package_imports():
-    """All advertised public symbols can be imported from the root package."""
-    from learning_commons_evaluators import (
-        BaseEvaluator,
-        TelemetryConfig,
-        __version__,
-        create_config_no_telemetry,
-    )
-
-    assert __version__ is not None
-    assert create_config_no_telemetry is not None
-    assert BaseEvaluator is not None
-    assert TelemetryConfig is not None
+import importlib
 
 
-def test_errors_import():
-    from learning_commons_evaluators import (
-        APIError,
-        wrap_provider_error,
-    )
+def test_root_package_public_api():
+    """Every name in ``__all__`` is defined on the root package (single source of truth)."""
+    pkg = importlib.import_module("learning_commons_evaluators")
+    missing = [name for name in pkg.__all__ if not hasattr(pkg, name)]
+    assert not missing, f"__all__ lists undefined names: {missing}"
+    for name in pkg.__all__:
+        assert getattr(pkg, name) is not None, name
 
-    assert APIError is not None
-    assert wrap_provider_error is not None
 
-
-def test_providers_import():
-    from learning_commons_evaluators.providers import (
-        create_provider,
-        token_usage_from_aimessage,
-    )
-
-    assert create_provider is not None
-    assert token_usage_from_aimessage is not None
+def test_providers_public_api():
+    """Every name in ``providers.__all__`` is defined on the submodule."""
+    providers = importlib.import_module("learning_commons_evaluators.providers")
+    missing = [name for name in providers.__all__ if not hasattr(providers, name)]
+    assert not missing, f"providers.__all__ lists undefined names: {missing}"
+    for name in providers.__all__:
+        assert getattr(providers, name) is not None, name
