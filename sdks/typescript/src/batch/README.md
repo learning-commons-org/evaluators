@@ -61,7 +61,7 @@ Any additional columns beyond `text` and `grade` are preserved as-is in the outp
 
 The batch evaluator runs a fixed group of evaluators together. The current available group is:
 
-- **text-complexity**: Runs grade-level appropriateness, subject matter knowledge, vocabulary complexity, sentence structure, and conventionality evaluators together (requires both Google and OpenAI API keys). Maximum 50 input rows. If you exceed the limit, the CLI will exit with an error and suggest splitting into smaller batches.
+- **text-complexity**: Runs grade-level appropriateness, subject matter knowledge, vocabulary complexity, sentence structure, conventionality, and purpose evaluators together (requires both Google and OpenAI API keys). Maximum 50 input rows. If you exceed the limit, the CLI will exit with an error and suggest splitting into smaller batches.
 
 ### Output Files
 

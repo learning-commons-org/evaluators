@@ -56,14 +56,15 @@ const createMockSentenceAnalysis = () => ({
 });
 
 // Mock providers
-const createMockProvider = (): LLMProvider => ({
+const createMockProvider = (config?: { type?: string; model?: string }): LLMProvider => ({
+  label: config?.type && config?.model ? `${config.type}:${config.model}` : 'mock:model',
   generateStructured: vi.fn(),
   generateText: vi.fn(),
 });
 
 // Mock the createProvider factory
 vi.mock('../../../src/providers/index.js', () => ({
-  createProvider: vi.fn(() => createMockProvider()),
+  createProvider: vi.fn((config) => createMockProvider(config)),
 }));
 
 // Mock telemetry to avoid real HTTP calls
@@ -86,8 +87,7 @@ describe('SentenceStructureEvaluator - Constructor Validation', () => {
 
 describe('SentenceStructureEvaluator - Evaluation Flow', () => {
   let evaluator: SentenceStructureEvaluator;
-  let mockAnalysisProvider: LLMProvider;
-  let mockComplexityProvider: LLMProvider;
+  let mockProvider: LLMProvider;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -98,11 +98,9 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       telemetry: false,
     });
 
-    // Get references to the mocked providers
+    // Both stages share a single provider instance
     // @ts-expect-error Accessing private property for testing
-    mockAnalysisProvider = evaluator.analysisProvider;
-    // @ts-expect-error Accessing private property for testing
-    mockComplexityProvider = evaluator.complexityProvider;
+    mockProvider = evaluator.provider;
   });
 
   afterEach(() => {
@@ -114,30 +112,23 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       const testText = 'The cat sat on the mat. It was sleeping peacefully.';
       const testGrade = '3';
 
-      // Mock sentence analysis response
-      vi.mocked(mockAnalysisProvider.generateStructured).mockResolvedValue({
-        data: createMockSentenceAnalysis(),
-        model: 'gpt-4o',
-        usage: {
-          inputTokens: 150,
-          outputTokens: 100,
-        },
-        latencyMs: 600,
-      });
-
-      // Mock complexity classification response
-      vi.mocked(mockComplexityProvider.generateStructured).mockResolvedValue({
-        data: {
-          answer: 'Slightly complex',
-          reasoning: 'The text uses simple sentence structures appropriate for third grade.',
-        },
-        model: 'gpt-4o',
-        usage: {
-          inputTokens: 250,
-          outputTokens: 80,
-        },
-        latencyMs: 500,
-      });
+      // Stage 1: sentence analysis, Stage 2: complexity classification — same provider
+      vi.mocked(mockProvider.generateStructured)
+        .mockResolvedValueOnce({
+          data: createMockSentenceAnalysis(),
+          model: 'gpt-4o',
+          usage: { inputTokens: 150, outputTokens: 100 },
+          latencyMs: 600,
+        })
+        .mockResolvedValueOnce({
+          data: {
+            answer: 'Slightly complex',
+            reasoning: 'The text uses simple sentence structures appropriate for third grade.',
+          },
+          model: 'gpt-4o',
+          usage: { inputTokens: 250, outputTokens: 80 },
+          latencyMs: 500,
+        });
 
       // Execute evaluation
       const result = await evaluator.evaluate(testText, testGrade);
@@ -148,10 +139,12 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe('openai:gpt-4o');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
+      // Token usage is aggregated across both stages: stage 1 (150/100) + stage 2 (250/80)
+      expect(result.metadata.inputTokens).toBe(400);
+      expect(result.metadata.outputTokens).toBe(180);
 
-      // Verify both providers were called
-      expect(mockAnalysisProvider.generateStructured).toHaveBeenCalledTimes(1);
-      expect(mockComplexityProvider.generateStructured).toHaveBeenCalledTimes(1);
+      // Verify provider was called twice (once per stage)
+      expect(mockProvider.generateStructured).toHaveBeenCalledTimes(2);
 
       // Verify internal data structure
       expect(result._internal).toBeDefined();
@@ -166,8 +159,8 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       const testText = 'Test text here for API failure';
       const testGrade = '3';
 
-      // Mock analysis failure
-      vi.mocked(mockAnalysisProvider.generateStructured).mockRejectedValue(
+      // Stage 1 fails — stage 2 should never be reached
+      vi.mocked(mockProvider.generateStructured).mockRejectedValueOnce(
         new Error('API timeout')
       );
 
@@ -175,55 +168,52 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       await expect(evaluator.evaluate(testText, testGrade))
         .rejects.toThrow('API timeout');
 
-      // Verify complexity provider was never called
-      expect(mockComplexityProvider.generateStructured).not.toHaveBeenCalled();
+      // Provider called once (stage 1 only)
+      expect(mockProvider.generateStructured).toHaveBeenCalledTimes(1);
     });
 
     it('should handle complexity classification API failure', async () => {
       const testText = 'Test text here for complexity failure';
       const testGrade = '5';
 
-      // Mock successful analysis
-      vi.mocked(mockAnalysisProvider.generateStructured).mockResolvedValue({
-        data: createMockSentenceAnalysis(),
-        model: 'gpt-4o',
-        usage: { inputTokens: 150, outputTokens: 100 },
-        latencyMs: 600,
-      });
-
-      // Mock complexity failure
-      vi.mocked(mockComplexityProvider.generateStructured).mockRejectedValue(
-        new Error('Schema validation failed')
-      );
+      // Stage 1 succeeds, stage 2 fails
+      vi.mocked(mockProvider.generateStructured)
+        .mockResolvedValueOnce({
+          data: createMockSentenceAnalysis(),
+          model: 'gpt-4o',
+          usage: { inputTokens: 150, outputTokens: 100 },
+          latencyMs: 600,
+        })
+        .mockRejectedValueOnce(new Error('Schema validation failed'));
 
       // Should propagate the error
       await expect(evaluator.evaluate(testText, testGrade))
         .rejects.toThrow('Schema validation failed');
 
-      // Verify analysis provider was called (stage 1 completed)
-      expect(mockAnalysisProvider.generateStructured).toHaveBeenCalledTimes(1);
+      // Provider called twice (stage 1 completed, stage 2 failed)
+      expect(mockProvider.generateStructured).toHaveBeenCalledTimes(2);
     });
 
   });
 
   describe('Response Structure', () => {
     it('should return correct result structure', async () => {
-      vi.mocked(mockAnalysisProvider.generateStructured).mockResolvedValue({
-        data: createMockSentenceAnalysis(),
-        model: 'gpt-4o',
-        usage: { inputTokens: 150, outputTokens: 100 },
-        latencyMs: 600,
-      });
-
-      vi.mocked(mockComplexityProvider.generateStructured).mockResolvedValue({
-        data: {
-          answer: 'Moderately complex',
-          reasoning: 'Detailed reasoning here',
-        },
-        model: 'gpt-4o',
-        usage: { inputTokens: 250, outputTokens: 80 },
-        latencyMs: 500,
-      });
+      vi.mocked(mockProvider.generateStructured)
+        .mockResolvedValueOnce({
+          data: createMockSentenceAnalysis(),
+          model: 'gpt-4o',
+          usage: { inputTokens: 150, outputTokens: 100 },
+          latencyMs: 600,
+        })
+        .mockResolvedValueOnce({
+          data: {
+            answer: 'Moderately complex',
+            reasoning: 'Detailed reasoning here',
+          },
+          model: 'gpt-4o',
+          usage: { inputTokens: 250, outputTokens: 80 },
+          latencyMs: 500,
+        });
 
       const result = await evaluator.evaluate('Test text here', '5');
 
@@ -240,6 +230,8 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       // Verify metadata values
       expect(result.metadata.model).toBe('openai:gpt-4o');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
+      expect(result.metadata.inputTokens).toBe(400);
+      expect(result.metadata.outputTokens).toBe(180);
     });
   });
 });

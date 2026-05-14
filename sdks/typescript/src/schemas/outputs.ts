@@ -19,6 +19,8 @@ export type TextComplexityLevel = z.infer<typeof TextComplexityLevel>;
 export interface EvaluationMetadata {
   model: string;
   processingTimeMs: number;
+  inputTokens: number;
+  outputTokens: number;
 }
 
 /**

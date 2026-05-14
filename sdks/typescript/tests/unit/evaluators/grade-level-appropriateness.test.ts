@@ -15,14 +15,15 @@ import type { LLMProvider } from '../../../src/providers/base.js';
  */
 
 // Mock providers
-const createMockProvider = (): LLMProvider => ({
+const createMockProvider = (config?: { type?: string; model?: string }): LLMProvider => ({
+  label: config?.type && config?.model ? `${config.type}:${config.model}` : 'mock:model',
   generateStructured: vi.fn(),
   generateText: vi.fn(),
 });
 
 // Mock the createProvider factory
 vi.mock('../../../src/providers/index.js', () => ({
-  createProvider: vi.fn(() => createMockProvider()),
+  createProvider: vi.fn((config) => createMockProvider(config)),
 }));
 
 // Mock telemetry to avoid real HTTP calls
@@ -98,6 +99,8 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe('google:gemini-2.5-pro');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
+      expect(result.metadata.inputTokens).toBe(200);
+      expect(result.metadata.outputTokens).toBe(150);
 
       // Verify provider was called
       expect(mockProvider.generateStructured).toHaveBeenCalledTimes(1);
@@ -171,6 +174,8 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       // Verify metadata values
       expect(result.metadata.model).toBe('google:gemini-2.5-pro');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
+      expect(result.metadata.inputTokens).toBe(200);
+      expect(result.metadata.outputTokens).toBe(150);
 
       // Verify _internal values
       expect(result._internal!.grade).toBe('9-10');

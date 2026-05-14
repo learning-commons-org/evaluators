@@ -16,7 +16,6 @@ export interface LLMRequest<T> {
   schema: z.ZodSchema<T>;
   temperature?: number;
   maxTokens?: number;
-  model?: string;
 }
 
 /**
@@ -48,6 +47,9 @@ export interface TextGenerationResponse {
  * Base interface for LLM provider implementations
  */
 export interface LLMProvider {
+  /** Canonical label for the provider and model in use (e.g. "openai:gpt-4o") */
+  readonly label: string;
+
   /**
    * Generate structured output from LLM using Zod schema
    */
@@ -58,6 +60,16 @@ export interface LLMProvider {
    */
   generateText(messages: Message[], temperature?: number): Promise<TextGenerationResponse>;
 }
+
+/**
+ * Named constants for LLM provider types — use instead of raw string literals.
+ */
+export const Providers = {
+  google: 'google',
+  openai: 'openai',
+  anthropic: 'anthropic',
+  custom: 'custom',
+} as const;
 
 /**
  * Configuration for LLM provider

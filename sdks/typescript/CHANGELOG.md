@@ -2,6 +2,14 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
+## [0.5.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v0.4.0...sdks-typescript-v0.5.0) (2026-05-07)
+
+
+### Features
+
+* **ts-sdk:** add modelOverride option to all evaluators ([#34](https://github.com/learning-commons-org/evaluators/issues/34)) ([c57c4fc](https://github.com/learning-commons-org/evaluators/commit/c57c4fc86bc56846afe92e6d451705642e399309))
+* **ts-sdk:** Add Purpose evaluator ([#57](https://github.com/learning-commons-org/evaluators/issues/57)) ([8b6d715](https://github.com/learning-commons-org/evaluators/commit/8b6d715b49ba1911de35ccc1b6aeaef888289a1d))
+
 ## [0.4.0] — 2026-03-23
 
 ### Added
