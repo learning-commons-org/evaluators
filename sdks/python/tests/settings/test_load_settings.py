@@ -323,7 +323,7 @@ def _canonical_settings_root() -> Path | None:
     return candidate if candidate.is_dir() else None
 
 
-@pytest.mark.parametrize("evaluator", ["conventionality"])
+@pytest.mark.parametrize("evaluator", ["conventionality", "vocabulary"])
 def test_bundled_contract_tests_match_canonical(evaluator: str) -> None:
     """Bundled contracts.toml must be byte-for-byte identical to sdks/settings/.
 

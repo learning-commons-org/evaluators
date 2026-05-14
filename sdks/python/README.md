@@ -230,6 +230,42 @@ config = create_config(
 )
 ```
 
+### Per-instance default evaluation settings
+
+Every `BaseEvaluator` subclass defines **class-level** `default_evaluation_settings`
+(the bundled evaluators load these from generated settings). You can override that
+default for a single evaluator instance by passing the same keyword to the
+constructor:
+
+```python
+from learning_commons_evaluators import ConventionalityEvaluator, create_config
+
+config = create_config(...)
+# Start from the bundled defaults, then change what your deployment needs (models,
+# temperatures, etc. live on nested PromptSettings).
+settings = ConventionalityEvaluator.default_evaluation_settings.model_copy(deep=True)
+settings.prompt_settings_step_conventionality_evaluation = (
+    settings.prompt_settings_step_conventionality_evaluation.model_copy(
+        update={"temperature": 0.2}
+    )
+)
+evaluator = ConventionalityEvaluator(
+    config,
+    default_evaluation_settings=settings,
+)
+
+# Uses the instance default (a deep copy is taken inside evaluate)
+result = evaluator.evaluate(input)
+
+# Per-call override still wins
+result = evaluator.evaluate(input, evaluation_settings=other_settings)
+```
+
+If you omit `default_evaluation_settings` at construction, attribute lookup uses the
+subclass class attribute, same as before. Whenever you call `evaluate()` without
+`evaluation_settings`, the SDK uses `model_copy(deep=True)` of the resolved default,
+so the object you keep on the instance is not mutated by a run.
+
 ### Logging
 
 The SDK uses Python's standard `logging` module. By default, `EvaluatorConfig` uses the
@@ -294,7 +330,10 @@ On evaluation failure, `metadata.status` and `error_details` are set on the in-m
 
 ## Creating custom evaluators
 
-Extend `BaseEvaluator` to create custom evaluators:
+Extend `BaseEvaluator` to create custom evaluators. Set **class-level**
+`default_evaluation_settings` for the usual defaults; callers may still construct
+`MyEvaluator(config, default_evaluation_settings=...)` to pin different defaults on a
+specific instance (see [Per-instance default evaluation settings](#per-instance-default-evaluation-settings)).
 
 ```python
 from learning_commons_evaluators import BaseEvaluator, EvaluatorConfig
@@ -328,6 +367,8 @@ class MyEvaluator(BaseEvaluator[MyInput, EvaluationResult, MySettings]):
         )
         return EvaluationResult(answer=..., explanation=..., metadata=evaluation_metadata)
 ```
+
+If you override `__init__` on the subclass, accept the same keyword-only argument and forward it: `super().__init__(config, default_evaluation_settings=default_evaluation_settings)`.
 
 ## License
 
