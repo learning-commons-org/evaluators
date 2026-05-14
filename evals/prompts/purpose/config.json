@@ -1,0 +1,136 @@
+{
+  "spec_version": "1.0",
+  "evaluator": {
+    "id": "literacy.gla.purpose",
+    "name": "Purpose Dimension Text Complexity Evaluator",
+    "description": "Evaluates the Purpose dimension of qualitative text complexity for K-12 reading assessment, producing a 5-level rubric rating with structured pedagogical detail."
+  },
+  "input_schema": {
+    "$ref": "input_schema.json"
+  },
+  "preprocessing": [
+    {
+      "id": "fk_score",
+      "kind": "flesch_kincaid_grade",
+      "description": "Compute the Flesch-Kincaid Grade Level for the input text and bind it to {fk_score} in the prompt.",
+      "input": "text",
+      "output": "fk_score",
+      "implementation": {
+        "python": {
+          "library": "textstat",
+          "function": "flesch_kincaid_grade",
+          "post_transform": {
+            "type": "round",
+            "precision": 2
+          }
+        },
+        "typescript": {
+          "library": "text-readability",
+          "function": "fleschKincaidGrade",
+          "post_transform": {
+            "type": "round",
+            "precision": 2
+          }
+        }
+      }
+    }
+  ],
+  "steps": [
+    {
+      "id": "evaluate_purpose",
+      "description": "Single-call LLM step that produces the EvaluatorOutput JSON.",
+      "prompt": {
+        "type": "chat",
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "745b95b7d54dc845b99363c9d3360355381883c22a5f6a0f305d7349cae38a54"
+          },
+          {
+            "role": "user",
+            "source_path": "user.txt",
+            "sha256": "cd8e6347db1a55d104e34436f8f66e833bd6583645d4786a554aaefdd26479b2"
+          }
+        ],
+        "placeholders": {
+          "text": {
+            "required": true,
+            "source": "input"
+          },
+          "grade_level": {
+            "required": true,
+            "source": "input"
+          },
+          "fk_score": {
+            "required": true,
+            "source": "preprocessing.fk_score"
+          }
+        }
+      },
+      "model": {
+        "provider": "google",
+        "name": "gemini-3-flash-preview"
+      },
+      "generation": {
+        "temperature": 0
+      },
+      "parser": {
+        "kind": "structured_output"
+      },
+      "output_binding": "formatted_output"
+    }
+  ],
+  "output_schema": {
+    "$ref": "output_schema.json"
+  },
+  "fixtures": {
+    "sniff_test_path": "fixtures.json",
+    "tolerance": {
+      "allow_adjacent_levels": true,
+      "notes": "If allow_adjacent_levels is true, predictions within one rubric step of the expected label count as a pass. Slightly Complex < Moderately Complex < Very Complex < Exceedingly Complex; more_context_needed has no adjacency."
+    },
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "fixtures_schema.json",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "input",
+          "expected"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "description": "Optional provenance label (e.g., the source CSV or dataset). Not required."
+          },
+          "input": {
+            "$ref": "input_schema.json"
+          },
+          "expected": {
+            "type": "object",
+            "required": [
+              "complexity_level"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "complexity_level": {
+                "$ref": "output_schema.json#/properties/complexity_score",
+                "description": "Expected complexity rating for this fixture. Renamed from the runtime field 'complexity_score' for clarity in the test file -- only the level itself is being tested; reasoning is non-deterministic across LLM runs."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -50,6 +50,7 @@ export default defineConfig(({ mode }) => ({
         'tests/',
         '**/*.config.ts',
         '**/*.d.ts',
+        'scripts/',
       ],
     },
   },
