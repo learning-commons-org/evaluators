@@ -10,3 +10,8 @@ export {
   GradeLevelAppropriatenessSchema,
   type GradeLevelAppropriatenessInternal,
 } from './grade-level-appropriateness.js';
+
+export {
+  PurposeOutputSchema,
+  type PurposeInternal,
+} from './purpose.js';

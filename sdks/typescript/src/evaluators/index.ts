@@ -1,6 +1,8 @@
 export {
   BaseEvaluator,
+  Provider,
   type BaseEvaluatorConfig,
+  type ModelOverride,
   type TelemetryOptions,
   type EvaluatorMetadata,
 } from './base.js';
@@ -35,3 +37,9 @@ export {
   evaluateTextComplexity,
   type TextComplexityResult,
 } from './text-complexity.js';
+
+export {
+  PurposeEvaluator,
+  evaluatePurpose,
+  type PurposeComplexityLevel,
+} from './purpose.js';
