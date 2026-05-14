@@ -8,32 +8,33 @@ import type {
 } from './base.js';
 
 /**
- * Default models for each provider based on Python implementation
- */
-const DEFAULT_MODELS = {
-  openai: 'gpt-4o',
-  anthropic: 'claude-sonnet-4-5-20250929',
-  google: 'gemini-2.5-pro',
-} as const;
-
-/**
  * Vercel AI SDK provider implementation
  * Supports OpenAI, Anthropic, and Google Gemini
  */
 export class VercelAIProvider implements LLMProvider {
+  readonly label: string;
+  private readonly model: string;
+
   constructor(private config: ProviderConfig) {
     if (config.type === 'custom') {
       throw new Error(
         'VercelAIProvider does not support custom type. Use config.customProvider directly.'
       );
     }
+    if (!config.model || config.model.trim() === '') {
+      throw new Error(
+        `model is required for VercelAIProvider (type: "${config.type}"). No default is assumed.`
+      );
+    }
+    this.model = config.model;
+    this.label = `${config.type}:${config.model}`;
   }
 
   /**
    * Generate structured output using Vercel AI SDK's generateText with output
    */
   async generateStructured<T>(request: LLMRequest<T>): Promise<LLMResponse<T>> {
-    const model = await this.getModel(request.model);
+    const model = await this.getModel();
     const startTime = Date.now();
 
     const { output, usage } = await aiGenerateText({
@@ -47,7 +48,7 @@ export class VercelAIProvider implements LLMProvider {
 
     return {
       data: output as T,
-      model: request.model || this.getDefaultModel(),
+      model: this.model,
       usage: {
         inputTokens: usage.inputTokens || 0,
         outputTokens: usage.outputTokens || 0,
@@ -84,8 +85,7 @@ export class VercelAIProvider implements LLMProvider {
    * Get the configured language model.
    * Uses dynamic imports so consumers only need to install the provider packages they use.
    */
-  private async getModel(requestModel?: string) {
-    const modelId = requestModel || this.config.model || this.getDefaultModel();
+  private async getModel() {
     const apiKey = this.config.apiKey;
 
     switch (this.config.type) {
@@ -95,7 +95,7 @@ export class VercelAIProvider implements LLMProvider {
             'To use the OpenAI provider, install its adapter: npm install @ai-sdk/openai'
           );
         });
-        return createOpenAI(apiKey ? { apiKey } : {})(modelId);
+        return createOpenAI(apiKey ? { apiKey } : {})(this.model);
       }
       case 'anthropic': {
         const { createAnthropic } = await import('@ai-sdk/anthropic').catch(() => {
@@ -103,7 +103,7 @@ export class VercelAIProvider implements LLMProvider {
             'To use the Anthropic provider, install its adapter: npm install @ai-sdk/anthropic'
           );
         });
-        return createAnthropic(apiKey ? { apiKey } : {})(modelId);
+        return createAnthropic(apiKey ? { apiKey } : {})(this.model);
       }
       case 'google': {
         const { createGoogleGenerativeAI } = await import('@ai-sdk/google').catch(() => {
@@ -111,24 +111,11 @@ export class VercelAIProvider implements LLMProvider {
             'To use the Google provider, install its adapter: npm install @ai-sdk/google'
           );
         });
-        return createGoogleGenerativeAI(apiKey ? { apiKey } : {})(modelId);
+        return createGoogleGenerativeAI(apiKey ? { apiKey } : {})(this.model);
       }
       default:
         throw new Error(`Unsupported provider type: ${this.config.type}`);
     }
-  }
-
-  /**
-   * Get default model for the configured provider
-   */
-  private getDefaultModel(): string {
-    const providerType = this.config.type;
-
-    if (providerType === 'custom') {
-      throw new Error('Cannot get default model for custom provider type');
-    }
-
-    return DEFAULT_MODELS[providerType];
   }
 }
 

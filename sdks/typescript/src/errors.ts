@@ -187,14 +187,17 @@ export class TimeoutError extends APIError {
  * Parse structured output from LLM provider error
  */
 function parseProviderError(error: unknown): { message: string; statusCode?: number; code?: string } {
-  // Handle Error objects
   if (error instanceof Error) {
     const message = error.message;
+    const err = error as Error & { statusCode?: number; status?: number };
 
-    // Try to extract status code from error message
-    // Common patterns: "429", "401", "Error 429:", "Status: 429"
+    // Prefer a statusCode/status property (Vercel AI SDK's APICallError sets these)
+    // then fall back to parsing from the message string
     const statusMatch = message.match(/\b(4\d{2}|5\d{2})\b/);
-    const statusCode = statusMatch ? parseInt(statusMatch[1]) : undefined;
+    const statusCode =
+      err.statusCode ??
+      err.status ??
+      (statusMatch ? parseInt(statusMatch[1]) : undefined);
 
     return {
       message,
@@ -203,19 +206,32 @@ function parseProviderError(error: unknown): { message: string; statusCode?: num
     };
   }
 
-  // Handle unknown error types
   return {
     message: String(error),
   };
 }
 
 /**
- * Wrap a provider error into the appropriate error type
+ * Wrap a provider error into the appropriate error type.
+ *
+ * Returns `ConfigurationError` for model-not-found responses (HTTP 404, or HTTP 400
+ * with a model-related message), since those indicate a bad model ID in configuration.
+ * Returns the appropriate `APIError` subclass for all other provider errors.
  *
  * @internal
  */
-export function wrapProviderError(error: unknown, defaultMessage: string = 'API request failed'): APIError {
+export function wrapProviderError(error: unknown, defaultMessage: string = 'API request failed'): EvaluatorError {
   const { message, statusCode, code } = parseProviderError(error);
+
+  // Detect model-not-found errors (404, or 400 with model-related message)
+  if (
+    statusCode === 404 ||
+    (statusCode === 400 && /\bmodel\b.*(not found|does not exist|invalid)/i.test(message))
+  ) {
+    return new ConfigurationError(
+      `Model not found or invalid: ${message}. Check the model ID passed to the provider.`
+    );
+  }
 
   // Detect authentication errors (401, 403)
   if (statusCode === 401 || statusCode === 403) {

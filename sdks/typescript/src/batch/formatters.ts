@@ -8,12 +8,14 @@ const GLA_EVALUATOR_ID = 'grade-level-appropriateness';
 const GRADE_BANDS = ['K-1', '2-3', '4-5', '6-8', '9-10', '11-CCR'] as const;
 type GradeBand = typeof GRADE_BANDS[number];
 
-// Complexity string scores → numeric (supports both Title Case and lowercase from evaluators)
+// Complexity string scores → numeric
 const COMPLEXITY_SCORE_MAP: Record<string, number> = {
   'slightly complex': 1,
   'moderately complex': 2,
   'very complex': 3,
   'exceedingly complex': 4,
+  // 'more context needed' has no numeric equivalent — rows with this score appear as N/A
+  // in individual results and are excluded from aggregate stats, same as failed evaluations.
 };
 
 // ---- Helpers ----
@@ -86,7 +88,8 @@ function groupResultsByRow(results: BatchResult[]): Map<number, BatchResult[]> {
 // ---- CSV Formatter ----
 
 function formatEvaluatorPrefix(evaluatorId: string): string {
-  return evaluatorId.replace(/-/g, '_');
+  const slug = evaluatorId.includes('.') ? evaluatorId.split('.').pop()! : evaluatorId;
+  return slug.replace(/-/g, '_');
 }
 
 function escapeCSV(field: string): string {

@@ -29,11 +29,12 @@ If you prefer not to send any telemetry, you can disable it entirely — see [Di
   "status": "success",
   "latency_ms": 3500,
   "text_length_chars": 456,
-  "provider": "openai:gpt-4o-2024-11-20 + google:gemini-2.5-pro",
+  "provider": "openai:gpt-4o-2024-11-20+google:gemini-2.5-pro",
   "token_usage": {
     "input_tokens": 650,
     "output_tokens": 350
   },
+  "model_override": true,
   "metadata": {
     "stage_details": [
       {
@@ -73,6 +74,7 @@ If you prefer not to send any telemetry, you can disable it entirely — see [Di
 | `text_length_chars` | Length of input text in characters |
 | `provider` | LLM provider(s) used (e.g., "openai:gpt-4o", "google:gemini-2.5-pro+openai:gpt-4o") |
 | `token_usage` | Total tokens consumed (input, output) |
+| `model_override` | `true` if a `modelOverride` was supplied; omitted otherwise |
 | `input_text` | The text being evaluated (only included if `recordInputs: true`) |
 | `metadata.stage_details` | Per-stage breakdown for multi-stage evaluators (optional) |
 

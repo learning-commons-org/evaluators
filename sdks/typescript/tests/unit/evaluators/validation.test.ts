@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { VocabularyEvaluator } from '../../../src/evaluators/vocabulary.js';
-import { VALIDATION_LIMITS } from '../../../src/evaluators/base.js';
+import { SmkEvaluator } from '../../../src/evaluators/smk.js';
+import { VALIDATION_LIMITS, Provider } from '../../../src/evaluators/base.js';
 import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
+import { createProvider } from '../../../src/providers/index.js';
 
 /**
  * Comprehensive validation tests for input validation
@@ -14,14 +16,15 @@ import type { LLMProvider } from '../../../src/providers/base.js';
  */
 
 // Mock providers
-const createMockProvider = (): LLMProvider => ({
+const createMockProvider = (config?: { type?: string; model?: string }): LLMProvider => ({
+  label: config?.type && config?.model ? `${config.type}:${config.model}` : 'mock:model',
   generateStructured: vi.fn(),
   generateText: vi.fn(),
 });
 
 // Mock the createProvider factory
 vi.mock('../../../src/providers/index.js', () => ({
-  createProvider: vi.fn(() => createMockProvider()),
+  createProvider: vi.fn((config) => createMockProvider(config)),
 }));
 
 // Mock telemetry to avoid real HTTP calls
@@ -46,6 +49,116 @@ describe('Configuration Validation', () => {
       googleApiKey: 'test-google-key',
       openaiApiKey: '',
     })).toThrow(ConfigurationError);
+  });
+});
+
+describe('ModelOverride', () => {
+  it('should bypass default key validation when modelOverride is provided with the matching key', () => {
+    // No googleApiKey or openaiApiKey — normally would throw for VocabularyEvaluator
+    expect(() => new VocabularyEvaluator({
+      anthropicApiKey: 'test-key',
+      modelOverride: { provider: Provider.Anthropic, model: 'claude-sonnet-4-6' },
+    })).not.toThrow();
+  });
+
+  it('should throw ConfigurationError when the override provider key is missing', () => {
+    // modelOverride requests Anthropic but no anthropicApiKey provided
+    expect(() => new VocabularyEvaluator({
+      modelOverride: { provider: Provider.Anthropic, model: 'claude-sonnet-4-6' },
+    })).toThrow(ConfigurationError);
+  });
+
+  it('should pass override params to createProvider', () => {
+    vi.mocked(createProvider).mockClear();
+
+    new SmkEvaluator({
+      anthropicApiKey: 'test-key',
+      modelOverride: { provider: Provider.Anthropic, model: 'claude-haiku-4-5-20251001' },
+      telemetry: false,
+    });
+
+    expect(vi.mocked(createProvider)).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'anthropic', model: 'claude-haiku-4-5-20251001' })
+    );
+  });
+
+  it('should not call createProvider with default provider params when override is set', () => {
+    vi.mocked(createProvider).mockClear();
+
+    new SmkEvaluator({
+      openaiApiKey: 'test-key',
+      modelOverride: { provider: Provider.OpenAI, model: 'gpt-4o-mini' },
+      telemetry: false,
+    });
+
+    expect(vi.mocked(createProvider)).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'openai', model: 'gpt-4o-mini' })
+    );
+    expect(vi.mocked(createProvider)).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'google' })
+    );
+  });
+
+  describe('modelOverride shape validation', () => {
+    it('should throw ConfigurationError when model is an empty string', () => {
+      expect(() => new SmkEvaluator({
+        openaiApiKey: 'test-key',
+        modelOverride: { provider: Provider.OpenAI, model: '' },
+        telemetry: false,
+      })).toThrow(ConfigurationError);
+    });
+
+    it('should throw ConfigurationError when model is whitespace only', () => {
+      expect(() => new SmkEvaluator({
+        openaiApiKey: 'test-key',
+        modelOverride: { provider: Provider.OpenAI, model: '   ' },
+        telemetry: false,
+      })).toThrow(ConfigurationError);
+    });
+
+    it('should throw ConfigurationError when provider is not a valid Provider value', () => {
+      expect(() => new SmkEvaluator({
+        openaiApiKey: 'test-key',
+        // @ts-expect-error intentional invalid provider for runtime test
+        modelOverride: { provider: 'unsupported-provider', model: 'some-model' },
+        telemetry: false,
+      })).toThrow(ConfigurationError);
+    });
+
+    it('error message should list valid providers when provider is invalid', () => {
+      expect(() => new SmkEvaluator({
+        openaiApiKey: 'test-key',
+        // @ts-expect-error intentional invalid provider for runtime test
+        modelOverride: { provider: 'unsupported-provider', model: 'some-model' },
+        telemetry: false,
+      })).toThrow(/openai.*google.*anthropic|anthropic.*openai.*google/i);
+    });
+
+  });
+
+  describe('model-not-found runtime error', () => {
+    it('should throw ConfigurationError when provider returns a 404 for the model', async () => {
+      vi.mocked(createProvider).mockReturnValueOnce(
+        createMockProvider({ type: 'openai', model: 'gpt-fake' })
+      );
+
+      const evaluator = new SmkEvaluator({
+        openaiApiKey: 'test-key',
+        modelOverride: { provider: Provider.OpenAI, model: 'gpt-fake' },
+        telemetry: false,
+      });
+
+      const notFoundError = Object.assign(
+        new Error("The model 'gpt-fake' does not exist"),
+        { statusCode: 404 }
+      );
+      // @ts-expect-error accessing private field for test
+      vi.mocked(evaluator.provider.generateStructured).mockRejectedValueOnce(notFoundError);
+
+      await expect(
+        evaluator.evaluate('This is a sample text long enough to pass validation.', '5')
+      ).rejects.toThrow(ConfigurationError);
+    });
   });
 });
 

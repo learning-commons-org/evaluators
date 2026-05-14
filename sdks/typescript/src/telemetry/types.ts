@@ -68,6 +68,7 @@ export interface TelemetryEvent {
   provider: string; // Format: "provider:model" or "provider1+provider2" for multi-provider
   token_usage?: TokenUsage; // Aggregated across all stages and attempts
   metadata?: TelemetryMetadata; // Optional per-stage breakdown
+  model_override?: boolean; // true when the caller supplied a modelOverride
   input_text?: string; // Input text (only if recordInputs enabled)
 }
 
