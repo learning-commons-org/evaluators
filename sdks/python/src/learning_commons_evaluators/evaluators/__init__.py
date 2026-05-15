@@ -1,6 +1,6 @@
 """Evaluator implementations.
 
-Config types (``EvaluatorConfig``, ``GooglePromptProviderConfig``, etc.) are
+Config types (``EvaluatorConfig``, ``GoogleLLMProviderConfig``, etc.) are
 exported from the top-level :mod:`learning_commons_evaluators` package, not
 from here.  Import evaluator classes directly from this sub-package only when
 you want to be explicit about the source.

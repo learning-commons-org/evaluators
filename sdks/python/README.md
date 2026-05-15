@@ -8,7 +8,7 @@ Python SDK for Learning Commons educational text evaluators.
 - **`schemas/`** – Pydantic schemas for inputs, outputs, config, metadata, and errors.
 - **`providers/`** – LangChain-based LLM provider factory (OpenAI, Google, Anthropic).
 - **`settings/`** – TOML settings loader for evaluator configuration.
-- **`config.py`** – Re-exports config types (`EvaluatorConfig`, `PromptProviderConfig`, factory functions).
+- **`config.py`** – Re-exports config types (`EvaluatorConfig`, `LLMProviderConfig`, factory functions).
 - **`errors.py`** – Re-exports error types.
 - **`logger.py`** – Standard Python logging utilities.
 
@@ -138,7 +138,7 @@ import logging
 from learning_commons_evaluators import (
     ConventionalityEvaluator,
     ConventionalityEvaluationInput,
-    GooglePromptProviderConfig,
+    GoogleLLMProviderConfig,
     create_config,
 )
 
@@ -147,7 +147,7 @@ logging.basicConfig(level=logging.INFO)
 
 # Create config with provider credentials
 config = create_config(
-    google_prompt_provider_config=GooglePromptProviderConfig(api_key="your-google-key"),
+    google_llm_provider_config=GoogleLLMProviderConfig(api_key="your-google-key"),
     telemetry_partner_id="your-telemetry-id",
 )
 
@@ -175,12 +175,12 @@ Evaluates text for conventionality of language (idioms, metaphors, implied meani
 from learning_commons_evaluators import (
     ConventionalityEvaluator,
     ConventionalityEvaluationInput,
-    GooglePromptProviderConfig,
+    GoogleLLMProviderConfig,
     create_config,
 )
 
 config = create_config(
-    google_prompt_provider_config=GooglePromptProviderConfig(api_key="..."),
+    google_llm_provider_config=GoogleLLMProviderConfig(api_key="..."),
     telemetry_partner_id="your-telemetry-id",
 )
 evaluator = ConventionalityEvaluator(config)
@@ -205,14 +205,14 @@ Each LLM provider requires its own config with an API key:
 
 ```python
 from learning_commons_evaluators import (
-    GooglePromptProviderConfig,
-    OpenAIPromptProviderConfig,
-    AnthropicPromptProviderConfig,
+    GoogleLLMProviderConfig,
+    OpenAILLMProviderConfig,
+    AnthropicLLMProviderConfig,
 )
 
-google_config = GooglePromptProviderConfig(api_key="...")
-openai_config = OpenAIPromptProviderConfig(api_key="...")
-anthropic_config = AnthropicPromptProviderConfig(api_key="...")
+google_config = GoogleLLMProviderConfig(api_key="...")
+openai_config = OpenAILLMProviderConfig(api_key="...")
+anthropic_config = AnthropicLLMProviderConfig(api_key="...")
 ```
 
 ### EvaluatorConfig
@@ -223,8 +223,8 @@ Use `create_config()` to create an `EvaluatorConfig`:
 from learning_commons_evaluators import create_config
 
 config = create_config(
-    google_prompt_provider_config=google_config,
-    openai_prompt_provider_config=openai_config,
+    google_llm_provider_config=google_config,
+    openai_llm_provider_config=openai_config,
     telemetry_partner_id="your-telemetry-id",
     logger=my_logger,  # Optional: any standard logging.Logger (default: package logger)
 )

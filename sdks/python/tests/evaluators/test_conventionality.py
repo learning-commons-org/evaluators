@@ -47,7 +47,7 @@ class TestConventionalityEvaluator:
 
     def test_evaluate_with_explicit_settings(self):
         from learning_commons_evaluators.schemas.config import (
-            LlmProvider,
+            LLMProvider,
             PromptSettings,
         )
         from learning_commons_evaluators.schemas.conventionality import (
@@ -58,7 +58,7 @@ class TestConventionalityEvaluator:
         evaluator = ConventionalityEvaluator(config)
         settings = ConventionalityEvaluationSettings(
             prompt_settings_step_conventionality_evaluation=PromptSettings(
-                provider_type=LlmProvider.GOOGLE,
+                provider_type=LLMProvider.GOOGLE,
                 model="gemini-2.0-flash",
                 temperature=0.0,
             )

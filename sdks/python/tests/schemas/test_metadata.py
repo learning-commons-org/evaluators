@@ -9,7 +9,7 @@ from datetime import timezone
 import pytest
 from pydantic import ValidationError
 
-from learning_commons_evaluators.schemas.config import LlmProvider, PromptSettings
+from learning_commons_evaluators.schemas.config import LLMProvider, PromptSettings
 from learning_commons_evaluators.schemas.input_specs import TextInputSpec
 from learning_commons_evaluators.schemas.metadata import (
     PROMPT_STEP_EXTRA_PROMPT_SETTINGS,
@@ -98,18 +98,18 @@ class TestEvaluatorMetadata:
 
     def test_fields(self):
         usage = TokenUsage(
-            provider_type=LlmProvider.GOOGLE,
+            provider_type=LLMProvider.GOOGLE,
             model="gemini-2.0-flash",
             input_tokens=100,
             output_tokens=50,
         )
-        assert usage.provider_type == LlmProvider.GOOGLE
+        assert usage.provider_type == LLMProvider.GOOGLE
         assert usage.input_tokens == 100
         assert usage.output_tokens == 50
 
     def test_zero_tokens_are_valid(self):
         usage = TokenUsage(
-            provider_type=LlmProvider.OPENAI,
+            provider_type=LLMProvider.OPENAI,
             model="gpt-4o-mini",
             input_tokens=0,
             output_tokens=0,
@@ -139,7 +139,7 @@ class TestPromptSettingsToExtrasValue:
     def test_produces_json_serialisable_dict(self):
         """provider_type must be a plain string (not the enum) so the dict is JSON-safe."""
         settings = PromptSettings(
-            provider_type=LlmProvider.ANTHROPIC,
+            provider_type=LLMProvider.ANTHROPIC,
             model="claude-3-haiku",
             temperature=0.5,
         )

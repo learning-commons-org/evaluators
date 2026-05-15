@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import BaseModel, Field, TypeAdapter, field_validator, model_validator
 
 from learning_commons_evaluators._version import __version__ as sdk_version
-from learning_commons_evaluators.schemas.config import LlmProvider, PromptSettings
+from learning_commons_evaluators.schemas.config import LLMProvider, PromptSettings
 from learning_commons_evaluators.schemas.input_specs import AnyInputSpec
 
 
@@ -79,7 +79,7 @@ class EvaluatorMetadata(BaseModel):
 class TokenUsage(BaseModel):
     """Token usage for a some step of an evaluation: provider type, model, and token counts."""
 
-    provider_type: LlmProvider
+    provider_type: LLMProvider
     model: str
     input_tokens: int
     output_tokens: int
@@ -125,6 +125,6 @@ class EvaluationMetadata(BaseModel):
     input_metadata: InputMetadata
     status: Status = Status.processing
     error_details: str | None = None
-    total_token_usage: dict[LlmProvider, TokenUsage] = Field(default_factory=dict)
+    total_token_usage: dict[LLMProvider, TokenUsage] = Field(default_factory=dict)
     processing_time_ms: float = 0
     step_details: dict[str, StepMetadata] = Field(default_factory=dict)

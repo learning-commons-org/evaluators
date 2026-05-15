@@ -1,11 +1,11 @@
 """Re-export evaluator config from schemas.config for package-level imports."""
 
 from learning_commons_evaluators.schemas.config import (
-    AnthropicPromptProviderConfig,
+    AnthropicLLMProviderConfig,
     EvaluatorConfig,
-    GooglePromptProviderConfig,
-    OpenAIPromptProviderConfig,
-    PromptProviderConfig,
+    GoogleLLMProviderConfig,
+    LLMProviderConfig,
+    OpenAILLMProviderConfig,
     PromptSettings,
     TelemetryConfig,
     create_config,
@@ -14,11 +14,11 @@ from learning_commons_evaluators.schemas.config import (
 )
 
 __all__ = [
-    "AnthropicPromptProviderConfig",
+    "AnthropicLLMProviderConfig",
     "EvaluatorConfig",
-    "GooglePromptProviderConfig",
-    "OpenAIPromptProviderConfig",
-    "PromptProviderConfig",
+    "GoogleLLMProviderConfig",
+    "OpenAILLMProviderConfig",
+    "LLMProviderConfig",
     "PromptSettings",
     "TelemetryConfig",
     "create_config",

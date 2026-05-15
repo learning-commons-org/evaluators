@@ -11,9 +11,9 @@ from learning_commons_evaluators.providers.langchain import (
 )
 from learning_commons_evaluators.schemas.config import (
     EvaluatorConfig,
-    GooglePromptProviderConfig,
-    LlmProvider,
-    OpenAIPromptProviderConfig,
+    GoogleLLMProviderConfig,
+    LLMProvider,
+    OpenAILLMProviderConfig,
     PromptSettings,
 )
 
@@ -21,9 +21,9 @@ from learning_commons_evaluators.schemas.config import (
 def _config(**kwargs) -> EvaluatorConfig:
     """Return an EvaluatorConfig with all providers set to None; pass provider kwargs to override."""
     defaults: dict = {
-        "google_prompt_provider_config": None,
-        "openai_prompt_provider_config": None,
-        "anthropic_prompt_provider_config": None,
+        "google_llm_provider_config": None,
+        "openai_llm_provider_config": None,
+        "anthropic_llm_provider_config": None,
     }
     defaults.update(kwargs)
     return EvaluatorConfig(**defaults)
@@ -37,37 +37,37 @@ def _config(**kwargs) -> EvaluatorConfig:
 class TestCreateProvider:
     def test_google_provider_returns_model(self):
         config = _config(
-            google_prompt_provider_config=GooglePromptProviderConfig(api_key="test-key")
+            google_llm_provider_config=GoogleLLMProviderConfig(api_key="test-key")
         )
         settings = PromptSettings(
-            provider_type=LlmProvider.GOOGLE, model="gemini-2.0-flash", temperature=0.0
+            provider_type=LLMProvider.GOOGLE, model="gemini-2.0-flash", temperature=0.0
         )
         assert create_provider(settings, config) is not None
 
     def test_openai_provider_returns_model(self):
         config = _config(
-            openai_prompt_provider_config=OpenAIPromptProviderConfig(api_key="test-key")
+            openai_llm_provider_config=OpenAILLMProviderConfig(api_key="test-key")
         )
         settings = PromptSettings(
-            provider_type=LlmProvider.OPENAI, model="gpt-4o-mini", temperature=0.0
+            provider_type=LLMProvider.OPENAI, model="gpt-4o-mini", temperature=0.0
         )
         assert create_provider(settings, config) is not None
 
     def test_raises_when_google_config_missing(self):
         settings = PromptSettings(
-            provider_type=LlmProvider.GOOGLE, model="gemini-2.0-flash", temperature=0.0
+            provider_type=LLMProvider.GOOGLE, model="gemini-2.0-flash", temperature=0.0
         )
         with pytest.raises(ConfigurationError, match="Google provider config is not set"):
             create_provider(settings, _config())
 
     def test_raises_when_openai_config_missing(self):
-        settings = PromptSettings(provider_type=LlmProvider.OPENAI, model="gpt-4o", temperature=0.0)
+        settings = PromptSettings(provider_type=LLMProvider.OPENAI, model="gpt-4o", temperature=0.0)
         with pytest.raises(ConfigurationError, match="OpenAI provider config is not set"):
             create_provider(settings, _config())
 
     def test_raises_when_anthropic_config_missing(self):
         settings = PromptSettings(
-            provider_type=LlmProvider.ANTHROPIC, model="claude-3", temperature=0.0
+            provider_type=LLMProvider.ANTHROPIC, model="claude-3", temperature=0.0
         )
         with pytest.raises(ConfigurationError, match="Anthropic provider config is not set"):
             create_provider(settings, _config())
@@ -79,7 +79,7 @@ class TestCreateProvider:
         with pytest.raises(ConfigurationError, match="Unsupported LLM provider type"):
             create_provider(
                 mock_settings,
-                _config(google_prompt_provider_config=GooglePromptProviderConfig(api_key="k")),
+                _config(google_llm_provider_config=GoogleLLMProviderConfig(api_key="k")),
             )
 
 
@@ -91,23 +91,23 @@ class TestCreateProvider:
 class TestTokenUsageFromAIMessage:
     def test_returns_zero_usage_when_no_usage_metadata(self):
         settings = PromptSettings(
-            provider_type=LlmProvider.GOOGLE, model="gemini-2.0-flash", temperature=0.0
+            provider_type=LLMProvider.GOOGLE, model="gemini-2.0-flash", temperature=0.0
         )
         usage = token_usage_from_aimessage(object(), settings)
-        assert usage.provider_type == LlmProvider.GOOGLE
+        assert usage.provider_type == LLMProvider.GOOGLE
         assert usage.model == "gemini-2.0-flash"
         assert usage.input_tokens == 0
         assert usage.output_tokens == 0
 
     def test_uses_usage_metadata_when_present(self):
-        settings = PromptSettings(provider_type=LlmProvider.OPENAI, model="gpt-4o", temperature=0.0)
+        settings = PromptSettings(provider_type=LLMProvider.OPENAI, model="gpt-4o", temperature=0.0)
         message = type("Msg", (), {"usage_metadata": {"input_tokens": 100, "output_tokens": 50}})()
         usage = token_usage_from_aimessage(message, settings)
         assert usage.input_tokens == 100
         assert usage.output_tokens == 50
 
     def test_falls_back_to_response_metadata_when_usage_metadata_absent(self):
-        settings = PromptSettings(provider_type=LlmProvider.GOOGLE, model="gemini", temperature=0.0)
+        settings = PromptSettings(provider_type=LLMProvider.GOOGLE, model="gemini", temperature=0.0)
         message = type(
             "Msg",
             (),
