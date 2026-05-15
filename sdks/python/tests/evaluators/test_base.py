@@ -195,6 +195,16 @@ class TestEvaluateSyncLoopGuard:
             stub_evaluator.evaluate_sync(_stub_input())
 
 
+class TestEvaluateAsyncEntrypoint:
+    """``await evaluator.evaluate(...)`` is the primary API when an event loop is already running."""
+
+    @pytest.mark.asyncio
+    async def test_evaluate_returns_result_in_async_context(self, stub_evaluator):
+        result = await stub_evaluator.evaluate(_stub_input())
+        assert result.metadata.status == Status.succeeded
+        assert result.metadata.processing_time_ms >= 0.0
+
+
 class TestEvaluateInputMetadata:
     """``input_metadata`` on :class:`EvaluationMetadata` always comes from ``input.input_metadata()``."""
 

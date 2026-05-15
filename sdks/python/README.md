@@ -351,14 +351,14 @@ class MyEvaluator(BaseEvaluator[MyInput, EvaluationResult, MySettings]):
     )
     default_evaluation_settings = MySettings(...)
 
-    def evaluate_impl(
+    async def evaluate_impl(
         self,
         input: MyInput,
         evaluation_settings: MySettings,
         evaluation_metadata: EvaluationMetadata,
     ) -> EvaluationResult:
-        # Use self.execute_prompt_chain_step() for LLM calls
-        output = self.execute_prompt_chain_step(
+        # Use await self.execute_prompt_chain_step(...) for LLM calls
+        output = await self.execute_prompt_chain_step(
             step_name="main",
             prompt_settings=evaluation_settings.prompt_settings,
             evaluation_metadata=evaluation_metadata,

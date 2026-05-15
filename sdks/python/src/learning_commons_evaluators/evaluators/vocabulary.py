@@ -98,7 +98,7 @@ class VocabularyEvaluator(
         Grade validation is handled by the framework before this method is called:
         ``VocabularyEvaluationInput`` automatically constrains ``grade`` to the
         evaluator's ``allowed_grades`` from settings (3–12), so
-        ``BaseEvaluator.evaluate`` / ``evaluate_sync`` raises before reaching here for unsupported grades.
+        ``BaseEvaluator.evaluate`` / ``evaluate_sync`` raise before reaching here for unsupported grades.
         """
         ps_bk = evaluation_settings.prompt_settings_step_background_knowledge
         ps_34 = evaluation_settings.prompt_settings_step_vocab_grades_3_4
