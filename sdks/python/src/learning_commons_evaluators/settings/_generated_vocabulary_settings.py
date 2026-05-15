@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from learning_commons_evaluators.schemas.config import LlmProvider, PromptSettings
+from learning_commons_evaluators.schemas.config import LLMProvider, PromptSettings
 from learning_commons_evaluators.schemas.input_specs import GradeInputSpec, TextInputSpec
 from learning_commons_evaluators.schemas.metadata import EvaluatorMaturity, EvaluatorMetadata
 from learning_commons_evaluators.schemas.vocabulary import VocabularyEvaluationSettings
@@ -383,16 +383,16 @@ In your response, when specifying the level of complexity, be sure to use only a
 
 _EVALUATION_SETTINGS = VocabularyEvaluationSettings(
     prompt_settings_step_background_knowledge=PromptSettings(
-        provider_type=LlmProvider.OPENAI,
+        provider_type=LLMProvider.OPENAI,
         model='gpt-4o-2024-11-20',
         temperature=0.0,
     ),
     prompt_settings_step_vocab_grades_3_4=PromptSettings(
-        provider_type=LlmProvider.GOOGLE,
+        provider_type=LLMProvider.GOOGLE,
         model='gemini-2.5-pro',
         temperature=0.0,
     ),
-    prompt_settings_step_vocab_other_grades=PromptSettings(provider_type=LlmProvider.OPENAI, model='gpt-4.1', temperature=0.0),
+    prompt_settings_step_vocab_other_grades=PromptSettings(provider_type=LLMProvider.OPENAI, model='gpt-4.1', temperature=0.0),
 )
 
 # ── Public config object (imported by evaluator modules) ──────────────────────

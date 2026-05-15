@@ -2,8 +2,8 @@
 
 create_provider() returns a langchain_core BaseChatModel (OpenAI, Google, Anthropic).
 
-Config types (PromptProviderConfig and provider-specific configs:
-AnthropicPromptProviderConfig, GooglePromptProviderConfig, OpenAIPromptProviderConfig)
+Config types (LLMProviderConfig and provider-specific configs:
+AnthropicLLMProviderConfig, GoogleLLMProviderConfig, OpenAILLMProviderConfig)
 live in learning_commons_evaluators.schemas.config.
 """
 

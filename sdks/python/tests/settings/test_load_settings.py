@@ -12,7 +12,7 @@ import pytest
 
 from learning_commons_evaluators.schemas.config import (
     EvaluationSettings,
-    LlmProvider,
+    LLMProvider,
     PromptSettings,
 )
 from learning_commons_evaluators.schemas.conventionality import (
@@ -200,7 +200,7 @@ def test_load_evaluator_settings_prompt_settings_and_prompts(tmp_path: Path) -> 
         ).strip()
     )
     result = load_evaluator_settings(path, _WithPromptSettings)
-    assert result.evaluation_settings.prompt_settings_main.provider_type == LlmProvider.GOOGLE
+    assert result.evaluation_settings.prompt_settings_main.provider_type == LLMProvider.GOOGLE
     assert result.evaluation_settings.prompt_settings_main.model == "gemini-2.0-flash"
     assert result.evaluation_settings.prompt_settings_main.temperature == 0.25
     assert result.prompts["system_prompt"] == "hello\n\nworld"

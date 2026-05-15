@@ -6,7 +6,7 @@ from learning_commons_evaluators.schemas.common_inputs import (
 )
 from learning_commons_evaluators.schemas.config import (
     EvaluationSettings,
-    LlmProvider,
+    LLMProvider,
     PromptSettings,
 )
 from learning_commons_evaluators.schemas.conventionality import (
@@ -61,7 +61,7 @@ __all__ = [
     "GradeInputField",
     "InputField",
     "InputMetadata",
-    "LlmProvider",
+    "LLMProvider",
     "PromptSettings",
     "PROMPT_STEP_EXTRA_PROMPT_SETTINGS",
     "PROMPT_STEP_EXTRA_TOKEN_USAGE",

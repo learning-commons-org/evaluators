@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 from learning_commons_evaluators.errors import ConfigurationError
 from learning_commons_evaluators.schemas.config import (
     EvaluatorConfig,
-    LlmProvider,
+    LLMProvider,
     PromptSettings,
 )
 from learning_commons_evaluators.schemas.metadata import TokenUsage
@@ -48,7 +48,7 @@ def _create_openai_llm(
 ) -> BaseChatModel:
     from langchain_openai import ChatOpenAI
 
-    openai_config = evaluator_config.openai_prompt_provider_config
+    openai_config = evaluator_config.openai_llm_provider_config
     if openai_config is None:
         raise ConfigurationError("OpenAI provider config is not set on EvaluatorConfig")
     kwargs: dict[str, Any] = {
@@ -64,7 +64,7 @@ def _create_google_llm(
 ) -> BaseChatModel:
     from langchain_google_genai import ChatGoogleGenerativeAI
 
-    google_config = evaluator_config.google_prompt_provider_config
+    google_config = evaluator_config.google_llm_provider_config
     if google_config is None:
         raise ConfigurationError("Google provider config is not set on EvaluatorConfig")
     return ChatGoogleGenerativeAI(
@@ -79,7 +79,7 @@ def _create_anthropic_llm(
 ) -> BaseChatModel:
     from langchain_anthropic import ChatAnthropic
 
-    anthropic_config = evaluator_config.anthropic_prompt_provider_config
+    anthropic_config = evaluator_config.anthropic_llm_provider_config
     if anthropic_config is None:
         raise ConfigurationError("Anthropic provider config is not set on EvaluatorConfig")
     return ChatAnthropic(
@@ -93,11 +93,11 @@ def create_provider(
     prompt_settings: PromptSettings, evaluator_config: EvaluatorConfig
 ) -> BaseChatModel:
     """Create a LangChain chat model from a PromptSettings for use in a chain."""
-    if prompt_settings.provider_type == LlmProvider.OPENAI:
+    if prompt_settings.provider_type == LLMProvider.OPENAI:
         return _create_openai_llm(prompt_settings, evaluator_config)
-    if prompt_settings.provider_type == LlmProvider.GOOGLE:
+    if prompt_settings.provider_type == LLMProvider.GOOGLE:
         return _create_google_llm(prompt_settings, evaluator_config)
-    if prompt_settings.provider_type == LlmProvider.ANTHROPIC:
+    if prompt_settings.provider_type == LLMProvider.ANTHROPIC:
         return _create_anthropic_llm(prompt_settings, evaluator_config)
     raise ConfigurationError(
         f"Unsupported LLM provider type: {prompt_settings.provider_type!r}. "

@@ -1,4 +1,4 @@
-"""Tests for EvaluatorConfig, PromptProviderConfig subclasses, and factory functions."""
+"""Tests for EvaluatorConfig, LLMProviderConfig subclasses, and factory functions."""
 
 from dataclasses import FrozenInstanceError
 
@@ -6,10 +6,10 @@ import pytest
 
 from learning_commons_evaluators.logger import SDK_LOGGER_NAME, get_logger
 from learning_commons_evaluators.schemas.config import (
-    AnthropicPromptProviderConfig,
-    GooglePromptProviderConfig,
-    LlmProvider,
-    OpenAIPromptProviderConfig,
+    AnthropicLLMProviderConfig,
+    GoogleLLMProviderConfig,
+    LLMProvider,
+    OpenAILLMProviderConfig,
     TelemetryConfig,
     create_config,
     create_config_no_telemetry,
@@ -17,26 +17,26 @@ from learning_commons_evaluators.schemas.config import (
 )
 
 
-class TestLlmProvider:
+class TestLLMProvider:
     @pytest.mark.parametrize(
         "member,value",
         [
-            (LlmProvider.ANTHROPIC, "anthropic"),
-            (LlmProvider.GOOGLE, "google"),
-            (LlmProvider.OPENAI, "openai"),
+            (LLMProvider.ANTHROPIC, "anthropic"),
+            (LLMProvider.GOOGLE, "google"),
+            (LLMProvider.OPENAI, "openai"),
         ],
     )
     def test_provider_value(self, member, value):
         assert member.value == value
 
 
-class TestPromptProviderConfigs:
+class TestLLMProviderConfigs:
     @pytest.mark.parametrize(
         "cls,expected_type",
         [
-            (GooglePromptProviderConfig, LlmProvider.GOOGLE),
-            (OpenAIPromptProviderConfig, LlmProvider.OPENAI),
-            (AnthropicPromptProviderConfig, LlmProvider.ANTHROPIC),
+            (GoogleLLMProviderConfig, LLMProvider.GOOGLE),
+            (OpenAILLMProviderConfig, LLMProvider.OPENAI),
+            (AnthropicLLMProviderConfig, LLMProvider.ANTHROPIC),
         ],
     )
     def test_provider_config_default_type(self, cls, expected_type):
@@ -54,11 +54,11 @@ class TestEvaluatorConfigFactory:
 
     def test_create_config_no_telemetry_accepts_providers(self):
         config = create_config_no_telemetry(
-            google_prompt_provider_config=GooglePromptProviderConfig(api_key="gk"),
-            openai_prompt_provider_config=OpenAIPromptProviderConfig(api_key="ok"),
+            google_llm_provider_config=GoogleLLMProviderConfig(api_key="gk"),
+            openai_llm_provider_config=OpenAILLMProviderConfig(api_key="ok"),
         )
-        assert config.google_prompt_provider_config.api_key == "gk"
-        assert config.openai_prompt_provider_config.api_key == "ok"
+        assert config.google_llm_provider_config.api_key == "gk"
+        assert config.openai_llm_provider_config.api_key == "ok"
 
     def test_create_config_sets_telemetry_partner_id(self):
         config = create_config(telemetry_partner_id="tid-123")

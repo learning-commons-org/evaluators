@@ -4,11 +4,11 @@ from learning_commons_evaluators._version import __description__, __version__
 
 # Config
 from learning_commons_evaluators.config import (
-    AnthropicPromptProviderConfig,
+    AnthropicLLMProviderConfig,
     EvaluatorConfig,
-    GooglePromptProviderConfig,
-    OpenAIPromptProviderConfig,
-    PromptProviderConfig,
+    GoogleLLMProviderConfig,
+    LLMProviderConfig,
+    OpenAILLMProviderConfig,
     PromptSettings,
     TelemetryConfig,
     create_config,
@@ -55,7 +55,7 @@ from learning_commons_evaluators.schemas.common_inputs import (
     GradeInputField,
     TextInputField,
 )
-from learning_commons_evaluators.schemas.config import EvaluationSettings, LlmProvider
+from learning_commons_evaluators.schemas.config import EvaluationSettings, LLMProvider
 from learning_commons_evaluators.schemas.conventionality import (
     ConventionalityEvaluationSettings,
     ConventionalityOutput,
@@ -95,7 +95,7 @@ __all__ = [
     "__description__",
     "__version__",
     "APIError",
-    "AnthropicPromptProviderConfig",
+    "AnthropicLLMProviderConfig",
     "AuthenticationError",
     "BaseEvaluator",
     "ConfigurationError",
@@ -115,7 +115,7 @@ __all__ = [
     "EvaluatorMetadata",
     "EvaluatorRetryableError",
     "EvaluatorTimeoutError",
-    "GooglePromptProviderConfig",
+    "GoogleLLMProviderConfig",
     "AnyInputSpec",
     "GradeInputField",
     "GradeInputSpec",
@@ -123,12 +123,12 @@ __all__ = [
     "InputSpec",
     "InputT",
     "TextInputSpec",
-    "LlmProvider",
+    "LLMProvider",
+    "LLMProviderConfig",
     "Logger",
     "NetworkError",
-    "OpenAIPromptProviderConfig",
+    "OpenAILLMProviderConfig",
     "OutputT",
-    "PromptProviderConfig",
     "PromptSettings",
     "RateLimitError",
     "SDK_LOGGER_NAME",

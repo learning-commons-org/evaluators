@@ -29,7 +29,7 @@ from learning_commons_evaluators.errors import ConfigurationError
 from learning_commons_evaluators.schemas.common_inputs import GradeInputField, TextInputField
 from learning_commons_evaluators.schemas.config import (
     EvaluationSettings,
-    LlmProvider,
+    LLMProvider,
     PromptSettings,
 )
 from learning_commons_evaluators.schemas.errors import APIError, EvaluatorError, ValidationError
@@ -235,33 +235,33 @@ class TestStubEvaluateErrorHandling:
 class TestUpdateTotalTokenUsage:
     def test_inserts_usage_for_new_provider(self, stub_evaluator, evaluation_metadata):
         usage = TokenUsage(
-            provider_type=LlmProvider.GOOGLE,
+            provider_type=LLMProvider.GOOGLE,
             model="gemini-2.0-flash",
             input_tokens=10,
             output_tokens=5,
         )
         stub_evaluator.update_total_token_usage(usage, evaluation_metadata)
-        stored = evaluation_metadata.total_token_usage[LlmProvider.GOOGLE]
+        stored = evaluation_metadata.total_token_usage[LLMProvider.GOOGLE]
         assert stored.input_tokens == 10
         assert stored.output_tokens == 5
 
     def test_accumulates_usage_for_existing_provider(self, stub_evaluator, evaluation_metadata):
-        evaluation_metadata.total_token_usage[LlmProvider.GOOGLE] = TokenUsage(
-            provider_type=LlmProvider.GOOGLE,
+        evaluation_metadata.total_token_usage[LLMProvider.GOOGLE] = TokenUsage(
+            provider_type=LLMProvider.GOOGLE,
             model="gemini-2.0-flash",
             input_tokens=10,
             output_tokens=5,
         )
         stub_evaluator.update_total_token_usage(
             TokenUsage(
-                provider_type=LlmProvider.GOOGLE,
+                provider_type=LLMProvider.GOOGLE,
                 model="gemini-2.0-flash",
                 input_tokens=20,
                 output_tokens=15,
             ),
             evaluation_metadata,
         )
-        stored = evaluation_metadata.total_token_usage[LlmProvider.GOOGLE]
+        stored = evaluation_metadata.total_token_usage[LLMProvider.GOOGLE]
         assert stored.input_tokens == 30
         assert stored.output_tokens == 20
 
@@ -326,7 +326,7 @@ class TestExecutePromptChainStep:
             out = ev.execute_prompt_chain_step(
                 step_name="raw",
                 prompt_settings=PromptSettings(
-                    provider_type=LlmProvider.GOOGLE,
+                    provider_type=LLMProvider.GOOGLE,
                     model="gemini-2.0-flash",
                     temperature=0.0,
                 ),
@@ -345,7 +345,7 @@ class TestExecutePromptChainStep:
             stub_evaluator.execute_prompt_chain_step(
                 step_name="raw",
                 prompt_settings=PromptSettings(
-                    provider_type=LlmProvider.GOOGLE,
+                    provider_type=LLMProvider.GOOGLE,
                     model="gemini-2.0-flash",
                     temperature=0.0,
                 ),
@@ -365,7 +365,7 @@ class TestExecutePromptChainStep:
             result = stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
-                    provider_type=LlmProvider.GOOGLE,
+                    provider_type=LLMProvider.GOOGLE,
                     model="gemini-2.0-flash",
                     temperature=0.0,
                 ),
@@ -400,7 +400,7 @@ class TestExecutePromptChainStep:
             result = stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
-                    provider_type=LlmProvider.GOOGLE,
+                    provider_type=LLMProvider.GOOGLE,
                     model="gemini-2.0-flash",
                     temperature=0.0,
                 ),
@@ -434,7 +434,7 @@ class TestExecutePromptChainStep:
             result = stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
-                    provider_type=LlmProvider.GOOGLE,
+                    provider_type=LLMProvider.GOOGLE,
                     model="gemini-2.0-flash",
                     temperature=0.0,
                 ),
@@ -461,7 +461,7 @@ class TestExecutePromptChainStep:
                 stub_evaluator.execute_prompt_chain_step(
                     step_name="main",
                     prompt_settings=PromptSettings(
-                        provider_type=LlmProvider.GOOGLE,
+                        provider_type=LLMProvider.GOOGLE,
                         model="gemini-2.0-flash",
                         temperature=0.0,
                     ),
@@ -487,7 +487,7 @@ class TestExecutePromptChainStep:
                 stub_evaluator.execute_prompt_chain_step(
                     step_name="main",
                     prompt_settings=PromptSettings(
-                        provider_type=LlmProvider.GOOGLE,
+                        provider_type=LLMProvider.GOOGLE,
                         model="gemini-2.0-flash",
                         temperature=0.0,
                     ),
@@ -500,7 +500,7 @@ class TestExecutePromptChainStep:
 
     def test_prompt_settings_recorded_in_step_extras(self, stub_evaluator, evaluation_metadata):
         settings = PromptSettings(
-            provider_type=LlmProvider.GOOGLE,
+            provider_type=LLMProvider.GOOGLE,
             model="gemini-2.0-flash",
             temperature=0.0,
         )
@@ -532,7 +532,7 @@ class TestExecutePromptChainStep:
             )
 
         settings = PromptSettings(
-            provider_type=LlmProvider.GOOGLE,
+            provider_type=LLMProvider.GOOGLE,
             model="gemini-2.0-flash",
             temperature=0.0,
         )
@@ -551,7 +551,7 @@ class TestExecutePromptChainStep:
         step = evaluation_metadata.step_details["main"]
         assert step.extras[PROMPT_STEP_EXTRA_TOKEN_USAGE]["input_tokens"] == 42
         assert step.extras[PROMPT_STEP_EXTRA_TOKEN_USAGE]["output_tokens"] == 17
-        assert evaluation_metadata.total_token_usage[LlmProvider.GOOGLE].input_tokens == 42
+        assert evaluation_metadata.total_token_usage[LLMProvider.GOOGLE].input_tokens == 42
 
     def test_propagates_configuration_error_from_create_provider(
         self, stub_evaluator, evaluation_metadata
@@ -567,7 +567,7 @@ class TestExecutePromptChainStep:
             stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
-                    provider_type=LlmProvider.GOOGLE,
+                    provider_type=LLMProvider.GOOGLE,
                     model="gemini-2.0-flash",
                     temperature=0.0,
                 ),
@@ -587,7 +587,7 @@ class TestExecutePromptChainStep:
             stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
-                    provider_type=LlmProvider.GOOGLE,
+                    provider_type=LLMProvider.GOOGLE,
                     model="gemini-2.0-flash",
                     temperature=0.0,
                 ),
@@ -609,7 +609,7 @@ class TestExecutePromptChainStep:
             stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
-                    provider_type=LlmProvider.GOOGLE,
+                    provider_type=LLMProvider.GOOGLE,
                     model="gemini-2.0-flash",
                     temperature=0.0,
                 ),
@@ -633,7 +633,7 @@ class TestExecutePromptChainStep:
             stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
-                    provider_type=LlmProvider.GOOGLE,
+                    provider_type=LLMProvider.GOOGLE,
                     model="gemini-2.0-flash",
                     temperature=0.0,
                 ),
@@ -659,7 +659,7 @@ class TestExecutePromptChainStep:
             stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
-                    provider_type=LlmProvider.GOOGLE,
+                    provider_type=LLMProvider.GOOGLE,
                     model="gemini-2.0-flash",
                     temperature=0.0,
                 ),

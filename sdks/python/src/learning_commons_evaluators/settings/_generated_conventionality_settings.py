@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from learning_commons_evaluators.schemas.config import LlmProvider, PromptSettings
+from learning_commons_evaluators.schemas.config import LLMProvider, PromptSettings
 from learning_commons_evaluators.schemas.conventionality import ConventionalityEvaluationSettings
 from learning_commons_evaluators.schemas.input_specs import GradeInputSpec, TextInputSpec
 from learning_commons_evaluators.schemas.metadata import EvaluatorMaturity, EvaluatorMetadata
@@ -86,7 +86,7 @@ FK Score: {fk_score}
 
 _EVALUATION_SETTINGS = ConventionalityEvaluationSettings(
     prompt_settings_step_conventionality_evaluation=PromptSettings(
-        provider_type=LlmProvider.GOOGLE,
+        provider_type=LLMProvider.GOOGLE,
         model='gemini-3-flash-preview',
         temperature=0.0,
     ),
