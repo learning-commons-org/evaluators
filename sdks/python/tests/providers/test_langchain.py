@@ -36,18 +36,14 @@ def _config(**kwargs) -> EvaluatorConfig:
 
 class TestCreateProvider:
     def test_google_provider_returns_model(self):
-        config = _config(
-            google_llm_provider_config=GoogleLLMProviderConfig(api_key="test-key")
-        )
+        config = _config(google_llm_provider_config=GoogleLLMProviderConfig(api_key="test-key"))
         settings = PromptSettings(
             provider_type=LLMProvider.GOOGLE, model="gemini-2.0-flash", temperature=0.0
         )
         assert create_provider(settings, config) is not None
 
     def test_openai_provider_returns_model(self):
-        config = _config(
-            openai_llm_provider_config=OpenAILLMProviderConfig(api_key="test-key")
-        )
+        config = _config(openai_llm_provider_config=OpenAILLMProviderConfig(api_key="test-key"))
         settings = PromptSettings(
             provider_type=LLMProvider.OPENAI, model="gpt-4o-mini", temperature=0.0
         )
