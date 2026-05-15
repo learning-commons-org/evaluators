@@ -1,7 +1,8 @@
 """Tests for :class:`~learning_commons_evaluators.evaluators.base.BaseEvaluator`.
 
-Covers ``__init__``, ``evaluate`` (metadata, settings override, success/failure, telemetry),
-``update_total_token_usage``, ``execute_step``, and ``execute_prompt_chain_step``.
+Covers ``__init__``, ``evaluate`` / ``evaluate_sync``, metadata and settings override,
+success/failure paths, ``update_total_token_usage``, ``execute_step``, and
+``execute_prompt_chain_step``.
 ``EvaluationMetadata`` always uses ``input.input_metadata()`` (including when
 ``send_full_input_with_telemetry`` is enabled). Helpers use both a minimal stub evaluator
 and conventionality-oriented fixtures where useful.
@@ -10,13 +11,18 @@ and conventionality-oriented fixtures where useful.
 from __future__ import annotations
 
 import logging
-from unittest.mock import MagicMock, patch
+from typing import NoReturn
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.callbacks import CallbackManagerForLLMRun
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
+from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
+from typing_extensions import override
 
 from learning_commons_evaluators import (
     BaseEvaluator,
@@ -48,6 +54,31 @@ from learning_commons_evaluators.schemas.text_complexity import (
 )
 
 _CHAIN_PATCH = "learning_commons_evaluators.evaluators.base.create_provider"
+
+
+def _fake_chat_model(message: AIMessage) -> FakeMessagesListChatModel:
+    """Fixed-response chat model for ``template | model`` chains (MagicMock breaks LC compose)."""
+
+    return FakeMessagesListChatModel(responses=[message])
+
+
+class _ChainFailureChatModel(BaseChatModel):
+    """Chat model that always raises inside generation (provider failure simulation)."""
+
+    @override
+    def _generate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
+        **kwargs: object,
+    ) -> NoReturn:
+        raise ValueError("simulated provider failure")
+
+    @property
+    @override
+    def _llm_type(self) -> str:
+        return "chain-failure-test-double"
 
 
 class _ChainOutput(BaseModel):
@@ -85,7 +116,7 @@ class _StubEvaluator(
     )
     default_evaluation_settings = _StubSettings()
 
-    def evaluate_impl(
+    async def evaluate_impl(
         self,
         input: TextComplexityEvaluationInput,
         evaluation_settings: _StubSettings,
@@ -132,19 +163,19 @@ class TestBaseEvaluatorInit:
 
 class TestEvaluateSuccess:
     def test_sets_status_succeeded_and_processing_time(self, stub_evaluator):
-        result = stub_evaluator.evaluate(_stub_input())
+        result = stub_evaluator.evaluate_sync(_stub_input())
         assert result.metadata.status == Status.succeeded
         assert result.metadata.processing_time_ms >= 0.0
 
     def test_passes_explicit_evaluation_settings(self, stub_evaluator):
         custom = _StubSettings(marker=42)
-        result = stub_evaluator.evaluate(_stub_input(), evaluation_settings=custom)
+        result = stub_evaluator.evaluate_sync(_stub_input(), evaluation_settings=custom)
         assert result.metadata.evaluation_settings.marker == 42
         assert result.explanation.details.get("marker") == 42
 
     def test_constructor_default_used_when_evaluate_settings_omitted(self, config):
         ev = _StubEvaluator(config, default_evaluation_settings=_StubSettings(marker=77))
-        result = ev.evaluate(_stub_input())
+        result = ev.evaluate_sync(_stub_input())
         assert result.metadata.evaluation_settings.marker == 77
         assert result.explanation.details.get("marker") == 77
 
@@ -153,8 +184,25 @@ class TestEvaluateSuccess:
             config,
             default_evaluation_settings=_StubSettings(marker=1),
         )
-        result = ev.evaluate(_stub_input(), evaluation_settings=_StubSettings(marker=2))
+        result = ev.evaluate_sync(_stub_input(), evaluation_settings=_StubSettings(marker=2))
         assert result.explanation.details.get("marker") == 2
+
+
+class TestEvaluateSyncLoopGuard:
+    @pytest.mark.asyncio
+    async def test_evaluate_sync_raises_clear_error_when_loop_running(self, stub_evaluator):
+        with pytest.raises(RuntimeError, match="await evaluator.evaluate"):
+            stub_evaluator.evaluate_sync(_stub_input())
+
+
+class TestEvaluateAsyncEntrypoint:
+    """``await evaluator.evaluate(...)`` is the primary API when an event loop is already running."""
+
+    @pytest.mark.asyncio
+    async def test_evaluate_returns_result_in_async_context(self, stub_evaluator):
+        result = await stub_evaluator.evaluate(_stub_input())
+        assert result.metadata.status == Status.succeeded
+        assert result.metadata.processing_time_ms >= 0.0
 
 
 class TestEvaluateInputMetadata:
@@ -162,7 +210,7 @@ class TestEvaluateInputMetadata:
 
     def test_evaluate_sets_metadata_from_input_metadata(self, stub_evaluator):
         inp = _stub_input()
-        result = stub_evaluator.evaluate(inp)
+        result = stub_evaluator.evaluate_sync(inp)
         assert result.metadata.input_metadata == inp.input_metadata()
         assert result.metadata.input_metadata["text"] == {"textLength": 11}
         assert result.metadata.input_metadata["grade_level"] == {"grade": 3}
@@ -172,7 +220,7 @@ class TestEvaluateInputMetadata:
         cfg = create_config(telemetry_partner_id="test", send_full_input_with_telemetry=True)
         ev = _StubEvaluator(cfg)
         inp = _stub_input()
-        result = ev.evaluate(inp)
+        result = ev.evaluate_sync(inp)
         assert result.metadata.input_metadata == inp.input_metadata()
         assert result.metadata.input_metadata["text"] == {"textLength": 11}
         assert result.metadata.input_metadata["grade_level"] == {"grade": 3}
@@ -188,14 +236,16 @@ class TestStubEvaluateErrorHandling:
             grade_level=GradeInputField(spec=GradeInputSpec(name="grade_level"), value=3),
         )
         with pytest.raises(ValidationError):
-            stub_evaluator.evaluate(inp)
+            stub_evaluator.evaluate_sync(inp)
 
     def test_propagates_evaluate_impl_exception(self, stub_evaluator):
         with (
-            patch.object(stub_evaluator, "evaluate_impl", side_effect=RuntimeError("boom")),
+            patch.object(
+                stub_evaluator, "evaluate_impl", AsyncMock(side_effect=RuntimeError("boom"))
+            ),
             pytest.raises(RuntimeError, match="boom"),
         ):
-            stub_evaluator.evaluate(_stub_input())
+            stub_evaluator.evaluate_sync(_stub_input())
 
     def test_validation_failure_emits_end_log_with_failed_status(self, stub_evaluator):
         captured: list = []
@@ -218,7 +268,7 @@ class TestStubEvaluateErrorHandling:
                 grade_level=GradeInputField(spec=GradeInputSpec(name="grade_level"), value=3),
             )
             with pytest.raises(ValidationError):
-                stub_evaluator.evaluate(inp)
+                stub_evaluator.evaluate_sync(inp)
         finally:
             stub_evaluator.config.logger.removeHandler(h)
 
@@ -272,33 +322,43 @@ class TestUpdateTotalTokenUsage:
 
 
 class TestExecuteStep:
-    def test_returns_implementation_result(self, stub_evaluator, evaluation_metadata):
-        assert (
-            stub_evaluator.execute_step("s", evaluation_metadata, lambda: "the-result")
-            == "the-result"
-        )
+    async def test_returns_implementation_result(self, stub_evaluator, evaluation_metadata):
+        async def impl():
+            return "the-result"
 
-    def test_records_succeeded_status_on_success(self, stub_evaluator, evaluation_metadata):
-        stub_evaluator.execute_step("s", evaluation_metadata, lambda: None)
+        assert await stub_evaluator.execute_step("s", evaluation_metadata, impl) == "the-result"
+
+    async def test_records_succeeded_status_on_success(self, stub_evaluator, evaluation_metadata):
+        async def impl():
+            return None
+
+        await stub_evaluator.execute_step("s", evaluation_metadata, impl)
         assert evaluation_metadata.step_details["s"].status == Status.succeeded
 
-    def test_records_failed_status_and_error_on_exception(
+    async def test_records_failed_status_and_error_on_exception(
         self, stub_evaluator, evaluation_metadata
     ):
-        failing = MagicMock(side_effect=ValueError("boom"))
+        async def failing():
+            raise ValueError("boom")
+
         with pytest.raises(ValueError, match="boom"):
-            stub_evaluator.execute_step("s", evaluation_metadata, failing)
+            await stub_evaluator.execute_step("s", evaluation_metadata, failing)
         step = evaluation_metadata.step_details["s"]
         assert step.status == Status.failed
         assert "boom" in step.error_details
 
-    def test_re_raises_exception(self, stub_evaluator, evaluation_metadata):
-        failing = MagicMock(side_effect=RuntimeError("inner"))
-        with pytest.raises(RuntimeError, match="inner"):
-            stub_evaluator.execute_step("s", evaluation_metadata, failing)
+    async def test_re_raises_exception(self, stub_evaluator, evaluation_metadata):
+        async def failing():
+            raise RuntimeError("inner")
 
-    def test_extras_appear_in_step_metadata(self, stub_evaluator, evaluation_metadata):
-        stub_evaluator.execute_step("s", evaluation_metadata, lambda: None, extras={"k": "v"})
+        with pytest.raises(RuntimeError, match="inner"):
+            await stub_evaluator.execute_step("s", evaluation_metadata, failing)
+
+    async def test_extras_appear_in_step_metadata(self, stub_evaluator, evaluation_metadata):
+        async def impl():
+            return None
+
+        await stub_evaluator.execute_step("s", evaluation_metadata, impl, extras={"k": "v"})
         assert evaluation_metadata.step_details["s"].extras["k"] == "v"
 
 
@@ -308,22 +368,15 @@ class TestExecuteStep:
 
 
 class TestExecutePromptChainStep:
-    """Mock ``create_provider`` so ``template | provider`` runs in-process.
+    """Mock ``create_provider`` so ``template | provider`` runs in-process."""
 
-    Fake LLMs return real ``AIMessage`` values so ``JsonOutputParser`` and
-    ``token_usage_from_aimessage`` exercise the real code paths where applicable.
-    """
-
-    def test_returns_raw_string_when_parser_output_type_is_none(
+    async def test_returns_raw_string_when_parser_output_type_is_none(
         self, stub_evaluator, evaluation_metadata
     ):
-        def _fake_llm(_pv):
-            return AIMessage(content="plain prose")
-
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
         ev = _StubEvaluator(create_config_no_telemetry())
-        with patch(_CHAIN_PATCH, return_value=_fake_llm):
-            out = ev.execute_prompt_chain_step(
+        with patch(_CHAIN_PATCH, return_value=_fake_chat_model(AIMessage(content="plain prose"))):
+            out = await ev.execute_prompt_chain_step(
                 step_name="raw",
                 prompt_settings=PromptSettings(
                     provider_type=LLMProvider.GOOGLE,
@@ -337,12 +390,12 @@ class TestExecutePromptChainStep:
             )
         assert out == "plain prose"
 
-    def test_json_dict_normalizer_without_parser_type_raises(
+    async def test_json_dict_normalizer_without_parser_type_raises(
         self, stub_evaluator, evaluation_metadata
     ):
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
         with pytest.raises(ValueError, match="json_dict_normalizer requires"):
-            stub_evaluator.execute_prompt_chain_step(
+            await stub_evaluator.execute_prompt_chain_step(
                 step_name="raw",
                 prompt_settings=PromptSettings(
                     provider_type=LLMProvider.GOOGLE,
@@ -356,13 +409,10 @@ class TestExecutePromptChainStep:
                 json_dict_normalizer=lambda d: d,
             )
 
-    def test_returns_parsed_pydantic_output(self, stub_evaluator, evaluation_metadata):
-        def _fake_llm(_pv):
-            return AIMessage(content=_CHAIN_JSON)
-
+    async def test_returns_parsed_pydantic_output(self, stub_evaluator, evaluation_metadata):
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
-        with patch(_CHAIN_PATCH, return_value=_fake_llm):
-            result = stub_evaluator.execute_prompt_chain_step(
+        with patch(_CHAIN_PATCH, return_value=_fake_chat_model(AIMessage(content=_CHAIN_JSON))):
+            result = await stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
                     provider_type=LLMProvider.GOOGLE,
@@ -378,13 +428,10 @@ class TestExecutePromptChainStep:
         assert result.label == "ok"
         assert result.score == 7
 
-    def test_json_dict_normalizer_parses_dict_then_normalizes_then_validates(
+    async def test_json_dict_normalizer_parses_dict_then_normalizes_then_validates(
         self, stub_evaluator, evaluation_metadata
     ):
         """Optional ``json_dict_normalizer``: loose JSON → dict → user fn → ``model_validate``."""
-
-        def _fake_llm(_pv):
-            return AIMessage(content='{"n": 1}')
 
         class _Out(BaseModel):
             n: int = Field(description="n")
@@ -396,8 +443,11 @@ class TestExecutePromptChainStep:
             return d
 
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
-        with patch(_CHAIN_PATCH, return_value=_fake_llm):
-            result = stub_evaluator.execute_prompt_chain_step(
+        with patch(
+            _CHAIN_PATCH,
+            return_value=_fake_chat_model(AIMessage(content='{"n": 1}')),
+        ):
+            result = await stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
                     provider_type=LLMProvider.GOOGLE,
@@ -414,24 +464,22 @@ class TestExecutePromptChainStep:
         assert result.n == 1
         assert result.doubled == 2
 
-    def test_parser_returning_model_instance_short_circuits_model_validate(
+    async def test_parser_returning_model_instance_short_circuits_model_validate(
         self, stub_evaluator, evaluation_metadata
     ):
-        """When ``JsonOutputParser.invoke`` returns a model, ``isinstance`` path skips ``model_validate``."""
+        """When ``JsonOutputParser.ainvoke`` returns a model, ``isinstance`` path skips ``model_validate``."""
         prebuilt = _ChainOutput(label="direct", score=99)
-
-        def _fake_llm(_pv):
-            return AIMessage(content="unused")
 
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
         with (
-            patch(_CHAIN_PATCH, return_value=_fake_llm),
+            patch(_CHAIN_PATCH, return_value=_fake_chat_model(AIMessage(content="unused"))),
             patch("langchain_core.output_parsers.json.JsonOutputParser") as mock_parser_cls,
         ):
             mock_parser = MagicMock()
             mock_parser.invoke.return_value = prebuilt
+            mock_parser.ainvoke = AsyncMock(return_value=prebuilt)
             mock_parser_cls.return_value = mock_parser
-            result = stub_evaluator.execute_prompt_chain_step(
+            result = await stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
                     provider_type=LLMProvider.GOOGLE,
@@ -445,20 +493,20 @@ class TestExecutePromptChainStep:
             )
         assert result is prebuilt
 
-    def test_keyboard_interrupt_from_parser_propagates(self, stub_evaluator, evaluation_metadata):
-        def _fake_llm(_pv):
-            return AIMessage(content=_CHAIN_JSON)
-
+    async def test_keyboard_interrupt_from_parser_propagates(
+        self, stub_evaluator, evaluation_metadata
+    ):
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
         with (
-            patch(_CHAIN_PATCH, return_value=_fake_llm),
+            patch(_CHAIN_PATCH, return_value=_fake_chat_model(AIMessage(content=_CHAIN_JSON))),
             patch("langchain_core.output_parsers.json.JsonOutputParser") as mock_parser_cls,
         ):
             mock_parser = MagicMock()
             mock_parser.invoke.side_effect = KeyboardInterrupt
+            mock_parser.ainvoke = AsyncMock(side_effect=KeyboardInterrupt)
             mock_parser_cls.return_value = mock_parser
             with pytest.raises(KeyboardInterrupt):
-                stub_evaluator.execute_prompt_chain_step(
+                await stub_evaluator.execute_prompt_chain_step(
                     step_name="main",
                     prompt_settings=PromptSettings(
                         provider_type=LLMProvider.GOOGLE,
@@ -471,20 +519,18 @@ class TestExecutePromptChainStep:
                     parser_output_type=_ChainOutput,
                 )
 
-    def test_system_exit_from_parser_propagates(self, stub_evaluator, evaluation_metadata):
-        def _fake_llm(_pv):
-            return AIMessage(content=_CHAIN_JSON)
-
+    async def test_system_exit_from_parser_propagates(self, stub_evaluator, evaluation_metadata):
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
         with (
-            patch(_CHAIN_PATCH, return_value=_fake_llm),
+            patch(_CHAIN_PATCH, return_value=_fake_chat_model(AIMessage(content=_CHAIN_JSON))),
             patch("langchain_core.output_parsers.json.JsonOutputParser") as mock_parser_cls,
         ):
             mock_parser = MagicMock()
             mock_parser.invoke.side_effect = SystemExit(3)
+            mock_parser.ainvoke = AsyncMock(side_effect=SystemExit(3))
             mock_parser_cls.return_value = mock_parser
             with pytest.raises(SystemExit) as exc_info:
-                stub_evaluator.execute_prompt_chain_step(
+                await stub_evaluator.execute_prompt_chain_step(
                     step_name="main",
                     prompt_settings=PromptSettings(
                         provider_type=LLMProvider.GOOGLE,
@@ -498,7 +544,9 @@ class TestExecutePromptChainStep:
                 )
             assert exc_info.value.code == 3
 
-    def test_prompt_settings_recorded_in_step_extras(self, stub_evaluator, evaluation_metadata):
+    async def test_prompt_settings_recorded_in_step_extras(
+        self, stub_evaluator, evaluation_metadata
+    ):
         settings = PromptSettings(
             provider_type=LLMProvider.GOOGLE,
             model="gemini-2.0-flash",
@@ -506,8 +554,8 @@ class TestExecutePromptChainStep:
         )
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
 
-        with patch(_CHAIN_PATCH, return_value=lambda _pv: AIMessage(content=_CHAIN_JSON)):
-            stub_evaluator.execute_prompt_chain_step(
+        with patch(_CHAIN_PATCH, return_value=_fake_chat_model(AIMessage(content=_CHAIN_JSON))):
+            await stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=settings,
                 evaluation_metadata=evaluation_metadata,
@@ -520,16 +568,17 @@ class TestExecutePromptChainStep:
         assert step.extras[PROMPT_STEP_EXTRA_PROMPT_SETTINGS]["model"] == "gemini-2.0-flash"
         assert PROMPT_STEP_EXTRA_TOKEN_USAGE in step.extras
 
-    def test_token_usage_recorded_when_llm_reports_usage(self, stub_evaluator, evaluation_metadata):
-        def _llm_with_usage(_pv):
-            return AIMessage(
-                content=_CHAIN_JSON,
-                usage_metadata={
-                    "input_tokens": 42,
-                    "output_tokens": 17,
-                    "total_tokens": 59,
-                },
-            )
+    async def test_token_usage_recorded_when_llm_reports_usage(
+        self, stub_evaluator, evaluation_metadata
+    ):
+        msg = AIMessage(
+            content=_CHAIN_JSON,
+            usage_metadata={
+                "input_tokens": 42,
+                "output_tokens": 17,
+                "total_tokens": 59,
+            },
+        )
 
         settings = PromptSettings(
             provider_type=LLMProvider.GOOGLE,
@@ -538,8 +587,8 @@ class TestExecutePromptChainStep:
         )
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
 
-        with patch(_CHAIN_PATCH, return_value=_llm_with_usage):
-            stub_evaluator.execute_prompt_chain_step(
+        with patch(_CHAIN_PATCH, return_value=_fake_chat_model(msg)):
+            await stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=settings,
                 evaluation_metadata=evaluation_metadata,
@@ -553,7 +602,7 @@ class TestExecutePromptChainStep:
         assert step.extras[PROMPT_STEP_EXTRA_TOKEN_USAGE]["output_tokens"] == 17
         assert evaluation_metadata.total_token_usage[LLMProvider.GOOGLE].input_tokens == 42
 
-    def test_propagates_configuration_error_from_create_provider(
+    async def test_propagates_configuration_error_from_create_provider(
         self, stub_evaluator, evaluation_metadata
     ):
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
@@ -564,7 +613,7 @@ class TestExecutePromptChainStep:
             ),
             pytest.raises(ConfigurationError, match="Google provider config is not set"),
         ):
-            stub_evaluator.execute_prompt_chain_step(
+            await stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
                     provider_type=LLMProvider.GOOGLE,
@@ -577,14 +626,16 @@ class TestExecutePromptChainStep:
                 parser_output_type=_ChainOutput,
             )
 
-    def test_propagates_evaluator_error_without_wrapping(self, stub_evaluator, evaluation_metadata):
+    async def test_propagates_evaluator_error_without_wrapping(
+        self, stub_evaluator, evaluation_metadata
+    ):
         """``EvaluatorError`` subclasses raised inside the chain are re-raised unchanged."""
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
         with (
             patch(_CHAIN_PATCH, side_effect=EvaluatorError("bare evaluator error")),
             pytest.raises(EvaluatorError, match="bare evaluator error"),
         ):
-            stub_evaluator.execute_prompt_chain_step(
+            await stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
                     provider_type=LLMProvider.GOOGLE,
@@ -597,16 +648,15 @@ class TestExecutePromptChainStep:
                 parser_output_type=_ChainOutput,
             )
 
-    def test_wraps_unexpected_chain_failure_as_api_error(self, stub_evaluator, evaluation_metadata):
-        def _boom(_pv):
-            raise ValueError("simulated provider failure")
-
+    async def test_wraps_unexpected_chain_failure_as_api_error(
+        self, stub_evaluator, evaluation_metadata
+    ):
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
         with (
-            patch(_CHAIN_PATCH, return_value=_boom),
+            patch(_CHAIN_PATCH, return_value=_ChainFailureChatModel()),
             pytest.raises(APIError, match="simulated provider failure"),
         ):
-            stub_evaluator.execute_prompt_chain_step(
+            await stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
                     provider_type=LLMProvider.GOOGLE,
@@ -619,18 +669,15 @@ class TestExecutePromptChainStep:
                 parser_output_type=_ChainOutput,
             )
 
-    def test_malformed_llm_json_raises_api_error(self, stub_evaluator, evaluation_metadata):
+    async def test_malformed_llm_json_raises_api_error(self, stub_evaluator, evaluation_metadata):
         """Invalid JSON from the LLM becomes :class:`APIError` via ``wrap_provider_error``."""
-
-        def _bad(_pv):
-            return AIMessage(content="not-json")
 
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
         with (
-            patch(_CHAIN_PATCH, return_value=_bad),
+            patch(_CHAIN_PATCH, return_value=_fake_chat_model(AIMessage(content="not-json"))),
             pytest.raises(APIError, match="Invalid json output"),
         ):
-            stub_evaluator.execute_prompt_chain_step(
+            await stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
                     provider_type=LLMProvider.GOOGLE,
@@ -643,20 +690,20 @@ class TestExecutePromptChainStep:
                 parser_output_type=_ChainOutput,
             )
 
-    def test_schema_mismatch_raises_pydantic_validation_error(
+    async def test_schema_mismatch_raises_pydantic_validation_error(
         self, stub_evaluator, evaluation_metadata
     ):
         """Valid JSON that does not satisfy the output model raises Pydantic ``ValidationError``."""
 
-        def _partial(_pv):
-            return AIMessage(content='{"label": "only"}')
-
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
         with (
-            patch(_CHAIN_PATCH, return_value=_partial),
+            patch(
+                _CHAIN_PATCH,
+                return_value=_fake_chat_model(AIMessage(content='{"label": "only"}')),
+            ),
             pytest.raises(PydanticValidationError),
         ):
-            stub_evaluator.execute_prompt_chain_step(
+            await stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
                 prompt_settings=PromptSettings(
                     provider_type=LLMProvider.GOOGLE,

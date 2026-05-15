@@ -68,7 +68,7 @@ class TestVocabularyContractGrades34:
         )
 
         with ContractTestHarness(case) as harness:
-            result = evaluator.evaluate(inp)
+            result = evaluator.evaluate_sync(inp)
 
         # --- Prompt fidelity ---
         # Both steps are asserted: model, temperature, and formatted messages
@@ -113,7 +113,7 @@ class TestVocabularyContractOtherGrades:
         )
 
         with ContractTestHarness(case) as harness:
-            result = evaluator.evaluate(inp)
+            result = evaluator.evaluate_sync(inp)
 
         # --- Prompt fidelity ---
         harness.assert_prompt_step("background_knowledge")

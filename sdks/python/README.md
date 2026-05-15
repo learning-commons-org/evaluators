@@ -153,7 +153,7 @@ config = create_config(
 
 # Create evaluator and run evaluation
 evaluator = ConventionalityEvaluator(config)
-result = evaluator.evaluate(
+result = evaluator.evaluate_sync(
     ConventionalityEvaluationInput(text="The cat's out of the bag now.", grade=5)
 )
 
@@ -185,7 +185,7 @@ config = create_config(
 )
 evaluator = ConventionalityEvaluator(config)
 
-result = evaluator.evaluate(
+result = evaluator.evaluate_sync(
     ConventionalityEvaluationInput(text="Your text here.", grade=5)
 )
 
@@ -254,16 +254,17 @@ evaluator = ConventionalityEvaluator(
     default_evaluation_settings=settings,
 )
 
-# Uses the instance default (a deep copy is taken inside evaluate)
-result = evaluator.evaluate(input)
+# Uses the instance default (a deep copy is taken inside evaluate / evaluate_sync)
+result = evaluator.evaluate_sync(input)
 
 # Per-call override still wins
-result = evaluator.evaluate(input, evaluation_settings=other_settings)
+result = evaluator.evaluate_sync(input, evaluation_settings=other_settings)
 ```
 
 If you omit `default_evaluation_settings` at construction, attribute lookup uses the
-subclass class attribute, same as before. Whenever you call `evaluate()` without
-`evaluation_settings`, the SDK uses `model_copy(deep=True)` of the resolved default,
+subclass class attribute, same as before. Whenever you call `evaluate_sync()` or
+`await evaluator.evaluate(...)` without `evaluation_settings`, the SDK uses
+`model_copy(deep=True)` of the resolved default,
 so the object you keep on the instance is not mutated by a run.
 
 ### Logging
@@ -313,7 +314,7 @@ from learning_commons_evaluators import (
 )
 
 try:
-    result = evaluator.evaluate(input)
+    result = evaluator.evaluate_sync(input)
 except ConfigurationError as e:
     print(f"Config issue: {e}")
 except ValidationError as e:
@@ -326,7 +327,7 @@ except APIError as e:
 
 Failures inside LLM prompt steps are passed through `wrap_provider_error()` (see `learning_commons_evaluators.schemas.errors`) so you typically see `APIError` subclasses rather than raw LangChain or HTTP client exceptions. Use `EvaluatorTimeoutError` for timeouts (the package does not export a `TimeoutError` alias, to avoid shadowing the Python builtin).
 
-On evaluation failure, `metadata.status` and `error_details` are set on the in-memory metadata object for the run and appear on the evaluation end log line; `BaseEvaluator.evaluate` still re-raises and does not return a result object.
+On evaluation failure, `metadata.status` and `error_details` are set on the in-memory metadata object for the run and appear on the evaluation end log line; `BaseEvaluator.evaluate` / `evaluate_sync` still re-raises and does not return a result object.
 
 ## Creating custom evaluators
 
@@ -350,14 +351,14 @@ class MyEvaluator(BaseEvaluator[MyInput, EvaluationResult, MySettings]):
     )
     default_evaluation_settings = MySettings(...)
 
-    def evaluate_impl(
+    async def evaluate_impl(
         self,
         input: MyInput,
         evaluation_settings: MySettings,
         evaluation_metadata: EvaluationMetadata,
     ) -> EvaluationResult:
-        # Use self.execute_prompt_chain_step() for LLM calls
-        output = self.execute_prompt_chain_step(
+        # Use await self.execute_prompt_chain_step(...) for LLM calls
+        output = await self.execute_prompt_chain_step(
             step_name="main",
             prompt_settings=evaluation_settings.prompt_settings,
             evaluation_metadata=evaluation_metadata,

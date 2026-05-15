@@ -87,7 +87,7 @@ class VocabularyEvaluator(
         _VOCABULARY_CONFIG.evaluation_settings
     )
 
-    def evaluate_impl(
+    async def evaluate_impl(
         self,
         input: VocabularyEvaluationInput,
         evaluation_settings: VocabularyEvaluationSettings,
@@ -98,7 +98,7 @@ class VocabularyEvaluator(
         Grade validation is handled by the framework before this method is called:
         ``VocabularyEvaluationInput`` automatically constrains ``grade`` to the
         evaluator's ``allowed_grades`` from settings (3–12), so
-        ``BaseEvaluator.evaluate`` raises before reaching here for unsupported grades.
+        ``BaseEvaluator.evaluate`` / ``evaluate_sync`` raise before reaching here for unsupported grades.
         """
         ps_bk = evaluation_settings.prompt_settings_step_background_knowledge
         ps_34 = evaluation_settings.prompt_settings_step_vocab_grades_3_4
@@ -113,7 +113,7 @@ class VocabularyEvaluator(
         bk_template = ChatPromptTemplate.from_messages(
             [("human", prompts["background_knowledge_prompt"])]
         )
-        background_knowledge: str = self.execute_prompt_chain_step(
+        background_knowledge: str = await self.execute_prompt_chain_step(
             step_name="background_knowledge",
             prompt_settings=ps_bk,
             evaluation_metadata=evaluation_metadata,
@@ -130,7 +130,7 @@ class VocabularyEvaluator(
         }
         if grade in _GRADES_3_4:
             chain_inputs["fk_level"] = fk_score
-            answer, explanation = self._run_vocab_complexity_chain(
+            answer, explanation = await self._run_vocab_complexity_chain(
                 chain_inputs=chain_inputs,
                 evaluation_metadata=evaluation_metadata,
                 prompt_settings_vocab=ps_34,
@@ -138,7 +138,7 @@ class VocabularyEvaluator(
                 user_prompt_template=prompts["vocab_grades_3_4_user_prompt"],
             )
         else:
-            answer, explanation = self._run_vocab_complexity_chain(
+            answer, explanation = await self._run_vocab_complexity_chain(
                 chain_inputs=chain_inputs,
                 evaluation_metadata=evaluation_metadata,
                 prompt_settings_vocab=ps_og,
@@ -152,7 +152,7 @@ class VocabularyEvaluator(
             metadata=evaluation_metadata,
         )
 
-    def _run_vocab_complexity_chain(
+    async def _run_vocab_complexity_chain(
         self,
         *,
         chain_inputs: dict[str, Any],
@@ -169,8 +169,8 @@ class VocabularyEvaluator(
             ]
         ).partial(format_instructions=parser.get_format_instructions())
 
-        output = self.execute_prompt_chain_step(
-            step_name="complexity_evaluation",
+        output = await self.execute_prompt_chain_step(
+            step_name="vocab_complexity",
             prompt_settings=prompt_settings_vocab,
             evaluation_metadata=evaluation_metadata,
             template=template,

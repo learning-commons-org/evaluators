@@ -79,7 +79,7 @@ class TestVocabularyEvaluatorGrades34:
         evaluator = VocabularyEvaluator(config)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=3)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_grades34_output()):
-            result = evaluator.evaluate(inp)
+            result = evaluator.evaluate_sync(inp)
 
         assert result.answer.score == "moderately_complex"
         assert result.answer.label == "Moderately complex"
@@ -93,7 +93,7 @@ class TestVocabularyEvaluatorGrades34:
         with _patch_steps(
             evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_grades34_output("very_complex")
         ):
-            result = evaluator.evaluate(inp)
+            result = evaluator.evaluate_sync(inp)
 
         assert result.answer.score == "very_complex"
 
@@ -107,7 +107,7 @@ class TestVocabularyEvaluatorGrades34:
         output = _make_grades34_output("slightly complex")
 
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, output):
-            result = evaluator.evaluate(inp)
+            result = evaluator.evaluate_sync(inp)
 
         assert result.answer.score == "slightly_complex"
 
@@ -116,7 +116,7 @@ class TestVocabularyEvaluatorGrades34:
         evaluator = VocabularyEvaluator(config)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=3)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_grades34_output()):
-            result = evaluator.evaluate(inp)
+            result = evaluator.evaluate_sync(inp)
 
         details = result.explanation.details
         assert "tier_2_words" in details
@@ -148,7 +148,7 @@ class TestVocabularyEvaluatorOtherGrades:
             _MOCK_BACKGROUND_KNOWLEDGE,
             _make_other_grades_output(score_label),
         ):
-            result = evaluator.evaluate(inp)
+            result = evaluator.evaluate_sync(inp)
 
         assert result.answer.score == expected_score
 
@@ -157,7 +157,7 @@ class TestVocabularyEvaluatorOtherGrades:
         evaluator = VocabularyEvaluator(config)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=12)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_other_grades_output(1)):
-            result = evaluator.evaluate(inp)
+            result = evaluator.evaluate_sync(inp)
 
         assert result.metadata.status == Status.succeeded
         assert result.answer.score == "slightly_complex"
@@ -168,7 +168,7 @@ class TestVocabularyEvaluatorOtherGrades:
         evaluator = VocabularyEvaluator(config)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=8)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_other_grades_output(2)):
-            result = evaluator.evaluate(inp)
+            result = evaluator.evaluate_sync(inp)
 
         details = result.explanation.details
         assert details["tier_2_words"] == "sat"
@@ -211,7 +211,7 @@ class TestVocabularyEvaluatorOtherGrades:
             _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, unexpected),
             pytest.raises(ValueError, match=r"Unknown text complexity score: '9'"),
         ):
-            evaluator.evaluate(inp)
+            evaluator.evaluate_sync(inp)
 
 
 class TestNormalizeComplexityOutput:
@@ -254,13 +254,13 @@ class TestVocabularyEvaluationInputValidation:
 
     @pytest.mark.parametrize("unsupported_grade", [0, 1, 2])
     def test_unsupported_grade_raises_via_framework(self, unsupported_grade):
-        """BaseEvaluator.evaluate() calls input.validate(), which catches the bad grade."""
+        """BaseEvaluator.evaluate_sync() calls input.validate(), which catches the bad grade."""
         config = create_config_no_telemetry()
         evaluator = VocabularyEvaluator(config)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=unsupported_grade)
         # The base evaluator catches the ValidationError, sets status=failed, then re-raises.
         with pytest.raises(ValidationError):
-            evaluator.evaluate(inp)
+            evaluator.evaluate_sync(inp)
 
     def test_unsupported_grade_sets_status_failed(self):
         """Metadata status is set to failed when grade validation fails."""
@@ -268,7 +268,7 @@ class TestVocabularyEvaluationInputValidation:
         evaluator = VocabularyEvaluator(config)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=2)
         with pytest.raises(ValidationError):
-            evaluator.evaluate(inp)
+            evaluator.evaluate_sync(inp)
 
 
 # ── Metadata and settings ─────────────────────────────────────────────────────
@@ -292,7 +292,7 @@ class TestVocabularyEvaluatorMetadata:
         evaluator = VocabularyEvaluator(config)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=5)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_other_grades_output(2)):
-            result = evaluator.evaluate(inp)
+            result = evaluator.evaluate_sync(inp)
 
         assert result.metadata.status == Status.succeeded
         assert result.metadata.evaluator_metadata.id == "vocabulary"

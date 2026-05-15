@@ -14,7 +14,7 @@ Usage
     )
 
     with ContractTestHarness(case) as harness:
-        result = evaluator.evaluate(inp)
+        result = evaluator.evaluate_sync(inp)
 
     harness.assert_prompt_step("main")
 

@@ -72,7 +72,7 @@ class ConventionalityEvaluator(
         _CONVENTIONALITY_CONFIG.evaluation_settings
     )
 
-    def evaluate_impl(
+    async def evaluate_impl(
         self,
         input: ConventionalityEvaluationInput,
         evaluation_settings: ConventionalityEvaluationSettings,
@@ -93,7 +93,7 @@ class ConventionalityEvaluator(
                 ("human", prompts["human_prompt"]),
             ]
         ).partial(format_instructions=parser.get_format_instructions())
-        conventionality_output = self.execute_prompt_chain_step(
+        conventionality_output = await self.execute_prompt_chain_step(
             step_name="conventionality_evaluation",
             prompt_settings=step_prompt_settings,
             evaluation_metadata=evaluation_metadata,
