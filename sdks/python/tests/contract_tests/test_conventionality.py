@@ -57,7 +57,7 @@ class TestConventionalityContract:
         )
 
         with ContractTestHarness(case) as harness:
-            result = evaluator.evaluate(inp)
+            result = evaluator.evaluate_sync(inp)
 
         # --- Prompt fidelity ---
         # Asserts that the SDK sent the same fully-formatted request as the

@@ -38,7 +38,7 @@ class TestConventionalityEvaluator:
         evaluator = ConventionalityEvaluator(config)
         inp = ConventionalityEvaluationInput(text=_SAMPLE_TEXT, grade=5)
         with patch.object(evaluator, "execute_prompt_chain_step", return_value=_make_mock_output()):
-            result = evaluator.evaluate(inp)
+            result = evaluator.evaluate_sync(inp)
         assert result.answer.score == "moderately_complex"
         assert result.answer.label == "Moderately complex"
         assert result.explanation.summary is not None
@@ -65,7 +65,7 @@ class TestConventionalityEvaluator:
         )
         inp = ConventionalityEvaluationInput(text=_SAMPLE_TEXT, grade=3)
         with patch.object(evaluator, "execute_prompt_chain_step", return_value=_make_mock_output()):
-            result = evaluator.evaluate(inp, evaluation_settings=settings)
+            result = evaluator.evaluate_sync(inp, evaluation_settings=settings)
         assert result.metadata.status == Status.succeeded
 
     def test_metadata_and_default_settings(self):
