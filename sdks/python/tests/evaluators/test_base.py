@@ -781,3 +781,43 @@ class TestExecutePromptChainStep:
             assert "input" not in entry
             assert "loc" in entry
             assert "type" in entry
+
+    async def test_non_dict_json_in_normalizer_path_raises_output_validation_error(
+        self, stub_evaluator, evaluation_metadata
+    ):
+        """A JSON array (or any non-object) on the ``json_dict_normalizer`` path becomes OutputValidationError.
+
+        Previously the code did ``dict(parsed_dict)`` after the JsonOutputParser,
+        which raises ``TypeError`` on a list and falls through to ``wrap_provider_error``
+        as a generic ``APIError`` — making the failure indistinguishable from a
+        provider HTTP error. We now surface it as ``OutputValidationError`` so
+        callers can catch malformed model output consistently.
+        """
+
+        def passthrough(d: dict) -> dict:
+            return d
+
+        template = ChatPromptTemplate.from_messages([("human", "{input}")])
+        with (
+            patch(
+                _CHAIN_PATCH,
+                return_value=_fake_chat_model(AIMessage(content='["not", "an", "object"]')),
+            ),
+            pytest.raises(OutputValidationError) as exc_info,
+        ):
+            await stub_evaluator.execute_prompt_chain_step(
+                step_name="main",
+                prompt_settings=PromptSettings(
+                    provider_type=LLMProvider.GOOGLE,
+                    model="gemini-2.0-flash",
+                    temperature=0.0,
+                ),
+                evaluation_metadata=evaluation_metadata,
+                template=template,
+                chain_inputs={"input": "text"},
+                parser_output_type=_ChainOutput,
+                json_dict_normalizer=passthrough,
+            )
+        assert "JSON object" in str(exc_info.value)
+        assert exc_info.value.provider is LLMProvider.GOOGLE
+        assert exc_info.value.model == "gemini-2.0-flash"

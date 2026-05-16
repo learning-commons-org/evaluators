@@ -302,7 +302,7 @@ config = create_config_no_telemetry(logger=create_silent_logger())
 
 ## Error handling
 
-Every exception the SDK raises inherits from `EvaluatorError`. Failures inside LLM prompt steps are wrapped at the boundary so callers see a predictable, sanitized hierarchy instead of raw LangChain, OpenAI, Anthropic, or HTTP-client exceptions.
+Exceptions for evaluator failures, provider failures, and input validation inherit from `EvaluatorError`. Failures inside LLM prompt steps are wrapped at the boundary so callers see a predictable, sanitized hierarchy instead of raw LangChain, OpenAI, Anthropic, or HTTP-client exceptions. A few documented misuse paths still raise standard Python exceptions — for example `ValueError` from `execute_prompt_chain_step` when `json_dict_normalizer` is set without `parser_output_type`, and `RuntimeError` from `evaluate_sync()` when an asyncio event loop is already running on the current thread. Those are programmer errors, not evaluation failures.
 
 ### Hierarchy
 
@@ -360,6 +360,8 @@ The original provider exception is preserved on `__cause__` (via `raise … from
 
 ```python
 import logging
+import time
+
 from learning_commons_evaluators import APIError, OutputValidationError, RateLimitError
 
 log = logging.getLogger(__name__)

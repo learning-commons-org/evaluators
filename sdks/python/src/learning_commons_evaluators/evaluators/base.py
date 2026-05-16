@@ -344,7 +344,17 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
                     loose = JsonOutputParser()
                     parsed_dict = await loose.ainvoke(ai_message)
                     if not isinstance(parsed_dict, dict):
-                        parsed_dict = dict(parsed_dict)
+                        # JSON parsed cleanly but the top-level value isn't an object
+                        # (e.g. the LLM returned a JSON array or scalar). That's an
+                        # output-shape failure, not a parse failure — surface it as
+                        # OutputValidationError so callers can treat it consistently
+                        # with schema-mismatch errors, and avoid the TypeError that
+                        # ``dict(parsed_dict)`` would raise on a non-dict.
+                        raise OutputValidationError(
+                            "Model output is not a JSON object",
+                            provider=prompt_settings.provider_type,
+                            model=prompt_settings.model,
+                        )
                     normalized = json_dict_normalizer(parsed_dict)
                     return parser_output_type.model_validate(normalized)
 

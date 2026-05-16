@@ -38,6 +38,12 @@ if TYPE_CHECKING:
     from learning_commons_evaluators.schemas.config import LLMProvider
 
 
+# Status codes at or above this threshold are treated as transient. Used both by
+# the :class:`APIError` constructor's retryable auto-derivation and by
+# :func:`wrap_provider_error` when classifying status-only responses.
+_RETRYABLE_STATUS_MIN = 500
+
+
 class EvaluatorError(Exception):
     """Base class for every error raised by this SDK.
 
@@ -110,9 +116,18 @@ class APIError(EvaluatorError):
     ) -> None:
         super().__init__(message)
         self.status_code = status_code
-        # Honour subclass class-level default unless caller explicitly overrides.
+        # Resolve ``retryable`` in three layers, most specific first:
+        #   1. Explicit caller override wins.
+        #   2. 5xx status codes are transient by definition — flip to True so a
+        #      direct ``APIError("...", status_code=500)`` doesn't silently end up
+        #      non-retryable.
+        #   3. Otherwise inherit the subclass class-level default
+        #      (False for APIError/AuthenticationError, True for RateLimitError /
+        #      NetworkError / RequestTimeoutError / OutputValidationError).
         if retryable is not None:
             self.retryable = retryable
+        elif status_code is not None and status_code >= _RETRYABLE_STATUS_MIN:
+            self.retryable = True
         self.provider = provider
         self.model = model
         self.response_body = response_body
@@ -236,18 +251,48 @@ class OutputValidationError(APIError):
         self.validation_errors = validation_errors
 
 
+def _is_safe_ctx_value(value: Any) -> bool:
+    """True if a Pydantic ``ctx`` value is safe to expose in logs/telemetry.
+
+    Pydantic puts constraint metadata in ``ctx`` (e.g. ``{"min_length": 3}``)
+    but custom validators can attach *anything* there, including exception
+    objects whose ``str()`` may echo the offending input. We restrict to
+    JSON-primitive values and tuples/lists of the same.
+    """
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return True
+    if isinstance(value, (tuple, list)):
+        return all(_is_safe_ctx_value(item) for item in value)
+    return False
+
+
 def sanitize_pydantic_errors(
     errors: Sequence[Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Strip raw input values from a list of :meth:`pydantic.ValidationError.errors` entries.
+    """Strip unsafe values from :meth:`pydantic.ValidationError.errors` entries.
 
-    Pydantic's per-error dicts include an ``input`` key containing the raw
-    value that failed validation. For LLM outputs that value may echo prompt
-    content, so we drop it before the error reaches logs or telemetry. The
-    remaining keys (``loc``, ``type``, ``msg``, ``ctx`` if present) describe
-    the schema and the failure mode but not the offending content.
+    Pydantic's per-error dicts include an ``input`` key holding the raw value
+    that failed validation; for LLM outputs that value may echo prompt
+    content, so we always drop it. We also re-shape ``ctx`` because custom
+    validators can attach arbitrary objects there — even raising
+    ``ValueError(unsafe_user_text)`` inside a validator puts the resulting
+    exception (and its message) into ``ctx``. We keep only known-safe
+    primitive ``ctx`` values and omit ``ctx`` entirely if nothing safe
+    remains. The other keys (``loc``, ``type``, ``msg``, ``url``) describe
+    the schema and the failure mode and are passed through.
     """
-    return [{key: value for key, value in error.items() if key != "input"} for error in errors]
+    sanitized: list[dict[str, Any]] = []
+    for error in errors:
+        clean: dict[str, Any] = {
+            key: value for key, value in error.items() if key not in {"input", "ctx"}
+        }
+        ctx = error.get("ctx")
+        if isinstance(ctx, Mapping):
+            safe_ctx = {k: v for k, v in ctx.items() if _is_safe_ctx_value(v)}
+            if safe_ctx:
+                clean["ctx"] = safe_ctx
+        sanitized.append(clean)
+    return sanitized
 
 
 def format_error_for_metadata(error: BaseException) -> str:
@@ -265,9 +310,6 @@ def format_error_for_metadata(error: BaseException) -> str:
 
 
 # --- Provider-error wrapping --------------------------------------------------
-
-# Status codes we consider transient even without a more specific subclass match.
-_RETRYABLE_STATUS_MIN = 500
 
 # Exception class-name suffixes used as a soft signal when isinstance checks
 # against provider SDKs aren't possible (e.g. those SDKs aren't installed in
@@ -367,20 +409,52 @@ def _is_model_not_found(error: Exception, status_code: int | None) -> bool:
     return False
 
 
-def _is_timeout(error: Exception) -> bool:
-    """Detect timeout errors by exception class regardless of which SDK raised."""
+# Narrow, Python-flavoured phrases used as a last-resort fallback when the
+# exception surfaces no typed signal at all (e.g. a third party caught a
+# socket/httpx error and re-raised as a generic Exception). Kept deliberately
+# specific — the previous TS-port keyword list included bare "Connection" /
+# "network", which false-positives on unrelated messages.
+_TIMEOUT_MESSAGE_PATTERN = re.compile(r"\b(timed out|timeout)\b", re.IGNORECASE)
+_NETWORK_MESSAGE_PATTERN = re.compile(
+    r"connection refused|connection reset|name resolution|could not resolve",
+    re.IGNORECASE,
+)
+
+
+def _is_timeout(error: Exception, status_code: int | None = None) -> bool:
+    """Detect timeout errors from status code, exception class, or message.
+
+    HTTP 408 takes precedence — a provider that surfaces 408 should be treated
+    as a timeout regardless of the exception's class name. After that we check
+    typed signals (``asyncio.TimeoutError`` / builtin ``TimeoutError`` and
+    common SDK timeout class names), then fall back to a narrow message scan
+    for status-less exceptions wrapped by upstream code.
+    """
+    if status_code == 408:
+        return True
     if isinstance(error, (asyncio.TimeoutError, builtins.TimeoutError)):
         return True
     name = type(error).__name__
-    return any(hint in name for hint in _TIMEOUT_NAME_HINTS)
+    if any(hint in name for hint in _TIMEOUT_NAME_HINTS):
+        return True
+    return bool(_TIMEOUT_MESSAGE_PATTERN.search(str(error)))
 
 
 def _is_network(error: Exception) -> bool:
-    """Detect network-level failures by exception class."""
+    """Detect network-level failures from exception class or message.
+
+    The class check covers builtins (``ConnectionError`` and its subclasses
+    ``ConnectionRefusedError`` / ``ConnectionResetError`` / etc.) and the
+    common SDK class names (``APIConnectionError``, ``ConnectError``, …).
+    The message fallback handles cases where some third party caught a
+    socket/httpx failure and re-raised it as a plain ``Exception``.
+    """
     if isinstance(error, ConnectionError):
         return True
     name = type(error).__name__
-    return any(hint in name for hint in _NETWORK_NAME_HINTS)
+    if any(hint in name for hint in _NETWORK_NAME_HINTS):
+        return True
+    return bool(_NETWORK_MESSAGE_PATTERN.search(str(error)))
 
 
 def wrap_provider_error(
@@ -394,8 +468,12 @@ def wrap_provider_error(
 
     Routing precedence (most specific first):
 
-    1. Asyncio / builtin / SDK timeout exception types → :class:`RequestTimeoutError`
-    2. Built-in / SDK connection-error exception types → :class:`NetworkError`
+    1. Timeouts — HTTP 408, asyncio / builtin / SDK timeout exception types,
+       or a narrow "timed out / timeout" message pattern → :class:`RequestTimeoutError`
+    2. Network failures — builtin ``ConnectionError`` (and subclasses),
+       SDK connection-error class names, or a narrow message pattern
+       ("connection refused / reset", "name resolution", "could not resolve")
+       → :class:`NetworkError`
     3. HTTP 404 (and model-shaped 400) → :class:`ConfigurationError` (model not found)
     4. HTTP 401 / 403 → :class:`AuthenticationError`
     5. HTTP 429 → :class:`RateLimitError`
@@ -434,7 +512,7 @@ def wrap_provider_error(
         "request_id": request_id,
     }
 
-    if _is_timeout(error):
+    if _is_timeout(error, status_code):
         return RequestTimeoutError(status_code=status_code, **common)
 
     if _is_network(error):

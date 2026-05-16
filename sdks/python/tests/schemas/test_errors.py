@@ -123,6 +123,36 @@ class TestErrorHierarchy:
         err = AuthenticationError(status_code=401)
         assert str(err) == "Authentication failed"
 
+    def test_api_error_auto_retryable_for_5xx_when_unspecified(self) -> None:
+        """5xx status codes flip ``retryable`` to True without an explicit argument.
+
+        Direct ``APIError(..., status_code=500)`` construction (outside of
+        ``wrap_provider_error``) should agree with the documented behavior that
+        transient server errors are retryable. Explicit ``retryable=False``
+        always wins.
+        """
+        assert APIError("server error", status_code=500).retryable is True
+        assert APIError("bad gateway", status_code=502).retryable is True
+        assert APIError("gateway timeout", status_code=504).retryable is True
+        # 4xx still inherits the class default (False).
+        assert APIError("not found", status_code=404).retryable is False
+        # No status code at all — fall back to class default.
+        assert APIError("opaque failure").retryable is False
+        # Explicit override beats auto-derive.
+        assert APIError("server", status_code=500, retryable=False).retryable is False
+
+    def test_network_error_constructs_without_args(self) -> None:
+        """Regression: NetworkError must accept zero positional args.
+
+        ``wrap_provider_error`` calls ``NetworkError(**common)`` with only kwargs,
+        so the class needs its own default message — otherwise the previously-broken
+        version would raise ``TypeError`` instead of returning a NetworkError.
+        """
+        err = NetworkError()
+        assert isinstance(err, APIError)
+        assert err.retryable is True
+        assert str(err)  # non-empty default message
+
 
 # --- Helpers for fake provider exceptions ------------------------------------
 
@@ -252,6 +282,51 @@ class TestWrapProviderError:
         wrapped = wrap_provider_error(APITimeoutError("timed out"))
         assert isinstance(wrapped, RequestTimeoutError)
 
+    def test_408_routes_to_timeout_not_generic_api_error(self) -> None:
+        """HTTP 408 is a timeout per RFC 9110 and should route to RequestTimeoutError.
+
+        Without explicit handling it would fall through to a non-retryable APIError
+        (4xx status, below the 5xx-retry threshold), which is wrong — 408 is the
+        canonical "Request Timeout" status and is documented as retryable.
+        """
+        err = _FakeProviderError("Request Timeout", status_code=408)
+        wrapped = wrap_provider_error(err)
+        assert isinstance(wrapped, RequestTimeoutError)
+        assert wrapped.status_code == 408
+        assert wrapped.retryable is True
+
+    def test_message_only_timeout_routes_to_timeout(self) -> None:
+        """A status-less, untyped exception with 'timed out' in the message still routes correctly.
+
+        Covers the case where an upstream library wraps a socket/httpx timeout
+        into a plain Exception. The narrow message-pattern fallback catches it.
+        """
+        wrapped = wrap_provider_error(Exception("request to provider timed out after 30s"))
+        assert isinstance(wrapped, RequestTimeoutError)
+        assert wrapped.retryable is True
+
+    def test_message_only_connection_refused_routes_to_network(self) -> None:
+        wrapped = wrap_provider_error(Exception("[Errno 111] Connection refused"))
+        assert isinstance(wrapped, NetworkError)
+        assert wrapped.retryable is True
+
+    def test_message_only_dns_failure_routes_to_network(self) -> None:
+        wrapped = wrap_provider_error(Exception("Could not resolve host: api.example.com"))
+        assert isinstance(wrapped, NetworkError)
+
+    def test_message_fallback_does_not_false_positive_on_bare_network_word(self) -> None:
+        """The narrow pattern intentionally rejects the bare word 'network'.
+
+        The old TS-port keyword list matched any occurrence of 'network', which
+        caused false positives on messages like 'check your network adapter
+        settings'. The bounded pattern only accepts specific phrases.
+        """
+        wrapped = wrap_provider_error(Exception("please configure your network adapter"))
+        # Falls through to generic, non-retryable APIError instead.
+        assert isinstance(wrapped, APIError)
+        assert not isinstance(wrapped, NetworkError)
+        assert wrapped.retryable is False
+
     def test_500_returns_retryable_api_error(self) -> None:
         err = _FakeProviderError("internal server error", status_code=500)
         wrapped = wrap_provider_error(err)
@@ -331,26 +406,71 @@ class TestWrapProviderError:
 
 
 class TestSanitizePydanticErrors:
-    def test_strips_input_key_only(self) -> None:
-        """Drop the raw ``input`` value but keep loc/type/msg/ctx for debugging."""
+    def test_strips_input_key(self) -> None:
+        """The raw ``input`` value is always dropped; safe primitives in ``ctx`` pass through."""
         raw = [
             {
                 "loc": ("vocabulary_complexity",),
-                "type": "missing",
-                "msg": "Field required",
+                "type": "string_too_short",
+                "msg": "String should have at least 3 characters",
                 "input": {"label": "only"},  # potentially echoes LLM output
-                "ctx": {"some": "context"},
+                "ctx": {"min_length": 3},
             }
         ]
-        sanitized = sanitize_pydantic_errors(raw)
-        assert sanitized == [
+        assert sanitize_pydantic_errors(raw) == [
             {
                 "loc": ("vocabulary_complexity",),
-                "type": "missing",
-                "msg": "Field required",
-                "ctx": {"some": "context"},
+                "type": "string_too_short",
+                "msg": "String should have at least 3 characters",
+                "ctx": {"min_length": 3},
             }
         ]
+
+    def test_drops_unsafe_ctx_values(self) -> None:
+        """Custom validators can put arbitrary objects into ``ctx`` — drop them.
+
+        Pydantic propagates a custom ``ValueError`` into ``ctx["error"]`` when a
+        ``model_validator`` raises one, and the exception's ``str()`` may include
+        the offending input. Anything that isn't a JSON primitive (or a tuple/list
+        thereof) is filtered out, and ``ctx`` is omitted entirely if nothing safe
+        remains.
+        """
+        unsafe_exception = ValueError("rejected text: <sensitive prompt echo>")
+        raw: list[dict[str, Any]] = [
+            {
+                "loc": ("answer",),
+                "type": "value_error",
+                "msg": "Value error, rejected text: <sensitive prompt echo>",
+                "input": "anything",
+                "ctx": {"error": unsafe_exception},  # only key — must be dropped entirely
+            },
+            {
+                "loc": ("score",),
+                "type": "less_than_equal",
+                "msg": "Input should be less than or equal to 10",
+                "input": 42,
+                "ctx": {
+                    "le": 10,  # primitive — keep
+                    "details": unsafe_exception,  # unsafe — drop
+                    "tags": ["one", "two"],  # list of primitives — keep
+                    "nested": {"deep": 1},  # mapping — drop (not in allowlist)
+                },
+            },
+        ]
+        sanitized = sanitize_pydantic_errors(raw)
+        # First entry: ctx had only an unsafe value, so the whole ctx key is gone.
+        assert sanitized[0] == {
+            "loc": ("answer",),
+            "type": "value_error",
+            "msg": "Value error, rejected text: <sensitive prompt echo>",
+        }
+        # Second entry: kept primitives and a tuple/list of primitives, dropped the rest.
+        assert sanitized[1] == {
+            "loc": ("score",),
+            "type": "less_than_equal",
+            "msg": "Input should be less than or equal to 10",
+            "ctx": {"le": 10, "tags": ["one", "two"]},
+        }
 
     def test_handles_empty_list(self) -> None:
         assert sanitize_pydantic_errors([]) == []
