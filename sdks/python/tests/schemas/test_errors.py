@@ -35,7 +35,6 @@ from learning_commons_evaluators.schemas.errors import (
     wrap_provider_error,
 )
 
-
 # --- Hierarchy ---------------------------------------------------------------
 
 
