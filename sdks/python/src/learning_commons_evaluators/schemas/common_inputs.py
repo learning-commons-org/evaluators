@@ -8,14 +8,14 @@ rather than constructing one directly::
     # spec loaded from TOML via EvaluatorMetadata.inputs
     text_spec: TextInputSpec = config.evaluator_metadata.inputs["text"]
     field = TextInputField(spec=text_spec, value="The quick brown fox...")
-    field.validate()  # raises ValidationError if constraints are violated
+    field.validate()  # raises InputValidationError if constraints are violated
 """
 
 from typing import Any
 
 from pydantic import model_validator
 
-from learning_commons_evaluators.schemas.errors import ValidationError
+from learning_commons_evaluators.schemas.errors import InputValidationError
 from learning_commons_evaluators.schemas.evaluator import InputField
 from learning_commons_evaluators.schemas.input_specs import (
     GradeInputSpec,
@@ -59,13 +59,13 @@ class TextInputField(InputField[str]):
         return data
 
     def validate(self) -> None:
-        """Raise :class:`~.errors.ValidationError` if the value violates the spec constraints."""
+        """Raise :class:`~.errors.InputValidationError` if the value violates the spec constraints."""
         text_length = len(self.value)
         min_len = self.spec.min_text_length or 0
         if text_length < min_len:
-            raise ValidationError(f"Text length {text_length} is below minimum {min_len}.")
+            raise InputValidationError(f"Text length {text_length} is below minimum {min_len}.")
         if self.spec.max_text_length is not None and text_length > self.spec.max_text_length:
-            raise ValidationError(
+            raise InputValidationError(
                 f"Text length {text_length} exceeds maximum {self.spec.max_text_length}."
             )
 
@@ -87,12 +87,12 @@ class GradeInputField(InputField[int]):
     spec: GradeInputSpec
 
     def validate(self) -> None:
-        """Raise :class:`~.errors.ValidationError` if the grade is out of range or not in the allowed set."""
+        """Raise :class:`~.errors.InputValidationError` if the grade is out of range or not in the allowed set."""
         grade = self.value
         if grade < 0 or grade > 12:
-            raise ValidationError(f"Grade {grade} is not in allowed range 0-12.")
+            raise InputValidationError(f"Grade {grade} is not in allowed range 0-12.")
         if self.spec.allowed_grades is not None and grade not in self.spec.allowed_grades:
-            raise ValidationError(
+            raise InputValidationError(
                 f"Grade {grade} is not in allowed set: {sorted(self.spec.allowed_grades)}."
             )
 

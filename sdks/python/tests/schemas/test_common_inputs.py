@@ -6,7 +6,7 @@ from learning_commons_evaluators.schemas.common_inputs import (
     GradeInputField,
     TextInputField,
 )
-from learning_commons_evaluators.schemas.errors import ValidationError
+from learning_commons_evaluators.schemas.errors import InputValidationError
 from learning_commons_evaluators.schemas.input_specs import (
     GradeInputSpec,
     TextInputSpec,
@@ -43,14 +43,14 @@ class TestTextInputField:
         TextInputField(spec=_text_spec(min_text_length=2), value="ab").validate()
 
     def test_validate_raises_below_min(self):
-        with pytest.raises(ValidationError, match="below minimum"):
+        with pytest.raises(InputValidationError, match="below minimum"):
             TextInputField(spec=_text_spec(min_text_length=2), value="a").validate()
 
     def test_validate_passes_at_exact_max(self):
         TextInputField(spec=_text_spec(max_text_length=10), value="a" * 10).validate()
 
     def test_validate_raises_above_max(self):
-        with pytest.raises(ValidationError, match="exceeds maximum"):
+        with pytest.raises(InputValidationError, match="exceeds maximum"):
             TextInputField(spec=_text_spec(max_text_length=10), value="a" * 11).validate()
 
     def test_validate_no_max_by_default(self):
@@ -85,7 +85,7 @@ class TestTextInputField:
 
     def test_validate_raises_when_strip_shortens_below_min(self):
         """Padding does not count toward ``min_text_length`` when stripping is on."""
-        with pytest.raises(ValidationError, match="below minimum"):
+        with pytest.raises(InputValidationError, match="below minimum"):
             TextInputField(
                 spec=_text_spec(min_text_length=5, strip_whitespace=True),
                 value="  ab  ",
@@ -103,11 +103,11 @@ class TestGradeInputField:
         GradeInputField(spec=_grade_spec(), value=12).validate()  # upper boundary
 
     def test_validate_raises_below_0(self):
-        with pytest.raises(ValidationError, match="0-12"):
+        with pytest.raises(InputValidationError, match="0-12"):
             GradeInputField(spec=_grade_spec(), value=-1).validate()
 
     def test_validate_raises_above_12(self):
-        with pytest.raises(ValidationError, match="0-12"):
+        with pytest.raises(InputValidationError, match="0-12"):
             GradeInputField(spec=_grade_spec(), value=13).validate()
 
     def test_validate_passes_when_in_allowed_grades(self):
@@ -117,7 +117,7 @@ class TestGradeInputField:
         ).validate()
 
     def test_validate_raises_when_not_in_allowed_grades(self):
-        with pytest.raises(ValidationError, match="not in allowed set"):
+        with pytest.raises(InputValidationError, match="not in allowed set"):
             GradeInputField(
                 spec=_grade_spec(allowed_grades=[5, 6, 7]),
                 value=8,

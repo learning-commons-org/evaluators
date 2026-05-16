@@ -38,7 +38,12 @@ from learning_commons_evaluators.schemas.config import (
     LLMProvider,
     PromptSettings,
 )
-from learning_commons_evaluators.schemas.errors import APIError, EvaluatorError, ValidationError
+from learning_commons_evaluators.schemas.errors import (
+    APIError,
+    EvaluatorError,
+    InputValidationError,
+    OutputValidationError,
+)
 from learning_commons_evaluators.schemas.input_specs import GradeInputSpec, TextInputSpec
 from learning_commons_evaluators.schemas.metadata import (
     PROMPT_STEP_EXTRA_PROMPT_SETTINGS,
@@ -235,7 +240,7 @@ class TestStubEvaluateErrorHandling:
             ),
             grade_level=GradeInputField(spec=GradeInputSpec(name="grade_level"), value=3),
         )
-        with pytest.raises(ValidationError):
+        with pytest.raises(InputValidationError):
             stub_evaluator.evaluate_sync(inp)
 
     def test_propagates_evaluate_impl_exception(self, stub_evaluator):
@@ -267,7 +272,7 @@ class TestStubEvaluateErrorHandling:
                 ),
                 grade_level=GradeInputField(spec=GradeInputSpec(name="grade_level"), value=3),
             )
-            with pytest.raises(ValidationError):
+            with pytest.raises(InputValidationError):
                 stub_evaluator.evaluate_sync(inp)
         finally:
             stub_evaluator.config.logger.removeHandler(h)
@@ -335,17 +340,42 @@ class TestExecuteStep:
         await stub_evaluator.execute_step("s", evaluation_metadata, impl)
         assert evaluation_metadata.step_details["s"].status == Status.succeeded
 
-    async def test_records_failed_status_and_error_on_exception(
+    async def test_records_failed_status_and_sanitized_error_on_unexpected_exception(
         self, stub_evaluator, evaluation_metadata
     ):
+        """Non-SDK exceptions record only the class name in step metadata.
+
+        The raw message (``"boom"`` here) is intentionally stripped — for arbitrary
+        exceptions the message may contain user data, prompt content, or field values
+        that aren't safe for logs/telemetry. The exception itself still propagates
+        unchanged for callers that catch it.
+        """
+
         async def failing():
-            raise ValueError("boom")
+            raise ValueError("boom with possibly-sensitive context")
 
         with pytest.raises(ValueError, match="boom"):
             await stub_evaluator.execute_step("s", evaluation_metadata, failing)
         step = evaluation_metadata.step_details["s"]
         assert step.status == Status.failed
-        assert "boom" in step.error_details
+        # Class name is included; raw message is not.
+        assert "ValueError" in step.error_details
+        assert "boom" not in step.error_details
+
+    async def test_records_failed_status_and_sanitized_error_on_sdk_exception(
+        self, stub_evaluator, evaluation_metadata
+    ):
+        """SDK exceptions land in step metadata as ``ClassName: <sanitized message>``."""
+
+        async def failing():
+            raise InputValidationError("text length 3 below minimum 10")
+
+        with pytest.raises(InputValidationError):
+            await stub_evaluator.execute_step("s", evaluation_metadata, failing)
+        step = evaluation_metadata.step_details["s"]
+        assert step.status == Status.failed
+        # SDK error messages are already controlled by us, so they're included verbatim.
+        assert step.error_details == "InputValidationError: text length 3 below minimum 10"
 
     async def test_re_raises_exception(self, stub_evaluator, evaluation_metadata):
         async def failing():
@@ -669,13 +699,21 @@ class TestExecutePromptChainStep:
                 parser_output_type=_ChainOutput,
             )
 
-    async def test_malformed_llm_json_raises_api_error(self, stub_evaluator, evaluation_metadata):
-        """Invalid JSON from the LLM becomes :class:`APIError` via ``wrap_provider_error``."""
+    async def test_malformed_llm_json_raises_output_validation_error(
+        self, stub_evaluator, evaluation_metadata
+    ):
+        """Invalid JSON from the LLM becomes :class:`OutputValidationError` (a subclass of APIError).
+
+        LangChain raises ``OutputParserException`` for unparseable JSON; we wrap it so the
+        SDK exposes a single, sanitized parse-failure type instead of leaking the raw
+        ``"Invalid json output: <model text>"`` string (which would echo LLM content).
+        """
 
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
+        bad_output = "not-json with prompt echo: API_KEY=sk-...REDACTED"
         with (
-            patch(_CHAIN_PATCH, return_value=_fake_chat_model(AIMessage(content="not-json"))),
-            pytest.raises(APIError, match="Invalid json output"),
+            patch(_CHAIN_PATCH, return_value=_fake_chat_model(AIMessage(content=bad_output))),
+            pytest.raises(OutputValidationError) as exc_info,
         ):
             await stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
@@ -689,11 +727,27 @@ class TestExecutePromptChainStep:
                 chain_inputs={"input": "text"},
                 parser_output_type=_ChainOutput,
             )
+        # Sanitized — the raw model output must not appear in str() of the wrapped error.
+        assert "API_KEY" not in str(exc_info.value)
+        assert "sk-" not in str(exc_info.value)
+        # Original exception is preserved for debugging.
+        assert exc_info.value.__cause__ is not None
+        # Subclass relationship: callers can still catch APIError.
+        assert isinstance(exc_info.value, APIError)
+        # Provider/model context is threaded through.
+        assert exc_info.value.provider is LLMProvider.GOOGLE
+        assert exc_info.value.model == "gemini-2.0-flash"
 
-    async def test_schema_mismatch_raises_pydantic_validation_error(
+    async def test_schema_mismatch_raises_output_validation_error(
         self, stub_evaluator, evaluation_metadata
     ):
-        """Valid JSON that does not satisfy the output model raises Pydantic ``ValidationError``."""
+        """Valid JSON that doesn't satisfy the output model becomes :class:`OutputValidationError`.
+
+        Pydantic's :class:`ValidationError` is wrapped so the original (which may
+        include input value snippets via Pydantic's default formatting) stays on
+        ``__cause__`` rather than the SDK error's ``str()``. The structured
+        per-field details land on ``validation_errors`` with input values stripped.
+        """
 
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
         with (
@@ -701,7 +755,7 @@ class TestExecutePromptChainStep:
                 _CHAIN_PATCH,
                 return_value=_fake_chat_model(AIMessage(content='{"label": "only"}')),
             ),
-            pytest.raises(PydanticValidationError),
+            pytest.raises(OutputValidationError) as exc_info,
         ):
             await stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
@@ -715,3 +769,12 @@ class TestExecutePromptChainStep:
                 chain_inputs={"input": "text"},
                 parser_output_type=_ChainOutput,
             )
+        # Pydantic error preserved for callers that want full detail.
+        assert isinstance(exc_info.value.__cause__, PydanticValidationError)
+        # Structured per-field errors are populated; raw 'input' is stripped.
+        assert exc_info.value.validation_errors is not None
+        assert len(exc_info.value.validation_errors) > 0
+        for entry in exc_info.value.validation_errors:
+            assert "input" not in entry
+            assert "loc" in entry
+            assert "type" in entry

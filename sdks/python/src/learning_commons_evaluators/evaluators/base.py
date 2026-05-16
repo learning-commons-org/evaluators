@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
 from typing import Any, Generic, TypeVar, overload
 
+from langchain_core.exceptions import OutputParserException
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
@@ -22,6 +23,9 @@ from learning_commons_evaluators.schemas.config import (
 )
 from learning_commons_evaluators.schemas.errors import (
     EvaluatorError,
+    OutputValidationError,
+    format_error_for_metadata,
+    sanitize_pydantic_errors,
     wrap_provider_error,
 )
 from learning_commons_evaluators.schemas.evaluator import (
@@ -105,7 +109,7 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
             on success.
 
         Raises:
-            ValidationError: Input fails validation.
+            InputValidationError: Input fails validation.
             ConfigurationError: No provider config for the required LLM provider.
             APIError (or subclasses): The LLM API call failed.
 
@@ -133,7 +137,7 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
             return result
         except Exception as e:
             evaluation_metadata.status = Status.failed
-            evaluation_metadata.error_details = str(e)
+            evaluation_metadata.error_details = format_error_for_metadata(e)
             raise
         finally:
             evaluation_metadata.processing_time_ms = (time.perf_counter() - start) * 1000
@@ -236,7 +240,7 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
             return result
         except Exception as e:
             step_metadata.status = Status.failed
-            step_metadata.error_details = str(e)
+            step_metadata.error_details = format_error_for_metadata(e)
             raise
         finally:
             step_metadata.processing_time_ms = (time.perf_counter() - start) * 1000
@@ -310,7 +314,14 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
 
         Raises:
             ConfigurationError: No provider config for ``prompt_settings.provider_type``.
-            EvaluatorError: SDK errors, including :func:`~learning_commons_evaluators.schemas.errors.wrap_provider_error` output for LangChain or HTTP failures (typically :class:`~learning_commons_evaluators.schemas.errors.APIError` subclasses). Pydantic :exc:`pydantic.ValidationError` from output parsing is re-raised unchanged.
+            OutputValidationError: The LLM response didn't satisfy the expected
+                output schema — either because it wasn't valid JSON (LangChain
+                ``OutputParserException``) or because the JSON didn't match the
+                Pydantic model (``pydantic.ValidationError``). The original
+                exception is reachable via ``__cause__``.
+            APIError (or other ``EvaluatorError`` subclasses):
+                :func:`~learning_commons_evaluators.schemas.errors.wrap_provider_error`
+                output for LangChain or HTTP failures from the LLM provider.
             ValueError: If ``json_dict_normalizer`` is set but ``parser_output_type`` is omitted.
         """
         if json_dict_normalizer is not None and parser_output_type is None:
@@ -344,12 +355,32 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
                 return parser_output_type.model_validate(raw)
             except EvaluatorError:
                 raise
-            except PydanticValidationError:
-                raise
+            except (PydanticValidationError, OutputParserException) as e:
+                # The provider returned a response that didn't match the expected schema.
+                # This covers both Pydantic schema-validation failures and LangChain
+                # JSON-parse failures (``OutputParserException``). Wrap so callers can
+                # discriminate output-parse failures from other API errors and so the
+                # message that lands in ``EvaluationMetadata.error_details`` stays
+                # sanitized — the original error (which may include LLM output snippets)
+                # is reachable via ``__cause__`` for debugging.
+                validation_errors = (
+                    sanitize_pydantic_errors(e.errors())
+                    if isinstance(e, PydanticValidationError)
+                    else None
+                )
+                raise OutputValidationError(
+                    provider=prompt_settings.provider_type,
+                    model=prompt_settings.model,
+                    validation_errors=validation_errors,
+                ) from e
             except (KeyboardInterrupt, SystemExit):
                 raise
             except Exception as e:
-                raise wrap_provider_error(e) from e
+                raise wrap_provider_error(
+                    e,
+                    provider=prompt_settings.provider_type,
+                    model=prompt_settings.model,
+                ) from e
 
         try:
             return await self.execute_step(
