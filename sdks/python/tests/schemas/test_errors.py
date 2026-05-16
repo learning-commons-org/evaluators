@@ -278,6 +278,7 @@ class TestWrapProviderError:
     def test_provider_and_model_threaded_through(self) -> None:
         err = _FakeProviderError("429", status_code=429)
         wrapped = wrap_provider_error(err, provider=LLMProvider.ANTHROPIC, model="claude-x")
+        assert isinstance(wrapped, APIError)
         assert wrapped.provider is LLMProvider.ANTHROPIC
         assert wrapped.model == "claude-x"
 
@@ -291,6 +292,7 @@ class TestWrapProviderError:
             ),
         )
         wrapped = wrap_provider_error(err)
+        assert isinstance(wrapped, APIError)
         assert wrapped.request_id == "req_xyz"
         assert wrapped.response_body == {"error": "rate_limited"}
 
@@ -303,6 +305,7 @@ class TestWrapProviderError:
             response=_FakeResponse(body={"error": "from_response_json"}),
         )
         wrapped = wrap_provider_error(err)
+        assert isinstance(wrapped, APIError)
         assert wrapped.response_body == {"error": "from_body_attr"}
 
     def test_original_exception_preserved_via_cause(self) -> None:

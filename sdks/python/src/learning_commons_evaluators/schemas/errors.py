@@ -31,6 +31,7 @@ from __future__ import annotations
 import asyncio
 import builtins
 import re
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -170,6 +171,15 @@ class NetworkError(APIError):
 
     retryable = True
 
+    def __init__(
+        self,
+        message: str = "Network request failed",
+        *,
+        status_code: int | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(message, status_code=status_code, **kwargs)
+
 
 class RequestTimeoutError(APIError):
     """The request to the provider exceeded the configured timeout.
@@ -226,7 +236,9 @@ class OutputValidationError(APIError):
         self.validation_errors = validation_errors
 
 
-def sanitize_pydantic_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def sanitize_pydantic_errors(
+    errors: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
     """Strip raw input values from a list of :meth:`pydantic.ValidationError.errors` entries.
 
     Pydantic's per-error dicts include an ``input`` key containing the raw

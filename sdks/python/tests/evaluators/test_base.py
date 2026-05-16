@@ -684,7 +684,7 @@ class TestExecutePromptChainStep:
         template = ChatPromptTemplate.from_messages([("human", "{input}")])
         with (
             patch(_CHAIN_PATCH, return_value=_ChainFailureChatModel()),
-            pytest.raises(APIError, match="simulated provider failure"),
+            pytest.raises(APIError, match="^API request failed$") as exc_info,
         ):
             await stub_evaluator.execute_prompt_chain_step(
                 step_name="main",
@@ -698,6 +698,9 @@ class TestExecutePromptChainStep:
                 chain_inputs={"input": "text"},
                 parser_output_type=_ChainOutput,
             )
+        cause = exc_info.value.__cause__
+        assert isinstance(cause, ValueError)
+        assert str(cause) == "simulated provider failure"
 
     async def test_malformed_llm_json_raises_output_validation_error(
         self, stub_evaluator, evaluation_metadata
