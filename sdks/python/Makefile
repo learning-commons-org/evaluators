@@ -14,7 +14,7 @@ SETTINGS_DST := src/learning_commons_evaluators/settings
 
 .PHONY: help build check-build test unit-test contract-test \
         generate-settings check-generated sync-settings check-sync \
-        lint format format-check typecheck pip-check verify coverage
+        lint lint-fix format format-check typecheck pip-check verify coverage
 
 help:
 	@echo "Usage: make <target>"
@@ -23,6 +23,7 @@ help:
 	@echo "  check-build        Verify build artifacts are up to date (use in CI)"
 	@echo ""
 	@echo "  lint               Ruff linter (src/, tests/, scripts/)"
+	@echo "  lint-fix           Ruff linter with --fix (safe auto-fixes)"
 	@echo "  format             Apply Ruff formatter"
 	@echo "  format-check       Fail if Ruff would reformat any file"
 	@echo "  typecheck          Mypy on src package + tests"
@@ -57,6 +58,9 @@ check-build: check-generated check-sync
 
 lint:
 	$(RUFF) check src tests scripts
+
+lint-fix:
+	$(RUFF) check --fix src tests scripts
 
 format:
 	$(RUFF) format src tests scripts
