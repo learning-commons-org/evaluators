@@ -81,9 +81,7 @@ class TestErrorHierarchy:
             assert isinstance(exc, APIError)
 
     def test_output_validation_error_carries_validation_errors(self) -> None:
-        details = [
-            {"loc": ("vocabulary_complexity",), "type": "missing", "msg": "Field required"}
-        ]
+        details = [{"loc": ("vocabulary_complexity",), "type": "missing", "msg": "Field required"}]
         err = OutputValidationError(validation_errors=details)
         assert err.validation_errors == details
         # No input snippets leak into the SDK error's string form.

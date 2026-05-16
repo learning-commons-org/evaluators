@@ -235,10 +235,7 @@ def sanitize_pydantic_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any
     remaining keys (``loc``, ``type``, ``msg``, ``ctx`` if present) describe
     the schema and the failure mode but not the offending content.
     """
-    return [
-        {key: value for key, value in error.items() if key != "input"}
-        for error in errors
-    ]
+    return [{key: value for key, value in error.items() if key != "input"} for error in errors]
 
 
 def format_error_for_metadata(error: BaseException) -> str:
