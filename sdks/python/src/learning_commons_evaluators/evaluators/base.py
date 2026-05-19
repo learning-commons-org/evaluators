@@ -315,10 +315,11 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         Raises:
             ConfigurationError: No provider config for ``prompt_settings.provider_type``.
             OutputValidationError: The LLM response didn't satisfy the expected
-                output schema — either because it wasn't valid JSON (LangChain
-                ``OutputParserException``) or because the JSON didn't match the
-                Pydantic model (``pydantic.ValidationError``). The original
-                exception is reachable via ``__cause__``.
+                output schema — invalid JSON (LangChain ``OutputParserException``),
+                JSON that didn't match the Pydantic model (``pydantic.ValidationError``),
+                a non-object JSON value when using ``json_dict_normalizer``, or
+                ``TypeError`` / ``ValueError`` from ``json_dict_normalizer`` itself.
+                The original exception is reachable via ``__cause__``.
             APIError (or other ``EvaluatorError`` subclasses):
                 :func:`~learning_commons_evaluators.schemas.errors.wrap_provider_error`
                 output for LangChain or HTTP failures from the LLM provider.
@@ -355,7 +356,14 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
                             provider=prompt_settings.provider_type,
                             model=prompt_settings.model,
                         )
-                    normalized = json_dict_normalizer(parsed_dict)
+                    try:
+                        normalized = json_dict_normalizer(parsed_dict)
+                    except (TypeError, ValueError) as norm_err:
+                        raise OutputValidationError(
+                            "Model output could not be normalized before validation",
+                            provider=prompt_settings.provider_type,
+                            model=prompt_settings.model,
+                        ) from norm_err
                     return parser_output_type.model_validate(normalized)
 
                 parser = JsonOutputParser(pydantic_object=parser_output_type)

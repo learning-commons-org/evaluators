@@ -22,8 +22,9 @@ This module is a Python-idiomatic port of the TypeScript SDK's error hierarchy:
   ``model``) are exposed as attributes for callers that want to introspect.
 
 * :func:`wrap_provider_error` prefers structured attributes (``.status_code``,
-  ``.response``) from provider SDK exceptions over regex on message strings.
-  String parsing is the fallback when nothing structured is available.
+  ``.response``) from provider SDK exceptions. Bounded message patterns are used
+  only when no HTTP status was extracted — so a 4xx/5xx response is not
+  reclassified from message wording alone.
 """
 
 from __future__ import annotations
@@ -128,6 +129,8 @@ class APIError(EvaluatorError):
             self.retryable = retryable
         elif status_code is not None and status_code >= _RETRYABLE_STATUS_MIN:
             self.retryable = True
+        else:
+            self.retryable = type(self).retryable
         self.provider = provider
         self.model = model
         self.response_body = response_body
@@ -230,8 +233,9 @@ class OutputValidationError(APIError):
 
     The original :class:`pydantic.ValidationError` is preserved on
     ``__cause__`` when raised via ``raise … from e``. The :attr:`validation_errors`
-    attribute exposes the field-level details from Pydantic's ``errors()`` API
-    with raw input values stripped — safe for inclusion in logs and telemetry.
+    list is produced by :func:`sanitize_pydantic_errors` — ``loc`` / ``type`` /
+    ``url`` only, so entries are safe for logs and telemetry without echoing raw
+    model text (see that helper for what is stripped).
     """
 
     retryable = True
@@ -244,10 +248,10 @@ class OutputValidationError(APIError):
         **kwargs: Any,
     ) -> None:
         super().__init__(message, **kwargs)
-        #: Per-field validation failures. Each entry has ``loc``, ``type``,
-        #: and ``msg`` keys (from :meth:`pydantic.ValidationError.errors`).
-        #: Raw input values are deliberately omitted to avoid leaking LLM
-        #: output (which may echo user prompts) into telemetry.
+        #: Per-field validation failures. Each entry carries at least ``loc``
+        #: and ``type`` (from :meth:`pydantic.ValidationError.errors`). The
+        #: ``msg`` string is omitted because custom validators often embed raw
+        #: model output there; use :attr:`__cause__` for full Pydantic detail.
         self.validation_errors = validation_errors
 
 
@@ -278,13 +282,15 @@ def sanitize_pydantic_errors(
     ``ValueError(unsafe_user_text)`` inside a validator puts the resulting
     exception (and its message) into ``ctx``. We keep only known-safe
     primitive ``ctx`` values and omit ``ctx`` entirely if nothing safe
-    remains. The other keys (``loc``, ``type``, ``msg``, ``url``) describe
-    the schema and the failure mode and are passed through.
+    remains. The ``msg`` field is dropped as well: custom validators often
+    interpolate rejected values into the message. ``loc``, ``type``, and
+    ``url`` (when present) are retained as schema-oriented, non-echoing hints;
+    full detail stays on the original :exc:`pydantic.ValidationError`.
     """
     sanitized: list[dict[str, Any]] = []
     for error in errors:
         clean: dict[str, Any] = {
-            key: value for key, value in error.items() if key not in {"input", "ctx"}
+            key: value for key, value in error.items() if key not in {"input", "ctx", "msg"}
         }
         ctx = error.get("ctx")
         if isinstance(ctx, Mapping):
@@ -322,15 +328,21 @@ def _provider_status_code(error: Exception) -> int | None:
     """Best-effort extraction of an HTTP status code from a provider exception.
 
     Prefers the structured attribute that openai-python and anthropic-python
-    both expose (``.status_code``). Falls back to ``.status`` (used by some
-    httpx-based clients) and finally to a regex on the message — narrowed to
-    HTTP-shaped 4xx/5xx codes near the start of the message to reduce false
-    positives like model names or token counts.
+    both expose (``.status_code`` on the exception), then ``.response.status_code``
+    (e.g. ``httpx.HTTPStatusError``), then ``.status`` on either object, and
+    finally a regex on the message — narrowed to HTTP-shaped 4xx/5xx codes near
+    the start of the message to reduce false positives like model names or token counts.
     """
     for attr in ("status_code", "status"):
         value = getattr(error, attr, None)
         if isinstance(value, int):
             return value
+    response = getattr(error, "response", None)
+    if response is not None:
+        for attr in ("status_code", "status"):
+            value = getattr(response, attr, None)
+            if isinstance(value, int):
+                return value
     match = re.search(r"\b(4\d{2}|5\d{2})\b", str(error)[:80])
     if match:
         return int(match.group(1))
@@ -352,7 +364,10 @@ def _provider_response_body(error: Exception) -> Any | None:
             return json_fn()
         except Exception:  # noqa: BLE001 — body is best-effort debug data
             pass
-    return getattr(response, "text", None)
+    try:
+        return getattr(response, "text", None)
+    except Exception:  # noqa: BLE001 — unread / streaming bodies can raise on read
+        return None
 
 
 def _provider_request_id(error: Exception) -> str | None:
@@ -428,7 +443,8 @@ def _is_timeout(error: Exception, status_code: int | None = None) -> bool:
     as a timeout regardless of the exception's class name. After that we check
     typed signals (``asyncio.TimeoutError`` / builtin ``TimeoutError`` and
     common SDK timeout class names), then fall back to a narrow message scan
-    for status-less exceptions wrapped by upstream code.
+    only when **no** HTTP status was extracted — so a 400/401 whose body
+    mentions "timeout" is not misclassified as a transport timeout.
     """
     if status_code == 408:
         return True
@@ -437,24 +453,31 @@ def _is_timeout(error: Exception, status_code: int | None = None) -> bool:
     name = type(error).__name__
     if any(hint in name for hint in _TIMEOUT_NAME_HINTS):
         return True
-    return bool(_TIMEOUT_MESSAGE_PATTERN.search(str(error)))
+    if status_code is None:
+        return bool(_TIMEOUT_MESSAGE_PATTERN.search(str(error)))
+    return False
 
 
-def _is_network(error: Exception) -> bool:
+def _is_network(error: Exception, status_code: int | None = None) -> bool:
     """Detect network-level failures from exception class or message.
 
     The class check covers builtins (``ConnectionError`` and its subclasses
     ``ConnectionRefusedError`` / ``ConnectionResetError`` / etc.) and the
     common SDK class names (``APIConnectionError``, ``ConnectError``, …).
     The message fallback handles cases where some third party caught a
-    socket/httpx failure and re-raised it as a plain ``Exception``.
+    socket/httpx failure and re-raised it as a plain ``Exception``. The message
+    scan runs only when no HTTP status was extracted (same rule as
+    ``_is_timeout``), so a 404 whose JSON mentions "could not resolve" does not
+    become a retryable :class:`NetworkError`.
     """
     if isinstance(error, ConnectionError):
         return True
     name = type(error).__name__
     if any(hint in name for hint in _NETWORK_NAME_HINTS):
         return True
-    return bool(_NETWORK_MESSAGE_PATTERN.search(str(error)))
+    if status_code is None:
+        return bool(_NETWORK_MESSAGE_PATTERN.search(str(error)))
+    return False
 
 
 def wrap_provider_error(
@@ -469,9 +492,11 @@ def wrap_provider_error(
     Routing precedence (most specific first):
 
     1. Timeouts — HTTP 408, asyncio / builtin / SDK timeout exception types,
-       or a narrow "timed out / timeout" message pattern → :class:`RequestTimeoutError`
+       or (only when no HTTP status was extracted) a narrow "timed out / timeout"
+       message pattern → :class:`RequestTimeoutError`
     2. Network failures — builtin ``ConnectionError`` (and subclasses),
-       SDK connection-error class names, or a narrow message pattern
+       SDK connection-error class names, or (only when no HTTP status was
+       extracted) a narrow message pattern
        ("connection refused / reset", "name resolution", "could not resolve")
        → :class:`NetworkError`
     3. HTTP 404 (and model-shaped 400) → :class:`ConfigurationError` (model not found)
@@ -515,7 +540,7 @@ def wrap_provider_error(
     if _is_timeout(error, status_code):
         return RequestTimeoutError(status_code=status_code, **common)
 
-    if _is_network(error):
+    if _is_network(error, status_code):
         return NetworkError(**common)
 
     if _is_model_not_found(error, status_code):

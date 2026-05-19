@@ -182,7 +182,7 @@ class _FakeProviderError(Exception):
         message: str,
         *,
         status_code: int | None = None,
-        response: _FakeResponse | None = None,
+        response: Any = None,
         body: Any | None = None,
     ) -> None:
         super().__init__(message)
@@ -203,6 +203,38 @@ class TestWrapProviderError:
         wrapped = wrap_provider_error(err)
         assert isinstance(wrapped, RateLimitError)
         assert wrapped.status_code == 429
+
+    def test_status_code_read_from_response_when_missing_on_exception(self) -> None:
+        """``httpx.HTTPStatusError``-style objects keep the code on ``response``."""
+
+        class _Resp:
+            status_code = 401
+
+        class _HttpxLike(Exception):
+            def __init__(self, message: str) -> None:
+                super().__init__(message)
+                self.response = _Resp()
+
+        wrapped = wrap_provider_error(_HttpxLike("Request failed"))
+        assert isinstance(wrapped, AuthenticationError)
+        assert wrapped.status_code == 401
+
+    def test_wrap_succeeds_when_response_text_read_raises(self) -> None:
+        """Best-effort body extraction must not mask the original provider error."""
+
+        class _UnreadableTextResponse:
+            headers = _FakeHeaders({})
+
+            @property
+            def text(self) -> str:
+                raise OSError("body not available")
+
+        err = _FakeProviderError("failed", status_code=500, response=_UnreadableTextResponse())
+        wrapped = wrap_provider_error(err)
+        assert isinstance(wrapped, APIError)
+        assert wrapped.status_code == 500
+        assert wrapped.retryable is True
+        assert wrapped.response_body is None
 
     def test_404_routes_to_configuration_error_with_model_in_message(self) -> None:
         """Model-not-found is a developer mistake, not an API error."""
@@ -304,6 +336,26 @@ class TestWrapProviderError:
         wrapped = wrap_provider_error(Exception("request to provider timed out after 30s"))
         assert isinstance(wrapped, RequestTimeoutError)
         assert wrapped.retryable is True
+
+    def test_structured_4xx_wins_over_timeout_message_pattern(self) -> None:
+        """When ``status_code`` is present, message wording must not re-route to timeout."""
+        err = _FakeProviderError("invalid request timeout parameter", status_code=400)
+        wrapped = wrap_provider_error(err)
+        assert isinstance(wrapped, APIError)
+        assert wrapped.status_code == 400
+        assert wrapped.retryable is False
+        assert not isinstance(wrapped, RequestTimeoutError)
+
+    def test_structured_status_wins_over_network_message_pattern(self) -> None:
+        """When ``status_code`` is present, DNS-ish wording must not yield ``NetworkError``."""
+        err = _FakeProviderError(
+            "Unauthorized: could not resolve upstream identity provider",
+            status_code=401,
+        )
+        wrapped = wrap_provider_error(err)
+        assert isinstance(wrapped, AuthenticationError)
+        assert wrapped.status_code == 401
+        assert not isinstance(wrapped, NetworkError)
 
     def test_message_only_connection_refused_routes_to_network(self) -> None:
         wrapped = wrap_provider_error(Exception("[Errno 111] Connection refused"))
@@ -407,7 +459,7 @@ class TestWrapProviderError:
 
 class TestSanitizePydanticErrors:
     def test_strips_input_key(self) -> None:
-        """The raw ``input`` value is always dropped; safe primitives in ``ctx`` pass through."""
+        """The raw ``input`` value is always dropped; ``msg`` is dropped; safe ``ctx`` passes through."""
         raw = [
             {
                 "loc": ("vocabulary_complexity",),
@@ -421,7 +473,6 @@ class TestSanitizePydanticErrors:
             {
                 "loc": ("vocabulary_complexity",),
                 "type": "string_too_short",
-                "msg": "String should have at least 3 characters",
                 "ctx": {"min_length": 3},
             }
         ]
@@ -433,7 +484,7 @@ class TestSanitizePydanticErrors:
         ``model_validator`` raises one, and the exception's ``str()`` may include
         the offending input. Anything that isn't a JSON primitive (or a tuple/list
         thereof) is filtered out, and ``ctx`` is omitted entirely if nothing safe
-        remains.
+        remains. ``msg`` is always stripped because it can echo the same content.
         """
         unsafe_exception = ValueError("rejected text: <sensitive prompt echo>")
         raw: list[dict[str, Any]] = [
@@ -462,13 +513,11 @@ class TestSanitizePydanticErrors:
         assert sanitized[0] == {
             "loc": ("answer",),
             "type": "value_error",
-            "msg": "Value error, rejected text: <sensitive prompt echo>",
         }
         # Second entry: kept primitives and a tuple/list of primitives, dropped the rest.
         assert sanitized[1] == {
             "loc": ("score",),
             "type": "less_than_equal",
-            "msg": "Input should be less than or equal to 10",
             "ctx": {"le": 10, "tags": ["one", "two"]},
         }
 

@@ -494,6 +494,41 @@ class TestExecutePromptChainStep:
         assert result.n == 1
         assert result.doubled == 2
 
+    async def test_json_dict_normalizer_raises_valueerror_wraps_as_output_validation(
+        self, stub_evaluator, evaluation_metadata
+    ) -> None:
+        """User ``json_dict_normalizer`` failures become ``OutputValidationError``, not ``APIError``."""
+
+        class _Out(BaseModel):
+            n: int = Field(description="n")
+
+        def _bad(_d: dict) -> dict:
+            raise ValueError("cannot normalize")
+
+        template = ChatPromptTemplate.from_messages([("human", "{input}")])
+        with (
+            patch(
+                _CHAIN_PATCH,
+                return_value=_fake_chat_model(AIMessage(content='{"n": 1}')),
+            ),
+            pytest.raises(OutputValidationError) as exc_info,
+        ):
+            await stub_evaluator.execute_prompt_chain_step(
+                step_name="main",
+                prompt_settings=PromptSettings(
+                    provider_type=LLMProvider.GOOGLE,
+                    model="gemini-2.0-flash",
+                    temperature=0.0,
+                ),
+                evaluation_metadata=evaluation_metadata,
+                template=template,
+                chain_inputs={"input": "Hello"},
+                parser_output_type=_Out,
+                json_dict_normalizer=_bad,
+            )
+        assert str(exc_info.value) == "Model output could not be normalized before validation"
+        assert isinstance(exc_info.value.__cause__, ValueError)
+
     async def test_parser_returning_model_instance_short_circuits_model_validate(
         self, stub_evaluator, evaluation_metadata
     ):
@@ -779,6 +814,7 @@ class TestExecutePromptChainStep:
         assert len(exc_info.value.validation_errors) > 0
         for entry in exc_info.value.validation_errors:
             assert "input" not in entry
+            assert "msg" not in entry
             assert "loc" in entry
             assert "type" in entry
 

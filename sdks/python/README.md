@@ -302,7 +302,7 @@ config = create_config_no_telemetry(logger=create_silent_logger())
 
 ## Error handling
 
-Exceptions for evaluator failures, provider failures, and input validation inherit from `EvaluatorError`. Failures inside LLM prompt steps are wrapped at the boundary so callers see a predictable, sanitized hierarchy instead of raw LangChain, OpenAI, Anthropic, or HTTP-client exceptions. A few documented misuse paths still raise standard Python exceptions — for example `ValueError` from `execute_prompt_chain_step` when `json_dict_normalizer` is set without `parser_output_type`, and `RuntimeError` from `evaluate_sync()` when an asyncio event loop is already running on the current thread. Those are programmer errors, not evaluation failures.
+During a normal `evaluate()` / `evaluate_sync()` run, failures from evaluator input checks, configuration, LLM prompt steps, and output validation typically surface as subclasses of `EvaluatorError`. Failures inside LLM prompt steps are wrapped at the boundary so callers see a predictable, sanitized hierarchy instead of raw LangChain, OpenAI, Anthropic, or HTTP-client exceptions. A few documented paths still raise standard Python exceptions — for example `ValueError` from `execute_prompt_chain_step` when `json_dict_normalizer` is set without `parser_output_type`, and `RuntimeError` from `evaluate_sync()` when an asyncio event loop is already running on the current thread. Those are programmer errors, not evaluation failures.
 
 ### Hierarchy
 
@@ -354,7 +354,7 @@ Error **messages** (the value returned by `str(err)`) are short and controlled. 
 - `model` on `APIError` — the model ID requested.
 - `response_body` on `APIError` — decoded response body. Opt-in for debugging; may contain echoed prompt content, so treat as sensitive.
 - `request_id` on `APIError` — provider request ID, useful for support escalation.
-- `validation_errors` on `OutputValidationError` — per-field details from Pydantic's `errors()` API with raw input values stripped (safe for logs).
+- `validation_errors` on `OutputValidationError` — per-field entries from Pydantic's `errors()` API after `sanitize_pydantic_errors` (`loc`, `type`, optional `url`, and safe primitive `ctx` only — no `input` or `msg`, which can echo model output).
 
 The original provider exception is preserved on `__cause__` (via `raise … from e`), so debuggers, tracebacks, and `logging.exception()` retain full detail even though `str(err)` is sanitized.
 
@@ -370,7 +370,7 @@ try:
 except RateLimitError as e:
     time.sleep(e.retry_after or 30)  # seconds
 except OutputValidationError as e:
-    # Field-level errors are safe to log; raw LLM output is not in str(e).
+    # Structured entries omit Pydantic msg/input (may echo LLM text); use __cause__ for full detail.
     log.warning("Bad LLM output: %s", e.validation_errors)
     # Original pydantic.ValidationError / OutputParserException available as e.__cause__
 except APIError as e:
