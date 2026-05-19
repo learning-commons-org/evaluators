@@ -402,6 +402,16 @@ class TestWrapProviderError:
         wrapped = wrap_provider_error(Exception(""), default_message="fallback message")
         assert "fallback message" in str(wrapped)
 
+    def test_default_message_accepts_positional_second_arg(self) -> None:
+        """``default_message`` stays positional for backward compatibility."""
+        wrapped = wrap_provider_error(Exception("opaque"), "positional fallback")
+        assert "positional fallback" in str(wrapped)
+
+    def test_api_error_accepts_positional_status_and_retryable(self) -> None:
+        err = APIError("server error", 500, True)
+        assert err.status_code == 500
+        assert err.retryable is True
+
     def test_provider_and_model_threaded_through(self) -> None:
         err = _FakeProviderError("429", status_code=429)
         wrapped = wrap_provider_error(err, provider=LLMProvider.ANTHROPIC, model="claude-x")
@@ -458,42 +468,28 @@ class TestWrapProviderError:
 
 
 class TestSanitizePydanticErrors:
-    def test_strips_input_key(self) -> None:
-        """The raw ``input`` value is always dropped; ``msg`` is dropped; safe ``ctx`` passes through."""
-        raw = [
+    def test_strips_input_and_msg_and_unsafe_ctx(self) -> None:
+        """Always drops 'input', 'msg', and unsafe 'ctx' values (strings, mappings, etc)."""
+        unsafe_exception = ValueError("rejected text: <sensitive prompt echo>")
+        raw: list[dict[str, Any]] = [
             {
                 "loc": ("vocabulary_complexity",),
                 "type": "string_too_short",
                 "msg": "String should have at least 3 characters",
-                "input": {"label": "only"},  # potentially echoes LLM output
-                "ctx": {"min_length": 3},
-            }
-        ]
-        assert sanitize_pydantic_errors(raw) == [
-            {
-                "loc": ("vocabulary_complexity",),
-                "type": "string_too_short",
-                "ctx": {"min_length": 3},
-            }
-        ]
-
-    def test_drops_unsafe_ctx_values(self) -> None:
-        """Custom validators can put arbitrary objects into ``ctx`` — drop them.
-
-        Pydantic propagates a custom ``ValueError`` into ``ctx["error"]`` when a
-        ``model_validator`` raises one, and the exception's ``str()`` may include
-        the offending input. Anything that isn't a JSON primitive (or a tuple/list
-        thereof) is filtered out, and ``ctx`` is omitted entirely if nothing safe
-        remains. ``msg`` is always stripped because it can echo the same content.
-        """
-        unsafe_exception = ValueError("rejected text: <sensitive prompt echo>")
-        raw: list[dict[str, Any]] = [
+                "input": {"label": "only"},
+                "ctx": {
+                    "min_length": 3,
+                    "unsafe": "secret",
+                    "exc": unsafe_exception,
+                    "nested": {"foo": 1},
+                },
+            },
             {
                 "loc": ("answer",),
-                "type": "value_error",
-                "msg": "Value error, rejected text: <sensitive prompt echo>",
-                "input": "anything",
-                "ctx": {"error": unsafe_exception},  # only key — must be dropped entirely
+                "type": "custom_error",
+                "msg": "rejected",
+                "input": "secret",
+                "ctx": {"value": "<sensitive model output>", "min_length": 3},
             },
             {
                 "loc": ("score",),
@@ -501,24 +497,43 @@ class TestSanitizePydanticErrors:
                 "msg": "Input should be less than or equal to 10",
                 "input": 42,
                 "ctx": {
-                    "le": 10,  # primitive — keep
-                    "details": unsafe_exception,  # unsafe — drop
-                    "tags": ["one", "two"],  # list of primitives — keep
-                    "nested": {"deep": 1},  # mapping — drop (not in allowlist)
+                    "le": 10,
+                    "details": unsafe_exception,
+                    "tags": [1, 2],
+                    "nested": {"deep": 1},
                 },
+            },
+            {
+                "loc": ("answer",),
+                "type": "value_error",
+                "msg": "Value error, rejected text: <sensitive prompt echo>",
+                "input": "anything",
+                "ctx": {"error": unsafe_exception},
             },
         ]
         sanitized = sanitize_pydantic_errors(raw)
-        # First entry: ctx had only an unsafe value, so the whole ctx key is gone.
+        # First entry: only min_length is kept in ctx
         assert sanitized[0] == {
-            "loc": ("answer",),
-            "type": "value_error",
+            "loc": ("vocabulary_complexity",),
+            "type": "string_too_short",
+            "ctx": {"min_length": 3},
         }
-        # Second entry: kept primitives and a tuple/list of primitives, dropped the rest.
+        # Second entry: only min_length is kept in ctx
         assert sanitized[1] == {
+            "loc": ("answer",),
+            "type": "custom_error",
+            "ctx": {"min_length": 3},
+        }
+        # Third entry: numeric primitives and lists of primitives are kept
+        assert sanitized[2] == {
             "loc": ("score",),
             "type": "less_than_equal",
-            "ctx": {"le": 10, "tags": ["one", "two"]},
+            "ctx": {"le": 10, "tags": [1, 2]},
+        }
+        # Fourth entry: ctx had only an unsafe value, so the whole ctx key is gone.
+        assert sanitized[3] == {
+            "loc": ("answer",),
+            "type": "value_error",
         }
 
     def test_handles_empty_list(self) -> None:
@@ -529,9 +544,17 @@ class TestSanitizePydanticErrors:
 
 
 class TestFormatErrorForMetadata:
-    def test_sdk_error_includes_class_name_and_sanitized_message(self) -> None:
+    def test_sdk_error_records_class_name_only(self) -> None:
+        """Even SDK errors may carry caller-supplied text in ``str(err)``."""
         err = RateLimitError()
-        assert format_error_for_metadata(err) == "RateLimitError: Rate limit exceeded"
+        assert format_error_for_metadata(err) == "RateLimitError"
+        assert "Rate limit exceeded" not in format_error_for_metadata(err)
+
+    def test_input_validation_error_does_not_leak_message(self) -> None:
+        err = InputValidationError("field x contains secret-user-text")
+        formatted = format_error_for_metadata(err)
+        assert formatted == "InputValidationError"
+        assert "secret-user-text" not in formatted
 
     def test_non_sdk_error_drops_message(self) -> None:
         """Arbitrary exception messages may contain user data — only the class name is recorded."""

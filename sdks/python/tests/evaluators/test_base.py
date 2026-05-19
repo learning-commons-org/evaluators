@@ -365,7 +365,7 @@ class TestExecuteStep:
     async def test_records_failed_status_and_sanitized_error_on_sdk_exception(
         self, stub_evaluator, evaluation_metadata
     ):
-        """SDK exceptions land in step metadata as ``ClassName: <sanitized message>``."""
+        """SDK exceptions land in step metadata as the class name only."""
 
         async def failing():
             raise InputValidationError("text length 3 below minimum 10")
@@ -374,8 +374,8 @@ class TestExecuteStep:
             await stub_evaluator.execute_step("s", evaluation_metadata, failing)
         step = evaluation_metadata.step_details["s"]
         assert step.status == Status.failed
-        # SDK error messages are already controlled by us, so they're included verbatim.
-        assert step.error_details == "InputValidationError: text length 3 below minimum 10"
+        assert step.error_details == "InputValidationError"
+        assert "text length" not in step.error_details
 
     async def test_re_raises_exception(self, stub_evaluator, evaluation_metadata):
         async def failing():

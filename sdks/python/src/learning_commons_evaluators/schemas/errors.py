@@ -107,9 +107,9 @@ class APIError(EvaluatorError):
     def __init__(
         self,
         message: str,
-        *,
         status_code: int | None = None,
         retryable: bool | None = None,
+        *,
         provider: LLMProvider | None = None,
         model: str | None = None,
         response_body: Any | None = None,
@@ -259,14 +259,16 @@ def _is_safe_ctx_value(value: Any) -> bool:
     """True if a Pydantic ``ctx`` value is safe to expose in logs/telemetry.
 
     Pydantic puts constraint metadata in ``ctx`` (e.g. ``{"min_length": 3}``)
-    but custom validators can attach *anything* there, including exception
-    objects whose ``str()`` may echo the offending input. We restrict to
-    JSON-primitive values and tuples/lists of the same.
+    but custom validators can attach arbitrary strings there (for example
+    ``PydanticCustomError(..., {"value": raw_model_output})``). Exception
+    objects in ``ctx`` are also unsafe because ``str()`` may echo input.
+    We keep only non-string JSON primitives and tuples/lists of those primitives.
     """
-    if value is None or isinstance(value, (bool, int, float, str)):
+    if value is None or isinstance(value, (bool, int, float)):
         return True
     if isinstance(value, (tuple, list)):
         return all(_is_safe_ctx_value(item) for item in value)
+    # Strings, mappings, and all other types are unsafe
     return False
 
 
@@ -280,22 +282,25 @@ def sanitize_pydantic_errors(
     content, so we always drop it. We also re-shape ``ctx`` because custom
     validators can attach arbitrary objects there — even raising
     ``ValueError(unsafe_user_text)`` inside a validator puts the resulting
-    exception (and its message) into ``ctx``. We keep only known-safe
-    primitive ``ctx`` values and omit ``ctx`` entirely if nothing safe
-    remains. The ``msg`` field is dropped as well: custom validators often
+    exception (and its message) into ``ctx``. We keep only numeric/boolean
+    ``ctx`` values (strings are omitted because custom validators often embed
+    raw output there) and drop ``ctx`` entirely if nothing safe remains. The
+    ``msg`` field is dropped as well: custom validators often
     interpolate rejected values into the message. ``loc``, ``type``, and
     ``url`` (when present) are retained as schema-oriented, non-echoing hints;
     full detail stays on the original :exc:`pydantic.ValidationError`.
     """
     sanitized: list[dict[str, Any]] = []
     for error in errors:
+        # Always drop 'input', 'msg', and 'ctx' (unless ctx is safe)
         clean: dict[str, Any] = {
             key: value for key, value in error.items() if key not in {"input", "ctx", "msg"}
         }
         ctx = error.get("ctx")
         if isinstance(ctx, Mapping):
             safe_ctx = {k: v for k, v in ctx.items() if _is_safe_ctx_value(v)}
-            if safe_ctx:
+            # Only keep ctx if it contains at least one safe primitive (no strings, no mappings)
+            if safe_ctx and all(_is_safe_ctx_value(v) for v in safe_ctx.values()):
                 clean["ctx"] = safe_ctx
         sanitized.append(clean)
     return sanitized
@@ -304,14 +309,16 @@ def sanitize_pydantic_errors(
 def format_error_for_metadata(error: BaseException) -> str:
     """Render an exception as a string safe for ``EvaluationMetadata.error_details``.
 
-    SDK errors (:class:`EvaluatorError` subclasses) already carry sanitized
-    messages, so include both the class name and the message for debuggability.
-    Any other exception is rendered as just its class name — the message may
-    contain raw values (e.g. an :class:`AttributeError` echoing a field name
-    from user input) and isn't safe to put in telemetry.
+    Only the exception class name is recorded. Even :class:`EvaluatorError`
+    subclasses accept caller-supplied messages (for example
+    :class:`InputValidationError` from custom evaluators or configuration
+    parsing), so ``str(error)`` may contain user input or secrets. Full detail
+    remains on the exception object and in tracebacks.
     """
+    # Only include the class name for SDK errors; never include the message.
     if isinstance(error, EvaluatorError):
-        return f"{type(error).__name__}: {error}"
+        return type(error).__name__
+    # For non-SDK errors, only include the class name, never the message.
     return f"Unexpected error: {type(error).__name__}"
 
 
@@ -333,6 +340,7 @@ def _provider_status_code(error: Exception) -> int | None:
     finally a regex on the message — narrowed to HTTP-shaped 4xx/5xx codes near
     the start of the message to reduce false positives like model names or token counts.
     """
+    # Prefer error.status_code, error.status, then error.response.status_code, error.response.status
     for attr in ("status_code", "status"):
         value = getattr(error, attr, None)
         if isinstance(value, int):
@@ -343,6 +351,7 @@ def _provider_status_code(error: Exception) -> int | None:
             value = getattr(response, attr, None)
             if isinstance(value, int):
                 return value
+    # Fallback: regex for HTTP status codes in the message
     match = re.search(r"\b(4\d{2}|5\d{2})\b", str(error)[:80])
     if match:
         return int(match.group(1))
@@ -482,8 +491,8 @@ def _is_network(error: Exception, status_code: int | None = None) -> bool:
 
 def wrap_provider_error(
     error: Exception,
-    *,
     default_message: str = "API request failed",
+    *,
     provider: LLMProvider | None = None,
     model: str | None = None,
 ) -> EvaluatorError:
