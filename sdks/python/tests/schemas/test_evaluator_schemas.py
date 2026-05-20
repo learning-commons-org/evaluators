@@ -18,7 +18,7 @@ from learning_commons_evaluators.schemas.common_inputs import (
 )
 from learning_commons_evaluators.schemas.errors import (
     ConfigurationError,
-    ValidationError,
+    InputValidationError,
 )
 from learning_commons_evaluators.schemas.evaluator import (
     EvaluationAnswer,
@@ -103,18 +103,18 @@ class TestEvaluationInput:
 
     def test_validate_raises_on_invalid_grade(self):
         inp = _ExampleEvaluationInput(text=_LONG_TEXT, grade=99)
-        with pytest.raises(ValidationError):
+        with pytest.raises(InputValidationError):
             inp.validate()
 
     def test_validate_raises_on_invalid_text_length(self):
         inp = _ExampleEvaluationInput(text="x", grade=5)
-        with pytest.raises(ValidationError):
+        with pytest.raises(InputValidationError):
             inp.validate()
 
     def test_validate_collects_all_errors_before_raising(self):
-        """All field errors are collected; a single ValidationError is raised at the end."""
+        """All field errors are collected; a single InputValidationError is raised at the end."""
         inp = _ExampleEvaluationInput(text="x", grade=99)
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(InputValidationError) as exc_info:
             inp.validate()
         msg = str(exc_info.value)
         assert "below minimum" in msg

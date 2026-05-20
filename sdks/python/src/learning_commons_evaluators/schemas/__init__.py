@@ -13,7 +13,7 @@ from learning_commons_evaluators.schemas.conventionality import (
     ConventionalityEvaluationSettings,
     ConventionalityOutput,
 )
-from learning_commons_evaluators.schemas.errors import ValidationError
+from learning_commons_evaluators.schemas.errors import InputValidationError
 from learning_commons_evaluators.schemas.evaluator import (
     EvaluationAnswer,
     EvaluationExplanation,
@@ -70,6 +70,6 @@ __all__ = [
     "TextComplexityEvaluationInput",
     "TextInputField",
     "TokenUsage",
-    "ValidationError",
+    "InputValidationError",
     "prompt_settings_to_extras_value",
 ]
