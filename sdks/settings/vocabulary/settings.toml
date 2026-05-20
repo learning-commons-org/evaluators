@@ -3,7 +3,7 @@ id = "vocabulary"
 version = "0.1"
 name = "Vocabulary"
 description = "Vocabulary Complexity Evaluator"
-maturity = "alpha"
+maturity = "early_access"
 
 [[evaluator_metadata.inputs]]
 name = "text"

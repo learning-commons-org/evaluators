@@ -112,7 +112,7 @@ class _StubEvaluator(
         version="0",
         name="Stub",
         description="Unit test stub.",
-        maturity=EvaluatorMaturity.beta,
+        maturity=EvaluatorMaturity.early_access,
     )
     default_evaluation_settings = _StubSettings()
 
