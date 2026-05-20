@@ -4,11 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from learning_commons_evaluators import (
-    VocabularyEvaluationInput,
-    VocabularyEvaluator,
-    create_config_no_telemetry,
-)
+from learning_commons_evaluators import VocabularyEvaluationInput, VocabularyEvaluator
 from learning_commons_evaluators.schemas.errors import ConfigurationError, ValidationError
 from learning_commons_evaluators.schemas.metadata import Status
 from learning_commons_evaluators.schemas.vocabulary import (
@@ -74,9 +70,8 @@ def _patch_steps(evaluator, bk_return, vocab_return):
 
 
 class TestVocabularyEvaluatorGrades34:
-    def test_evaluate_grade_3_returns_result(self):
-        config = create_config_no_telemetry()
-        evaluator = VocabularyEvaluator(config)
+    def test_evaluate_grade_3_returns_result(self, config_with_google_and_openai):
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=3)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_grades34_output()):
             result = evaluator.evaluate_sync(inp)
@@ -86,9 +81,8 @@ class TestVocabularyEvaluatorGrades34:
         assert result.metadata.status == Status.succeeded
         assert "tier_2_words" in result.explanation.details
 
-    def test_evaluate_grade_4_returns_result(self):
-        config = create_config_no_telemetry()
-        evaluator = VocabularyEvaluator(config)
+    def test_evaluate_grade_4_returns_result(self, config_with_google_and_openai):
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=4)
         with _patch_steps(
             evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_grades34_output("very_complex")
@@ -97,10 +91,9 @@ class TestVocabularyEvaluatorGrades34:
 
         assert result.answer.score == "very_complex"
 
-    def test_grades34_score_with_spaces_is_normalised(self):
+    def test_grades34_score_with_spaces_is_normalised(self, config_with_google_and_openai):
         """The grades 3–4 prompt may return "slightly complex" (spaces); normalise to underscores."""
-        config = create_config_no_telemetry()
-        evaluator = VocabularyEvaluator(config)
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=3)
         # The evaluator calls .lower().replace(" ", "_") before from_score(),
         # so we feed a space-separated label and assert it survives the path.
@@ -111,9 +104,8 @@ class TestVocabularyEvaluatorGrades34:
 
         assert result.answer.score == "slightly_complex"
 
-    def test_evaluate_grades34_explanation_has_word_breakdown(self):
-        config = create_config_no_telemetry()
-        evaluator = VocabularyEvaluator(config)
+    def test_evaluate_grades34_explanation_has_word_breakdown(self, config_with_google_and_openai):
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=3)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_grades34_output()):
             result = evaluator.evaluate_sync(inp)
@@ -138,10 +130,11 @@ class TestVocabularyEvaluatorOtherGrades:
             (4, "exceedingly_complex"),
         ],
     )
-    def test_all_complexity_scores_map_correctly(self, score_label, expected_score):
+    def test_all_complexity_scores_map_correctly(
+        self, score_label, expected_score, config_with_google_and_openai
+    ):
         """Each complexity label (passed as convenience int 1–4) maps to the right score."""
-        config = create_config_no_telemetry()
-        evaluator = VocabularyEvaluator(config)
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=7)
         with _patch_steps(
             evaluator,
@@ -152,9 +145,8 @@ class TestVocabularyEvaluatorOtherGrades:
 
         assert result.answer.score == expected_score
 
-    def test_evaluate_grade_12_returns_result(self):
-        config = create_config_no_telemetry()
-        evaluator = VocabularyEvaluator(config)
+    def test_evaluate_grade_12_returns_result(self, config_with_google_and_openai):
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=12)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_other_grades_output(1)):
             result = evaluator.evaluate_sync(inp)
@@ -162,10 +154,9 @@ class TestVocabularyEvaluatorOtherGrades:
         assert result.metadata.status == Status.succeeded
         assert result.answer.score == "slightly_complex"
 
-    def test_other_grades_explanation_includes_word_breakdown(self):
+    def test_other_grades_explanation_includes_word_breakdown(self, config_with_google_and_openai):
         """Grades 5–12 mirror the notebook: word lists live in ``explanation.details``."""
-        config = create_config_no_telemetry()
-        evaluator = VocabularyEvaluator(config)
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=8)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_other_grades_output(2)):
             result = evaluator.evaluate_sync(inp)
@@ -193,10 +184,9 @@ class TestVocabularyEvaluatorOtherGrades:
         )
         assert parsed.complexity_score == "Moderately Complex"
 
-    def test_other_grades_unexpected_digit_answer_raises(self):
+    def test_other_grades_unexpected_digit_answer_raises(self, config_with_google_and_openai):
         """Out-of-range rubric digit normalizes to a bare string; ``from_score`` rejects it."""
-        config = create_config_no_telemetry()
-        evaluator = VocabularyEvaluator(config)
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=7)
         # Same ``complexity_score`` as ``normalize_complexity_output({"answer": 9, ...})``.
         unexpected = VocabularyComplexityOutput(
@@ -253,19 +243,19 @@ class TestVocabularyEvaluationInputValidation:
         assert set(inp.grade.spec.allowed_grades) == frozenset(range(3, 13))
 
     @pytest.mark.parametrize("unsupported_grade", [0, 1, 2])
-    def test_unsupported_grade_raises_via_framework(self, unsupported_grade):
+    def test_unsupported_grade_raises_via_framework(
+        self, unsupported_grade, config_with_google_and_openai
+    ):
         """BaseEvaluator.evaluate_sync() calls input.validate(), which catches the bad grade."""
-        config = create_config_no_telemetry()
-        evaluator = VocabularyEvaluator(config)
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=unsupported_grade)
         # The base evaluator catches the ValidationError, sets status=failed, then re-raises.
         with pytest.raises(ValidationError):
             evaluator.evaluate_sync(inp)
 
-    def test_unsupported_grade_sets_status_failed(self):
+    def test_unsupported_grade_sets_status_failed(self, config_with_google_and_openai):
         """Metadata status is set to failed when grade validation fails."""
-        config = create_config_no_telemetry()
-        evaluator = VocabularyEvaluator(config)
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=2)
         with pytest.raises(ValidationError):
             evaluator.evaluate_sync(inp)
@@ -275,21 +265,20 @@ class TestVocabularyEvaluationInputValidation:
 
 
 class TestVocabularyEvaluatorMetadata:
-    def test_evaluator_metadata(self):
-        evaluator = VocabularyEvaluator(create_config_no_telemetry())
+    def test_evaluator_metadata(self, config_with_google_and_openai):
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         assert evaluator.metadata.id == "vocabulary"
         assert evaluator.metadata.version == "0.1"
 
-    def test_default_settings_has_all_prompt_steps(self):
-        evaluator = VocabularyEvaluator(create_config_no_telemetry())
+    def test_default_settings_has_all_prompt_steps(self, config_with_google_and_openai):
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         settings = evaluator.default_evaluation_settings
         assert settings.prompt_settings_step_background_knowledge is not None
         assert settings.prompt_settings_step_vocab_grades_3_4 is not None
         assert settings.prompt_settings_step_vocab_other_grades is not None
 
-    def test_evaluate_succeeds_and_records_metadata(self):
-        config = create_config_no_telemetry()
-        evaluator = VocabularyEvaluator(config)
+    def test_evaluate_succeeds_and_records_metadata(self, config_with_google_and_openai):
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=5)
         with _patch_steps(evaluator, _MOCK_BACKGROUND_KNOWLEDGE, _make_other_grades_output(2)):
             result = evaluator.evaluate_sync(inp)

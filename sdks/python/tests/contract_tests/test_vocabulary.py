@@ -32,11 +32,7 @@ correct value (the prompt has no system message), not a placeholder. Only
 the ``user_prompt`` and ``llm_response`` fields need to be populated.
 """
 
-from learning_commons_evaluators import (
-    VocabularyEvaluationInput,
-    VocabularyEvaluator,
-    create_config_no_telemetry,
-)
+from learning_commons_evaluators import VocabularyEvaluationInput, VocabularyEvaluator
 from learning_commons_evaluators.schemas.metadata import Status
 
 from .harness import ContractTestHarness
@@ -49,7 +45,7 @@ from .vocabulary import (
 
 
 class TestVocabularyContractGrades34:
-    def test_marco_polo_grade3(self) -> None:
+    def test_marco_polo_grade3(self, config_with_google_and_openai) -> None:
         """Marco Polo passage, grade 3 — grades 3–4 Gemini path.
 
         Verifies:
@@ -60,8 +56,7 @@ class TestVocabularyContractGrades34:
         """
         case = load_vocabulary_grade34_case()
 
-        config = create_config_no_telemetry()
-        evaluator = VocabularyEvaluator(config)
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         inp = VocabularyEvaluationInput(
             text=case.input["text"],
             grade=case.input["grade"],
@@ -94,7 +89,7 @@ class TestVocabularyContractGrades34:
 
 
 class TestVocabularyContractOtherGrades:
-    def test_hurricanes_grade7(self) -> None:
+    def test_hurricanes_grade7(self, config_with_google_and_openai) -> None:
         """Hurricane formation passage, grade 7 — grades 5–12 GPT path.
 
         Verifies:
@@ -105,8 +100,7 @@ class TestVocabularyContractOtherGrades:
         """
         case = load_vocabulary_other_grades_case()
 
-        config = create_config_no_telemetry()
-        evaluator = VocabularyEvaluator(config)
+        evaluator = VocabularyEvaluator(config_with_google_and_openai)
         inp = VocabularyEvaluationInput(
             text=case.input["text"],
             grade=case.input["grade"],

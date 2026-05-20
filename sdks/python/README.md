@@ -230,6 +230,31 @@ config = create_config(
 )
 ```
 
+### Provider config validation
+
+When you construct an evaluator (or call `evaluate` / `evaluate_sync`), the SDK checks
+that every `LLMProvider` referenced by a `PromptSettings` field on the active
+`EvaluationSettings` has a matching provider config on `EvaluatorConfig`. For example,
+the vocabulary evaluator’s defaults use both Google and OpenAI, so both
+`google_llm_provider_config` and `openai_llm_provider_config` must be set; conventionality
+only needs Google.
+
+Validation runs:
+
+- In `BaseEvaluator.__init__` against the resolved default evaluation settings (constructor
+  override or the subclass class attribute).
+- At the start of each `evaluate()` call against the settings used for that run (including
+  per-call `evaluation_settings` overrides).
+
+If a required provider is missing, construction or evaluation raises `ConfigurationError`
+with the same message used at LLM call time (for example,
+`Google provider config is not set on EvaluatorConfig`). You can also call
+`config.validate_supports_evaluation_settings(settings)` directly before constructing an
+evaluator.
+
+Only providers actually used in the settings object are required — you do not need to
+configure every provider on every evaluator.
+
 ### Per-instance default evaluation settings
 
 Every `BaseEvaluator` subclass defines **class-level** `default_evaluation_settings`
@@ -260,6 +285,11 @@ result = evaluator.evaluate_sync(input)
 # Per-call override still wins
 result = evaluator.evaluate_sync(input, evaluation_settings=other_settings)
 ```
+
+If `other_settings` references a provider that is not on `config`, `evaluate_sync` raises
+`ConfigurationError` before any LLM call. The same applies when you pass
+`default_evaluation_settings` at construction: every provider in those settings must be
+configured on `config`.
 
 If you omit `default_evaluation_settings` at construction, attribute lookup uses the
 subclass class attribute, same as before. Whenever you call `evaluate_sync()` or
@@ -304,7 +334,7 @@ config = create_config_no_telemetry(logger=create_silent_logger())
 
 ```python
 from learning_commons_evaluators import (
-    ConfigurationError,  # Missing/invalid config
+    ConfigurationError,  # Missing provider config for evaluation settings, invalid setup
     ValidationError,     # Invalid input
     AuthenticationError, # Invalid API keys (401/403)
     RateLimitError,      # Rate limit exceeded (429) - has retry_after
@@ -370,6 +400,10 @@ class MyEvaluator(BaseEvaluator[MyInput, EvaluationResult, MySettings]):
 ```
 
 If you override `__init__` on the subclass, accept the same keyword-only argument and forward it: `super().__init__(config, default_evaluation_settings=default_evaluation_settings)`.
+
+Declare each prompt step as a `PromptSettings` field on your settings model (typically named
+`prompt_settings_*`). The base class uses those fields to determine which provider configs
+must be present on `EvaluatorConfig`.
 
 ## License
 
