@@ -74,7 +74,7 @@ def conventionality_notebook_to_sdk_result(case: ContractCase) -> TextComplexity
             version="0.1",
             name="Conventionality",
             description="Contract-test placeholder metadata (not compared).",
-            maturity=EvaluatorMaturity.beta,
+            maturity=EvaluatorMaturity.early_access,
         ),
         evaluation_settings=None,
         input_metadata={},

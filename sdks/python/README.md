@@ -347,7 +347,7 @@ class MyEvaluator(BaseEvaluator[MyInput, EvaluationResult, MySettings]):
         version="0.1.0",
         name="My Evaluator",
         description="Evaluates something custom",
-        maturity=EvaluatorMaturity.alpha,
+        maturity=EvaluatorMaturity.early_access,
     )
     default_evaluation_settings = MySettings(...)
 

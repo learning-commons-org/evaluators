@@ -18,7 +18,7 @@ _EVALUATOR_METADATA = EvaluatorMetadata(
     version='0.1',
     name='Conventionality',
     description='Conventionality Evaluator',
-    maturity=EvaluatorMaturity.beta,
+    maturity=EvaluatorMaturity.early_access,
     inputs={
         'text': TextInputSpec(name='text', min_text_length=10, max_text_length=10000),
         'grade': GradeInputSpec(name='grade', allowed_grades=[3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),

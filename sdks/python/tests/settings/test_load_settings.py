@@ -49,7 +49,7 @@ def test_load_evaluator_settings_end_to_end(tmp_path: Path) -> None:
             version = "1.0"
             name = "N"
             description = "D"
-            maturity = "GA"
+            maturity = "EARLY_ACCESS"
 
             [[evaluator_metadata.inputs]]
             name = "text"
@@ -61,7 +61,7 @@ def test_load_evaluator_settings_end_to_end(tmp_path: Path) -> None:
         ).strip()
     )
     result = load_evaluator_settings(path, _MiniSettings)
-    assert result.evaluator_metadata.maturity == EvaluatorMaturity.ga
+    assert result.evaluator_metadata.maturity == EvaluatorMaturity.early_access
     assert isinstance(result.evaluator_metadata.inputs["text"], TextInputSpec)
     assert result.evaluation_settings.marker == 7
 
@@ -76,7 +76,7 @@ def test_load_evaluator_settings_wraps_metadata_validation(tmp_path: Path) -> No
             version = "1"
             name = "N"
             description = "D"
-            maturity = "ga"
+            maturity = "early_access"
 
             [evaluation_settings]
             marker = 0
@@ -142,7 +142,7 @@ def test_load_evaluator_settings_missing_evaluation_settings(tmp_path: Path) -> 
             version = "1.0"
             name = "N"
             description = "D"
-            maturity = "ga"
+            maturity = "early_access"
             """
         ).strip()
     )
@@ -162,7 +162,7 @@ def test_load_evaluator_settings_invalid_evaluation_settings(tmp_path: Path) -> 
             version = "1.0"
             name = "N"
             description = "D"
-            maturity = "ga"
+            maturity = "early_access"
 
             [evaluation_settings]
             marker = "not-int"
@@ -183,7 +183,7 @@ def test_load_evaluator_settings_prompt_settings_and_prompts(tmp_path: Path) -> 
             version = "1.0"
             name = "N"
             description = "D"
-            maturity = "ga"
+            maturity = "early_access"
 
             [evaluation_settings]
             marker = 1
@@ -216,7 +216,7 @@ def test_load_evaluator_settings_rejects_non_string_prompt_value(tmp_path: Path)
             version = "1.0"
             name = "N"
             description = "D"
-            maturity = "ga"
+            maturity = "early_access"
 
             [evaluation_settings]
             marker = 0
@@ -241,7 +241,7 @@ def test_load_evaluator_settings_invalid_prompt_settings_block(tmp_path: Path) -
             version = "0.1"
             name = "X"
             description = "X"
-            maturity = "beta"
+            maturity = "early_access"
 
             [[evaluator_metadata.inputs]]
             name = "mystery"
