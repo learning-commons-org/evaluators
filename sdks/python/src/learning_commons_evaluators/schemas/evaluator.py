@@ -13,7 +13,7 @@ __all__ = [
 
 from pydantic import BaseModel, Field, model_validator
 
-from .errors import ConfigurationError, ValidationError
+from .errors import ConfigurationError, InputValidationError
 from .input_specs import InputSpec
 from .metadata import EvaluationMetadata
 
@@ -43,7 +43,7 @@ class InputField(BaseModel, Generic[_V], ABC):
 
             def validate(self) -> None:
                 if len(self.value) < self.spec.min_text_length:
-                    raise ValidationError(...)
+                    raise InputValidationError(...)
 
             def input_metadata(self) -> dict[str, Any]:
                 return {"textLength": len(self.value)}
@@ -56,7 +56,7 @@ class InputField(BaseModel, Generic[_V], ABC):
     def validate(self) -> None:
         """Validate *value* against *spec* constraints.
 
-        Raise :class:`~.errors.ValidationError` if the value is invalid.
+        Raise :class:`~.errors.InputValidationError` if the value is invalid.
         """
 
     @abstractmethod
@@ -150,19 +150,19 @@ class EvaluationInput(BaseModel, ABC):
     def validate(self) -> None:
         """Validate all :class:`InputField` members, collecting every error before raising.
 
-        Raises :class:`~.errors.ValidationError` if any field is invalid.
+        Raises :class:`~.errors.InputValidationError` if any field is invalid.
         """
-        errors: list[tuple[str, ValidationError]] = []
+        errors: list[tuple[str, InputValidationError]] = []
         for name in type(self).model_fields:
             field_val = getattr(self, name)
             if isinstance(field_val, InputField):
                 try:
                     field_val.validate()
-                except ValidationError as e:
+                except InputValidationError as e:
                     errors.append((name, e))
         if errors:
-            parts = [f"{field}: {err.message}" for field, err in errors]
-            raise ValidationError("Validation errors: " + "; ".join(parts))
+            parts = [f"{field}: {err}" for field, err in errors]
+            raise InputValidationError("Validation errors: " + "; ".join(parts))
 
     def input_metadata(self) -> dict[str, Any]:
         """Return a mapping of field name → :meth:`InputField.input_metadata` for each field.

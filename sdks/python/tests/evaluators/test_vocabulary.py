@@ -9,7 +9,7 @@ from learning_commons_evaluators import (
     VocabularyEvaluator,
     create_config_no_telemetry,
 )
-from learning_commons_evaluators.schemas.errors import ConfigurationError, ValidationError
+from learning_commons_evaluators.schemas.errors import ConfigurationError, InputValidationError
 from learning_commons_evaluators.schemas.metadata import Status
 from learning_commons_evaluators.schemas.vocabulary import (
     VocabularyComplexityOutput,
@@ -258,8 +258,8 @@ class TestVocabularyEvaluationInputValidation:
         config = create_config_no_telemetry()
         evaluator = VocabularyEvaluator(config)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=unsupported_grade)
-        # The base evaluator catches the ValidationError, sets status=failed, then re-raises.
-        with pytest.raises(ValidationError):
+        # The base evaluator catches the InputValidationError, sets status=failed, then re-raises.
+        with pytest.raises(InputValidationError):
             evaluator.evaluate_sync(inp)
 
     def test_unsupported_grade_sets_status_failed(self):
@@ -267,7 +267,7 @@ class TestVocabularyEvaluationInputValidation:
         config = create_config_no_telemetry()
         evaluator = VocabularyEvaluator(config)
         inp = VocabularyEvaluationInput(text=_SAMPLE_TEXT, grade=2)
-        with pytest.raises(ValidationError):
+        with pytest.raises(InputValidationError):
             evaluator.evaluate_sync(inp)
 
 
