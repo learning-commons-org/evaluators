@@ -45,7 +45,7 @@ Both shipped evaluators target **grades 3–12**, return a four-point complexity
 | `VocabularyEvaluator` | Early access | OpenAI **and** Google |
 | `ConventionalityEvaluator` | Early access | Google |
 
-[^providers]: Default providers for the bundled [evaluation settings](#evaluation-settings-per-evaluator). Override provider and model (and other configurable fields) via `evaluation_settings` at construction or per call — see [Per-instance default evaluation settings](#per-instance-default-evaluation-settings) and [Per-call settings override](#per-call-settings-override). You must still supply API keys in `EvaluatorConfig` for every provider your overridden settings use.
+[^providers]: Default providers for the bundled [evaluation settings](#evaluation-settings-per-evaluator). Override provider and model (and other configurable fields) via `default_evaluation_settings` at construction or `evaluation_settings` per call — see [Per-instance default evaluation settings](#per-instance-default-evaluation-settings) and [Per-call settings override](#per-call-settings-override). You must still supply API keys in `EvaluatorConfig` for every provider your overridden settings use.
 
 ### Vocabulary Evaluator
 
@@ -242,21 +242,22 @@ asyncio.run(main())
 Pass `evaluation_settings=` to override models, temperatures, or other [configurable evaluator settings](#evaluation-settings-per-evaluator) for a single call. When omitted, the evaluator uses a deep copy of its default settings (class-level defaults, or the instance override from construction — see [Per-instance default evaluation settings](#per-instance-default-evaluation-settings)).
 
 ```python
+from dataclasses import replace
+
 from learning_commons_evaluators import ConventionalityEvaluator
 
 evaluator = ConventionalityEvaluator(config)
 settings = evaluator.default_evaluation_settings.model_copy(deep=True)
-settings.prompt_settings_step_conventionality_evaluation = (
-    settings.prompt_settings_step_conventionality_evaluation.model_copy(
-        update={"temperature": 0.2}
-    )
+settings.prompt_settings_step_conventionality_evaluation = replace(
+    settings.prompt_settings_step_conventionality_evaluation,
+    temperature=0.2,
 )
 result = evaluator.evaluate_sync(input, evaluation_settings=settings)
 ```
 
 ## Results
 
-Successful evaluations return an `EvaluationResult` with three fields:
+Successful evaluations return an `EvaluationResult` with three top-level fields (`answer`, `explanation`, `metadata`):
 
 | Field | Description |
 |-------|-------------|
@@ -323,13 +324,15 @@ Custom evaluators declare their own settings type and set `default_evaluation_se
 Pass `default_evaluation_settings=` to the evaluator constructor to change the default for every call on that instance. The value must match that evaluator’s [evaluation settings type](#evaluation-settings-per-evaluator). Per-call `evaluation_settings=` still overrides for a single run ([Per-call settings override](#per-call-settings-override)).
 
 ```python
+from dataclasses import replace
+
 from learning_commons_evaluators import ConventionalityEvaluator
 
 settings = ConventionalityEvaluator.default_evaluation_settings.model_copy(deep=True)
-settings.prompt_settings_step_conventionality_evaluation = (
-    settings.prompt_settings_step_conventionality_evaluation.model_copy(
-        update={"temperature": 0.2, "model": "gemini-2.5-pro"}
-    )
+settings.prompt_settings_step_conventionality_evaluation = replace(
+    settings.prompt_settings_step_conventionality_evaluation,
+    temperature=0.2,
+    model="gemini-2.5-pro",
 )
 evaluator = ConventionalityEvaluator(config, default_evaluation_settings=settings)
 
