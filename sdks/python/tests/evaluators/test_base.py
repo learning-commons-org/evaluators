@@ -355,6 +355,48 @@ class TestStubEvaluateErrorHandling:
         assert captured[-1].status == Status.failed
         assert captured[-1].error_details
 
+    def test_configuration_failure_emits_end_log_with_failed_status(self, config):
+        captured: list = []
+
+        class _Capture(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                meta = getattr(record, "evaluation_metadata", None)
+                if meta is not None and record.getMessage() == "evaluation end":
+                    captured.append(meta)
+
+        settings = _StubSettingsWithPrompt(
+            prompt_settings_main=PromptSettings(
+                provider_type=LLMProvider.GOOGLE,
+                model="gemini-2.0-flash",
+                temperature=0.0,
+            )
+        )
+
+        class _EvaluatorWithPromptSettings(
+            BaseEvaluator[
+                TextComplexityEvaluationInput, TextComplexityResult, _StubSettingsWithPrompt
+            ]
+        ):
+            metadata = _StubEvaluator.metadata
+            default_evaluation_settings = _StubSettings()
+
+            async def evaluate_impl(self, input, evaluation_settings, evaluation_metadata):
+                raise NotImplementedError
+
+        ev = _EvaluatorWithPromptSettings(config)
+        h = _Capture()
+        ev.config.logger.addHandler(h)
+        ev.config.logger.setLevel(logging.INFO)
+        try:
+            with pytest.raises(ConfigurationError, match="Google provider config is not set"):
+                ev.evaluate_sync(_stub_input(), evaluation_settings=settings)
+        finally:
+            ev.config.logger.removeHandler(h)
+
+        assert captured
+        assert captured[-1].status == Status.failed
+        assert "Google provider config" in captured[-1].error_details
+
 
 # ---------------------------------------------------------------------------
 # update_total_token_usage

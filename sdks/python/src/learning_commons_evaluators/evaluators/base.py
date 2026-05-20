@@ -124,7 +124,6 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         """
         if evaluation_settings is None:
             evaluation_settings = self.default_evaluation_settings.model_copy(deep=True)
-        self.config.validate_supports_evaluation_settings(evaluation_settings)
         start = time.perf_counter()
         evaluation_metadata = EvaluationMetadata(
             evaluator_metadata=self.metadata,
@@ -136,6 +135,7 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
             extra={"evaluation_metadata": evaluation_metadata},
         )
         try:
+            self.config.validate_supports_evaluation_settings(evaluation_settings)
             input.validate()
             result = await self.evaluate_impl(input, evaluation_settings, evaluation_metadata)
             evaluation_metadata.status = Status.succeeded
