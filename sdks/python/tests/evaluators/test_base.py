@@ -38,7 +38,6 @@ from learning_commons_evaluators.schemas.config import (
     GoogleLLMProviderConfig,
     LLMProvider,
     PromptSettings,
-    create_config_no_telemetry,
 )
 from learning_commons_evaluators.schemas.errors import APIError, EvaluatorError, ValidationError
 from learning_commons_evaluators.schemas.input_specs import GradeInputSpec, TextInputSpec
@@ -171,7 +170,9 @@ class TestBaseEvaluatorInit:
         )
 
         class _EvaluatorWithPromptSettings(
-            BaseEvaluator[TextComplexityEvaluationInput, TextComplexityResult, _StubSettingsWithPrompt]
+            BaseEvaluator[
+                TextComplexityEvaluationInput, TextComplexityResult, _StubSettingsWithPrompt
+            ]
         ):
             metadata = _StubEvaluator.metadata
             default_evaluation_settings = settings
@@ -195,7 +196,9 @@ class TestBaseEvaluatorInit:
         )
 
         class _EvaluatorWithPromptSettings(
-            BaseEvaluator[TextComplexityEvaluationInput, TextComplexityResult, _StubSettingsWithPrompt]
+            BaseEvaluator[
+                TextComplexityEvaluationInput, TextComplexityResult, _StubSettingsWithPrompt
+            ]
         ):
             metadata = _StubEvaluator.metadata
             default_evaluation_settings = settings
@@ -217,7 +220,9 @@ class TestEvaluateConfigValidation:
         )
 
         class _EvaluatorWithPromptSettings(
-            BaseEvaluator[TextComplexityEvaluationInput, TextComplexityResult, _StubSettingsWithPrompt]
+            BaseEvaluator[
+                TextComplexityEvaluationInput, TextComplexityResult, _StubSettingsWithPrompt
+            ]
         ):
             metadata = _StubEvaluator.metadata
             default_evaluation_settings = _StubSettings()
