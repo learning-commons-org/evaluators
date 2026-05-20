@@ -48,7 +48,9 @@ async def send_telemetry(
         return
 
     partner_id = config.telemetry.telemetry_partner_id
-    assert partner_id is not None  # for mypy: ``should_send_telemetry`` guarantees non-empty after strip.
+    assert (
+        partner_id is not None
+    )  # for mypy: ``should_send_telemetry`` guarantees non-empty after strip.
     telemetry_partner_id = partner_id.strip()
 
     event = evaluation_to_typescript_telemetry_event(evaluation_metadata, inp, config)
