@@ -12,10 +12,12 @@ from learning_commons_evaluators.schemas.input_specs import AnyInputSpec
 
 
 class EvaluatorMaturity(Enum):
-    alpha = "alpha"
-    beta = "beta"
-    rc = "rc"
-    ga = "ga"
+    # alpha = "alpha"
+    # beta = "beta"
+    # release_candidate = "release_candidate"
+    # general_availability = "general_availability"
+    # deprecated = "deprecated"
+    early_access = "early_access"
 
 
 class Status(Enum):
@@ -29,7 +31,7 @@ InputMetadata = dict[str, Any]
 
 
 class EvaluatorMetadata(BaseModel):
-    """Evaluator metadata: id, version, name, description; maturity (alpha, beta, rc, ga); sdk_version."""
+    """Evaluator metadata: id, version, name, description; maturity (early_access for now); sdk_version."""
 
     id: str = Field(..., min_length=1)
     version: str = Field(..., min_length=1)
