@@ -72,6 +72,11 @@ class TestEvaluatorConfigFactory:
         assert config.telemetry.endpoint == DEFAULT_TELEMETRY_EVENTS_ENDPOINT
         assert config.telemetry.send_full_input_with_telemetry is False
 
+    def test_default_client_id_seed_shared_across_configs(self):
+        a = create_config(telemetry_partner_id="tid-a")
+        b = create_config(telemetry_partner_id="tid-b")
+        assert a.client_id_seed == b.client_id_seed
+
     def test_create_config_telemetry_with_full_input_sets_flag(self):
         config = create_config_telemetry_with_full_input(telemetry_partner_id="tid")
         assert config.telemetry.telemetry_partner_id == "tid"

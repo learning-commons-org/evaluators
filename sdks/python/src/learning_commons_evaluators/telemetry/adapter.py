@@ -19,7 +19,6 @@ Information intentionally dropped or simplified when adapting:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
 from learning_commons_evaluators.schemas.config import EvaluatorConfig, LLMProvider
@@ -41,11 +40,7 @@ from learning_commons_evaluators.schemas.ts_telemetry import (
     TelemetryStageDetail,
     TelemetryTokenUsage,
 )
-
-
-def _iso_utc_z(dt: datetime) -> str:
-    s = dt.astimezone(timezone.utc).isoformat()
-    return s.replace("+00:00", "Z")
+from learning_commons_evaluators.telemetry.utils import iso_utc_z
 
 
 def _map_status(status: Status) -> EvaluationTelemetryStatus:
@@ -179,7 +174,7 @@ def evaluation_to_typescript_telemetry_event(
     )
 
     return TelemetryEvent(
-        timestamp=_iso_utc_z(evaluation_metadata.timestamp),
+        timestamp=iso_utc_z(evaluation_metadata.timestamp),
         sdk_version=evaluation_metadata.evaluator_metadata.sdk_version,
         evaluator_type=evaluation_metadata.evaluator_metadata.id,
         grade=grade,

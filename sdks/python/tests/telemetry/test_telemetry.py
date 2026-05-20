@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from learning_commons_evaluators import (
@@ -49,22 +50,21 @@ class TestShouldSendTelemetry:
 
 
 class TestScheduleSendTelemetry:
-    def test_does_not_spawn_thread_when_partner_missing(self, config, evaluation_metadata):
-        with patch("learning_commons_evaluators.telemetry.threading.Thread") as mock_thread:
+    def test_does_not_submit_when_partner_missing(self, config, evaluation_metadata):
+        with patch("learning_commons_evaluators.telemetry._get_telemetry_executor") as mock_exec:
             schedule_send_telemetry(evaluation_metadata, None, config)
-        mock_thread.assert_not_called()
+        mock_exec.assert_not_called()
 
-    @patch("learning_commons_evaluators.telemetry.threading.Thread")
-    def test_starts_daemon_thread_when_no_running_loop(self, mock_thread, evaluation_metadata):
+    @patch("learning_commons_evaluators.telemetry._get_telemetry_executor")
+    def test_submits_to_shared_executor(self, mock_get_executor, evaluation_metadata):
         cfg = create_config(telemetry_partner_id="tid")
-        mock_instance = MagicMock()
-        mock_thread.return_value = mock_instance
+        mock_executor = MagicMock()
+        mock_get_executor.return_value = mock_executor
 
         schedule_send_telemetry(evaluation_metadata, None, cfg)
 
-        mock_thread.assert_called_once()
-        assert mock_thread.call_args.kwargs.get("daemon") is True
-        mock_instance.start.assert_called_once()
+        mock_get_executor.assert_called_once()
+        mock_executor.submit.assert_called_once()
 
 
 class TestSendTelemetryHttp:
@@ -168,3 +168,40 @@ class TestSendTelemetryHttp:
     ):
         asyncio.run(send_telemetry(evaluation_metadata, None, config))
         mock_client_class.assert_not_called()
+
+    @patch("learning_commons_evaluators.telemetry.httpx.AsyncClient")
+    def test_timestamp_is_set_at_send_time_not_evaluation_start(
+        self, mock_client_class, evaluation_metadata
+    ):
+        _mock_async_httpx_client(mock_client_class)
+        cfg = create_config(telemetry_partner_id="tid")
+        evaluation_metadata.timestamp = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        evaluation_metadata.status = Status.succeeded
+
+        before = datetime.now(timezone.utc)
+        asyncio.run(send_telemetry(evaluation_metadata, None, cfg))
+        after = datetime.now(timezone.utc)
+
+        payload = mock_client_class.return_value.__aenter__.return_value.post.call_args[1]["json"]
+        sent = datetime.fromisoformat(payload["timestamp"].replace("Z", "+00:00"))
+        assert before <= sent <= after
+
+    @patch(
+        "learning_commons_evaluators.telemetry.evaluation_to_typescript_telemetry_event",
+        side_effect=RuntimeError("adapter blew up"),
+    )
+    def test_send_telemetry_swallows_non_http_errors(self, _mock_adapter, evaluation_metadata):
+        mock_logger = MagicMock()
+        cfg = create_config(telemetry_partner_id="tid", logger=mock_logger)
+        asyncio.run(send_telemetry(evaluation_metadata, None, cfg))
+        mock_logger.warning.assert_called_once()
+
+
+class TestClientIdSeed:
+    def test_same_partner_id_across_configs_yields_same_client_id(self):
+        cfg_a = create_config(telemetry_partner_id="my-key")
+        cfg_b = create_config(telemetry_partner_id="my-key")
+        assert cfg_a.client_id_seed == cfg_b.client_id_seed
+        assert client_id_from_seed("my-key", cfg_a.client_id_seed) == client_id_from_seed(
+            "my-key", cfg_b.client_id_seed
+        )

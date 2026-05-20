@@ -16,6 +16,9 @@ from learning_commons_evaluators.logger import Logger, get_logger
 
 DEFAULT_TELEMETRY_EVENTS_ENDPOINT = "https://api.learningcommons.org/evaluators-telemetry/v1/events"
 
+# Shared per process so multiple :class:`EvaluatorConfig` instances derive the same client id.
+_PROCESS_CLIENT_ID_SEED = uuid.uuid4()
+
 # --- LLM provider configs (for LLM calls in prompt steps) ---
 
 
@@ -112,8 +115,8 @@ class EvaluatorConfig:
 
     # Temporary until we finalize the telemetry API key/client id strategy.
     #: UUID v5 namespace for deriving ``X-Client-ID`` when ``telemetry_partner_id`` is an API key.
-    #: A new value is generated for each :class:`EvaluatorConfig` unless you pass one explicitly.
-    client_id_seed: uuid.UUID = field(default_factory=uuid.uuid4)
+    #: Defaults to a single per-process seed so all configs in one run share the same derived id.
+    client_id_seed: uuid.UUID = field(default=_PROCESS_CLIENT_ID_SEED)
 
 
 def create_config(

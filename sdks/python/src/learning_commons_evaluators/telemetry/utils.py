@@ -3,6 +3,13 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
+
+
+def iso_utc_z(dt: datetime) -> str:
+    """Format *dt* as an ISO 8601 UTC string with a ``Z`` suffix (TS wire format)."""
+    s = dt.astimezone(timezone.utc).isoformat()
+    return s.replace("+00:00", "Z")
 
 
 def client_id_from_seed(learning_commons_api_key: str, client_id_seed: uuid.UUID) -> str:
