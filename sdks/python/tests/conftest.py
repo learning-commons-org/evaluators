@@ -23,7 +23,7 @@ def evaluator_metadata():
         version="0.1",
         name="Test Evaluator",
         description="Used in unit tests.",
-        maturity=EvaluatorMaturity.beta,
+        maturity=EvaluatorMaturity.early_access,
     )
 
 

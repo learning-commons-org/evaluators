@@ -24,17 +24,8 @@ from learning_commons_evaluators.schemas.metadata import (
 
 
 class TestEnums:
-    @pytest.mark.parametrize(
-        "member,value",
-        [
-            (EvaluatorMaturity.alpha, "alpha"),
-            (EvaluatorMaturity.beta, "beta"),
-            (EvaluatorMaturity.rc, "rc"),
-            (EvaluatorMaturity.ga, "ga"),
-        ],
-    )
-    def test_evaluator_maturity_values(self, member, value):
-        assert member.value == value
+    def test_evaluator_maturity_early_access(self):
+        assert EvaluatorMaturity.early_access.value == "early_access"
 
     @pytest.mark.parametrize(
         "member,value",
@@ -55,11 +46,11 @@ class TestEvaluatorMetadata:
             version="1.0",
             name="My Evaluator",
             description="Does stuff.",
-            maturity=EvaluatorMaturity.ga,
+            maturity=EvaluatorMaturity.early_access,
         )
         assert meta.id == "my-evaluator"
         assert meta.name == "My Evaluator"
-        assert meta.maturity == EvaluatorMaturity.ga
+        assert meta.maturity == EvaluatorMaturity.early_access
         # sdk_version is auto-populated from the installed package version.
         assert "learning-commons-evaluators-python" in meta.sdk_version
 
@@ -70,7 +61,7 @@ class TestEvaluatorMetadata:
                 "version": 1.0,
                 "name": "N",
                 "description": "D",
-                "maturity": "GA",
+                "maturity": "EARLY_ACCESS",
                 "inputs": [
                     {"name": "text", "type": "TextInputField"},
                 ],
@@ -78,7 +69,7 @@ class TestEvaluatorMetadata:
         )
         assert meta.id == "e"
         assert meta.version == "1.0"
-        assert meta.maturity == EvaluatorMaturity.ga
+        assert meta.maturity == EvaluatorMaturity.early_access
         assert isinstance(meta.inputs["text"], TextInputSpec)
 
     def test_model_validate_unknown_input_type_raises(self):
@@ -91,7 +82,7 @@ class TestEvaluatorMetadata:
                     "version": "1",
                     "name": "N",
                     "description": "D",
-                    "maturity": "ga",
+                    "maturity": "early_access",
                     "inputs": [{"name": "x", "type": "UnknownType"}],
                 }
             )

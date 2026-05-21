@@ -18,7 +18,7 @@ _EVALUATOR_METADATA = EvaluatorMetadata(
     version='0.1',
     name='Vocabulary',
     description='Vocabulary Complexity Evaluator',
-    maturity=EvaluatorMaturity.alpha,
+    maturity=EvaluatorMaturity.early_access,
     inputs={
         'text': TextInputSpec(
             name='text',

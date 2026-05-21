@@ -3,7 +3,7 @@ id = "conventionality"
 version = "0.1"
 name = "Conventionality"
 description = "Conventionality Evaluator"
-maturity = "beta"
+maturity = "early_access"
 
 [[evaluator_metadata.inputs]]
 name = "text"
