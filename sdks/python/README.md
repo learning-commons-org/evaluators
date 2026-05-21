@@ -36,12 +36,13 @@ print(result.answer.label)        # e.g. "Moderately complex"
 print(result.explanation.summary) # Reasoning for the score
 ```
 
-## Local development
+## Docs
 
-For local setup, testing, and development, check out the [Local development](./docs/local-development.md) instructions.
+For full implementation details, check out the [Python SDK docs](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview).
 
 ## More resources
 
+- [Local development](./docs/local-development.md) – Local setup, testing, and development
 - [Evaluators](./docs/evaluators.md) — Shipped evaluators with their inputs, outputs, and evaluation settings
 - [Running evaluations](./docs/running-evaluations.md) — Sync / async usage and per-call settings overrides
 - [Results](./docs/results.md) — `EvaluationResult` shape and metadata
