@@ -58,6 +58,14 @@
             "release-type": "simple",
             "changelog-path": "CHANGELOG.md",
             "component": "evals-prompts"
+        },
+        "sdks/python": {
+            "release-type": "python",
+            "changelog-path": "CHANGELOG.md",
+            "component": "sdks-python",
+            "release-as": "0.1.0",
+            "bump-minor-pre-major": true,
+            "bump-patch-for-minor-pre-major": true
         }
     }
 }

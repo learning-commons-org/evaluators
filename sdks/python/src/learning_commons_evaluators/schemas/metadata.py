@@ -6,9 +6,9 @@ from typing import Any
 
 from pydantic import BaseModel, Field, TypeAdapter, field_validator, model_validator
 
-from learning_commons_evaluators._version import __version__ as sdk_version
 from learning_commons_evaluators.schemas.config import LLMProvider, PromptSettings
 from learning_commons_evaluators.schemas.input_specs import AnyInputSpec
+from learning_commons_evaluators.version import __version__ as sdk_version
 
 
 class EvaluatorMaturity(Enum):
