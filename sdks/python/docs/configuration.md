@@ -38,7 +38,7 @@ When telemetry is available, `create_config()` and `create_config_telemetry_with
 
 What you can tune at runtime—default models, providers, temperatures, and other prompt-step options—is defined **per evaluator** as a Pydantic model subclass of `EvaluationSettings`. Each field on that model is part of that evaluator’s contract; there is no shared global settings shape across evaluators. See **Inputs**, **Outputs**, and **Evaluation settings** under each [evaluator](./evaluators.md) for the concrete types and bundled defaults.
 
-Bundled evaluators load defaults from generated settings TOML ([Adding a new evaluator](./development.md#adding-a-new-evaluator) covers how those files are produced). Use `SomeEvaluator.default_evaluation_settings` (class attribute) or `evaluator.default_evaluation_settings` (after construction) as the starting point for overrides. Fields are usually named `prompt_settings_step_*` and hold `PromptSettings` (`provider_type`, `model`, `temperature`).
+Bundled evaluators load defaults from generated settings TOML ([Adding a new evaluator](./local-development.md#adding-a-new-evaluator) covers how those files are produced). Use `SomeEvaluator.default_evaluation_settings` (class attribute) or `evaluator.default_evaluation_settings` (after construction) as the starting point for overrides. Fields are usually named `prompt_settings_step_*` and hold `PromptSettings` (`provider_type`, `model`, `temperature`).
 
 ## Per-instance default evaluation settings
 
