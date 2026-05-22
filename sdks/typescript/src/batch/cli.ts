@@ -13,9 +13,16 @@ import {
 } from './index.js';
 import { ProgressTracker } from './progress.js';
 
-function parseArgs(): { concurrency?: number; maxRetries?: number; noTelemetry?: boolean } {
+interface CliArgs {
+  concurrency?: number;
+  maxRetries?: number;
+  noTelemetry?: boolean;
+  bypassRowLimit?: boolean;
+}
+
+function parseArgs(): CliArgs {
   const args = process.argv.slice(2);
-  const result: { concurrency?: number; maxRetries?: number; noTelemetry?: boolean } = {};
+  const result: CliArgs = {};
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--concurrency' && args[i + 1]) {
@@ -26,6 +33,8 @@ function parseArgs(): { concurrency?: number; maxRetries?: number; noTelemetry?:
       if (!isNaN(v) && v >= 0) result.maxRetries = v;
     } else if (args[i] === '--no-telemetry') {
       result.noTelemetry = true;
+    } else if (args[i] === '--bypass-row-limit') {
+      result.bypassRowLimit = true;
     }
   }
 
@@ -67,16 +76,21 @@ async function main() {
     // (Only one group currently; when more are added this becomes a selection prompt)
     const group = getAvailableGroups()[0];
     console.log(`✓ Evaluator group: ${group.name}`);
-    console.log(`  ${group.description}`);
-    console.log(`  Row limit: ${group.maxInputRows}\n`);
+    console.log(`  ${group.description}\n`);
 
-    // Enforce row limit before asking for API keys
+    // Enforce row limit before asking for API keys (unless bypass is opted in)
     if (inputs.length > group.maxInputRows) {
-      console.error(`❌ Too many rows: ${inputs.length} (max ${group.maxInputRows} for this group)\n`);
-      console.log('Suggestions:');
-      console.log(`  • Trim the CSV to ${group.maxInputRows} rows`);
-      console.log('  • Split into multiple smaller batches\n');
-      process.exit(1);
+      if (cliArgs.bypassRowLimit) {
+        console.warn(`⚠️  Row limit bypassed: ${inputs.length} rows (default max ${group.maxInputRows}).`);
+        console.warn(`   Expect longer runtime and possible provider throttling.\n`);
+      } else {
+        console.error(`❌ Too many rows: ${inputs.length} (max ${group.maxInputRows} for this group)\n`);
+        console.log('Suggestions:');
+        console.log(`  • Trim the CSV to ${group.maxInputRows} rows`);
+        console.log('  • Split into multiple smaller batches');
+        console.log('  • Re-run with --bypass-row-limit to skip this check (use with caution)\n');
+        process.exit(1);
+      }
     }
 
     // Step 3: Get API keys required by this group
@@ -170,7 +184,7 @@ async function main() {
     const totalTasks = inputs.length * group.evaluatorIds.length;
 
     console.log(`\n📝 Summary:`);
-    console.log(`  Input rows: ${inputs.length}`);
+    console.log(`  Input rows: ${inputs.length}${cliArgs.bypassRowLimit ? ' (row limit bypassed)' : ''}`);
     console.log(`  Evaluators: ${group.evaluatorIds.length}`);
     console.log(`  Total tasks: ${totalTasks}`);
     console.log(`  Concurrency: ${cliArgs.concurrency ?? 3}`);
@@ -200,6 +214,7 @@ async function main() {
       concurrency: cliArgs.concurrency ?? 3,
       maxRetries: cliArgs.maxRetries ?? 2,
       telemetry: !cliArgs.noTelemetry,
+      bypassRowLimit: cliArgs.bypassRowLimit ?? false,
     });
 
     // Handle Ctrl+C gracefully
