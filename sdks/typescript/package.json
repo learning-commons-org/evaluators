@@ -50,6 +50,10 @@
   ],
   "author": "Learning Commons",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/learning-commons-org/evaluators.git",
@@ -58,7 +62,7 @@
   "bugs": {
     "url": "https://github.com/learning-commons-org/evaluators/issues"
   },
-  "homepage": "https://github.com/learning-commons-org/evaluators#readme",
+  "homepage": "https://github.com/learning-commons-org/evaluators/tree/main/sdks/typescript#readme",
   "peerDependencies": {
     "@ai-sdk/anthropic": ">=3.0.0",
     "@ai-sdk/google": ">=3.0.0",
