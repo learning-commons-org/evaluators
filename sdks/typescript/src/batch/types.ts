@@ -83,4 +83,5 @@ export interface BatchConfig {
   concurrency?: number;
   maxRetries?: number;
   telemetry?: boolean | TelemetryOptions;
+  bypassRowLimit?: boolean;
 }
