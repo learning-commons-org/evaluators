@@ -20,7 +20,7 @@ source .venv/bin/activate  # macOS/Linux
 
 pip install -e ".[dev]"
 
-make verify   # lint + typecheck + full test suite (same gate as CI)
+make verify   # check-build + lint + format-check + typecheck + pip-check + test (same gate as CI)
 make test     # pytest only
 ```
 
