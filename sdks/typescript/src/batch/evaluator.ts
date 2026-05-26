@@ -129,7 +129,6 @@ export class BatchEvaluator {
   /**
    * Create tasks from inputs and evaluator IDs
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private createTasks(inputs: BatchInput[], evaluatorIds: readonly string[]): Array<BatchTask & { originalRow: Record<string, unknown> }> {
     const tasks: Array<BatchTask & { originalRow: Record<string, unknown> }> = [];
 
