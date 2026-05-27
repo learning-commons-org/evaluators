@@ -61,7 +61,7 @@ Any additional columns beyond `text` and `grade` are preserved as-is in the outp
 
 The batch evaluator runs a fixed group of evaluators together. The current available group is:
 
-- **text-complexity**: Runs grade-level appropriateness, subject matter knowledge, vocabulary complexity, sentence structure, conventionality, and purpose evaluators together (requires both Google and OpenAI API keys). Maximum 50 input rows. If you exceed the limit, the CLI will exit with an error and suggest splitting into smaller batches.
+- **text-complexity**: Runs grade-level appropriateness, subject matter knowledge, vocabulary complexity, sentence structure, conventionality, and purpose evaluators together (requires both Google and OpenAI API keys). Maximum 50 input rows. If you exceed the limit, the CLI will exit with an error and suggest splitting into smaller batches. The limit can be bypassed with `--bypass-row-limit` — see [CLI Flags](#cli-flags) below.
 
 ### Output Files
 
@@ -103,6 +103,19 @@ evaluators-batch --concurrency 5 --max-retries 3 --no-telemetry
 | `--concurrency <n>` | `3` | Number of evaluations to run in parallel |
 | `--max-retries <n>` | `2` | Number of times to retry a failed evaluation |
 | `--no-telemetry` | telemetry on | Disable telemetry reporting |
+| `--bypass-row-limit` | off | Skip the per-group input row limit (50). Use with caution: longer runs increase the risk of provider throttling. |
+
+#### When to bypass the row limit
+
+The 50-row default keeps runs short and reduces the risk of provider throttling on the underlying Google and OpenAI calls. If you understand those risks and want to process a larger CSV in one run, pass `--bypass-row-limit` on the CLI or `bypassRowLimit: true` when constructing a `BatchEvaluator` programmatically:
+
+```ts
+const evaluator = new BatchEvaluator({
+  googleApiKey,
+  openaiApiKey,
+  bypassRowLimit: true,
+});
+```
 
 ### API Keys
 

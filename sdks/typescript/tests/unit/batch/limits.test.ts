@@ -73,6 +73,68 @@ describe('BatchEvaluator.evaluate() — input validation', () => {
       .rejects.toThrow(`Input exceeds limit for "${group.id}"`);
   });
 
+  it('does not throw the limit error when input count equals maxInputRows', async () => {
+    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+    const atLimit = makeInputs(group.maxInputRows);
+    const boundary = new BatchEvaluator({
+      googleApiKey: 'fake-google-key',
+      openaiApiKey: 'fake-openai-key',
+    });
+    const makeStub = () => ({
+      evaluate: async () => ({ score: 1, reasoning: 'stub', metadata: {} }),
+    });
+    const instances = (boundary as unknown as { evaluatorInstances: Map<string, ReturnType<typeof makeStub>> }).evaluatorInstances;
+    for (const id of group.evaluatorIds) instances.set(id, makeStub());
+
+    await expect(boundary.evaluate(atLimit, group.id)).resolves.toBeDefined();
+  });
+
+  it('error message mentions the bypassRowLimit escape hatch', async () => {
+    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+    const tooMany = makeInputs(group.maxInputRows + 1);
+
+    await expect(evaluator.evaluate(tooMany, group.id))
+      .rejects.toThrow(/bypassRowLimit/);
+  });
+
+  it('explicitly setting bypassRowLimit: false still throws on overflow', async () => {
+    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+    const tooMany = makeInputs(group.maxInputRows + 1);
+    const strict = new BatchEvaluator({
+      googleApiKey: 'fake-google-key',
+      openaiApiKey: 'fake-openai-key',
+      bypassRowLimit: false,
+    });
+
+    await expect(strict.evaluate(tooMany, group.id))
+      .rejects.toThrow(`Input exceeds limit for "${group.id}"`);
+  });
+
+  it('bypassRowLimit: true skips the row limit check', async () => {
+    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+    const tooMany = makeInputs(group.maxInputRows + 1);
+    const bypassed = new BatchEvaluator({
+      googleApiKey: 'fake-google-key',
+      openaiApiKey: 'fake-openai-key',
+      bypassRowLimit: true,
+    });
+
+    // Pre-populate evaluatorInstances with no-op stubs. initializeEvaluators
+    // skips IDs already present in the map, so these stubs survive and
+    // executeTask runs against them — no real network calls, no race.
+    const makeStub = () => ({
+      evaluate: async () => ({ score: 1, reasoning: 'stub', metadata: {} }),
+    });
+    const instances = (bypassed as unknown as { evaluatorInstances: Map<string, ReturnType<typeof makeStub>> }).evaluatorInstances;
+    for (const id of group.evaluatorIds) instances.set(id, makeStub());
+
+    const output = await bypassed.evaluate(tooMany, group.id);
+    const expectedTasks = tooMany.length * group.evaluatorIds.length;
+    expect(output.summary.totalTasks).toBe(expectedTasks);
+    expect(output.summary.successful).toBe(expectedTasks);
+    expect(output.summary.failed).toBe(0);
+  });
+
   it('cancel() before evaluation starts returns an empty array', () => {
     const fresh = new BatchEvaluator({ googleApiKey: 'k', openaiApiKey: 'k' });
     expect(fresh.cancel()).toEqual([]);
