@@ -1,16 +1,16 @@
+# Evaluators
+
 <img style="width:100%" alt="Evaluators project banner logo" src="https://raw.githubusercontent.com/learning-commons-org/.github/refs/heads/main/assets/evals_hero_2.jpg" />
 
 <p align="center">
   <a href="https://platform.learningcommons.org/apps/evaluators/playground" target="_blank">Try it in the Playground </a>
    •
-  <a href="https://docs.learningcommons.org/evaluators/quick-start/getting-set-up" target="_blank">Getting set up</a>
+  <a href="https://docs.learningcommons.org/evaluators/getting-started/quickstart" target="_blank">Quickstart</a>
   •
   <a href="https://docs.learningcommons.org/evaluators/using-evaluators/tutorial-evaluating-grade-level-appropriateness" target="_blank">Tutorials</a>
   •
-  <a href="https://docs.learningcommons.org/evaluators/quick-start/core-concepts" target="_blank">Core concepts</a>
+  <a href="https://docs.learningcommons.org/evaluators/understanding-evaluators/core-concepts" target="_blank">Core concepts</a>
 </p>
-
-## **Evaluators**
 
 Evaluators help you to measure the attributes of LLM-generated text through the lens of learning science.
 
@@ -18,47 +18,48 @@ We build learning-science backed LLM as judge systems that can be directly integ
 
 Use cases include:
 
-* **Feature optimization**: Use fine-grained literacy evaluation to sharpen and consistently deliver a feature’s AI-generated content so it aligns with pedagogy and your goals.
-* **Maintaining performance**: Ensure content is generated as expected by using the evaluators as product analytics for your LLM output.
-* **Model selection**: Make a confident decision about which model is right for your product by testing the output of models you’re considering.
+- **Feature optimization**: Use fine-grained literacy evaluation to sharpen and consistently deliver a feature’s AI-generated content so it aligns with pedagogy and your goals.
+- **Maintaining performance**: Ensure content is generated as expected by using the evaluators as product analytics for your LLM output.
+- **Model selection**: Make a confident decision about which model is right for your product by testing the output of models you’re considering.
 
 Evaluators and the supporting datasets are built in collaboration with leading literacy experts from Student Achievement Partners and the Achievement Network.
 
-## **Repository contents**
+## Repository contents
 
-| Path | Description |
-| :---- | :---- |
-| [`evals`](./evals/) | Evaluators code and prompts  |
+| Path                      | Description                                                      |
+| :------------------------ | :--------------------------------------------------------------- |
+| [`evals`](./evals/)       | Evaluators code and prompts                                      |
 | [`datasets`](./datasets/) | Expert annotated datasets used to create and validate evaluators |
-| [`LICENSE`](./LICENSE.md) | Open source license details |
+| [`LICENSE`](./LICENSE.md) | Open source license details                                      |
 
-Check out the [full docs](https://docs.learningcommons.org/evaluators) for complete setup instructions and usage examples.
+Check out the [Evaluators docs](https://docs.learningcommons.org/evaluators) for complete setup instructions and usage examples.
 
-## **Try the evaluators**
+## Try the evaluators
 
 You can test the evaluators with your own text in the [Evaluators Playground](https://platform.learningcommons.org/apps/evaluators/playground) on the Learning Commons Platform.
 
-## **Quickstart**
+## Quickstart
 
 To use the evaluators, clone the repository and follow the instructions below.
 
 If you’d like to download or access our evaluators and datasets directly, follow the links below.
 
-* Evaluators literacy package
-  * [Prompts](./evals/prompts)
-  * [Notebooks](./evals)
-* Datasets
-  * [Learning Commons annotations of CLEAR for qualitative text complexity v1.0 2025-09-02.csv](https://aidt-evaluators-files-public-prod.s3.us-west-2.amazonaws.com/Learning+Commons+annotations+of+CLEAR+for+qualitative+text+complexity+v1.0+2025-09-02.csv)
+- Evaluators literacy package
+  - [Prompts](./evals/prompts)
+  - [Notebooks](./evals)
+- Datasets
+  - [Learning Commons annotations of CLEAR for qualitative text complexity v1.0 2025-09-02.csv](https://aidt-evaluators-files-public-prod.s3.us-west-2.amazonaws.com/Learning+Commons+annotations+of+CLEAR+for+qualitative+text+complexity+v1.0+2025-09-02.csv)
 
-## **Requirements**
+## Requirements
 
 We rely on the Python interpreter to power the evaluators. All examples and tutorials are provided as Python code snippets.
 
 ---
+
 <details open>
 <summary>Setup on Mac/Linux</summary>
 
-## **Setup on Mac/Linux**
+## Setup on Mac/Linux
 
 You’ll need Python 3.10 or newer. To verify your version of Python, run the following code in the terminal:
 
@@ -89,8 +90,8 @@ pip install -r evals/requirements.txt
 
 We are using **both** OpenAI and Google Gemini for different evaluators. You need API keys from both platforms:
 
-* OpenAI: [https://platform.openai.com/](https://platform.openai.com/)
-* Gemini: [https://aistudio.google.com/](https://aistudio.google.com/)
+- OpenAI: [https://platform.openai.com/](https://platform.openai.com/)
+- Gemini: [https://aistudio.google.com/](https://aistudio.google.com/)
 
 Set the key(s) as environment variables in your shell session:
 
@@ -103,7 +104,7 @@ export GOOGLE_API_KEY="your-key-here"
 <details>
 <summary>Setup on Windows</summary>
 
-## **Setup on Windows**
+## Setup on Windows
 
 You’ll need Python 3.10 or newer. To verify your version of python, run the following code in the terminal:
 
@@ -139,8 +140,8 @@ pip install -r evals/requirements.txt
 
 Get your API keys from:
 
-* OpenAI: [https://platform.openai.com/](https://platform.openai.com/)
-* Gemini: [https://aistudio.google.com/](https://aistudio.google.com/)
+- OpenAI: [https://platform.openai.com/](https://platform.openai.com/)
+- Gemini: [https://aistudio.google.com/](https://aistudio.google.com/)
 
 Set the key(s) as environment variables:
 
@@ -157,6 +158,7 @@ In PowerShell:
 $env:OPENAI_API_KEY="sk-your-key-here"
 $env:GOOGLE_API_KEY="your-key-here"
 ```
+
 </details>
 
 ## Run the Evaluators' code
@@ -174,27 +176,28 @@ Jupyter will open in your web browser (usually at `http://localhost:8888`).
 2. Browse into the `evals` folder, then double click on the evaluator you want to try.
 3. You can now copy the text you want to evaluate into the last code cell of the notebook to run an evaluator on your text sample.
 
-If you prefer using an IDE with Python and Jupyter notebook support, such as VSCode with Microsoft's Python and Jupyter extensions, please refer to Microsoft's instructions for their installation and configuration.)
+If you prefer using an IDE with Python and Jupyter notebook support, such as VSCode with Microsoft's Python and Jupyter extensions, please refer to Microsoft's instructions for their installation and configuration.
 
-## **Support & feedback**
+## Support & feedback
 
 We want to hear from you. For questions or feedback, please [open an issue](https://github.com/learning-commons-org/evaluators/issues) or reach out to us at [support@learningcommons.org](mailto:support@learningcommons.org)
 
-## **Stay up to date**
+## Stay up to date
+
 Sign up for a <a href="https://platform.learningcommons.org" target="_blank">Learning Commons account</a> to receive news about the latest Evaluators updates, and releases.
 
-## **Reporting security issues**
+## Reporting security issues
 
 If you believe you have found a security issue, please responsibly disclose by contacting us at [security@learningcommons.org](mailto:security@learningcommons.org).
 
-## **Disclaimer**
+## Disclaimer
 
 The resources provided in this repository are made available "as-is", without warranties or guarantees of any kind. They may contain inaccuracies, limitations, or other constraints depending on the context of use. Use of these resources is subject to [our Terms of Use](https://learningcommons.org/terms-of-use/).
 
 By accessing or using these resources, you acknowledge that:
 
-* You are responsible for evaluating their suitability for your specific use case.
-* Learning Commons makes no representations about the accuracy, completeness, or fitness of these resources for any particular purpose.
-* Any use of the materials is at your own risk, and Learning Commons is not liable for any direct or indirect consequences that may result.
+- You are responsible for evaluating their suitability for your specific use case.
+- Learning Commons makes no representations about the accuracy, completeness, or fitness of these resources for any particular purpose.
+- Any use of the materials is at your own risk, and Learning Commons is not liable for any direct or indirect consequences that may result.
 
 Please refer to each resource’s README, license, and associated docs for any additional limitations, attribution requirements, or guidance specific to that resource.
