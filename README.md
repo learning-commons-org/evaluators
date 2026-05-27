@@ -54,11 +54,6 @@ If you’d like to download or access our evaluators and datasets directly, foll
 
 We rely on the Python interpreter to power the evaluators. All examples and tutorials are provided as Python code snippets.
 
----
-
-<details open>
-<summary>Setup on Mac/Linux</summary>
-
 ## Setup on Mac/Linux
 
 You’ll need Python 3.10 or newer. To verify your version of Python, run the following code in the terminal:
