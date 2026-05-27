@@ -1,8 +1,8 @@
 # @learning-commons/evaluators
 
-[npm version](https://www.npmjs.com/package/@learning-commons/evaluators)
+[![npm version](https://img.shields.io/npm/v/@learning-commons/evaluators)](https://www.npmjs.com/package/@learning-commons/evaluators)
 
-TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/about-evaluators).
+TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction).
 
 ## Installation
 
