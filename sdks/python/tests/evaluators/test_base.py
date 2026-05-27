@@ -266,7 +266,7 @@ class TestEvaluateTelemetry:
         assert out_cfg is ev.config
         assert passed_inp is inp
         assert meta.status == Status.failed
-        assert "boom" in (meta.error_details or "")
+        assert meta.error_details == "Unexpected error: RuntimeError"
 
     @patch("learning_commons_evaluators.evaluators.base.schedule_send_telemetry")
     def test_invokes_schedule_on_validation_error(self, mock_schedule, stub_evaluator):
@@ -277,7 +277,7 @@ class TestEvaluateTelemetry:
             ),
             grade_level=GradeInputField(spec=GradeInputSpec(name="grade_level"), value=3),
         )
-        with pytest.raises(ValidationError):
+        with pytest.raises(InputValidationError):
             stub_evaluator.evaluate_sync(inp)
         mock_schedule.assert_called_once()
         meta, passed_inp, cfg = mock_schedule.call_args.args
