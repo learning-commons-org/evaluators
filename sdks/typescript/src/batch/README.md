@@ -26,7 +26,7 @@ npx evaluators-batch
 
 ## Documentation
 
-For more implementation details, visit [our docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/batch-evaluator).
+For more implementation details, visit [our docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/typescript/batch-evaluator).
 
 ---
 
