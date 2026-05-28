@@ -15,8 +15,8 @@ npm install @learning-commons/evaluators ai
 Next, install the provider adapter(s) for your LLM(s):
 
 ```bash
-npm install @ai-sdk/openai   # OpenAI
-npm install @ai-sdk/google   # Google Gemini
+npm install @ai-sdk/openai     # OpenAI
+npm install @ai-sdk/google     # Google Gemini
 npm install @ai-sdk/anthropic  # Anthropic
 ```
 
