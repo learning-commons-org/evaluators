@@ -23,16 +23,14 @@ npm install @ai-sdk/anthropic  # Anthropic
 ## Quickstart
 
 ```typescript
-import { VocabularyEvaluator } from "@learning-commons/evaluators";
+import { GradeLevelAppropriatenessEvaluator } from "@learning-commons/evaluators";
 
-const evaluator = new VocabularyEvaluator({
+const evaluator = new GradeLevelAppropriatenessEvaluator({
   googleApiKey: process.env.GOOGLE_API_KEY,
-  openaiApiKey: process.env.OPENAI_API_KEY,
 });
 
-const result = await evaluator.evaluate("Your text here", "5");
-
-console.log(result.score); // "Moderately complex"
+const result = await evaluator.evaluate("The cat's out of the bag now.");
+console.log(result.score); // 4-5
 ```
 
 ## Documentation
