@@ -14,7 +14,7 @@
 
 Evaluators help you to measure the attributes of LLM-generated text through the lens of learning science.
 
-We build learning-science backed LLM as judge systems that can be directly integrated to your product or evaluation stack.
+We build learning-science-backed systems that follow LLM-as-a-judge methodology and can be directly integrated to your product or evaluation stack.
 
 Use cases include:
 

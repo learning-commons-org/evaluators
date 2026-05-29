@@ -34,7 +34,7 @@
 
 Annotators were provided with specific assumptions about the student, text and information to score. These and other details are included in the [project docs](https://docs.learningcommons.org/evaluators/literacy-evaluators/literacy-evaluators#expert-annotated-benchmark-datasets).
 
-For detailed methodology on dataset creation, see the [Literacy Dataset](https://docs.learningcommons.org/evaluators/dataset/literacy-dataset) documentation.
+For detailed methodology on dataset creation, see the [Literacy dataset](https://docs.learningcommons.org/evaluators/dataset/literacy-dataset) documentation.
 
 ## License
 
