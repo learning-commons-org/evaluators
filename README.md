@@ -187,12 +187,4 @@ If you believe you have found a security issue, please responsibly disclose by c
 
 ## Disclaimer
 
-The resources provided in this repository are made available "as-is", without warranties or guarantees of any kind. They may contain inaccuracies, limitations, or other constraints depending on the context of use. Use of these resources is subject to [our Terms of Use](https://learningcommons.org/terms-of-use/).
-
-By accessing or using these resources, you acknowledge that:
-
-- You are responsible for evaluating their suitability for your specific use case.
-- Learning Commons makes no representations about the accuracy, completeness, or fitness of these resources for any particular purpose.
-- Any use of the materials is at your own risk, and Learning Commons is not liable for any direct or indirect consequences that may result.
-
-Please refer to each resource’s README, license, and associated docs for any additional limitations, attribution requirements, or guidance specific to that resource.
+Use of the resources provided in this repository is subject to [our Terms of Use](https://learningcommons.org/terms-of-use/).
