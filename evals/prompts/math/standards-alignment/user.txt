@@ -1,0 +1,9 @@
+Evaluate the assessment question below against each of the {n} learning components listed. Return a JSON object with an "evaluations" array containing exactly {n} entries in the same order as the learning components.
+
+Each entry: { "reasoning": string, "aligned": boolean, "feedback": string }
+
+Assessment question: {question}
+Grade: {grade}
+
+Learning components:
+{learning_components}

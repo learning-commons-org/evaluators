@@ -75,6 +75,9 @@ export interface BaseEvaluatorConfig {
   /** Learning Commons partner key for authenticated telemetry (optional) */
   partnerKey?: string;
 
+  /** Learning Commons platform API key — used for Knowledge Graph API access */
+  platformApiKey?: string;
+
   /**
    * Override the provider and model used by this evaluator.
    * When set, all LLM calls use this provider and model instead of the defaults.

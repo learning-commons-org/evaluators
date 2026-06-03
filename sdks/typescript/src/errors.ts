@@ -161,6 +161,16 @@ export class NetworkError extends APIError {
 }
 
 /**
+ * Knowledge Graph error - thrown when KG API calls fail
+ */
+export class KnowledgeGraphError extends EvaluatorError {
+  constructor(message: string, public readonly statusCode?: number) {
+    super(message, 'KNOWLEDGE_GRAPH_ERROR');
+    this.name = 'KnowledgeGraphError';
+  }
+}
+
+/**
  * Timeout error - thrown when requests exceed timeout limits
  * Should be retried with caution
  *

@@ -17,6 +17,7 @@ export {
   RateLimitError,
   NetworkError,
   TimeoutError,
+  KnowledgeGraphError,
 } from './errors.js';
 
 // Logger
@@ -82,12 +83,32 @@ export {
   PurposeEvaluator,
   evaluatePurpose,
   type PurposeComplexityLevel,
+  MathStandardsAlignmentEvaluator,
+  evaluateMathStandardsAlignment,
+  type MathStandardsAlignmentEvaluatorConfig,
+  type LearningComponentResult,
+  type StandardAlignmentResult,
+  type QuestionItem,
+  type QuestionBankResult,
+  type QuestionBankOptions,
   Provider,
   type BaseEvaluatorConfig,
   type ModelOverride,
   type TelemetryOptions,
   type EvaluatorMetadata,
 } from './evaluators/index.js';
+
+// Knowledge Graph
+export {
+  KnowledgeGraphClient,
+  KnowledgeGraphApiRepository,
+  KnowledgeGraphJsonRepository,
+  parseGradeFromStandard,
+  type StandardsRepository,
+  type AcademicStandard,
+  type LearningComponent,
+  type GetStandardsOptions,
+} from './knowledge-graph/index.js';
 
 // Features
 export {
