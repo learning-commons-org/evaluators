@@ -1,0 +1,154 @@
+"""Learning Commons Evaluators – Python SDK for educational text evaluators."""
+
+# Bind __version__ first so consumers reading it during package init never see AttributeError.
+from learning_commons_evaluators.version import __description__, __version__  # noqa: I001
+
+# Config
+from learning_commons_evaluators.config import (
+    AnthropicLLMProviderConfig,
+    EvaluatorConfig,
+    GoogleLLMProviderConfig,
+    LLMProviderConfig,
+    OpenAILLMProviderConfig,
+    PromptSettings,
+    TelemetryConfig,
+    create_config,
+    create_config_no_telemetry,
+    create_config_telemetry_with_full_input,
+)
+
+# Errors
+from learning_commons_evaluators.errors import (
+    APIError,
+    AuthenticationError,
+    ConfigurationError,
+    EvaluatorError,
+    InputValidationError,
+    NetworkError,
+    OutputValidationError,
+    RateLimitError,
+    RequestTimeoutError,
+    wrap_provider_error,
+)
+
+# Evaluators
+from learning_commons_evaluators.evaluators import (
+    BaseEvaluator,
+    ConventionalityEvaluator,
+    InputT,
+    OutputT,
+    VocabularyEvaluationInput,
+    VocabularyEvaluator,
+)
+from learning_commons_evaluators.evaluators.conventionality import (
+    ConventionalityEvaluationInput,
+)
+
+# Logger (uses Python standard logging)
+from learning_commons_evaluators.logger import (
+    SDK_LOGGER_NAME,
+    Logger,
+    create_logger,
+    create_silent_logger,
+    get_logger,
+)
+from learning_commons_evaluators.schemas.common_inputs import (
+    GradeInputField,
+    TextInputField,
+)
+from learning_commons_evaluators.schemas.config import EvaluationSettings, LLMProvider
+from learning_commons_evaluators.schemas.conventionality import (
+    ConventionalityEvaluationSettings,
+    ConventionalityOutput,
+)
+
+# Schemas (core)
+from learning_commons_evaluators.schemas.evaluator import (
+    EvaluationAnswer,
+    EvaluationExplanation,
+    EvaluationInput,
+    EvaluationResult,
+    InputField,
+)
+from learning_commons_evaluators.schemas.input_specs import (
+    AnyInputSpec,
+    GradeInputSpec,
+    InputSpec,
+    TextInputSpec,
+)
+from learning_commons_evaluators.schemas.metadata import (
+    EvaluationMetadata,
+    EvaluatorMaturity,
+    EvaluatorMetadata,
+    Status,
+    TokenUsage,
+)
+from learning_commons_evaluators.schemas.text_complexity import (
+    TextComplexityEvaluationInput,
+)
+from learning_commons_evaluators.schemas.vocabulary import (
+    VocabularyComplexityOutput,
+    VocabularyEvaluationSettings,
+    normalize_complexity_output,
+)
+
+__all__ = [
+    "__description__",
+    "__version__",
+    "APIError",
+    "AnthropicLLMProviderConfig",
+    "AuthenticationError",
+    "BaseEvaluator",
+    "ConfigurationError",
+    "ConventionalityEvaluationInput",
+    "ConventionalityEvaluationSettings",
+    "ConventionalityEvaluator",
+    "ConventionalityOutput",
+    "EvaluationAnswer",
+    "EvaluationExplanation",
+    "EvaluationInput",
+    "EvaluationMetadata",
+    "EvaluationResult",
+    "EvaluationSettings",
+    "EvaluatorConfig",
+    "EvaluatorError",
+    "EvaluatorMaturity",
+    "EvaluatorMetadata",
+    "GoogleLLMProviderConfig",
+    "AnyInputSpec",
+    "GradeInputField",
+    "GradeInputSpec",
+    "InputField",
+    "InputSpec",
+    "InputT",
+    "InputValidationError",
+    "TextInputSpec",
+    "LLMProvider",
+    "LLMProviderConfig",
+    "Logger",
+    "NetworkError",
+    "OpenAILLMProviderConfig",
+    "OutputT",
+    "OutputValidationError",
+    "PromptSettings",
+    "RateLimitError",
+    "RequestTimeoutError",
+    "SDK_LOGGER_NAME",
+    "Status",
+    "TelemetryConfig",
+    "TextComplexityEvaluationInput",
+    "TextInputField",
+    "TokenUsage",
+    "VocabularyEvaluationInput",
+    "VocabularyEvaluationSettings",
+    "VocabularyEvaluator",
+    "VocabularyComplexityOutput",
+    "normalize_complexity_output",
+    "create_config",
+    "create_config_no_telemetry",
+    "create_config_telemetry_with_full_input",
+    "create_logger",
+    "create_silent_logger",
+    "get_logger",
+    "wrap_provider_error",
+]
