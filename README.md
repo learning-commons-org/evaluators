@@ -1,4 +1,4 @@
-<img style="width:100%" alt="evaluator_banner" src="https://raw.githubusercontent.com/learning-commons-org/.github/refs/heads/main/assets/evals_hero.png" />
+<img style="width:100%" alt="Evaluators project banner logo" src="https://raw.githubusercontent.com/learning-commons-org/.github/refs/heads/main/assets/evals_hero_2.jpg" />
 
 <p align="center">
   <a href="https://platform.learningcommons.org/apps/evaluators/playground" target="_blank">Try it in the Playground </a>

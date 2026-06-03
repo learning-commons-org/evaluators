@@ -87,6 +87,7 @@ export class BatchEvaluator {
       concurrency: 3,
       maxRetries: 2,
       telemetry: false,
+      bypassRowLimit: false,
       ...config,
     };
 
@@ -128,7 +129,6 @@ export class BatchEvaluator {
   /**
    * Create tasks from inputs and evaluator IDs
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private createTasks(inputs: BatchInput[], evaluatorIds: readonly string[]): Array<BatchTask & { originalRow: Record<string, unknown> }> {
     const tasks: Array<BatchTask & { originalRow: Record<string, unknown> }> = [];
 
@@ -280,10 +280,12 @@ export class BatchEvaluator {
       );
     }
 
-    // Enforce per-group row limit
-    if (inputs.length > group.maxInputRows) {
+    // Enforce per-group row limit (unless bypass is opted in)
+    // TODO(telemetry): record when bypassRowLimit is used
+    if (!this.config.bypassRowLimit && inputs.length > group.maxInputRows) {
       throw new Error(
-        `Input exceeds limit for "${group.id}": ${inputs.length} rows (max ${group.maxInputRows}). Split into smaller batches.`
+        `Input exceeds limit for "${group.id}": ${inputs.length} rows (max ${group.maxInputRows}). ` +
+          `Split into smaller batches, or pass { bypassRowLimit: true } in BatchConfig to bypass (use --bypass-row-limit on the CLI).`
       );
     }
 

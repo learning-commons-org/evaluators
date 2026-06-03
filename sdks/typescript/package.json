@@ -1,6 +1,6 @@
 {
   "name": "@learning-commons/evaluators",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "TypeScript SDK for Learning Commons educational evaluators",
   "type": "module",
   "types": "./dist/index.d.ts",
@@ -41,7 +41,7 @@
     "test:coverage": "vitest run --coverage",
     "test:ci": "npm run test:unit && npm run test:integration:dist",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src tests --ext .ts",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -50,6 +50,10 @@
   ],
   "author": "Learning Commons",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/learning-commons-org/evaluators.git",
@@ -58,7 +62,7 @@
   "bugs": {
     "url": "https://github.com/learning-commons-org/evaluators/issues"
   },
-  "homepage": "https://github.com/learning-commons-org/evaluators#readme",
+  "homepage": "https://github.com/learning-commons-org/evaluators/tree/main/sdks/typescript#readme",
   "peerDependencies": {
     "@ai-sdk/anthropic": ">=3.0.0",
     "@ai-sdk/google": ">=3.0.0",
@@ -91,11 +95,13 @@
     "@ai-sdk/openai": "^3.0.9",
     "@types/node": "^25.6.0",
     "@types/prompts": "^2.4.9",
-    "@typescript-eslint/eslint-plugin": "^6.19.0",
-    "@typescript-eslint/parser": "^6.19.0",
+    "@eslint/js": "^10.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.59.4",
+    "@typescript-eslint/parser": "^8.59.4",
     "@vitest/coverage-v8": "^4.0.17",
     "ai": "^6.0.30",
-    "eslint": "^8.56.0",
+    "eslint": "^10.4.0",
+    "globals": "^17.6.0",
     "json-schema-to-zod": "^2.8.1",
     "tsup": "^8.0.1",
     "tsx": "^4.21.0",

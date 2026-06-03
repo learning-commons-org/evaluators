@@ -2,6 +2,14 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
+## [0.6.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v0.5.0...sdks-typescript-v0.6.0) (2026-05-22)
+
+
+### Features
+
+* **ts-sdk:** add bypassRowLimit option for batch evaluator ([#77](https://github.com/learning-commons-org/evaluators/issues/77)) ([902a60f](https://github.com/learning-commons-org/evaluators/commit/902a60fc934372a151f1d40c0b49ef3313d12609))
+* **ts-sdk:** expose per-call token usage on EvaluationMetadata ([#59](https://github.com/learning-commons-org/evaluators/issues/59)) ([3c8fa0f](https://github.com/learning-commons-org/evaluators/commit/3c8fa0fd8e2389fc902c9cf1f63985b40d2e4b2c))
+
 ## [0.5.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v0.4.0...sdks-typescript-v0.5.0) (2026-05-07)
 
 

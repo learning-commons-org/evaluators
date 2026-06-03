@@ -26,7 +26,6 @@ export function parseCSV(csvPath: string): BatchInput[] {
     throw new Error(`CSV file not found: ${csvPath}`);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const records = parse(fs.readFileSync(csvPath, 'utf-8'), {
     columns: true,
     skip_empty_lines: true,
