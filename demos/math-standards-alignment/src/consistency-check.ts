@@ -1,21 +1,3 @@
-/**
- * Consistency check — run the same (question, standard) pair N times and
- * report how stable the per-LC alignment judgements are across runs.
- *
- * Usage:
- *   npx tsx src/consistency-check.ts "<question>" "<statementCode>" [--runs N] [--concurrency C]
- *
- * Examples:
- *   npx tsx src/consistency-check.ts \
- *     "A playground is shaped like an L..." \
- *     "3.MD.C.7.d"
- *
- *   npx tsx src/consistency-check.ts \
- *     "Factor x² + 5x + 6" \
- *     "HSA-APR.A.1" \
- *     --runs 30 --concurrency 5
- */
-
 import 'dotenv/config';
 // Suppress noisy AI SDK warnings (temperature not supported on reasoning models, system message placement)
 process.env['AI_SDK_LOG_WARNINGS'] = 'false';
@@ -23,23 +5,26 @@ import pLimit from 'p-limit';
 import { MathStandardsAlignmentEvaluator, type StandardAlignmentResult } from '@learning-commons/evaluators';
 import { parseGradeFromStandard } from '@learning-commons/evaluators';
 
-// ---------------------------------------------------------------------------
-// Parse args
-// ---------------------------------------------------------------------------
+// ============================================================
+// ✏️  EDIT HERE — put your question and standard below
+// ============================================================
 
-const args = process.argv.slice(2);
-const question = args[0];
-const statementCode = args[1];
+const QUESTION = `
+A playground is shaped like an L. One part is a rectangle that is 8 feet
+long and 3 feet wide. Attached to it is another rectangle that is 4 feet
+long and 2 feet wide, with no overlap. What is the total area of the
+playground in square feet?
+`.trim();
 
-if (!question || !statementCode) {
-  console.error('Usage: npx tsx src/consistency-check.ts "<question>" "<statementCode>" [--runs N] [--concurrency C]');
-  process.exit(1);
-}
+const STATEMENT_CODE = '3.MD.C.7.d';
 
-const runsFlag = args.indexOf('--runs');
-const concurrencyFlag = args.indexOf('--concurrency');
-const RUNS = runsFlag !== -1 ? parseInt(args[runsFlag + 1]) : 20;
-const CONCURRENCY = concurrencyFlag !== -1 ? parseInt(args[concurrencyFlag + 1]) : 5;
+const RUNS = 20;        // how many times to run the evaluation
+const CONCURRENCY = 5;  // how many calls to run at the same time
+
+// ============================================================
+
+const question = QUESTION;
+const statementCode = STATEMENT_CODE;
 
 // Derive grade from the standard code
 let grade: string;
