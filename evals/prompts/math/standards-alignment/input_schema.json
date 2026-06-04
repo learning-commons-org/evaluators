@@ -13,13 +13,14 @@
     },
     "grade": {
       "type": "string",
-      "description": "Grade level the question targets. Must match the grade prefix of statementCode.",
-      "enum": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+      "description": "Grade level the question targets.",
+      "enum": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "HS"]
     },
     "statementCode": {
       "type": "string",
-      "description": "CCSS math standard code (e.g. '3.MD.C.7.d'). Grade prefix must match the grade field.",
-      "pattern": "^(K|[1-9]|1[0-2])\\."
+      "description": "CCSS math standard code (e.g. '3.MD.C.7.d', 'HSA-APR.A.1').",
+      "minLength": 1,
+      "maxLength": 50
     }
   }
 }

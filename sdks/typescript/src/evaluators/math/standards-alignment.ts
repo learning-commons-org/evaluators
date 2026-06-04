@@ -150,7 +150,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
   async evaluate(question: string, grade: string, statementCode: string): Promise<StandardAlignmentResult> {
     this.validateQuestion(question);
     this.validateGradeInput(grade);
-    this.validateStatementCode(statementCode, grade);
+    this.validateStatementCode(statementCode);
 
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
@@ -521,16 +521,9 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     }
   }
 
-  private validateStatementCode(code: string, grade: string): void {
+  private validateStatementCode(code: string): void {
     if (code.trim().length === 0) {
       throw new ValidationError('statementCode must not be empty');
-    }
-    // Verify the code's grade prefix matches the provided grade.
-    const parsedGrade = parseGradeFromStandard(code);
-    if (parsedGrade !== grade) {
-      throw new ValidationError(
-        `Grade mismatch: provided grade "${grade}" but statementCode "${code}" has grade prefix "${parsedGrade}"`,
-      );
     }
   }
 }

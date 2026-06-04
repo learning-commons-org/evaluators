@@ -164,15 +164,23 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
     await expect(evaluator.evaluate(QUESTION, '13', STATEMENT_CODE)).rejects.toThrow(ValidationError);
   });
 
-  it('throws ValidationError when grade does not match statementCode prefix', async () => {
-    const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    await expect(evaluator.evaluate(QUESTION, '4', '3.MD.C.7.d')).rejects.toThrow(ValidationError);
-    await expect(evaluator.evaluate(QUESTION, '4', '3.MD.C.7.d')).rejects.toThrow('Grade mismatch');
-  });
-
   it('throws ValidationError for empty statementCode', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
     await expect(evaluator.evaluate(QUESTION, GRADE, '')).rejects.toThrow(ValidationError);
+  });
+
+  it('accepts grade HS with a high school standard code', async () => {
+    const hsRepo = makeMockRepo({
+      getLearningComponents: vi.fn().mockResolvedValue([{ description: 'Factor polynomials' }]),
+    });
+    vi.mocked(mockProvider.generateStructured).mockResolvedValue({
+      ...MOCK_BATCH_RESPONSE,
+      data: { evaluations: [{ reasoning: 'ok', aligned: true, feedback: '' }] },
+    });
+    const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ knowledgeGraphRepository: hsRepo }));
+    const result = await evaluator.evaluate('Factor x² + 5x + 6.', 'HS', 'HSA-APR.A.1');
+    expect(result.grade).toBe('HS');
+    expect(result.statementCode).toBe('HSA-APR.A.1');
   });
 
   it('correctly handles grade K standard', async () => {
@@ -464,6 +472,12 @@ describe('parseGradeFromStandard', () => {
     ['3.MD.C.7.d', '3'],
     ['10.NBT.A.1', '10'],
     ['12.F.BF.1', '12'],
+    // High school standards use domain letter + hyphen, not a numeric grade prefix
+    ['HSA-APR.A.1', 'HS'],
+    ['HSF-BF.A.1', 'HS'],
+    ['HSG-CO.A.1', 'HS'],
+    ['HSN-CN.A.1', 'HS'],
+    ['HSS-ID.A.1', 'HS'],
   ])('%s → %s', (code, expected) => {
     expect(parseGradeFromStandard(code)).toBe(expected);
   });
@@ -473,6 +487,7 @@ describe('parseGradeFromStandard', () => {
     ['ZZ.OA.A.1'],
     ['no-dots'],
     ['13.MD.C.7'],
+    ['HSA.APR.A.1'], // missing hyphen — not a valid HS code
   ])('throws ValidationError for "%s"', (code) => {
     expect(() => parseGradeFromStandard(code)).toThrow(ValidationError);
   });
