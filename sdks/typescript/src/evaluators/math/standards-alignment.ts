@@ -10,16 +10,16 @@ import {
   getUserPrompt,
   getCoarseFilterPrompt,
   STEP,
+  EVALUATOR_ID,
   SUPPORTED_GRADES,
   MAX_QUESTION_LENGTH,
 } from '../../prompts/math/standards-alignment/index.js';
 import {
   KnowledgeGraphClient,
   KnowledgeGraphApiRepository,
-  parseGradeFromStandard,
 } from '../../knowledge-graph/index.js';
 import type { StandardsRepository } from '../../knowledge-graph/index.js';
-import { ConfigurationError, ValidationError, APIError, wrapProviderError } from '../../errors.js';
+import { EvaluatorError, APIError, ConfigurationError, ValidationError, wrapProviderError } from '../../errors.js';
 import type { StageDetail } from '../../telemetry/index.js';
 
 // ---------------------------------------------------------------------------
@@ -100,7 +100,7 @@ const TEMPERATURE: number = STEP.generation.temperature;
 
 export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
   static readonly metadata = {
-    id: STEP.id.replace('evaluate_', 'math.'),
+    id: EVALUATOR_ID,
     name: 'Math Standards Alignment',
     description: 'Evaluates whether an assessment question aligns to a CCSS math standard via learning-component analysis',
     supportedGrades: SUPPORTED_GRADES as string[],
@@ -247,7 +247,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         inputText: question,
       }).catch(() => undefined);
 
-      if (error instanceof ValidationError || error instanceof APIError) throw error;
+      if (error instanceof EvaluatorError) throw error;
       throw wrapProviderError(error, 'Math standards alignment evaluation failed');
     }
   }
@@ -337,19 +337,20 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     const bankLimit = pLimit(options?.concurrency ?? this.llmConcurrency);
 
     // Phase 1 — coarse filter: one LLM call per question over all standards
-    let relevanceMap: Map<string, Set<string>>;
+    // Keyed by question index (not text) so duplicate question strings don't overwrite each other.
+    let relevanceMap: Map<number, Set<string>>;
 
     if (skipCoarseFilter) {
-      relevanceMap = new Map(questions.map((q) => [q.question, new Set(statementCodes)]));
+      relevanceMap = new Map(questions.map((_, i) => [i, new Set(statementCodes)]));
     } else {
       const filterResults = await Promise.all(
         questions.map((q) => bankLimit(() => this.runCoarseFilter(q.question, statementCodes))),
       );
-      relevanceMap = new Map(questions.map((q, i) => [q.question, filterResults[i]]));
+      relevanceMap = new Map(questions.map((_, i) => [i, filterResults[i]]));
     }
 
     // Pre-fetch LC data for coarse-filtered standards (needed only for totalCount in skipped results)
-    const total = questions.reduce((sum, q) => sum + (relevanceMap.get(q.question)?.size ?? 0), 0);
+    const total = questions.reduce((sum, _, i) => sum + (relevanceMap.get(i)?.size ?? 0), 0);
     let completed = 0;
 
     type LcCacheEntry = Awaited<ReturnType<KnowledgeGraphClient['getLearningComponentsByCode']>>;
@@ -367,8 +368,8 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 
     // Phase 2 — detail eval for pairs that survived the coarse filter
     const questionSettled = await Promise.allSettled(
-      questions.map(async (q) => {
-        const relevant = relevanceMap.get(q.question) ?? new Set(statementCodes);
+      questions.map(async (q, i) => {
+        const relevant = relevanceMap.get(i) ?? new Set(statementCodes);
 
         const standardSettled = await Promise.allSettled(
           statementCodes.map(async (code): Promise<StandardAlignmentResult> => {
@@ -376,7 +377,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
               const cached = lcCache.get(code);
               return {
                 statementCode: code,
-                grade: parseGradeFromStandard(code),
+                grade: q.grade,
                 learningComponents: [],
                 alignedCount: 0,
                 totalCount: cached?.components.length ?? 0,

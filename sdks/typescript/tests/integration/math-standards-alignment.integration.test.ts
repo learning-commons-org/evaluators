@@ -76,9 +76,9 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
         skipCoarseFilter: true,
       });
 
-      // ── Phase 2: with coarse filter ───────────────────────────────────────
+      // ── Phase 2: with coarse filter (explicitly opt in) ───────────────────
       const { evaluator: ev2, counters: c2 } = makeInstrumentedEvaluator();
-      const filtered = await ev2.evaluateQuestionBank(questionItems, MD_C_7_FAMILY);
+      const filtered = await ev2.evaluateQuestionBank(questionItems, MD_C_7_FAMILY, { skipCoarseFilter: false });
 
       // ── Log results ───────────────────────────────────────────────────────
       console.log('\n════ GROUND TRUTH (no coarse filter) ════');
