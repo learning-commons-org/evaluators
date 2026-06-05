@@ -29,9 +29,7 @@ class GradeLevelAppropriatenessOutput(BaseModel):
     reasoning: str = Field(
         description="Your reasoning for your answer in numbered bullet points for 4 steps with a 4th bullet point for synthesis."
     )
-    grade: GradeBandLiteral = Field(
-        description="The appropriate grade level for the text"
-    )
+    grade: GradeBandLiteral = Field(description="The appropriate grade level for the text")
     alternative_grade: GradeBandLiteral = Field(
         description="An alternative grade level for the text"
     )
