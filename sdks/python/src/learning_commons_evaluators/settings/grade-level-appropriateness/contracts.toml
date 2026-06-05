@@ -1,0 +1,193 @@
+# Contract tests for the Grade Level Appropriateness evaluator.
+#
+# This file captures the exact LLM interaction for known inputs so that
+# tests can verify the SDK sends the same request as the notebook and
+# produces the same result from the same response.
+#
+# HOW TO REGENERATE
+# -----------------
+# Run the notebook for the GLA evaluator from the repo root with GOOGLE_API_KEY
+# set. It loads prompts from the evaluator settings TOML (same as the SDK) and
+# prints a TOML block — paste into this file and run `make sync-settings` from
+# sdks/python/ to update the bundled copy.
+#
+# WHAT BELONGS HERE
+# -----------------
+# Only data that originates from external sources:
+#   - input:           what the caller provides to the evaluator
+#   - prompt_steps:    what the SDK sends to the LLM (fully formatted messages,
+#                      model, temperature) and the raw response the LLM returned
+#   - expected_result: the structured output the LLM returned (notebook format)
+#
+# Deterministic values computed by library code (e.g. format_instructions from
+# LangChain's JsonOutputParser) are NOT stored as standalone fields — they appear
+# inside the fully formatted prompts, where they are implicitly verified by the
+# prompt-request assertion in the contract test.
+
+[cases.trees]
+description = "Simple informational passage about trees (grade 4-5)"
+
+[cases.trees.input]
+text = '''Trees are important plants that grow in many parts of the world. They have roots that go deep into the ground to find water and nutrients. Their leaves use sunlight to make food through a process called photosynthesis. Trees provide homes for birds and animals. They also give us wood for building homes and making furniture. Some trees produce fruit that people and animals eat. Forests made of many trees help keep the air clean and fresh.'''
+
+[cases.trees.prompt_steps.main]
+model = "gemini-2.5-pro"
+temperature = 0.25
+system_prompt = '''You are an expert in English literature education for K-12.
+Your job is to help evaluate the grade level appropriateness of a given text.
+
+You will be given a text and you should determine which grade level the text is appropriate for (grade levels include: K-1, 2-3, 4-5, 6-8, 9-10, 11-CCR)
+
+IMPORTANT: You should pay attention to the vocabulary used, topics of the text and readability of text.
+
+Please first reason out loud about the vocabulary complexity of the text and then provide an answer between grade level options: K-1, 2-3, 4-5, 6-8, 9-10, 11-CCR.
+'''
+user_prompt = '''Use these steps to determine appropriate grade level for a text:
+1. Calculate word count and Flesch-Kincaid Grade Level of the text, and generate a grade band.
+Here are the bands guideline for word count
+
+2-3: 200-800 words
+4-5: 200-800 words
+6-8: 400-1000 words
+9-10: 500-1500 words
+11-CCR: 1501 words and more
+
+Here is the formula for Flesch-Kincaid Grade Level:
+Flesch-Kincaid Grade Level = 0.39 * (total words / total sentences) + 11.8 * (total syllables / total words) - 15.59
+
+
+2. Determine the qualitative complexity using this text complexity rubric:
+TEXT STRUCTURE
+
+Exceedingly Complex
+	•	Deep, intricate, often ambiguous connections between many ideas/processes/events
+	•	Organization is intricate or discipline-specific
+	•	Text features are essential for understanding
+	•	Graphics are intricate, extensive, and integral to meaning; may convey unique information
+
+Very Complex
+	•	Expanded ideas/processes/events with implicit or subtle connections
+	•	Organization may have multiple pathways or discipline-specific traits
+	•	Text features directly enhance understanding
+	•	Graphics support or are integral to understanding
+
+Moderately Complex
+	•	Some implicit/subtle connections between ideas/events
+	•	Organization is evident and generally sequential or chronological
+	•	Text features enhance understanding
+	•	Graphics are mostly supplementary
+
+Slightly Complex
+	•	Explicit and clear connections between ideas/events
+	•	Organization is chronological, sequential, or predictable
+	•	Text features help navigation but are not essential
+	•	Graphics are simple, not necessary, but may assist understanding
+
+⸺
+
+LANGUAGE FEATURES
+
+Exceedingly Complex
+	•	Dense, abstract, ironic, and/or figurative language
+	•	Complex, unfamiliar, archaic, subject-specific, or ambiguous vocabulary
+	•	Mainly complex sentences with multiple subordinate clauses and transitions
+
+Very Complex
+	•	Fairly complex; some abstract, ironic, and/or figurative language
+	•	Some unfamiliar, archaic, or overly academic vocabulary
+	•	Many complex sentences with subordinate phrases/clauses
+
+Moderately Complex
+	•	Mostly explicit language with some complex meaning
+	•	Mostly familiar and conversational vocabulary
+	•	Primarily simple and compound sentences, with some complex ones
+
+Slightly Complex
+	•	Explicit, literal, straightforward language
+	•	Contemporary, familiar, conversational vocabulary
+	•	Mainly simple sentences
+
+⸺
+
+PURPOSE
+
+Exceedingly Complex
+	•	Subtle, intricate, and difficult to determine
+	•	Includes many theoretical or abstract elements
+
+Very Complex
+	•	Implicit or subtle, fairly easy to infer
+	•	More theoretical or abstract than concrete
+
+Moderately Complex
+	•	Implied but easy to identify based on context or source
+
+Slightly Complex
+	•	Explicitly stated, clear, concrete, and narrowly focused
+
+⸺
+
+KNOWLEDGE DEMANDS
+
+Exceedingly Complex
+	•	Requires extensive discipline-specific or theoretical knowledge
+	•	Many references/allusions to other texts or ideas
+
+Very Complex
+	•	Requires moderate discipline-specific knowledge
+	•	Some references/allusions to other texts or ideas
+
+Moderately Complex
+	•	Requires common knowledge and some discipline-specific knowledge
+	•	Few references/allusions
+
+Slightly Complex
+	•	Requires everyday, practical knowledge
+	•	No references/allusions
+
+3. Background knowledge:
+At which grade level would student have enough background knowledge to understand the text?
+
+4. Use your judgement of the above three steps. First use the quantitative signal to get first signal of the appropriate grade level range, then use qualitative analysis to refine your decisions and consider if student at such grade will have enough background knowledge to arrive at a final grade level band. Also consider if the text can be for a lower grade with additional scaffolding.
+
+<begin of text to evaluate>
+<text>Trees are important plants that grow in many parts of the world. They have roots that go deep into the ground to find water and nutrients. Their leaves use sunlight to make food through a process called photosynthesis. Trees provide homes for birds and animals. They also give us wood for building homes and making furniture. Some trees produce fruit that people and animals eat. Forests made of many trees help keep the air clean and fresh.</text>
+<end of text to evaluate>
+
+When providing your response, first think out loud of your reasoning and then provide your answer from one of the grade band options above. Your reasoning and answer needs to be in JSON format. Strictly follow the following format for your response.
+
+Your final answer should be in the "grade" property for the target grade band for the text aimed for independent reading.  If there is alternative appropriate grade students can read and comprehend with scaffold (eg. picture, graph, additional context, etc) or for read-aloud purposes for lower grade, provide it in the "alternative_grade" property and provide the types of scaffolding in the "scaffolding_needed" property.
+
+In your reasoning, provide numbered bullet points for each of the analyses in each of the 3 steps. At the end, give me the 4th bullet point called "synthesis" to summarize your analysis from the above 3 steps that help you arrive at the final decision.
+
+STRICT OUTPUT FORMAT:
+- Return only the JSON value that conforms to the schema. Do not include any additional text, explanations, headings, or separators.
+- Do not wrap the JSON in Markdown or code fences (no ``` or ```json).
+- Do not prepend or append any text (e.g., do not write "Here is the JSON:").
+- The response must be a single top-level JSON value exactly as required by the schema (object/array/etc.), with no trailing commas or comments.
+
+The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]} the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema (shown in a code block for readability only — do not include any backticks or Markdown in your output):
+```
+{"description": "Raw LLM output for grade level appropriateness evaluation.", "properties": {"reasoning": {"description": "Your reasoning for your answer in numbered bullet points for 4 steps with a 4th bullet point for synthesis.", "title": "Reasoning", "type": "string"}, "grade": {"description": "The appropriate grade level for the text", "enum": ["K-1", "2-3", "4-5", "6-8", "9-10", "11-CCR"], "title": "Grade", "type": "string"}, "alternative_grade": {"description": "An alternative grade level for the text", "enum": ["K-1", "2-3", "4-5", "6-8", "9-10", "11-CCR"], "title": "Alternative Grade", "type": "string"}, "scaffolding_needed": {"description": "Scaffolding needed for the text to be appropriate for the alternative grade", "title": "Scaffolding Needed", "type": "string"}}, "required": ["reasoning", "grade", "alternative_grade", "scaffolding_needed"]}
+```
+'''
+llm_response = '''
+{
+  "reasoning": "1. Quantitative analysis: The text has approximately 75 words across 7 sentences. Applying the FK formula: (75/7) ≈ 10.7 words per sentence; estimating syllables at ~105, (105/75) ≈ 1.4 syllables per word. FK = 0.39 * 10.7 + 11.8 * 1.4 - 15.59 = 4.17 + 16.52 - 15.59 ≈ 5.1. This suggests approximately grade 5. Word count (75 words) is below the 200-800 range for grades 4-5, pointing to a simpler text.\n2. Qualitative complexity: TEXT STRUCTURE - Slightly Complex: explicit, sequential sentences about tree characteristics with no implicit connections. LANGUAGE FEATURES - Slightly to Moderately Complex: mostly familiar, conversational vocabulary with one technical term ('photosynthesis'). Simple sentences predominate. PURPOSE - Slightly Complex: explicitly stated informational purpose. KNOWLEDGE DEMANDS - Slightly Complex: everyday knowledge about plants and nature, no references or allusions.\n3. Background knowledge: Students in grade 2 or above would have sufficient background knowledge about trees, plants, and basic nature concepts to understand this text. The term 'photosynthesis' may require grade 4+ science exposure.\n4. Synthesis: Quantitative analysis yields FK ≈ 5, but the short word count and simple sentence structure indicate a text well within the lower range of grades 4-5. Qualitatively, the text is explicit and largely simple. The single technical term 'photosynthesis' distinguishes it from K-1 or 2-3 texts. Grade 4-5 is appropriate for independent reading; grade 2-3 is achievable with scaffolding around the science vocabulary.",
+  "grade": "4-5",
+  "alternative_grade": "2-3",
+  "scaffolding_needed": "Pre-teach the term 'photosynthesis' with a simple diagram or analogy (e.g., leaves as tiny solar-powered kitchens) before students read independently."
+}'''
+
+[cases.trees.expected_result]
+grade = "4-5"
+alternative_grade = "2-3"
+scaffolding_needed = "Pre-teach the term 'photosynthesis' with a simple diagram or analogy (e.g., leaves as tiny solar-powered kitchens) before students read independently."
+reasoning = '''1. Quantitative analysis: The text has approximately 75 words across 7 sentences. Applying the FK formula: (75/7) ≈ 10.7 words per sentence; estimating syllables at ~105, (105/75) ≈ 1.4 syllables per word. FK = 0.39 * 10.7 + 11.8 * 1.4 - 15.59 = 4.17 + 16.52 - 15.59 ≈ 5.1. This suggests approximately grade 5. Word count (75 words) is below the 200-800 range for grades 4-5, pointing to a simpler text.
+2. Qualitative complexity: TEXT STRUCTURE - Slightly Complex: explicit, sequential sentences about tree characteristics with no implicit connections. LANGUAGE FEATURES - Slightly to Moderately Complex: mostly familiar, conversational vocabulary with one technical term ('photosynthesis'). Simple sentences predominate. PURPOSE - Slightly Complex: explicitly stated informational purpose. KNOWLEDGE DEMANDS - Slightly Complex: everyday knowledge about plants and nature, no references or allusions.
+3. Background knowledge: Students in grade 2 or above would have sufficient background knowledge about trees, plants, and basic nature concepts to understand this text. The term 'photosynthesis' may require grade 4+ science exposure.
+4. Synthesis: Quantitative analysis yields FK ≈ 5, but the short word count and simple sentence structure indicate a text well within the lower range of grades 4-5. Qualitatively, the text is explicit and largely simple. The single technical term 'photosynthesis' distinguishes it from K-1 or 2-3 texts. Grade 4-5 is appropriate for independent reading; grade 2-3 is achievable with scaffolding around the science vocabulary.'''
