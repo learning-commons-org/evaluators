@@ -3,11 +3,9 @@
 <p align="center">
   <a href="https://platform.learningcommons.org/apps/evaluators/playground" target="_blank">Try it in the Playground </a>
    •
-  <a href="https://docs.learningcommons.org/evaluators/quick-start/getting-set-up" target="_blank">Getting set up</a>
+  <a href="https://docs.learningcommons.org/evaluators/getting-started/quickstart" target="_blank">Quickstart</a>
   •
-  <a href="https://docs.learningcommons.org/evaluators/using-evaluators/tutorial-evaluating-grade-level-appropriateness" target="_blank">Tutorials</a>
-  •
-  <a href="https://docs.learningcommons.org/evaluators/quick-start/core-concepts" target="_blank">Core concepts</a>
+  <a href="https://docs.learningcommons.org/evaluators/understanding-evaluators/core-concepts" target="_blank">Core concepts</a>
 </p>
 
 ## **Evaluators**
