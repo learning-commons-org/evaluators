@@ -86,10 +86,5 @@ export interface BatchConfig {
   maxRetries?: number;
   telemetry?: boolean | TelemetryOptions;
   bypassRowLimit?: boolean;
-  /**
-   * Override the provider and model used by all evaluators in the batch.
-   * When set, the matching API key field must also be provided.
-   * Results may vary from the validated defaults.
-   */
   modelOverride?: ModelOverride;
 }

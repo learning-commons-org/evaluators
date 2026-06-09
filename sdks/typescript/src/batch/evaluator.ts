@@ -1,6 +1,13 @@
 import pLimit from 'p-limit';
-import { EVALUATORS, findEvaluator } from '../evaluators/index.js';
-import type { BaseEvaluatorConfig, ModelOverride } from '../evaluators/base.js';
+import {
+  VocabularyEvaluator,
+  SentenceStructureEvaluator,
+  GradeLevelAppropriatenessEvaluator,
+  SmkEvaluator,
+  ConventionalityEvaluator,
+  PurposeEvaluator,
+} from '../evaluators/index.js';
+import type { BaseEvaluatorConfig } from '../evaluators/base.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import type {
   BatchInput,
@@ -19,6 +26,18 @@ interface SimpleEvaluator {
 type EvaluatorConstructor = new (config: BaseEvaluatorConfig) => SimpleEvaluator;
 
 /**
+ * Map of evaluator IDs to their constructors — internal to this module.
+ */
+const EVALUATOR_MAP = new Map<string, EvaluatorConstructor>([
+  [GradeLevelAppropriatenessEvaluator.metadata.id, GradeLevelAppropriatenessEvaluator],
+  [SmkEvaluator.metadata.id, SmkEvaluator],
+  [VocabularyEvaluator.metadata.id, VocabularyEvaluator],
+  [SentenceStructureEvaluator.metadata.id, SentenceStructureEvaluator],
+  [ConventionalityEvaluator.metadata.id, ConventionalityEvaluator],
+  [PurposeEvaluator.metadata.id, PurposeEvaluator],
+]);
+
+/**
  * Evaluator groups available for batch processing.
  * Each group runs a fixed set of evaluators and maps to a specific HTML report format.
  */
@@ -30,7 +49,14 @@ const EVALUATOR_GROUPS: EvaluatorGroup[] = [
     id: 'text-complexity',
     name: 'Text Complexity Analysis',
     description: 'Evaluates all dimensions of the Qualitative Text Complexity rubric',
-    evaluatorIds: EVALUATORS.map((e) => e.metadata.id),
+    evaluatorIds: [
+      GradeLevelAppropriatenessEvaluator.metadata.id,
+      SmkEvaluator.metadata.id,
+      VocabularyEvaluator.metadata.id,
+      SentenceStructureEvaluator.metadata.id,
+      ConventionalityEvaluator.metadata.id,
+      PurposeEvaluator.metadata.id,
+    ],
     requiresGoogleKey: true,
     requiresOpenAIKey: true,
     maxInputRows: 50,
@@ -47,7 +73,7 @@ export function getAvailableGroups(): EvaluatorGroup[] {
  * Processes multiple texts in parallel using all evaluators in a group.
  */
 export class BatchEvaluator {
-  private config: BatchConfig & { modelOverride?: ModelOverride };
+  private config: BatchConfig;
   private limit: ReturnType<typeof pLimit>;
   private evaluatorInstances = new Map<string, SimpleEvaluator>();
   private isCancelled = false;
@@ -78,7 +104,7 @@ export class BatchEvaluator {
     for (const id of evaluatorIds) {
       if (this.evaluatorInstances.has(id)) continue;
 
-      const EvaluatorClass = findEvaluator(id) as EvaluatorConstructor | undefined;
+      const EvaluatorClass = EVALUATOR_MAP.get(id);
       if (!EvaluatorClass) {
         throw new Error(`Unknown evaluator: ${id}`);
       }
