@@ -150,37 +150,18 @@ describe('BatchEvaluator — modelOverride config', () => {
     expect(config.anthropicApiKey).toBe('akey');
   });
 
-  it('passes modelOverride to each evaluator constructor', async () => {
+  it('evaluate() runs to completion with modelOverride set', async () => {
     const override = { provider: Provider.Anthropic, model: 'claude-opus-4-8' };
     const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-
-    const receivedConfigs: BatchConfig[] = [];
-    const makeSpyStub = (config: BatchConfig) => {
-      receivedConfigs.push(config);
-      return { evaluate: async () => ({ score: 'stub', reasoning: 'stub', metadata: {} }) };
-    };
-
     const evaluator = new BatchEvaluator({ anthropicApiKey: 'akey', modelOverride: override });
 
-    // Intercept initializeEvaluators by replacing the EVALUATOR_MAP lookup via evaluatorInstances
-    // We pre-seed one stub to verify it was NOT skipped (map checks for existing before constructing)
-    // Instead, we verify via the stored config
-    const config = (evaluator as unknown as { config: BatchConfig }).config;
-    expect(config.modelOverride).toEqual(override);
-
-    // Seed stubs that capture the config they "received"
-    const instances = (evaluator as unknown as { evaluatorInstances: Map<string, ReturnType<typeof makeSpyStub>> }).evaluatorInstances;
+    const instances = (evaluator as unknown as { evaluatorInstances: Map<string, unknown> }).evaluatorInstances;
     for (const id of group.evaluatorIds) {
-      instances.set(id, makeSpyStub(config));
+      instances.set(id, { evaluate: async () => ({ score: 'slightly complex', reasoning: 'stub', metadata: {} }) });
     }
 
-    const inputs = makeInputs(1);
-    await evaluator.evaluate(inputs, group.id);
-
-    // Every stub received the same config — verify modelOverride was in it
-    expect(receivedConfigs.length).toBe(group.evaluatorIds.length);
-    for (const received of receivedConfigs) {
-      expect(received.modelOverride).toEqual(override);
-    }
+    const output = await evaluator.evaluate(makeInputs(1), group.id);
+    expect(output.summary.successful).toBe(group.evaluatorIds.length);
+    expect(output.summary.failed).toBe(0);
   });
 });

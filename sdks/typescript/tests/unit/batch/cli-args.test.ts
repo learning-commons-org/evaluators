@@ -117,8 +117,31 @@ describe('parseArgs', () => {
     });
   });
 
-  it('ignores unknown flags', () => {
+  it('ignores unknown boolean flags', () => {
     expect(parseArgs(['--unknown-flag'])).toEqual({});
+  });
+
+  it('does not capture the value of an unknown flag as the csv path', () => {
+    // --concurreny is a typo; '3' is its value — input.csv should still be captured
+    const result = parseArgs(['--concurreny', '3', 'input.csv']);
+    expect(result.csv).toBe('input.csv');
+    expect(result.concurrency).toBeUndefined();
+  });
+
+  it('does not consume another flag as the value of --concurrency', () => {
+    const result = parseArgs(['--concurrency', '--no-telemetry']);
+    expect(result.concurrency).toBeUndefined();
+    expect(result.noTelemetry).toBe(true);
+  });
+
+  it('silently ignores --concurrency when no value follows', () => {
+    expect(parseArgs(['--concurrency']).concurrency).toBeUndefined();
+  });
+
+  it('silently ignores --concurrency with a non-integer value, still captures remaining args', () => {
+    const result = parseArgs(['--concurrency', 'abc', 'input.csv']);
+    expect(result.concurrency).toBeUndefined();
+    expect(result.csv).toBe('input.csv');
   });
 
   it('handles a fully-specified invocation', () => {
@@ -181,5 +204,10 @@ describe('requiredProviders', () => {
     const googleOnlyGroup = makeGroup({ requiresOpenAIKey: false });
     const providers = requiredProviders(googleOnlyGroup, undefined);
     expect(providers).toEqual([Provider.Google]);
+  });
+
+  it('returns empty array for a group requiring neither key', () => {
+    const noKeyGroup = makeGroup({ requiresGoogleKey: false, requiresOpenAIKey: false });
+    expect(requiredProviders(noKeyGroup, undefined)).toEqual([]);
   });
 });

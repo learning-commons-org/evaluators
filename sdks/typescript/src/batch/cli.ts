@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import prompts from 'prompts';
 import {
   BatchEvaluator,
@@ -16,6 +16,32 @@ import {
 import { ProgressTracker } from './progress.js';
 import { getSDKVersion } from '../telemetry/index.js';
 import { parseArgs, parseModelOverride, requiredProviders } from './cli-args.js';
+
+// ---- Output directory validation ----
+
+const KEY_FLAGS = new Set(['--google-api-key', '--openai-api-key', '--anthropic-api-key']);
+
+function validateOutputDir(value: string): string | true {
+  if (!value.trim()) return 'Output directory cannot be empty';
+  const resolved = path.resolve(value);
+  const parentDir = path.dirname(resolved);
+  if (!fs.existsSync(parentDir)) {
+    return `Parent directory does not exist: ${parentDir}`;
+  }
+  try {
+    const testFile = path.join(parentDir, '.write-test');
+    fs.writeFileSync(testFile, '');
+    fs.unlinkSync(testFile);
+    return true;
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes('EACCES')) return `No write permission for directory: ${parentDir}`;
+      if (error.message.includes('EROFS')) return `Directory is read-only: ${parentDir}`;
+      return `Cannot write to directory: ${error.message}`;
+    }
+    return 'Cannot write to directory';
+  }
+}
 
 // ---- Help / version ----
 
@@ -161,9 +187,16 @@ async function main() {
         console.log(`  • Trim the CSV to ${group.maxInputRows} rows`);
         console.log('  • Split into multiple smaller batches');
         console.log(`  • Re-run with --bypass-row-limit to skip this check:\n`);
-        const safeArgs = process.argv.slice(2)
-          .filter(a => a !== '--bypass-row-limit')
-          .map(a => (a.includes(' ') ? `"${a}"` : a));
+        const rawArgList = process.argv.slice(2).filter(a => a !== '--bypass-row-limit');
+        const safeArgs: string[] = [];
+        for (let j = 0; j < rawArgList.length; j++) {
+          if (KEY_FLAGS.has(rawArgList[j])) {
+            safeArgs.push(rawArgList[j], '<redacted>');
+            j++;
+          } else {
+            safeArgs.push(rawArgList[j].includes(' ') ? `"${rawArgList[j]}"` : rawArgList[j]);
+          }
+        }
         console.log(`    evaluators-batch ${[...safeArgs, '--bypass-row-limit'].join(' ')}\n`);
         process.exit(1);
       }
@@ -191,32 +224,19 @@ async function main() {
     let outputDir: string;
 
     if (cliArgs.outputDir) {
-      outputDir = cliArgs.outputDir;
+      const validation = validateOutputDir(cliArgs.outputDir);
+      if (validation !== true) {
+        console.error(`❌ Invalid --output-dir: ${validation}`);
+        process.exit(1);
+      }
+      outputDir = path.resolve(cliArgs.outputDir);
     } else {
       const response = await prompts({
         type: 'text',
         name: 'outputDir',
         message: 'Output directory:',
         initial: defaultOutputDir,
-        validate: (value) => {
-          const parentDir = path.dirname(value);
-          if (!fs.existsSync(parentDir)) {
-            return `Parent directory does not exist: ${parentDir}`;
-          }
-          try {
-            const testFile = path.join(parentDir, '.write-test');
-            fs.writeFileSync(testFile, '');
-            fs.unlinkSync(testFile);
-            return true;
-          } catch (error) {
-            if (error instanceof Error) {
-              if (error.message.includes('EACCES')) return `No write permission for directory: ${parentDir}`;
-              if (error.message.includes('EROFS')) return `Directory is read-only: ${parentDir}`;
-              return `Cannot write to directory: ${error.message}`;
-            }
-            return 'Cannot write to directory';
-          }
-        },
+        validate: validateOutputDir,
       });
 
       if (!response.outputDir) {
@@ -224,7 +244,7 @@ async function main() {
         process.exit(0);
       }
 
-      outputDir = response.outputDir as string;
+      outputDir = path.resolve(response.outputDir as string);
     }
 
     fs.mkdirSync(outputDir, { recursive: true });
@@ -355,8 +375,13 @@ async function main() {
       console.log();
 
       const htmlPath = path.join(outputDir, 'results.html');
-      const cmd = process.platform === 'win32' ? `start "" "${htmlPath}"` : `open "${htmlPath}"`;
-      exec(cmd, () => { /* best-effort: ignore open errors */ });
+      if (process.platform === 'win32') {
+        execFile('cmd', ['/c', 'start', '', htmlPath], () => {});
+      } else if (process.platform === 'darwin') {
+        execFile('open', [htmlPath], () => {});
+      } else {
+        execFile('xdg-open', [htmlPath], () => {});
+      }
     } catch (error) {
       console.error('\n❌ Error writing output files:');
       if (error instanceof Error) console.error(`  ${error.message}`);

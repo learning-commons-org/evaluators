@@ -31,23 +31,28 @@ export function parseArgs(argv: string[] = process.argv.slice(2)): CliArgs {
       result.noTelemetry = true;
     } else if (arg === '--bypass-row-limit') {
       result.bypassRowLimit = true;
-    } else if (arg === '--concurrency' && argv[i + 1]) {
+    } else if (arg === '--concurrency' && argv[i + 1] && !argv[i + 1].startsWith('--')) {
       const v = parseInt(argv[++i], 10);
       if (!isNaN(v) && v > 0) result.concurrency = v;
-    } else if (arg === '--max-retries' && argv[i + 1]) {
+    } else if (arg === '--max-retries' && argv[i + 1] && !argv[i + 1].startsWith('--')) {
       const v = parseInt(argv[++i], 10);
       if (!isNaN(v) && v >= 0) result.maxRetries = v;
-    } else if (arg === '--google-api-key' && argv[i + 1]) {
+    } else if (arg === '--google-api-key' && argv[i + 1] && !argv[i + 1].startsWith('--')) {
       result.googleApiKey = argv[++i];
-    } else if (arg === '--openai-api-key' && argv[i + 1]) {
+    } else if (arg === '--openai-api-key' && argv[i + 1] && !argv[i + 1].startsWith('--')) {
       result.openaiApiKey = argv[++i];
-    } else if (arg === '--anthropic-api-key' && argv[i + 1]) {
+    } else if (arg === '--anthropic-api-key' && argv[i + 1] && !argv[i + 1].startsWith('--')) {
       result.anthropicApiKey = argv[++i];
-    } else if (arg === '--output-dir' && argv[i + 1]) {
+    } else if (arg === '--output-dir' && argv[i + 1] && !argv[i + 1].startsWith('--')) {
       result.outputDir = argv[++i];
-    } else if (arg === '--model' && argv[i + 1]) {
+    } else if (arg === '--model' && argv[i + 1] && !argv[i + 1].startsWith('--')) {
       result.model = argv[++i];
-    } else if (!arg.startsWith('--') && !result.csv) {
+    } else if (arg.startsWith('--')) {
+      // Unknown flag — skip its value if the next token doesn't look like a flag
+      if (argv[i + 1] && !argv[i + 1].startsWith('--')) {
+        i++;
+      }
+    } else if (!result.csv) {
       result.csv = arg;
     }
   }

@@ -88,7 +88,7 @@ export class BatchEvaluator {
       ...config,
     };
 
-    this.limit = pLimit(this.config.concurrency!);
+    this.limit = pLimit(this.config.concurrency ?? 3);
   }
 
   /**
