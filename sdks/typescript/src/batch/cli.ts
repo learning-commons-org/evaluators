@@ -28,7 +28,11 @@ function validateOutputDir(value: string): string | true {
   const resolved = path.resolve(trimmed);
 
   if (fs.existsSync(resolved)) {
-    if (!fs.statSync(resolved).isDirectory()) return `Path exists but is not a directory: ${resolved}`;
+    try {
+      if (!fs.statSync(resolved).isDirectory()) return `Path exists but is not a directory: ${resolved}`;
+    } catch {
+      return `Cannot access path: ${resolved}`;
+    }
     // Target dir exists — test writability there
   }
 
@@ -38,7 +42,7 @@ function validateOutputDir(value: string): string | true {
     return `Parent directory does not exist: ${path.dirname(resolved)}`;
   }
   try {
-    // Use a timestamped name to avoid clobbering any real file named ".write-test".
+    // Use a UUID to guarantee uniqueness across concurrent processes.
     const testFile = path.join(checkDir, `.write-test-${randomUUID()}`);
     fs.writeFileSync(testFile, '');
     fs.unlinkSync(testFile);
@@ -207,8 +211,8 @@ async function main() {
           const a = rawArgList[j];
           if (KEY_FLAGS.has(a)) {
             safeArgs.push(a, '<redacted>');
-            // Skip the value token unless it's a '--' flag (single-dash values like '-sk-xxx' are valid API keys)
-            if (j + 1 < rawArgList.length && !rawArgList[j + 1].startsWith('--')) j++;
+            // Skip the value token if it looks like a value, not a flag (consistent with parseArgs behaviour)
+            if (j + 1 < rawArgList.length && !rawArgList[j + 1].startsWith('-')) j++;
           } else if (KEY_FLAG_PREFIXES.some(p => a.startsWith(p))) {
             safeArgs.push(`${a.slice(0, a.indexOf('='))}=<redacted>`);
           } else {
@@ -247,7 +251,7 @@ async function main() {
         console.error(`❌ Invalid --output-dir: ${validation}`);
         process.exit(1);
       }
-      outputDir = path.resolve(cliArgs.outputDir);
+      outputDir = path.resolve(cliArgs.outputDir.trim());
     } else {
       const response = await prompts({
         type: 'text',
@@ -262,7 +266,7 @@ async function main() {
         process.exit(0);
       }
 
-      outputDir = path.resolve(response.outputDir as string);
+      outputDir = path.resolve((response.outputDir as string).trim());
     }
 
     fs.mkdirSync(outputDir, { recursive: true });
