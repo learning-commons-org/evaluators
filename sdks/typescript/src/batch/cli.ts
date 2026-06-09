@@ -207,8 +207,8 @@ async function main() {
           const a = rawArgList[j];
           if (KEY_FLAGS.has(a)) {
             safeArgs.push(a, '<redacted>');
-            // Only skip the next token if it looks like a value, not another flag
-            if (j + 1 < rawArgList.length && !rawArgList[j + 1].startsWith('-')) j++;
+            // Skip the value token unless it's a '--' flag (single-dash values like '-sk-xxx' are valid API keys)
+            if (j + 1 < rawArgList.length && !rawArgList[j + 1].startsWith('--')) j++;
           } else if (KEY_FLAG_PREFIXES.some(p => a.startsWith(p))) {
             safeArgs.push(`${a.slice(0, a.indexOf('='))}=<redacted>`);
           } else {
