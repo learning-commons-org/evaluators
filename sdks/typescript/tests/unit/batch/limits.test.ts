@@ -139,6 +139,50 @@ describe('BatchEvaluator.evaluate() — input validation', () => {
     const fresh = new BatchEvaluator({ googleApiKey: 'k', openaiApiKey: 'k' });
     expect(fresh.cancel()).toEqual([]);
   });
+
+  it('cancel() mid-evaluation marks queued tasks as cancelled', async () => {
+    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+    // concurrency:1 ensures tasks run sequentially so cancel() reliably affects later ones
+    const evaluator = new BatchEvaluator({ googleApiKey: 'k', openaiApiKey: 'k', concurrency: 1 });
+
+    const instances = (evaluator as unknown as { evaluatorInstances: Map<string, unknown> }).evaluatorInstances;
+    let firstDone = false;
+    for (const id of group.evaluatorIds) {
+      instances.set(id, {
+        evaluate: async () => {
+          if (!firstDone) { firstDone = true; evaluator.cancel(); }
+          return { score: 'slightly complex', reasoning: 'stub', metadata: {} };
+        },
+      });
+    }
+
+    const output = await evaluator.evaluate(makeInputs(1), group.id);
+    const successful = output.results.filter(r => r.status === 'success');
+    const cancelled = output.results.filter(r => r.status === 'error' && r.error === 'Cancelled by user');
+
+    expect(successful.length).toBeGreaterThanOrEqual(1);
+    expect(cancelled.length).toBeGreaterThan(0);
+    expect(successful.length + cancelled.length).toBe(group.evaluatorIds.length);
+  });
+
+  it('evaluate() resets state between calls — second call produces a clean result set', async () => {
+    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+    const evaluator = new BatchEvaluator({ googleApiKey: 'k', openaiApiKey: 'k' });
+
+    const instances = (evaluator as unknown as { evaluatorInstances: Map<string, unknown> }).evaluatorInstances;
+    for (const id of group.evaluatorIds) {
+      instances.set(id, { evaluate: async () => ({ score: 'slightly complex', reasoning: 'stub', metadata: {} }) });
+    }
+
+    const first = await evaluator.evaluate(makeInputs(1), group.id);
+    const second = await evaluator.evaluate(makeInputs(1), group.id);
+
+    // Second call must not accumulate results from the first
+    expect(second.summary.totalTasks).toBe(group.evaluatorIds.length);
+    expect(second.summary.successful).toBe(group.evaluatorIds.length);
+    // And first call must be unaffected
+    expect(first.summary.totalTasks).toBe(group.evaluatorIds.length);
+  });
 });
 
 describe('BatchEvaluator — modelOverride config', () => {

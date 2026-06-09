@@ -22,9 +22,16 @@ const KEY_FLAGS = new Set(['--google-api-key', '--openai-api-key', '--anthropic-
 const KEY_FLAG_PREFIXES = ['--google-api-key=', '--openai-api-key=', '--anthropic-api-key='];
 
 function validateOutputDir(value: string): string | true {
-  if (!value.trim()) return 'Output directory cannot be empty';
-  const resolved = path.resolve(value);
-  // If the target dir already exists, test writability there; otherwise test the parent.
+  const trimmed = value.trim();
+  if (!trimmed) return 'Output directory cannot be empty';
+  const resolved = path.resolve(trimmed);
+
+  if (fs.existsSync(resolved)) {
+    if (!fs.statSync(resolved).isDirectory()) return `Path exists but is not a directory: ${resolved}`;
+    // Target dir exists — test writability there
+  }
+
+  // Test writability of the target dir (if it exists) or its parent (if not yet created)
   const checkDir = fs.existsSync(resolved) ? resolved : path.dirname(resolved);
   if (!fs.existsSync(checkDir)) {
     return `Parent directory does not exist: ${path.dirname(resolved)}`;
@@ -36,12 +43,10 @@ function validateOutputDir(value: string): string | true {
     fs.unlinkSync(testFile);
     return true;
   } catch (error) {
-    if (error instanceof Error) {
-      if (error.message.includes('EACCES')) return `No write permission for directory: ${checkDir}`;
-      if (error.message.includes('EROFS')) return `Directory is read-only: ${checkDir}`;
-      return `Cannot write to directory: ${error.message}`;
-    }
-    return 'Cannot write to directory';
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'EACCES') return `No write permission for directory: ${checkDir}`;
+    if (code === 'EROFS')  return `Directory is read-only: ${checkDir}`;
+    return `Cannot write to directory: ${error instanceof Error ? error.message : String(error)}`;
   }
 }
 
@@ -195,7 +200,8 @@ async function main() {
           const a = rawArgList[j];
           if (KEY_FLAGS.has(a)) {
             safeArgs.push(a, '<redacted>');
-            j++;
+            // Only skip the next token if it looks like a value, not another flag
+            if (j + 1 < rawArgList.length && !rawArgList[j + 1].startsWith('-')) j++;
           } else if (KEY_FLAG_PREFIXES.some(p => a.startsWith(p))) {
             safeArgs.push(`${a.slice(0, a.indexOf('='))}=<redacted>`);
           } else {

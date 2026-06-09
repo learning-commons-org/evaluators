@@ -83,7 +83,7 @@ export class BatchEvaluator {
     this.config = {
       concurrency: 3,
       maxRetries: 2,
-      telemetry: false,
+      telemetry: true, // matches CLI default; opt out with { telemetry: false } or --no-telemetry
       bypassRowLimit: false,
       ...config,
     };

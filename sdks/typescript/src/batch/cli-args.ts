@@ -18,10 +18,21 @@ export interface CliArgs {
 }
 
 export function parseArgs(argv: string[] = process.argv.slice(2)): CliArgs {
+  // Normalise --flag=value into ['--flag', 'value'] so the loop handles both forms identically
+  const args: string[] = [];
+  for (const a of argv) {
+    const eqIdx = a.startsWith('--') ? a.indexOf('=') : -1;
+    if (eqIdx !== -1) {
+      args.push(a.slice(0, eqIdx), a.slice(eqIdx + 1));
+    } else {
+      args.push(a);
+    }
+  }
+
   const result: CliArgs = {};
 
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
 
     if (arg === '--help' || arg === '-h') {
       result.help = true;
@@ -31,22 +42,22 @@ export function parseArgs(argv: string[] = process.argv.slice(2)): CliArgs {
       result.noTelemetry = true;
     } else if (arg === '--bypass-row-limit') {
       result.bypassRowLimit = true;
-    } else if (arg === '--concurrency' && argv[i + 1] && !argv[i + 1].startsWith('-')) {
-      const v = parseInt(argv[++i], 10);
+    } else if (arg === '--concurrency' && args[i + 1] && !args[i + 1].startsWith('-')) {
+      const v = parseInt(args[++i], 10);
       if (!isNaN(v) && v > 0) result.concurrency = v;
-    } else if (arg === '--max-retries' && argv[i + 1] && !argv[i + 1].startsWith('-')) {
-      const v = parseInt(argv[++i], 10);
+    } else if (arg === '--max-retries' && args[i + 1] && !args[i + 1].startsWith('-')) {
+      const v = parseInt(args[++i], 10);
       if (!isNaN(v) && v >= 0) result.maxRetries = v;
-    } else if (arg === '--google-api-key' && argv[i + 1] && !argv[i + 1].startsWith('-')) {
-      result.googleApiKey = argv[++i];
-    } else if (arg === '--openai-api-key' && argv[i + 1] && !argv[i + 1].startsWith('-')) {
-      result.openaiApiKey = argv[++i];
-    } else if (arg === '--anthropic-api-key' && argv[i + 1] && !argv[i + 1].startsWith('-')) {
-      result.anthropicApiKey = argv[++i];
-    } else if (arg === '--output-dir' && argv[i + 1] && !argv[i + 1].startsWith('-')) {
-      result.outputDir = argv[++i];
-    } else if (arg === '--model' && argv[i + 1] && !argv[i + 1].startsWith('-')) {
-      result.model = argv[++i];
+    } else if (arg === '--google-api-key' && args[i + 1] && !args[i + 1].startsWith('-')) {
+      result.googleApiKey = args[++i];
+    } else if (arg === '--openai-api-key' && args[i + 1] && !args[i + 1].startsWith('-')) {
+      result.openaiApiKey = args[++i];
+    } else if (arg === '--anthropic-api-key' && args[i + 1] && !args[i + 1].startsWith('-')) {
+      result.anthropicApiKey = args[++i];
+    } else if (arg === '--output-dir' && args[i + 1] && !args[i + 1].startsWith('-')) {
+      result.outputDir = args[++i];
+    } else if (arg === '--model' && args[i + 1] && !args[i + 1].startsWith('-')) {
+      result.model = args[++i];
     } else if (!arg.startsWith('-') && !result.csv) {
       result.csv = arg;
     }
@@ -55,6 +66,7 @@ export function parseArgs(argv: string[] = process.argv.slice(2)): CliArgs {
   return result;
 }
 
+
 export function parseModelOverride(raw: string): ModelOverride {
   const colonIdx = raw.indexOf(':');
   if (colonIdx === -1) {
@@ -62,7 +74,7 @@ export function parseModelOverride(raw: string): ModelOverride {
       `--model requires "provider:model" format (e.g. anthropic:claude-opus-4-8), got: "${raw}"`
     );
   }
-  const providerStr = raw.slice(0, colonIdx).toLowerCase();
+  const providerStr = raw.slice(0, colonIdx).toLowerCase().trim();
   const model = raw.slice(colonIdx + 1).trim();
 
   const validProviders = Object.values(Provider);

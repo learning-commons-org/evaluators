@@ -46,6 +46,13 @@ describe('parseModelOverride', () => {
     expect(() => parseModelOverride('openai:gpt-4o')).not.toThrow();
     expect(() => parseModelOverride('anthropic:claude-opus-4-8')).not.toThrow();
   });
+
+  it('trims whitespace from the provider (symmetric with model trim)', () => {
+    expect(parseModelOverride(' anthropic :claude-opus-4-8')).toEqual({
+      provider: Provider.Anthropic,
+      model: 'claude-opus-4-8',
+    });
+  });
 });
 
 // ---- parseArgs ----
@@ -91,8 +98,11 @@ describe('parseArgs', () => {
     expect(parseArgs(['--concurrency', '5'])).toMatchObject({ concurrency: 5 });
   });
 
-  it('ignores --concurrency with a non-positive value', () => {
-    expect(parseArgs(['--concurrency', '0']).concurrency).toBeUndefined();
+  it('ignores --concurrency with a non-positive value and preserves the remaining positional', () => {
+    const r0 = parseArgs(['--concurrency', '0', 'input.csv']);
+    expect(r0.concurrency).toBeUndefined();
+    expect(r0.csv).toBe('input.csv');
+    // -1 starts with '-' so the guard prevents it being consumed as a value
     expect(parseArgs(['--concurrency', '-1']).concurrency).toBeUndefined();
   });
 
@@ -101,10 +111,26 @@ describe('parseArgs', () => {
     expect(parseArgs(['--max-retries', '3'])).toMatchObject({ maxRetries: 3 });
   });
 
-  it('parses API key flags', () => {
+  it('parses API key flags (space form)', () => {
     expect(parseArgs(['--google-api-key', 'gkey'])).toMatchObject({ googleApiKey: 'gkey' });
     expect(parseArgs(['--openai-api-key', 'okey'])).toMatchObject({ openaiApiKey: 'okey' });
     expect(parseArgs(['--anthropic-api-key', 'akey'])).toMatchObject({ anthropicApiKey: 'akey' });
+  });
+
+  it('parses API key flags (= form)', () => {
+    expect(parseArgs(['--google-api-key=gkey'])).toMatchObject({ googleApiKey: 'gkey' });
+    expect(parseArgs(['--openai-api-key=okey'])).toMatchObject({ openaiApiKey: 'okey' });
+    expect(parseArgs(['--anthropic-api-key=akey'])).toMatchObject({ anthropicApiKey: 'akey' });
+  });
+
+  it('parses --model in = form', () => {
+    expect(parseArgs(['--model=anthropic:claude-opus-4-8'])).toMatchObject({
+      model: 'anthropic:claude-opus-4-8',
+    });
+  });
+
+  it('parses --output-dir in = form', () => {
+    expect(parseArgs(['--output-dir=./out'])).toMatchObject({ outputDir: './out' });
   });
 
   it('parses --output-dir', () => {
