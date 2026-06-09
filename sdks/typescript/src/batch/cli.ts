@@ -19,23 +19,26 @@ import { parseArgs, parseModelOverride, requiredProviders } from './cli-args.js'
 // ---- Output directory validation ----
 
 const KEY_FLAGS = new Set(['--google-api-key', '--openai-api-key', '--anthropic-api-key']);
+const KEY_FLAG_PREFIXES = ['--google-api-key=', '--openai-api-key=', '--anthropic-api-key='];
 
 function validateOutputDir(value: string): string | true {
   if (!value.trim()) return 'Output directory cannot be empty';
   const resolved = path.resolve(value);
-  const parentDir = path.dirname(resolved);
-  if (!fs.existsSync(parentDir)) {
-    return `Parent directory does not exist: ${parentDir}`;
+  // If the target dir already exists, test writability there; otherwise test the parent.
+  const checkDir = fs.existsSync(resolved) ? resolved : path.dirname(resolved);
+  if (!fs.existsSync(checkDir)) {
+    return `Parent directory does not exist: ${path.dirname(resolved)}`;
   }
   try {
-    const testFile = path.join(parentDir, '.write-test');
+    // Use a timestamped name to avoid clobbering any real file named ".write-test".
+    const testFile = path.join(checkDir, `.write-test-${Date.now()}`);
     fs.writeFileSync(testFile, '');
     fs.unlinkSync(testFile);
     return true;
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message.includes('EACCES')) return `No write permission for directory: ${parentDir}`;
-      if (error.message.includes('EROFS')) return `Directory is read-only: ${parentDir}`;
+      if (error.message.includes('EACCES')) return `No write permission for directory: ${checkDir}`;
+      if (error.message.includes('EROFS')) return `Directory is read-only: ${checkDir}`;
       return `Cannot write to directory: ${error.message}`;
     }
     return 'Cannot write to directory';
@@ -189,11 +192,14 @@ async function main() {
         const rawArgList = process.argv.slice(2).filter(a => a !== '--bypass-row-limit');
         const safeArgs: string[] = [];
         for (let j = 0; j < rawArgList.length; j++) {
-          if (KEY_FLAGS.has(rawArgList[j])) {
-            safeArgs.push(rawArgList[j], '<redacted>');
+          const a = rawArgList[j];
+          if (KEY_FLAGS.has(a)) {
+            safeArgs.push(a, '<redacted>');
             j++;
+          } else if (KEY_FLAG_PREFIXES.some(p => a.startsWith(p))) {
+            safeArgs.push(`${a.slice(0, a.indexOf('='))}=<redacted>`);
           } else {
-            safeArgs.push(rawArgList[j].includes(' ') ? `"${rawArgList[j]}"` : rawArgList[j]);
+            safeArgs.push(a.includes(' ') ? `"${a}"` : a);
           }
         }
         console.log(`    evaluators-batch ${[...safeArgs, '--bypass-row-limit'].join(' ')}\n`);

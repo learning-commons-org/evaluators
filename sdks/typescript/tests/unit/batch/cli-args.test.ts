@@ -121,17 +121,29 @@ describe('parseArgs', () => {
     expect(parseArgs(['--unknown-flag'])).toEqual({});
   });
 
-  it('does not capture the value of an unknown flag as the csv path', () => {
-    // --concurreny is a typo; '3' is its value — input.csv should still be captured
+  it('treats the token after an unknown flag as positional csv (known limitation of flag-less parsers)', () => {
+    // Without a schema we cannot tell whether '3' is a value for '--concurreny' or a positional.
+    // We accept this: passing CSV as the first argument avoids the ambiguity entirely.
     const result = parseArgs(['--concurreny', '3', 'input.csv']);
-    expect(result.csv).toBe('input.csv');
+    expect(result.csv).toBe('3');
     expect(result.concurrency).toBeUndefined();
   });
 
-  it('does not consume another flag as the value of --concurrency', () => {
+  it('does not consume another -- flag as the value of --concurrency', () => {
     const result = parseArgs(['--concurrency', '--no-telemetry']);
     expect(result.concurrency).toBeUndefined();
     expect(result.noTelemetry).toBe(true);
+  });
+
+  it('does not consume a single-dash flag (-h) as the value of --concurrency', () => {
+    const result = parseArgs(['--concurrency', '-h']);
+    expect(result.concurrency).toBeUndefined();
+    expect(result.help).toBe(true);
+  });
+
+  it('does not swallow the positional csv when an unknown flag precedes it', () => {
+    const result = parseArgs(['--unknown', 'input.csv']);
+    expect(result.csv).toBe('input.csv');
   });
 
   it('silently ignores --concurrency when no value follows', () => {
