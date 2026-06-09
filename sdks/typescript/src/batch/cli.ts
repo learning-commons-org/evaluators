@@ -1,6 +1,5 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { execFile } from 'child_process';
 import prompts from 'prompts';
 import {
   BatchEvaluator,
@@ -368,20 +367,13 @@ async function main() {
       fs.writeFileSync(path.join(outputDir, 'results.csv'), formatAsCSV(output));
       fs.writeFileSync(path.join(outputDir, 'results.html'), formatAsHTML(output, reportMeta));
 
+      const htmlPath = path.join(outputDir, 'results.html');
       console.log('📄 Output files generated:');
       console.log(`  ${outputDir}/`);
       console.log(`    ├── results.csv`);
       console.log(`    └── results.html`);
       console.log();
-
-      const htmlPath = path.join(outputDir, 'results.html');
-      if (process.platform === 'win32') {
-        execFile('cmd', ['/c', 'start', '', htmlPath], () => {});
-      } else if (process.platform === 'darwin') {
-        execFile('open', [htmlPath], () => {});
-      } else {
-        execFile('xdg-open', [htmlPath], () => {});
-      }
+      console.log(`Open the report: ${htmlPath}`);
     } catch (error) {
       console.error('\n❌ Error writing output files:');
       if (error instanceof Error) console.error(`  ${error.message}`);
