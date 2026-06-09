@@ -1,13 +1,6 @@
 import pLimit from 'p-limit';
-import {
-  VocabularyEvaluator,
-  SentenceStructureEvaluator,
-  GradeLevelAppropriatenessEvaluator,
-  SmkEvaluator,
-  ConventionalityEvaluator,
-  PurposeEvaluator,
-} from '../evaluators/index.js';
-import type { BaseEvaluatorConfig } from '../evaluators/base.js';
+import { EVALUATORS, findEvaluator } from '../evaluators/index.js';
+import type { BaseEvaluatorConfig, ModelOverride } from '../evaluators/base.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import type {
   BatchInput,
@@ -26,18 +19,6 @@ interface SimpleEvaluator {
 type EvaluatorConstructor = new (config: BaseEvaluatorConfig) => SimpleEvaluator;
 
 /**
- * Map of evaluator IDs to their constructors — internal to this module.
- */
-const EVALUATOR_MAP = new Map<string, EvaluatorConstructor>([
-  [GradeLevelAppropriatenessEvaluator.metadata.id, GradeLevelAppropriatenessEvaluator],
-  [SmkEvaluator.metadata.id, SmkEvaluator],
-  [VocabularyEvaluator.metadata.id, VocabularyEvaluator],
-  [SentenceStructureEvaluator.metadata.id, SentenceStructureEvaluator],
-  [ConventionalityEvaluator.metadata.id, ConventionalityEvaluator],
-  [PurposeEvaluator.metadata.id, PurposeEvaluator],
-]);
-
-/**
  * Evaluator groups available for batch processing.
  * Each group runs a fixed set of evaluators and maps to a specific HTML report format.
  */
@@ -49,23 +30,13 @@ const EVALUATOR_GROUPS: EvaluatorGroup[] = [
     id: 'text-complexity',
     name: 'Text Complexity Analysis',
     description: 'Evaluates all dimensions of the Qualitative Text Complexity rubric',
-    evaluatorIds: [
-      GradeLevelAppropriatenessEvaluator.metadata.id,
-      SmkEvaluator.metadata.id,
-      VocabularyEvaluator.metadata.id,
-      SentenceStructureEvaluator.metadata.id,
-      ConventionalityEvaluator.metadata.id,
-      PurposeEvaluator.metadata.id,
-    ],
+    evaluatorIds: EVALUATORS.map((e) => e.metadata.id),
     requiresGoogleKey: true,
     requiresOpenAIKey: true,
     maxInputRows: 50,
   },
 ];
 
-/**
- * Returns the available evaluator groups.
- */
 export function getAvailableGroups(): EvaluatorGroup[] {
   return [...EVALUATOR_GROUPS];
 }
@@ -76,7 +47,7 @@ export function getAvailableGroups(): EvaluatorGroup[] {
  * Processes multiple texts in parallel using all evaluators in a group.
  */
 export class BatchEvaluator {
-  private config: BatchConfig;
+  private config: BatchConfig & { modelOverride?: ModelOverride };
   private limit: ReturnType<typeof pLimit>;
   private evaluatorInstances = new Map<string, SimpleEvaluator>();
   private isCancelled = false;
@@ -103,14 +74,11 @@ export class BatchEvaluator {
     return [...this.completedResults];
   }
 
-  /**
-   * Initialize evaluator instances for the given IDs
-   */
   private initializeEvaluators(evaluatorIds: readonly string[]): void {
     for (const id of evaluatorIds) {
       if (this.evaluatorInstances.has(id)) continue;
 
-      const EvaluatorClass = EVALUATOR_MAP.get(id);
+      const EvaluatorClass = findEvaluator(id) as EvaluatorConstructor | undefined;
       if (!EvaluatorClass) {
         throw new Error(`Unknown evaluator: ${id}`);
       }
@@ -118,8 +86,10 @@ export class BatchEvaluator {
       const evaluator = new EvaluatorClass({
         googleApiKey: this.config.googleApiKey,
         openaiApiKey: this.config.openaiApiKey,
+        anthropicApiKey: this.config.anthropicApiKey,
         maxRetries: this.config.maxRetries,
         telemetry: this.config.telemetry,
+        modelOverride: this.config.modelOverride,
       });
 
       this.evaluatorInstances.set(id, evaluator);
@@ -129,8 +99,8 @@ export class BatchEvaluator {
   /**
    * Create tasks from inputs and evaluator IDs
    */
-  private createTasks(inputs: BatchInput[], evaluatorIds: readonly string[]): Array<BatchTask & { originalRow: Record<string, unknown> }> {
-    const tasks: Array<BatchTask & { originalRow: Record<string, unknown> }> = [];
+  private createTasks(inputs: BatchInput[], evaluatorIds: readonly string[]): BatchTask[] {
+    const tasks: BatchTask[] = [];
 
     for (const input of inputs) {
       for (const evaluatorId of evaluatorIds) {
@@ -147,11 +117,8 @@ export class BatchEvaluator {
     return tasks;
   }
 
-  /**
-   * Execute a single evaluation task
-   */
   private async executeTask(
-    task: BatchTask & { originalRow: Record<string, unknown> },
+    task: BatchTask,
     onProgress?: (result: BatchResult) => void
   ): Promise<BatchResult> {
     // Check if cancelled before starting
@@ -232,9 +199,6 @@ export class BatchEvaluator {
     }
   }
 
-  /**
-   * Calculate summary statistics
-   */
   private calculateSummary(results: BatchResult[], durationMs: number): BatchSummary {
     const summary: BatchSummary = {
       totalTasks: results.length,

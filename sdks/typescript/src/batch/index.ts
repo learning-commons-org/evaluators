@@ -27,3 +27,5 @@ export type {
   BatchConfig,
   BatchSummary,
 } from './types.js';
+export { Provider } from '../evaluators/base.js';
+export type { ModelOverride } from '../evaluators/base.js';
