@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getAvailableGroups, BatchEvaluator, Provider } from '../../../src/batch/index.js';
-import type { BatchInput, BatchConfig } from '../../../src/batch/index.js';
+import type { BatchInput, BatchConfig, BatchResult } from '../../../src/batch/index.js';
 
 function makeInputs(count: number): BatchInput[] {
   return Array.from({ length: count }, (_, i) => ({
@@ -140,7 +140,7 @@ describe('BatchEvaluator.evaluate() — input validation', () => {
     expect(fresh.cancel()).toEqual([]);
   });
 
-  it('cancel() mid-evaluation marks queued tasks as cancelled', async () => {
+  it('cancel() mid-evaluation marks queued tasks as cancelled and includes them in completedResults', async () => {
     const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
     // concurrency:1 ensures tasks run sequentially so cancel() reliably affects later ones
     const evaluator = new BatchEvaluator({ googleApiKey: 'k', openaiApiKey: 'k', concurrency: 1 });
@@ -163,6 +163,10 @@ describe('BatchEvaluator.evaluate() — input validation', () => {
     expect(successful.length).toBeGreaterThanOrEqual(1);
     expect(cancelled.length).toBeGreaterThan(0);
     expect(successful.length + cancelled.length).toBe(group.evaluatorIds.length);
+
+    // Cancelled tasks must be in completedResults so Ctrl+C partial saves are complete
+    const completedResults = (evaluator as unknown as { completedResults: BatchResult[] }).completedResults;
+    expect(completedResults.length).toBe(group.evaluatorIds.length);
   });
 
   it('evaluate() resets state between calls — second call produces a clean result set', async () => {

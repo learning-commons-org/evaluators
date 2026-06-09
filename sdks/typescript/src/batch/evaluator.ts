@@ -159,6 +159,8 @@ export class BatchEvaluator {
         processingTimeMs: 0,
         originalRow: task.originalRow,
       };
+      this.completedResults.push(batchResult);
+      if (onProgress) onProgress(batchResult);
       return batchResult;
     }
 

@@ -43,7 +43,7 @@ function validateOutputDir(value: string): string | true {
     fs.unlinkSync(testFile);
     return true;
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
+    const code = (error as { code?: string }).code;
     if (code === 'EACCES') return `No write permission for directory: ${checkDir}`;
     if (code === 'EROFS')  return `Directory is read-only: ${checkDir}`;
     return `Cannot write to directory: ${error instanceof Error ? error.message : String(error)}`;
@@ -88,7 +88,13 @@ async function resolveApiKey(provider: Provider, fromFlag: string | undefined): 
   const { envVar, label } = KEY_CONFIG[provider];
   const fromEnv = process.env[envVar];
 
-  if (fromFlag) return fromFlag;
+  if (fromFlag !== undefined) {
+    if (!fromFlag) {
+      console.error(`❌ ${label} flag was provided but is empty`);
+      process.exit(1);
+    }
+    return fromFlag;
+  }
   if (fromEnv) return fromEnv;
 
   const result = await prompts({
@@ -123,7 +129,7 @@ async function main() {
 
   // Parse model override early so errors surface before any prompts
   let modelOverride: ModelOverride | undefined;
-  if (cliArgs.model) {
+  if (cliArgs.model !== undefined) {
     try {
       modelOverride = parseModelOverride(cliArgs.model);
     } catch (error) {
@@ -140,7 +146,7 @@ async function main() {
     let inputs: BatchInput[] = [];
     let csvPath: string;
 
-    if (cliArgs.csv) {
+    if (cliArgs.csv !== undefined) {
       try {
         inputs = parseCSV(cliArgs.csv);
         csvPath = cliArgs.csv;
@@ -205,7 +211,7 @@ async function main() {
           } else if (KEY_FLAG_PREFIXES.some(p => a.startsWith(p))) {
             safeArgs.push(`${a.slice(0, a.indexOf('='))}=<redacted>`);
           } else {
-            safeArgs.push(a.includes(' ') ? `"${a}"` : a);
+            safeArgs.push(a.includes(' ') ? `"${a.replace(/"/g, '\\"')}"` : a);
           }
         }
         console.log(`    evaluators-batch ${[...safeArgs, '--bypass-row-limit'].join(' ')}\n`);
@@ -234,7 +240,7 @@ async function main() {
 
     let outputDir: string;
 
-    if (cliArgs.outputDir) {
+    if (cliArgs.outputDir !== undefined) {
       const validation = validateOutputDir(cliArgs.outputDir);
       if (validation !== true) {
         console.error(`❌ Invalid --output-dir: ${validation}`);

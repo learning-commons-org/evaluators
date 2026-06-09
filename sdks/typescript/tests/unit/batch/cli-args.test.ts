@@ -66,6 +66,11 @@ describe('parseArgs', () => {
     expect(parseArgs(['input.csv'])).toMatchObject({ csv: 'input.csv' });
   });
 
+  it('captures an empty positional as csv so the caller gets a clear file-not-found error', () => {
+    // parseArgs should not swallow ''; the CLI path (parseCSV) gives the user a clear error
+    expect(parseArgs([''])).toMatchObject({ csv: '' });
+  });
+
   it('ignores a second positional argument', () => {
     expect(parseArgs(['a.csv', 'b.csv'])).toMatchObject({ csv: 'a.csv' });
   });
@@ -135,6 +140,10 @@ describe('parseArgs', () => {
 
   it('parses --output-dir', () => {
     expect(parseArgs(['--output-dir', './out'])).toMatchObject({ outputDir: './out' });
+  });
+
+  it('captures an empty-string value from --output-dir= so the caller can validate it', () => {
+    expect(parseArgs(['--output-dir='])).toMatchObject({ outputDir: '' });
   });
 
   it('parses --model', () => {
