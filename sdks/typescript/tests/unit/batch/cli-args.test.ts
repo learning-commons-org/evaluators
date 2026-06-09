@@ -75,6 +75,11 @@ describe('parseArgs', () => {
     expect(parseArgs(['a.csv', 'b.csv'])).toMatchObject({ csv: 'a.csv' });
   });
 
+  it('an empty first positional locks in csv so a later positional cannot overwrite it', () => {
+    // Ensures the undefined check (not falsiness) is used — '' should hold its place
+    expect(parseArgs(['', 'input.csv'])).toMatchObject({ csv: '' });
+  });
+
   it('does not treat a value arg as the csv path', () => {
     // '3' is the value of --concurrency, not a positional csv
     const result = parseArgs(['--concurrency', '3', 'input.csv']);

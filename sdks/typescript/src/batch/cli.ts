@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { randomUUID } from 'crypto';
 import prompts from 'prompts';
 import {
   BatchEvaluator,
@@ -38,7 +39,7 @@ function validateOutputDir(value: string): string | true {
   }
   try {
     // Use a timestamped name to avoid clobbering any real file named ".write-test".
-    const testFile = path.join(checkDir, `.write-test-${Date.now()}`);
+    const testFile = path.join(checkDir, `.write-test-${randomUUID()}`);
     fs.writeFileSync(testFile, '');
     fs.unlinkSync(testFile);
     return true;
@@ -211,7 +212,7 @@ async function main() {
           } else if (KEY_FLAG_PREFIXES.some(p => a.startsWith(p))) {
             safeArgs.push(`${a.slice(0, a.indexOf('='))}=<redacted>`);
           } else {
-            safeArgs.push(a.includes(' ') ? `"${a.replace(/"/g, '\\"')}"` : a);
+            safeArgs.push(a.includes(' ') ? `"${a.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : a);
           }
         }
         console.log(`    evaluators-batch ${[...safeArgs, '--bypass-row-limit'].join(' ')}\n`);

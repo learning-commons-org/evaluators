@@ -58,7 +58,7 @@ export function parseArgs(argv: string[] = process.argv.slice(2)): CliArgs {
       result.outputDir = args[++i];
     } else if (arg === '--model' && i + 1 < args.length && !args[i + 1].startsWith('-')) {
       result.model = args[++i];
-    } else if (!arg.startsWith('-') && !result.csv) {
+    } else if (!arg.startsWith('-') && result.csv === undefined) {
       result.csv = arg;
     }
   }
