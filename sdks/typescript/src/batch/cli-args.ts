@@ -3,7 +3,7 @@ import type { ModelOverride } from '../evaluators/base.js';
 import type { EvaluatorGroup } from './types.js';
 
 export interface CliArgs {
-  csv?: string;
+  csvPath?: string;
   concurrency?: number;
   maxRetries?: number;
   noTelemetry?: boolean;
@@ -12,7 +12,7 @@ export interface CliArgs {
   openaiApiKey?: string;
   anthropicApiKey?: string;
   outputDir?: string;
-  model?: string;
+  modelOverride?: string;
   help?: boolean;
   version?: boolean;
 }
@@ -56,10 +56,10 @@ export function parseArgs(argv: string[] = process.argv.slice(2)): CliArgs {
       result.anthropicApiKey = args[++i];
     } else if (arg === '--output-dir' && i + 1 < args.length && !args[i + 1].startsWith('-')) {
       result.outputDir = args[++i];
-    } else if (arg === '--model' && i + 1 < args.length && !args[i + 1].startsWith('-')) {
-      result.model = args[++i];
-    } else if (!arg.startsWith('-') && result.csv === undefined) {
-      result.csv = arg;
+    } else if (arg === '--model-override' && i + 1 < args.length && !args[i + 1].startsWith('-')) {
+      result.modelOverride = args[++i];
+    } else if (!arg.startsWith('-') && result.csvPath === undefined) {
+      result.csvPath = arg;
     }
   }
 
@@ -71,7 +71,7 @@ export function parseModelOverride(raw: string): ModelOverride {
   const colonIdx = raw.indexOf(':');
   if (colonIdx === -1) {
     throw new Error(
-      `--model requires "provider:model" format (e.g. anthropic:claude-opus-4-8), got: "${raw}"`
+      `--model-override requires "provider:model" format (e.g. anthropic:claude-opus-4-8), got: "${raw}"`
     );
   }
   const providerStr = raw.slice(0, colonIdx).toLowerCase().trim();
@@ -80,11 +80,11 @@ export function parseModelOverride(raw: string): ModelOverride {
   const validProviders = Object.values(Provider);
   if (!validProviders.includes(providerStr as Provider)) {
     throw new Error(
-      `Unknown provider "${providerStr}" in --model. Valid providers: ${validProviders.join(', ')}`
+      `Unknown provider "${providerStr}" in --model-override. Valid providers: ${validProviders.join(', ')}`
     );
   }
   if (!model) {
-    throw new Error(`Model name cannot be empty. Use: --model ${providerStr}:<model-id>`);
+    throw new Error(`Model name cannot be empty. Use: --model-override ${providerStr}:<model-id>`);
   }
 
   return { provider: providerStr as Provider, model };

@@ -63,27 +63,27 @@ describe('parseArgs', () => {
   });
 
   it('captures the first non-flag argument as csv', () => {
-    expect(parseArgs(['input.csv'])).toMatchObject({ csv: 'input.csv' });
+    expect(parseArgs(['input.csv'])).toMatchObject({ csvPath: 'input.csv' });
   });
 
   it('captures an empty positional as csv so the caller gets a clear file-not-found error', () => {
     // parseArgs should not swallow ''; the CLI path (parseCSV) gives the user a clear error
-    expect(parseArgs([''])).toMatchObject({ csv: '' });
+    expect(parseArgs([''])).toMatchObject({ csvPath: '' });
   });
 
   it('ignores a second positional argument', () => {
-    expect(parseArgs(['a.csv', 'b.csv'])).toMatchObject({ csv: 'a.csv' });
+    expect(parseArgs(['a.csv', 'b.csv'])).toMatchObject({ csvPath: 'a.csv' });
   });
 
   it('an empty first positional locks in csv so a later positional cannot overwrite it', () => {
     // Ensures the undefined check (not falsiness) is used — '' should hold its place
-    expect(parseArgs(['', 'input.csv'])).toMatchObject({ csv: '' });
+    expect(parseArgs(['', 'input.csv'])).toMatchObject({ csvPath: '' });
   });
 
   it('does not treat a value arg as the csv path', () => {
     // '3' is the value of --concurrency, not a positional csv
     const result = parseArgs(['--concurrency', '3', 'input.csv']);
-    expect(result.csv).toBe('input.csv');
+    expect(result.csvPath).toBe('input.csv');
     expect(result.concurrency).toBe(3);
   });
 
@@ -111,7 +111,7 @@ describe('parseArgs', () => {
   it('ignores --concurrency with a non-positive value and preserves the remaining positional', () => {
     const r0 = parseArgs(['--concurrency', '0', 'input.csv']);
     expect(r0.concurrency).toBeUndefined();
-    expect(r0.csv).toBe('input.csv');
+    expect(r0.csvPath).toBe('input.csv');
     // -1 starts with '-' so the guard prevents it being consumed as a value
     expect(parseArgs(['--concurrency', '-1']).concurrency).toBeUndefined();
   });
@@ -133,9 +133,9 @@ describe('parseArgs', () => {
     expect(parseArgs(['--anthropic-api-key=akey'])).toMatchObject({ anthropicApiKey: 'akey' });
   });
 
-  it('parses --model in = form', () => {
-    expect(parseArgs(['--model=anthropic:claude-opus-4-8'])).toMatchObject({
-      model: 'anthropic:claude-opus-4-8',
+  it('parses --model-override in = form', () => {
+    expect(parseArgs(['--model-override=anthropic:claude-opus-4-8'])).toMatchObject({
+      modelOverride: 'anthropic:claude-opus-4-8',
     });
   });
 
@@ -151,9 +151,9 @@ describe('parseArgs', () => {
     expect(parseArgs(['--output-dir='])).toMatchObject({ outputDir: '' });
   });
 
-  it('parses --model', () => {
-    expect(parseArgs(['--model', 'anthropic:claude-opus-4-8'])).toMatchObject({
-      model: 'anthropic:claude-opus-4-8',
+  it('parses --model-override', () => {
+    expect(parseArgs(['--model-override', 'anthropic:claude-opus-4-8'])).toMatchObject({
+      modelOverride: 'anthropic:claude-opus-4-8',
     });
   });
 
@@ -165,7 +165,7 @@ describe('parseArgs', () => {
     // Without a schema we cannot tell whether '3' is a value for '--concurreny' or a positional.
     // We accept this: passing CSV as the first argument avoids the ambiguity entirely.
     const result = parseArgs(['--concurreny', '3', 'input.csv']);
-    expect(result.csv).toBe('3');
+    expect(result.csvPath).toBe('3');
     expect(result.concurrency).toBeUndefined();
   });
 
@@ -183,7 +183,7 @@ describe('parseArgs', () => {
 
   it('does not swallow the positional csv when an unknown flag precedes it', () => {
     const result = parseArgs(['--unknown', 'input.csv']);
-    expect(result.csv).toBe('input.csv');
+    expect(result.csvPath).toBe('input.csv');
   });
 
   it('silently ignores --concurrency when no value follows', () => {
@@ -193,21 +193,21 @@ describe('parseArgs', () => {
   it('silently ignores --concurrency with a non-integer value, still captures remaining args', () => {
     const result = parseArgs(['--concurrency', 'abc', 'input.csv']);
     expect(result.concurrency).toBeUndefined();
-    expect(result.csv).toBe('input.csv');
+    expect(result.csvPath).toBe('input.csv');
   });
 
   it('handles a fully-specified invocation', () => {
     const result = parseArgs([
       'input.csv',
-      '--model', 'anthropic:claude-opus-4-8',
+      '--model-override', 'anthropic:claude-opus-4-8',
       '--anthropic-api-key', 'akey',
       '--output-dir', './results',
       '--concurrency', '5',
       '--no-telemetry',
     ]);
     expect(result).toMatchObject({
-      csv: 'input.csv',
-      model: 'anthropic:claude-opus-4-8',
+      csvPath: 'input.csv',
+      modelOverride: 'anthropic:claude-opus-4-8',
       anthropicApiKey: 'akey',
       outputDir: './results',
       concurrency: 5,

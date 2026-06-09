@@ -58,27 +58,34 @@ function validateOutputDir(value: string): string | true {
 // ---- Help / version ----
 
 function printHelp(): void {
-  console.log(`evaluators-batch v${getSDKVersion()}\n`);
-  console.log(`Usage: evaluators-batch [input.csv] [options]\n`);
-  console.log(`  input.csv              Path to the CSV file (requires "text" and "grade" columns)\n`);
-  console.log(`API Keys (flag takes priority over env var; if neither is set, you will be prompted):`);
-  console.log(`  --google-api-key <key>     Google API key    (env: GOOGLE_API_KEY)`);
-  console.log(`  --openai-api-key <key>     OpenAI API key    (env: OPENAI_API_KEY)`);
-  console.log(`  --anthropic-api-key <key>  Anthropic API key (env: ANTHROPIC_API_KEY)\n`);
-  console.log(`Model Override:`);
-  console.log(`  --model <provider:model>   Use a specific model for all evaluators`);
-  console.log(`                             Providers: openai, google, anthropic`);
-  console.log(`                             Example: --model anthropic:claude-opus-4-8`);
-  console.log(`                             When set, only that provider's key is required.\n`);
-  console.log(`Output:`);
-  console.log(`  --output-dir <path>        Write results here (default: ./batch-results-<timestamp>)\n`);
-  console.log(`Evaluation:`);
-  console.log(`  --concurrency <n>          Max parallel evaluations (default: 3)`);
-  console.log(`  --max-retries <n>          Retries per failed call (default: 2)`);
-  console.log(`  --bypass-row-limit         Skip the per-group row limit check`);
-  console.log(`  --no-telemetry             Disable usage telemetry\n`);
-  console.log(`  --version                  Print version and exit`);
-  console.log(`  --help                     Show this help`);
+  console.log(`evaluators-batch v${getSDKVersion()}
+
+Usage: evaluators-batch [input.csv] [options]
+
+  input.csv              Path to the CSV file (requires "text" and "grade" columns)
+
+API Keys (flag takes priority over env var; if neither is set, you will be prompted):
+  --google-api-key <key>     Google API key    (env: GOOGLE_API_KEY)
+  --openai-api-key <key>     OpenAI API key    (env: OPENAI_API_KEY)
+  --anthropic-api-key <key>  Anthropic API key (env: ANTHROPIC_API_KEY)
+
+Model Override:
+  --model-override <provider:model>   Use a specific model for all evaluators
+                                      Providers: openai, google, anthropic
+                                      Example: --model-override anthropic:claude-opus-4-8
+                                      When set, only that provider's key is required.
+
+Output:
+  --output-dir <path>        Write results here (default: ./batch-results-<timestamp>)
+
+Evaluation:
+  --concurrency <n>          Max parallel evaluations (default: 3)
+  --max-retries <n>          Retries per failed call (default: 2)
+  --bypass-row-limit         Skip the per-group row limit check
+  --no-telemetry             Disable usage telemetry
+
+  --version                  Print version and exit
+  --help                     Show this help`);
 }
 
 // ---- API key resolution ----
@@ -134,9 +141,9 @@ async function main() {
 
   // Parse model override early so errors surface before any prompts
   let modelOverride: ModelOverride | undefined;
-  if (cliArgs.model !== undefined) {
+  if (cliArgs.modelOverride !== undefined) {
     try {
-      modelOverride = parseModelOverride(cliArgs.model);
+      modelOverride = parseModelOverride(cliArgs.modelOverride);
     } catch (error) {
       console.error(`❌ ${error instanceof Error ? error.message : String(error)}`);
       process.exit(1);
@@ -151,10 +158,10 @@ async function main() {
     let inputs: BatchInput[] = [];
     let csvPath: string;
 
-    if (cliArgs.csv !== undefined) {
+    if (cliArgs.csvPath !== undefined) {
       try {
-        inputs = parseCSV(cliArgs.csv);
-        csvPath = cliArgs.csv;
+        inputs = parseCSV(cliArgs.csvPath);
+        csvPath = cliArgs.csvPath;
       } catch (error) {
         console.error(`❌ ${error instanceof Error ? error.message : 'Invalid CSV file'}`);
         process.exit(1);
