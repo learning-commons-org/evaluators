@@ -111,9 +111,7 @@ export class KnowledgeGraphClient {
       );
     }
 
-    return (data.data ?? [])
-      .filter((item) => item.normalizedStatementType !== 'Mathematical Practice')
-      .map((item) => ({
+    return (data.data ?? []).map((item) => ({
         caseIdentifierUUID: item.caseIdentifierUUID,
         statementCode: item.statementCode,
         description: item.description,

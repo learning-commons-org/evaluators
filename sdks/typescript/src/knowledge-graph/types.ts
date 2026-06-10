@@ -1,8 +1,9 @@
 import { ValidationError } from '../errors.js';
 
-// The generated spec types are in kg-api.d.ts — see npm run generate:kg-types.
-// We use string for normalizedStatementType and gradeLevel because the spec's
-// enum types are incomplete (omit "Mathematical Practice" and "HS").
+// Generated spec types are in kg-api.d.ts — see npm run generate:kg-types.
+// We use string for normalizedStatementType and gradeLevel rather than the
+// spec's strict enum types so the interfaces remain compatible if the API
+// returns values outside the current spec.
 
 /**
  * An academic standard from the LC Knowledge Graph (spec: StandardsFrameworkItem).

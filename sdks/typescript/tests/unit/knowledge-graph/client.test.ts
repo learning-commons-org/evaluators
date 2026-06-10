@@ -134,37 +134,21 @@ describe('KnowledgeGraphClient - getLearningComponents', () => {
 });
 
 describe('KnowledgeGraphClient - getStandardsByGrade', () => {
-  it('excludes Mathematical Practice standards', async () => {
-    mockFetch(200, { data: [
+  it('returns standards filtered to normalizedStatementType=Standard via URL', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ data: [
       { caseIdentifierUUID: 'u1', statementCode: '3.MD.C.7.d', normalizedStatementType: 'Standard', gradeLevel: ['3'] },
-      { caseIdentifierUUID: 'u2', statementCode: '3.MP.1', normalizedStatementType: 'Mathematical Practice', gradeLevel: ['3'] },
-    ]});
-    const results = await new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3');
-    expect(results.map((s) => s.statementCode)).toContain('3.MD.C.7.d');
-    expect(results.map((s) => s.statementCode)).not.toContain('3.MP.1');
-  });
-
-  it('always includes normalizedStatementType=Standard in URL', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ data: [] }), text: () => Promise.resolve('') });
+    ] }), text: () => Promise.resolve('') });
     vi.stubGlobal('fetch', fetchMock);
-    await new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3');
+    const results = await new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3');
     expect(fetchMock.mock.calls[0][0]).toContain('normalizedStatementType=Standard');
+    expect(results).toHaveLength(1);
+    expect(results[0].statementCode).toBe('3.MD.C.7.d');
   });
 
   it('throws KnowledgeGraphError if hasMore=true (pagination not implemented for standards)', async () => {
     mockFetch(200, { data: [], pagination: { hasMore: true, nextCursor: 'page-2' } });
     await expect(new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3'))
       .rejects.toThrow(KnowledgeGraphError);
-  });
-
-  it('uses normalizedStatementType not statementCode string to exclude MP', async () => {
-    mockFetch(200, { data: [
-      { caseIdentifierUUID: 'u1', statementCode: 'HSS-IC.MP.2', normalizedStatementType: 'Standard', gradeLevel: ['HS'] },
-      { caseIdentifierUUID: 'u2', statementCode: '3.MP.1', normalizedStatementType: 'Mathematical Practice', gradeLevel: ['3'] },
-    ]});
-    const results = await new KnowledgeGraphClient(API_KEY).getStandardsByGrade('HS');
-    expect(results.map((s) => s.statementCode)).toContain('HSS-IC.MP.2');
-    expect(results.map((s) => s.statementCode)).not.toContain('3.MP.1');
   });
 });
 
