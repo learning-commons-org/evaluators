@@ -90,8 +90,6 @@ export class KnowledgeGraphClient {
   }
 
   async getStandardsByGrade(grade: string): Promise<AcademicStandard[]> {
-    // Mathematical Practice standards excluded by normalizedStatementType=Standard —
-    // matching the original Python notebook behaviour.
     const url =
       `${KG_BASE_URL}/academic-standards?limit=500` +
       `&standardsFrameworkCaseIdentifierUUID=${CCSS_FRAMEWORK_UUID}` +
