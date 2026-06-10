@@ -151,6 +151,12 @@ describe('KnowledgeGraphClient - getStandardsByGrade', () => {
     expect(fetchMock.mock.calls[0][0]).toContain('normalizedStatementType=Standard');
   });
 
+  it('throws KnowledgeGraphError if hasMore=true (pagination not implemented for standards)', async () => {
+    mockFetch(200, { data: [], pagination: { hasMore: true, nextCursor: 'page-2' } });
+    await expect(new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3'))
+      .rejects.toThrow(KnowledgeGraphError);
+  });
+
   it('uses normalizedStatementType not statementCode string to exclude MP', async () => {
     mockFetch(200, { data: [
       { caseIdentifierUUID: 'u1', statementCode: 'HSS-IC.MP.2', normalizedStatementType: 'Standard', gradeLevel: ['HS'] },

@@ -99,7 +99,17 @@ export class KnowledgeGraphClient {
       `&gradeLevel=${encodeURIComponent(grade)}` +
       `&normalizedStatementType=Standard`;
 
-    const data = (await kgFetch(url, this.apiKey)) as { data: Array<AcademicStandard> };
+    const data = (await kgFetch(url, this.apiKey)) as {
+      data: Array<AcademicStandard>;
+      pagination?: { hasMore: boolean; nextCursor: string | null };
+    };
+
+    if (data.pagination?.hasMore) {
+      throw new KnowledgeGraphError(
+        `getStandardsByGrade returned a paginated result for grade "${grade}" — ` +
+        `increase limit or implement cursor pagination to retrieve all standards.`,
+      );
+    }
 
     return (data.data ?? [])
       .filter((item) => item.normalizedStatementType !== 'Mathematical Practice')
