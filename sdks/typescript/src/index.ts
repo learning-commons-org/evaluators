@@ -17,6 +17,7 @@ export {
   RateLimitError,
   NetworkError,
   TimeoutError,
+  KnowledgeGraphError,
 } from './errors.js';
 
 // Logger

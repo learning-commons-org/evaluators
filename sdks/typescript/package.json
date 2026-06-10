@@ -29,6 +29,7 @@
   ],
   "scripts": {
     "generate:schemas": "tsx scripts/generate-schema.ts ../../evals/prompts/purpose/config.json",
+    "generate:kg-types": "openapi-typescript https://docs.learningcommons.org/api-reference/knowledge-graph-api/openapi.yaml -o src/knowledge-graph/kg-api.d.ts",
     "generate:schemas:check": "tsx scripts/generate-schema.ts --check ../../evals/prompts/purpose/config.json",
     "build": "tsup",
     "dev": "tsup --watch",
@@ -103,6 +104,7 @@
     "eslint": "^10.4.0",
     "globals": "^17.6.0",
     "json-schema-to-zod": "^2.8.1",
+    "openapi-typescript": "^7.13.0",
     "tsup": "^8.0.1",
     "tsx": "^4.21.0",
     "typescript": "^5.3.3",
