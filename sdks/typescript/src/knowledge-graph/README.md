@@ -7,21 +7,16 @@ HTTP client for the [Learning Commons Knowledge Graph API](https://api.learningc
 | File | Purpose |
 |---|---|
 | `kg-api.d.ts` | **Generated.** TypeScript types from the KG OpenAPI spec — do not edit by hand |
-| `types.ts` | Internal interfaces: `AcademicStandard`, `LearningComponent`, `StandardsRepository`, `parseGradeFromStandard` |
-| `repository.ts` | `KnowledgeGraphApiRepository` — HTTP client for the live KG API |
-| `client.ts` | `KnowledgeGraphClient` — promise cache + concurrency limiter |
+| `types.ts` | Internal types: `AcademicStandard`, `LearningComponent`, `StandardInfo`, `parseGradeFromStandard` |
+| `client.ts` | `KnowledgeGraphClient` — HTTP calls, concurrency limiting, promise caching |
 | `index.ts` | Barrel |
 
 ## Regenerating `kg-api.d.ts`
 
-Types are generated from the KG OpenAPI spec at:
-```
-https://docs.learningcommons.org/api-reference/knowledge-graph-api/openapi.yaml
-```
-
-To regenerate after a spec update:
 ```bash
 npm run generate:kg-types
 ```
 
-> **Note on spec enums:** `normalizedStatementType` and `gradeLevel` use `string` in our interfaces rather than the spec's enum types. The spec enums are incomplete — they omit values the API actually returns (`"Mathematical Practice"`, `"HS"`). The generated `kg-api.d.ts` is used selectively for schema types that are accurate.
+Pulls the spec from `https://docs.learningcommons.org/api-reference/knowledge-graph-api/openapi.yaml`.
+
+> **Note on spec enums:** `normalizedStatementType` and `gradeLevel` use `string` in our interfaces rather than the spec's enum types — the spec enums are incomplete (omit `"Mathematical Practice"` and `"HS"`).

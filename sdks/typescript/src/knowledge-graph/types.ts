@@ -1,51 +1,36 @@
 import { ValidationError } from '../errors.js';
 
-// The generated spec types are in kg-api.d.ts (see npm run generate:kg-types).
-// We reference the spec for documentation but keep string-based fields where
-// the spec enums don't match the full API response surface (e.g. the spec
-// lists normalizedStatementType as "Standard" | "Standard Grouping" | "Other"
-// but the API also returns "Mathematical Practice"; gradeLevel enums exclude "HS").
+// The generated spec types are in kg-api.d.ts — see npm run generate:kg-types.
+// We use string for normalizedStatementType and gradeLevel because the spec's
+// enum types are incomplete (omit "Mathematical Practice" and "HS").
 
 /**
- * An academic standard returned by getStandardsByGrade.
- * Corresponds to StandardsFrameworkItem in the LC KG OpenAPI spec — a subset
- * of the fields needed for alignment evaluation.
+ * An academic standard from the LC Knowledge Graph (spec: StandardsFrameworkItem).
+ * Subset of fields used for alignment evaluation.
  */
 export interface AcademicStandard {
   caseIdentifierUUID: string;
-  statementCode: string | null | undefined;   // nullable per spec
-  description: string | null | undefined;     // nullable per spec
+  statementCode: string | null | undefined;
+  description: string | null | undefined;
   statementType: string | null | undefined;
   normalizedStatementType: string | null | undefined;
   gradeLevel: string[];
 }
 
 /**
- * A learning component used internally for prompt construction.
- * Corresponds to LearningComponent in the LC KG OpenAPI spec.
- * description is filtered to non-null at the repository layer.
+ * A learning component from the LC Knowledge Graph.
+ * description is guaranteed non-null — nulls are filtered at fetch time.
  */
 export interface LearningComponent {
   description: string;
 }
 
-/**
- * Resolved info from a standard code lookup.
- * Assembled from AcademicStandardSearchResult — internal only.
- */
+/** Resolved info from a standard code lookup. */
 export interface StandardInfo {
   uuid: string;
   description?: string;
 }
 
-export interface StandardsRepository {
-  getStandardInfo(statementCode: string): Promise<StandardInfo>;
-  getLearningComponents(caseIdentifierUUID: string): Promise<LearningComponent[]>;
-  getStandardsByGrade(grade: string): Promise<AcademicStandard[]>;
-}
-
-// ---------------------------------------------------------------------------
-// Utility
 // ---------------------------------------------------------------------------
 
 const VALID_GRADES = new Set(['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'HS']);
