@@ -7,8 +7,6 @@
    •
   <a href="https://docs.learningcommons.org/evaluators/getting-started/quickstart" target="_blank">Quickstart</a>
   •
-  <a href="https://docs.learningcommons.org/evaluators/using-evaluators/tutorial-evaluating-grade-level-appropriateness" target="_blank">Tutorials</a>
-  •
   <a href="https://docs.learningcommons.org/evaluators/understanding-evaluators/core-concepts" target="_blank">Core concepts</a>
 </p>
 
