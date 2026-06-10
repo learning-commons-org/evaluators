@@ -35,6 +35,8 @@ from learning_commons_evaluators.errors import (
 from learning_commons_evaluators.evaluators import (
     BaseEvaluator,
     ConventionalityEvaluator,
+    GradeLevelAppropriatenessEvaluationInput,
+    GradeLevelAppropriatenessEvaluator,
     InputT,
     OutputT,
     VocabularyEvaluationInput,
@@ -60,6 +62,12 @@ from learning_commons_evaluators.schemas.config import EvaluationSettings, LLMPr
 from learning_commons_evaluators.schemas.conventionality import (
     ConventionalityEvaluationSettings,
     ConventionalityOutput,
+)
+from learning_commons_evaluators.schemas.grade_level_appropriateness import (
+    GradeLevelAnswer,
+    GradeLevelAppropriatenessEvaluationSettings,
+    GradeLevelAppropriatenessOutput,
+    GradeLevelAppropriatenessResult,
 )
 
 # Schemas (core)
@@ -104,6 +112,12 @@ __all__ = [
     "ConventionalityEvaluationSettings",
     "ConventionalityEvaluator",
     "ConventionalityOutput",
+    "GradeLevelAnswer",
+    "GradeLevelAppropriatenessEvaluationInput",
+    "GradeLevelAppropriatenessEvaluationSettings",
+    "GradeLevelAppropriatenessEvaluator",
+    "GradeLevelAppropriatenessOutput",
+    "GradeLevelAppropriatenessResult",
     "EvaluationAnswer",
     "EvaluationExplanation",
     "EvaluationInput",
