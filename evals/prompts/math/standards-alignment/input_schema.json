@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "math_standards_alignment_input_schema.json",
+  "type": "object",
+  "required": ["question", "grade", "statementCode"],
+  "additionalProperties": false,
+  "properties": {
+    "question": {
+      "type": "string",
+      "description": "The assessment question to evaluate for standards alignment",
+      "minLength": 1,
+      "maxLength": 10000
+    },
+    "grade": {
+      "type": "string",
+      "description": "Grade level the question targets.",
+      "enum": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+    },
+    "statementCode": {
+      "type": "string",
+      "description": "CCSS math standard code (e.g. '3.MD.C.7.d', 'K.CC.A.1').",
+      "minLength": 1,
+      "maxLength": 50
+    }
+  }
+}
