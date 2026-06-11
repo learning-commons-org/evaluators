@@ -58,8 +58,7 @@
             "release-type": "python",
             "changelog-path": "CHANGELOG.md",
             "component": "sdks-python",
-            "bump-minor-pre-major": true,
-            "bump-patch-for-minor-pre-major": true
+            "bump-minor-pre-major": true
         },
         "sdks/typescript": {
             "release-type": "node",
