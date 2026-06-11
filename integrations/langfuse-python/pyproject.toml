@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "learning-commons-langfuse-scorers"
+version = "0.1.0"
+description = "Langfuse tracing adapter for Learning Commons evaluators"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Learning Commons" }]
+keywords = ["education", "evaluators", "langfuse", "tracing", "observability"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Education",
+]
+dependencies = [
+    "learning-commons-evaluators>=0.2.0",
+    # Langfuse v3+ (released 2025) removed trace()/generation() in favour of an
+    # OTel-based API. Pin to v2 until this adapter is migrated to start_as_current_generation().
+    # TODO: migrate to v3+ OTel pattern and remove the upper bound.
+    "langfuse>=2.0.0,<3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.9.0",
+    "mypy>=1.14.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/learning-commons-org/evaluators"
+Repository = "https://github.com/learning-commons-org/evaluators/tree/main/integrations/langfuse-python"
+Documentation = "https://docs.learningcommons.org/evaluators"
+"Bug Tracker" = "https://github.com/learning-commons-org/evaluators/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+learning_commons_langfuse_scorers = ["py.typed"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = ["src", "tests"]
+explicit_package_bases = true
+warn_unused_configs = true
+show_error_codes = true

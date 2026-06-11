@@ -63,6 +63,38 @@
             "release-type": "node",
             "changelog-path": "CHANGELOG.md",
             "component": "sdks-typescript"
+        },
+        "integrations/inspect-python": {
+            "release-type": "python",
+            "changelog-path": "CHANGELOG.md",
+            "component": "integrations-inspect-python",
+            "release-as": "0.1.0",
+            "bump-minor-pre-major": true,
+            "bump-patch-for-minor-pre-major": true
+        },
+        "integrations/langfuse-python": {
+            "release-type": "python",
+            "changelog-path": "CHANGELOG.md",
+            "component": "integrations-langfuse-python",
+            "release-as": "0.1.0",
+            "bump-minor-pre-major": true,
+            "bump-patch-for-minor-pre-major": true
+        },
+        "integrations/arize-python": {
+            "release-type": "python",
+            "changelog-path": "CHANGELOG.md",
+            "component": "integrations-arize-python",
+            "release-as": "0.1.0",
+            "bump-minor-pre-major": true,
+            "bump-patch-for-minor-pre-major": true
+        },
+        "integrations/braintrust-python": {
+            "release-type": "python",
+            "changelog-path": "CHANGELOG.md",
+            "component": "integrations-braintrust-python",
+            "release-as": "0.1.0",
+            "bump-minor-pre-major": true,
+            "bump-patch-for-minor-pre-major": true
         }
     }
 }
