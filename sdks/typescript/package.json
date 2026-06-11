@@ -1,6 +1,6 @@
 {
   "name": "@learning-commons/evaluators",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "TypeScript SDK for Learning Commons educational evaluators",
   "type": "module",
   "types": "./dist/index.d.ts",

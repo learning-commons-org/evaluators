@@ -2,6 +2,18 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
+## [0.7.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v0.6.0...sdks-typescript-v0.7.0) (2026-06-11)
+
+
+### Features
+
+* **batch:** CLI enhancements and model override support ([#95](https://github.com/learning-commons-org/evaluators/issues/95)) ([b019c67](https://github.com/learning-commons-org/evaluators/commit/b019c672b023ad995e0dd17f0e9149de9b412f3b))
+
+
+### Documentation
+
+* Revise TypeScript SDK README ([#87](https://github.com/learning-commons-org/evaluators/issues/87)) ([125e46b](https://github.com/learning-commons-org/evaluators/commit/125e46bf0bd8cc6480a9d98f86b9c31016f2c181))
+
 ## [0.6.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v0.5.0...sdks-typescript-v0.6.0) (2026-05-22)
 
 
