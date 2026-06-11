@@ -1,7 +1,7 @@
 /**
  * Batch evaluation types
  */
-import type { TelemetryOptions } from '../evaluators/base.js';
+import type { TelemetryOptions, ModelOverride } from '../evaluators/base.js';
 
 /**
  * Input row from CSV
@@ -21,6 +21,7 @@ export interface BatchTask {
   grade: string;
   evaluatorId: string;
   rowIndex: number;
+  originalRow: Record<string, unknown>;
 }
 
 /**
@@ -80,7 +81,10 @@ export interface EvaluatorGroup {
 export interface BatchConfig {
   googleApiKey?: string;
   openaiApiKey?: string;
+  anthropicApiKey?: string;
   concurrency?: number;
   maxRetries?: number;
   telemetry?: boolean | TelemetryOptions;
+  bypassRowLimit?: boolean;
+  modelOverride?: ModelOverride;
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { getAvailableGroups, BatchEvaluator } from '../../../src/batch/index.js';
-import type { BatchInput } from '../../../src/batch/index.js';
+import { getAvailableGroups, BatchEvaluator, Provider } from '../../../src/batch/index.js';
+import type { BatchInput, BatchConfig, BatchResult } from '../../../src/batch/index.js';
 
 function makeInputs(count: number): BatchInput[] {
   return Array.from({ length: count }, (_, i) => ({
@@ -73,8 +73,143 @@ describe('BatchEvaluator.evaluate() — input validation', () => {
       .rejects.toThrow(`Input exceeds limit for "${group.id}"`);
   });
 
+  it('does not throw the limit error when input count equals maxInputRows', async () => {
+    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+    const atLimit = makeInputs(group.maxInputRows);
+    const boundary = new BatchEvaluator({
+      googleApiKey: 'fake-google-key',
+      openaiApiKey: 'fake-openai-key',
+    });
+    const makeStub = () => ({
+      evaluate: async () => ({ score: 1, reasoning: 'stub', metadata: {} }),
+    });
+    const instances = (boundary as unknown as { evaluatorInstances: Map<string, ReturnType<typeof makeStub>> }).evaluatorInstances;
+    for (const id of group.evaluatorIds) instances.set(id, makeStub());
+
+    await expect(boundary.evaluate(atLimit, group.id)).resolves.toBeDefined();
+  });
+
+  it('error message mentions the bypassRowLimit escape hatch', async () => {
+    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+    const tooMany = makeInputs(group.maxInputRows + 1);
+
+    await expect(evaluator.evaluate(tooMany, group.id))
+      .rejects.toThrow(/bypassRowLimit/);
+  });
+
+  it('explicitly setting bypassRowLimit: false still throws on overflow', async () => {
+    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+    const tooMany = makeInputs(group.maxInputRows + 1);
+    const strict = new BatchEvaluator({
+      googleApiKey: 'fake-google-key',
+      openaiApiKey: 'fake-openai-key',
+      bypassRowLimit: false,
+    });
+
+    await expect(strict.evaluate(tooMany, group.id))
+      .rejects.toThrow(`Input exceeds limit for "${group.id}"`);
+  });
+
+  it('bypassRowLimit: true skips the row limit check', async () => {
+    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+    const tooMany = makeInputs(group.maxInputRows + 1);
+    const bypassed = new BatchEvaluator({
+      googleApiKey: 'fake-google-key',
+      openaiApiKey: 'fake-openai-key',
+      bypassRowLimit: true,
+    });
+
+    // Pre-populate evaluatorInstances with no-op stubs. initializeEvaluators
+    // skips IDs already present in the map, so these stubs survive and
+    // executeTask runs against them — no real network calls, no race.
+    const makeStub = () => ({
+      evaluate: async () => ({ score: 1, reasoning: 'stub', metadata: {} }),
+    });
+    const instances = (bypassed as unknown as { evaluatorInstances: Map<string, ReturnType<typeof makeStub>> }).evaluatorInstances;
+    for (const id of group.evaluatorIds) instances.set(id, makeStub());
+
+    const output = await bypassed.evaluate(tooMany, group.id);
+    const expectedTasks = tooMany.length * group.evaluatorIds.length;
+    expect(output.summary.totalTasks).toBe(expectedTasks);
+    expect(output.summary.successful).toBe(expectedTasks);
+    expect(output.summary.failed).toBe(0);
+  });
+
   it('cancel() before evaluation starts returns an empty array', () => {
     const fresh = new BatchEvaluator({ googleApiKey: 'k', openaiApiKey: 'k' });
     expect(fresh.cancel()).toEqual([]);
+  });
+
+  it('cancel() mid-evaluation marks queued tasks as cancelled and includes them in completedResults', async () => {
+    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+    // concurrency:1 ensures tasks run sequentially so cancel() reliably affects later ones
+    const evaluator = new BatchEvaluator({ googleApiKey: 'k', openaiApiKey: 'k', concurrency: 1 });
+
+    const instances = (evaluator as unknown as { evaluatorInstances: Map<string, unknown> }).evaluatorInstances;
+    let firstDone = false;
+    for (const id of group.evaluatorIds) {
+      instances.set(id, {
+        evaluate: async () => {
+          if (!firstDone) { firstDone = true; evaluator.cancel(); }
+          return { score: 'slightly complex', reasoning: 'stub', metadata: {} };
+        },
+      });
+    }
+
+    const output = await evaluator.evaluate(makeInputs(1), group.id);
+    const successful = output.results.filter(r => r.status === 'success');
+    const cancelled = output.results.filter(r => r.status === 'error' && r.error === 'Cancelled by user');
+
+    expect(successful.length).toBeGreaterThanOrEqual(1);
+    expect(cancelled.length).toBeGreaterThan(0);
+    expect(successful.length + cancelled.length).toBe(group.evaluatorIds.length);
+
+    // Cancelled tasks must be in completedResults so Ctrl+C partial saves are complete
+    const completedResults = (evaluator as unknown as { completedResults: BatchResult[] }).completedResults;
+    expect(completedResults.length).toBe(group.evaluatorIds.length);
+  });
+
+  it('evaluate() resets state between calls — second call produces a clean result set', async () => {
+    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+    const evaluator = new BatchEvaluator({ googleApiKey: 'k', openaiApiKey: 'k' });
+
+    const instances = (evaluator as unknown as { evaluatorInstances: Map<string, unknown> }).evaluatorInstances;
+    for (const id of group.evaluatorIds) {
+      instances.set(id, { evaluate: async () => ({ score: 'slightly complex', reasoning: 'stub', metadata: {} }) });
+    }
+
+    const first = await evaluator.evaluate(makeInputs(1), group.id);
+    const second = await evaluator.evaluate(makeInputs(1), group.id);
+
+    // Second call must not accumulate results from the first
+    expect(second.summary.totalTasks).toBe(group.evaluatorIds.length);
+    expect(second.summary.successful).toBe(group.evaluatorIds.length);
+    // And first call must be unaffected
+    expect(first.summary.totalTasks).toBe(group.evaluatorIds.length);
+  });
+});
+
+describe('BatchEvaluator — modelOverride config', () => {
+  it('stores modelOverride and anthropicApiKey in config', () => {
+    const override = { provider: Provider.Anthropic, model: 'claude-opus-4-8' };
+    const evaluator = new BatchEvaluator({ anthropicApiKey: 'akey', modelOverride: override });
+    const config = (evaluator as unknown as { config: BatchConfig }).config;
+    expect(config.modelOverride).toEqual(override);
+    expect(config.anthropicApiKey).toBe('akey');
+  });
+
+  it('evaluate() runs to completion with modelOverride set', async () => {
+    const override = { provider: Provider.Anthropic, model: 'claude-opus-4-8' };
+    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+    const evaluator = new BatchEvaluator({ anthropicApiKey: 'akey', modelOverride: override });
+
+    const instances = (evaluator as unknown as { evaluatorInstances: Map<string, unknown> }).evaluatorInstances;
+    for (const id of group.evaluatorIds) {
+      instances.set(id, { evaluate: async () => ({ score: 'slightly complex', reasoning: 'stub', metadata: {} }) });
+    }
+
+    const output = await evaluator.evaluate(makeInputs(1), group.id);
+    expect(output.summary.successful).toBe(group.evaluatorIds.length);
+    expect(output.summary.failed).toBe(0);
   });
 });

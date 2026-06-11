@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { exec } from 'child_process';
+import { randomUUID } from 'crypto';
 import prompts from 'prompts';
 import {
   BatchEvaluator,
@@ -8,150 +8,272 @@ import {
   parseCSV,
   formatAsCSV,
   formatAsHTML,
+  Provider,
   type BatchInput,
+  type ModelOverride,
   type ReportMeta,
 } from './index.js';
 import { ProgressTracker } from './progress.js';
+import { getSDKVersion } from '../telemetry/index.js';
+import { parseArgs, parseModelOverride, requiredProviders } from './cli-args.js';
 
-function parseArgs(): { concurrency?: number; maxRetries?: number; noTelemetry?: boolean } {
-  const args = process.argv.slice(2);
-  const result: { concurrency?: number; maxRetries?: number; noTelemetry?: boolean } = {};
+// ---- Output directory validation ----
 
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--concurrency' && args[i + 1]) {
-      const v = parseInt(args[++i], 10);
-      if (!isNaN(v) && v > 0) result.concurrency = v;
-    } else if (args[i] === '--max-retries' && args[i + 1]) {
-      const v = parseInt(args[++i], 10);
-      if (!isNaN(v) && v >= 0) result.maxRetries = v;
-    } else if (args[i] === '--no-telemetry') {
-      result.noTelemetry = true;
+const KEY_FLAGS = new Set(['--google-api-key', '--openai-api-key', '--anthropic-api-key']);
+const KEY_FLAG_PREFIXES = ['--google-api-key=', '--openai-api-key=', '--anthropic-api-key='];
+
+function validateOutputDir(value: string): string | true {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Output directory cannot be empty';
+  const resolved = path.resolve(trimmed);
+
+  if (fs.existsSync(resolved)) {
+    try {
+      if (!fs.statSync(resolved).isDirectory()) return `Path exists but is not a directory: ${resolved}`;
+    } catch {
+      return `Cannot access path: ${resolved}`;
     }
+    // Target dir exists — test writability there
   }
 
-  return result;
+  // Test writability of the target dir (if it exists) or its parent (if not yet created)
+  const checkDir = fs.existsSync(resolved) ? resolved : path.dirname(resolved);
+  if (!fs.existsSync(checkDir)) {
+    return `Parent directory does not exist: ${path.dirname(resolved)}`;
+  }
+  try {
+    // Use a UUID to guarantee uniqueness across concurrent processes.
+    const testFile = path.join(checkDir, `.write-test-${randomUUID()}`);
+    fs.writeFileSync(testFile, '');
+    fs.unlinkSync(testFile);
+    return true;
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === 'EACCES') return `No write permission for directory: ${checkDir}`;
+    if (code === 'EROFS')  return `Directory is read-only: ${checkDir}`;
+    return `Cannot write to directory: ${error instanceof Error ? error.message : String(error)}`;
+  }
 }
+
+// ---- Help / version ----
+
+function printHelp(): void {
+  console.log(`evaluators-batch v${getSDKVersion()}
+
+Usage: evaluators-batch [input.csv] [options]
+
+  input.csv              Path to the CSV file (requires "text" and "grade" columns)
+
+API Keys (flag takes priority over env var; if neither is set, you will be prompted):
+  --google-api-key <key>     Google API key    (env: GOOGLE_API_KEY)
+  --openai-api-key <key>     OpenAI API key    (env: OPENAI_API_KEY)
+  --anthropic-api-key <key>  Anthropic API key (env: ANTHROPIC_API_KEY)
+
+Model Override:
+  --model-override <provider:model>   Use a specific model for all evaluators
+                                      Providers: openai, google, anthropic
+                                      Example: --model-override anthropic:claude-opus-4-8
+                                      When set, only that provider's key is required.
+
+Output:
+  --output-dir <path>        Write results here (default: ./batch-results-<timestamp>)
+
+Evaluation:
+  --concurrency <n>          Max parallel evaluations (default: 3)
+  --max-retries <n>          Retries per failed call (default: 2)
+  --bypass-row-limit         Skip the per-group row limit check
+  --no-telemetry             Disable usage telemetry
+
+  --version                  Print version and exit
+  --help                     Show this help`);
+}
+
+// ---- API key resolution ----
+
+const KEY_CONFIG: Record<Provider, { envVar: string; label: string }> = {
+  [Provider.Google]:    { envVar: 'GOOGLE_API_KEY',    label: 'Google API Key'    },
+  [Provider.OpenAI]:   { envVar: 'OPENAI_API_KEY',    label: 'OpenAI API Key'    },
+  [Provider.Anthropic]:{ envVar: 'ANTHROPIC_API_KEY', label: 'Anthropic API Key' },
+};
+
+async function resolveApiKey(provider: Provider, fromFlag: string | undefined): Promise<string> {
+  const { envVar, label } = KEY_CONFIG[provider];
+  const fromEnv = process.env[envVar];
+
+  if (fromFlag !== undefined) {
+    if (!fromFlag) {
+      console.error(`❌ ${label} flag was provided but is empty`);
+      process.exit(1);
+    }
+    return fromFlag;
+  }
+  if (fromEnv) return fromEnv;
+
+  const result = await prompts({
+    type: 'password',
+    name: 'key',
+    message: `${label}:`,
+    validate: (value) => (value ? true : `${label} is required`),
+  });
+
+  if (!result.key) {
+    console.log('Cancelled.');
+    process.exit(0);
+  }
+
+  return result.key as string;
+}
+
+// ---- Main ----
 
 async function main() {
   const cliArgs = parseArgs();
+
+  if (cliArgs.help) {
+    printHelp();
+    process.exit(0);
+  }
+
+  if (cliArgs.version) {
+    console.log(getSDKVersion());
+    process.exit(0);
+  }
+
+  // Parse model override early so errors surface before any prompts
+  let modelOverride: ModelOverride | undefined;
+  if (cliArgs.modelOverride !== undefined) {
+    try {
+      modelOverride = parseModelOverride(cliArgs.modelOverride);
+    } catch (error) {
+      console.error(`❌ ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+  }
 
   console.log('\n📊 Batch CSV Evaluator\n');
   console.log('This tool will evaluate multiple texts using one or more evaluators.\n');
 
   try {
-    // Step 1: Get CSV file path — parse once inside validate, reuse result
+    // Step 1: CSV path — use positional arg or prompt
     let inputs: BatchInput[] = [];
-    const { csvPath } = await prompts({
-      type: 'text',
-      name: 'csvPath',
-      message: 'Where is your CSV file?',
-      initial: './input.csv',
-      validate: (value) => {
-        try {
-          inputs = parseCSV(value);
-          return true;
-        } catch (error) {
-          return error instanceof Error ? error.message : 'Invalid CSV file';
-        }
-      },
-    });
+    let csvPath: string;
 
-    if (!csvPath) {
-      console.log('No file path provided. Run the command again to start over.');
-      process.exit(0);
+    if (cliArgs.csvPath !== undefined) {
+      try {
+        inputs = parseCSV(cliArgs.csvPath);
+        csvPath = cliArgs.csvPath;
+      } catch (error) {
+        console.error(`❌ ${error instanceof Error ? error.message : 'Invalid CSV file'}`);
+        process.exit(1);
+      }
+    } else {
+      const response = await prompts({
+        type: 'text',
+        name: 'csvPath',
+        message: 'Where is your CSV file?',
+        initial: './input.csv',
+        validate: (value) => {
+          try {
+            inputs = parseCSV(value);
+            return true;
+          } catch (error) {
+            return error instanceof Error ? error.message : 'Invalid CSV file';
+          }
+        },
+      });
+
+      if (!response.csvPath) {
+        console.log('No file path provided. Run the command again to start over.');
+        process.exit(0);
+      }
+
+      csvPath = response.csvPath as string;
     }
 
     console.log(`\n✓ Found ${inputs.length} rows in CSV\n`);
 
-    // Step 2: Display the evaluator group that will run
-    // (Only one group currently; when more are added this becomes a selection prompt)
+    // Step 2: Show the evaluator group that will run
     const group = getAvailableGroups()[0];
     console.log(`✓ Evaluator group: ${group.name}`);
     console.log(`  ${group.description}`);
-    console.log(`  Row limit: ${group.maxInputRows}\n`);
+    if (modelOverride) {
+      console.log(`  ⚡ Model override: ${modelOverride.provider}:${modelOverride.model}`);
+    }
+    console.log();
 
-    // Enforce row limit before asking for API keys
+    // Enforce row limit before prompting for API keys
     if (inputs.length > group.maxInputRows) {
-      console.error(`❌ Too many rows: ${inputs.length} (max ${group.maxInputRows} for this group)\n`);
-      console.log('Suggestions:');
-      console.log(`  • Trim the CSV to ${group.maxInputRows} rows`);
-      console.log('  • Split into multiple smaller batches\n');
-      process.exit(1);
-    }
-
-    // Step 3: Get API keys required by this group
-    let googleApiKey: string | undefined;
-    let openaiApiKey: string | undefined;
-
-    if (group.requiresGoogleKey) {
-      const result = await prompts({
-        type: 'password',
-        name: 'key',
-        message: 'Google API Key:',
-        initial: process.env.GOOGLE_API_KEY || '',
-        validate: (value) => (value ? true : 'Google API key is required'),
-      });
-
-      if (!result.key) {
-        console.log('Cancelled.');
-        process.exit(0);
+      if (cliArgs.bypassRowLimit) {
+        console.warn(`⚠️  Row limit bypassed: ${inputs.length} rows (default max ${group.maxInputRows}).`);
+        console.warn(`   Expect longer runtime and possible provider throttling.\n`);
+      } else {
+        console.error(`❌ Too many rows: ${inputs.length} (max ${group.maxInputRows} for this group)\n`);
+        console.log('Options:');
+        console.log(`  • Trim the CSV to ${group.maxInputRows} rows`);
+        console.log('  • Split into multiple smaller batches');
+        console.log(`  • Re-run with --bypass-row-limit to skip this check:\n`);
+        const rawArgList = process.argv.slice(2).filter(a => a !== '--bypass-row-limit');
+        const safeArgs: string[] = [];
+        for (let j = 0; j < rawArgList.length; j++) {
+          const a = rawArgList[j];
+          if (KEY_FLAGS.has(a)) {
+            safeArgs.push(a, '<redacted>');
+            // Skip the value token if it looks like a value, not a flag (consistent with parseArgs behaviour)
+            if (j + 1 < rawArgList.length && !rawArgList[j + 1].startsWith('-')) j++;
+          } else if (KEY_FLAG_PREFIXES.some(p => a.startsWith(p))) {
+            safeArgs.push(`${a.slice(0, a.indexOf('='))}=<redacted>`);
+          } else {
+            safeArgs.push(a.includes(' ') ? `"${a.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : a);
+          }
+        }
+        console.log(`    evaluators-batch ${[...safeArgs, '--bypass-row-limit'].join(' ')}\n`);
+        process.exit(1);
       }
-
-      googleApiKey = result.key;
     }
 
-    if (group.requiresOpenAIKey) {
-      const result = await prompts({
-        type: 'password',
-        name: 'key',
-        message: 'OpenAI API Key:',
-        initial: process.env.OPENAI_API_KEY || '',
-        validate: (value) => (value ? true : 'OpenAI API key is required'),
-      });
+    // Step 3: Resolve API keys — skip prompts for any key already provided
+    const needed = requiredProviders(group, modelOverride);
+    const keyFlagMap: Record<Provider, string | undefined> = {
+      [Provider.Google]:    cliArgs.googleApiKey,
+      [Provider.OpenAI]:   cliArgs.openaiApiKey,
+      [Provider.Anthropic]:cliArgs.anthropicApiKey,
+    };
 
-      if (!result.key) {
-        console.log('Cancelled.');
-        process.exit(0);
-      }
-
-      openaiApiKey = result.key;
+    const resolvedKeys: Partial<Record<Provider, string>> = {};
+    for (const provider of needed) {
+      resolvedKeys[provider] = await resolveApiKey(provider, keyFlagMap[provider]);
     }
 
-    // Step 4: Get output directory (with human-readable timestamp in local time)
+    // Step 4: Output directory — use flag or prompt
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
     const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
     const defaultOutputDir = path.join(process.cwd(), `batch-results-${timestamp}`);
 
-    const { outputDir } = await prompts({
-      type: 'text',
-      name: 'outputDir',
-      message: 'Output directory:',
-      initial: defaultOutputDir,
-      validate: (value) => {
-        const parentDir = path.dirname(value);
-        if (!fs.existsSync(parentDir)) {
-          return `Parent directory does not exist: ${parentDir}`;
-        }
-        try {
-          const testFile = path.join(parentDir, '.write-test');
-          fs.writeFileSync(testFile, '');
-          fs.unlinkSync(testFile);
-          return true;
-        } catch (error) {
-          if (error instanceof Error) {
-            if (error.message.includes('EACCES')) return `No write permission for directory: ${parentDir}`;
-            if (error.message.includes('EROFS')) return `Directory is read-only: ${parentDir}`;
-            return `Cannot write to directory: ${error.message}`;
-          }
-          return 'Cannot write to directory';
-        }
-      },
-    });
+    let outputDir: string;
 
-    if (!outputDir) {
-      console.log('No output directory provided. Run the command again to start over.');
-      process.exit(0);
+    if (cliArgs.outputDir !== undefined) {
+      const validation = validateOutputDir(cliArgs.outputDir);
+      if (validation !== true) {
+        console.error(`❌ Invalid --output-dir: ${validation}`);
+        process.exit(1);
+      }
+      outputDir = path.resolve(cliArgs.outputDir.trim());
+    } else {
+      const response = await prompts({
+        type: 'text',
+        name: 'outputDir',
+        message: 'Output directory:',
+        initial: defaultOutputDir,
+        validate: validateOutputDir,
+      });
+
+      if (!response.outputDir) {
+        console.log('No output directory provided. Run the command again to start over.');
+        process.exit(0);
+      }
+
+      outputDir = path.resolve((response.outputDir as string).trim());
     }
 
     fs.mkdirSync(outputDir, { recursive: true });
@@ -170,12 +292,15 @@ async function main() {
     const totalTasks = inputs.length * group.evaluatorIds.length;
 
     console.log(`\n📝 Summary:`);
-    console.log(`  Input rows: ${inputs.length}`);
-    console.log(`  Evaluators: ${group.evaluatorIds.length}`);
+    console.log(`  Input rows:  ${inputs.length}${cliArgs.bypassRowLimit ? ' (row limit bypassed)' : ''}`);
+    console.log(`  Evaluators:  ${group.evaluatorIds.length}`);
     console.log(`  Total tasks: ${totalTasks}`);
     console.log(`  Concurrency: ${cliArgs.concurrency ?? 3}`);
     console.log(`  Max retries: ${cliArgs.maxRetries ?? 2}`);
-    console.log(`  Output: ${outputDir}\n`);
+    if (modelOverride) {
+      console.log(`  Model:       ${modelOverride.provider}:${modelOverride.model}`);
+    }
+    console.log(`  Output:      ${outputDir}\n`);
 
     const { confirm } = await prompts({
       type: 'confirm',
@@ -195,11 +320,14 @@ async function main() {
     const evaluationStartTime = Date.now();
 
     const evaluator = new BatchEvaluator({
-      googleApiKey,
-      openaiApiKey,
-      concurrency: cliArgs.concurrency ?? 3,
-      maxRetries: cliArgs.maxRetries ?? 2,
-      telemetry: !cliArgs.noTelemetry,
+      googleApiKey:    resolvedKeys[Provider.Google],
+      openaiApiKey:    resolvedKeys[Provider.OpenAI],
+      anthropicApiKey: resolvedKeys[Provider.Anthropic],
+      concurrency:     cliArgs.concurrency ?? 3,
+      maxRetries:      cliArgs.maxRetries ?? 2,
+      telemetry:       !cliArgs.noTelemetry,
+      bypassRowLimit:  cliArgs.bypassRowLimit ?? false,
+      modelOverride,
     });
 
     // Handle Ctrl+C gracefully
@@ -269,20 +397,13 @@ async function main() {
       fs.writeFileSync(path.join(outputDir, 'results.csv'), formatAsCSV(output));
       fs.writeFileSync(path.join(outputDir, 'results.html'), formatAsHTML(output, reportMeta));
 
+      const htmlPath = path.join(outputDir, 'results.html');
       console.log('📄 Output files generated:');
       console.log(`  ${outputDir}/`);
       console.log(`    ├── results.csv`);
       console.log(`    └── results.html`);
       console.log();
-
-      // Open the HTML report in the default browser
-      const htmlPath = path.join(outputDir, 'results.html');
-      try {
-        const cmd = process.platform === 'win32' ? `start "" "${htmlPath}"` : `open "${htmlPath}"`;
-        exec(cmd);
-      } catch {
-        // Non-fatal — report is still saved
-      }
+      console.log(`Open the report: ${htmlPath}`);
     } catch (error) {
       console.error('\n❌ Error writing output files:');
       if (error instanceof Error) console.error(`  ${error.message}`);
