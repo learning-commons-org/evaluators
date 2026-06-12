@@ -128,7 +128,7 @@ def gla_scorer(
                 metadata={"target_grade": target_grade, "gla_grade": None},
             )
 
-        gla_grade: str = result.answer.score  # e.g. "6-8"
+        gla_grade: str = result.answer.score
         passed = gla_grade in _acceptable_bands(target_grade, allow_adjacent)
 
         return Score(
