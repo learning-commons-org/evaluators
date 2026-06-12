@@ -1098,3 +1098,54 @@ class TestExecutePromptChainStepProtocolPath:
                 chain_inputs={"input": "Hello"},
                 parser_output_type=_ChainOutput,
             )
+
+    async def test_adapter_called_with_formatted_system_and_human(self, evaluation_metadata):
+        """Template formatting actually reaches the adapter with the correct strings."""
+        from unittest.mock import ANY
+
+        adapter = _make_adapter(_CHAIN_JSON)
+        ev = self._ev(adapter)
+        await ev.execute_prompt_chain_step(
+            step_name="main",
+            prompt_settings=_PROTO_SETTINGS,
+            evaluation_metadata=evaluation_metadata,
+            template=_PROTO_TEMPLATE,
+            chain_inputs={"input": "Hello"},
+            parser_output_type=_ChainOutput,
+        )
+        adapter.generate.assert_awaited_once_with(
+            system="You are a grader.",
+            human="Hello",
+            config=ANY,
+        )
+
+    async def test_human_only_template_passes_empty_system(self, evaluation_metadata):
+        """Templates with no system turn pass empty string to the adapter without error."""
+        from unittest.mock import ANY
+
+        human_only = ChatPromptTemplate.from_messages([("human", "{input}")])
+        adapter = _make_adapter(_CHAIN_JSON)
+        ev = self._ev(adapter)
+        await ev.execute_prompt_chain_step(
+            step_name="main",
+            prompt_settings=_PROTO_SETTINGS,
+            evaluation_metadata=evaluation_metadata,
+            template=human_only,
+            chain_inputs={"input": "Hello"},
+            parser_output_type=_ChainOutput,
+        )
+        adapter.generate.assert_awaited_once_with(system="", human="Hello", config=ANY)
+
+    async def test_template_with_missing_variable_raises_evaluator_error(self, evaluation_metadata):
+        """A missing template variable becomes an EvaluatorError, not a bare KeyError."""
+        adapter = _make_adapter(_CHAIN_JSON)
+        ev = self._ev(adapter)
+        with pytest.raises(EvaluatorError):
+            await ev.execute_prompt_chain_step(
+                step_name="main",
+                prompt_settings=_PROTO_SETTINGS,
+                evaluation_metadata=evaluation_metadata,
+                template=_PROTO_TEMPLATE,
+                chain_inputs={},  # missing required "input" variable
+                parser_output_type=_ChainOutput,
+            )

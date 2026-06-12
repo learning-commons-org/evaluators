@@ -58,6 +58,18 @@ class GenerateConfig:
     max_tokens: int | None = None
     """Maximum number of tokens to generate."""
 
+    model: str | None = None
+    """Model identifier to request from the provider (e.g. ``"claude-opus-4-8"``).
+
+    Adapters should use this when set and ignore it otherwise — the contract is
+    identical to all other ``GenerateConfig`` fields. When ``None`` (default),
+    the adapter uses whatever model it was constructed with.
+
+    Populated from ``PromptSettings.model`` on the protocol path so that
+    adapter authors can inspect which model the evaluator expects without
+    reaching into ``prompt_settings`` directly.
+    """
+
 
 class LLMGeneratorProtocol(Protocol):
     """Structural protocol for LLM generation adapters.
