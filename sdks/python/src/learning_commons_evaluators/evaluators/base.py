@@ -50,6 +50,57 @@ from learning_commons_evaluators.schemas.metadata import (
     prompt_settings_to_extras_value,
 )
 
+# TypeVars used by module-level helpers and the BaseEvaluator generic class.
+InputT = TypeVar("InputT", bound=EvaluationInput)
+OutputT = TypeVar("OutputT", bound=EvaluationResult)
+SettingsT = TypeVar("SettingsT", bound=EvaluationSettings)
+StepResultT = TypeVar("StepResultT")
+ParsedT = TypeVar("ParsedT", bound=BaseModel)
+
+
+def _parse_json_output(
+    raw: str,
+    parser_output_type: type[ParsedT],
+    json_dict_normalizer: Callable[[dict], dict] | None,
+    provider_type: Any,
+    model: str,
+) -> ParsedT:
+    """Parse a raw JSON string into ``parser_output_type``, wrapping errors consistently.
+
+    Shared by both the protocol path and (for the normalizer branch) the LangChain path
+    so that error handling is symmetric and normaliser logic lives in one place.
+    """
+    raw = _strip_json_fences(raw)
+    try:
+        if json_dict_normalizer is not None:
+            parsed_dict = _json.loads(raw)
+            if not isinstance(parsed_dict, dict):
+                raise OutputValidationError(
+                    "Model output is not a JSON object",
+                    provider=provider_type,
+                    model=model,
+                )
+            try:
+                normalized = json_dict_normalizer(parsed_dict)
+            except (TypeError, ValueError) as norm_err:
+                raise OutputValidationError(
+                    "Model output could not be normalized before validation",
+                    provider=provider_type,
+                    model=model,
+                ) from norm_err
+            return parser_output_type.model_validate(normalized)
+        return parser_output_type.model_validate_json(raw)
+    except PydanticValidationError as e:
+        raise OutputValidationError(
+            provider=provider_type,
+            model=model,
+            validation_errors=sanitize_pydantic_errors(e.errors()),
+        ) from e
+    except OutputValidationError:
+        raise
+    except Exception as e:
+        raise OutputValidationError(provider=provider_type, model=model) from e
+
 
 def _strip_json_fences(text: str) -> str:
     """Strip markdown code fences and extract the first valid JSON object or array.
@@ -74,13 +125,6 @@ def _strip_json_fences(text: str) -> str:
         except _json.JSONDecodeError:
             pass
     return text
-
-
-InputT = TypeVar("InputT", bound=EvaluationInput)
-OutputT = TypeVar("OutputT", bound=EvaluationResult)
-SettingsT = TypeVar("SettingsT", bound=EvaluationSettings)
-StepResultT = TypeVar("StepResultT")
-ParsedT = TypeVar("ParsedT", bound=BaseModel)
 
 
 class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
@@ -382,18 +426,36 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
 
             async def _run_via_provider() -> BaseModel | str:
                 nonlocal token_usage
-                formatted = await template.aformat_messages(**chain_inputs)
-                system_str = next(
-                    (str(m.content) for m in formatted if getattr(m, "type", "") == "system"), ""
-                )
-                human_str = next(
-                    (str(m.content) for m in formatted if getattr(m, "type", "") == "human"), ""
-                )
                 try:
+                    # Template formatting is inside try so missing variables become EvaluatorErrors,
+                    # not bare KeyErrors — matching the error contract of the LangChain path.
+                    formatted = await template.aformat_messages(**chain_inputs)
+                    system_str = next(
+                        (str(m.content) for m in formatted if getattr(m, "type", "") == "system"),
+                        "",
+                    )
+                    human_str = next(
+                        (str(m.content) for m in formatted if getattr(m, "type", "") == "human"),
+                        "",
+                    )
+                    if not human_str:
+                        raise ValueError(
+                            f"Template for step '{step_name}' produced no human message. "
+                            'Ensure the template contains at least one ("human", ...) turn.'
+                        )
+                    if not system_str:
+                        self.config.logger.debug(
+                            "No system message in template for step '%s'; "
+                            "passing empty string to adapter.",
+                            step_name,
+                        )
                     response: LLMResponse = await provider.generate(
                         system=system_str,
                         human=human_str,
-                        config=GenerateConfig(temperature=prompt_settings.temperature),
+                        config=GenerateConfig(
+                            temperature=prompt_settings.temperature,
+                            model=prompt_settings.model,
+                        ),
                     )
                 except EvaluatorError:
                     raise
@@ -414,39 +476,13 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
                     )
                 if parser_output_type is None:
                     return response.content
-                raw_json = _strip_json_fences(response.content)
-                try:
-                    if json_dict_normalizer is not None:
-                        parsed_dict = _json.loads(raw_json)
-                        if not isinstance(parsed_dict, dict):
-                            raise OutputValidationError(
-                                "Model output is not a JSON object",
-                                provider=prompt_settings.provider_type,
-                                model=response.model,
-                            )
-                        try:
-                            normalized = json_dict_normalizer(parsed_dict)
-                        except (TypeError, ValueError) as norm_err:
-                            raise OutputValidationError(
-                                "Model output could not be normalized before validation",
-                                provider=prompt_settings.provider_type,
-                                model=response.model,
-                            ) from norm_err
-                        return parser_output_type.model_validate(normalized)
-                    return parser_output_type.model_validate_json(raw_json)
-                except PydanticValidationError as e:
-                    raise OutputValidationError(
-                        provider=prompt_settings.provider_type,
-                        model=response.model,
-                        validation_errors=sanitize_pydantic_errors(e.errors()),
-                    ) from e
-                except OutputValidationError:
-                    raise
-                except Exception as e:
-                    raise OutputValidationError(
-                        provider=prompt_settings.provider_type,
-                        model=response.model,
-                    ) from e
+                return _parse_json_output(
+                    response.content,
+                    parser_output_type,
+                    json_dict_normalizer,
+                    prompt_settings.provider_type,
+                    response.model,
+                )
 
             try:
                 return await self.execute_step(
@@ -481,29 +517,14 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
                 from langchain_core.output_parsers.json import JsonOutputParser
 
                 if json_dict_normalizer is not None:
-                    loose = JsonOutputParser()
-                    parsed_dict = await loose.ainvoke(ai_message)
-                    if not isinstance(parsed_dict, dict):
-                        # JSON parsed cleanly but the top-level value isn't an object
-                        # (e.g. the LLM returned a JSON array or scalar). That's an
-                        # output-shape failure, not a parse failure — surface it as
-                        # OutputValidationError so callers can treat it consistently
-                        # with schema-mismatch errors, and avoid the TypeError that
-                        # ``dict(parsed_dict)`` would raise on a non-dict.
-                        raise OutputValidationError(
-                            "Model output is not a JSON object",
-                            provider=prompt_settings.provider_type,
-                            model=prompt_settings.model,
-                        )
-                    try:
-                        normalized = json_dict_normalizer(parsed_dict)
-                    except (TypeError, ValueError) as norm_err:
-                        raise OutputValidationError(
-                            "Model output could not be normalized before validation",
-                            provider=prompt_settings.provider_type,
-                            model=prompt_settings.model,
-                        ) from norm_err
-                    return parser_output_type.model_validate(normalized)
+                    # Use the shared helper so normalizer + error-wrapping logic stays in one place.
+                    return _parse_json_output(
+                        str(ai_message.content),
+                        parser_output_type,
+                        json_dict_normalizer,
+                        prompt_settings.provider_type,
+                        prompt_settings.model,
+                    )
 
                 parser = JsonOutputParser(pydantic_object=parser_output_type)
                 raw = await parser.ainvoke(ai_message)
