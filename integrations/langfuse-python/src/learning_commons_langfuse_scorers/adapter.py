@@ -78,7 +78,9 @@ class LangfuseTracingAdapter:
             generation.end(
                 output=response.content,
                 model=response.model,
-                usage={
+                # usage_details is the current Langfuse v2 kwarg; the older `usage` kwarg
+                # is silently dropped in recent 2.x releases, losing token counts in the UI.
+                usage_details={
                     k: v for k, v in {
                         "input": response.input_tokens,
                         "output": response.output_tokens,

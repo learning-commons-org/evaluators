@@ -147,7 +147,7 @@ class TestLangfuseTracingAdapterGenerate:
         mock_generation.end.assert_called_once_with(
             output="the answer",
             model="claude-opus-4-8",
-            usage={"input": 10, "output": 20},
+            usage_details={"input": 10, "output": 20},
         )
 
     async def test_ends_generation_with_error_on_exception(self):
