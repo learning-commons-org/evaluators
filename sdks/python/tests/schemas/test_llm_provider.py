@@ -24,7 +24,6 @@ class TestLLMResponse:
         assert r.output_tokens == 50
 
 
-
 class TestGenerateConfig:
     def test_defaults(self):
         c = GenerateConfig()

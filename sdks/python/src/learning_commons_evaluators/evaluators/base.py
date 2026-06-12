@@ -75,6 +75,7 @@ def _strip_json_fences(text: str) -> str:
             pass
     return text
 
+
 InputT = TypeVar("InputT", bound=EvaluationInput)
 OutputT = TypeVar("OutputT", bound=EvaluationResult)
 SettingsT = TypeVar("SettingsT", bound=EvaluationSettings)
