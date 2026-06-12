@@ -21,7 +21,6 @@ from learning_commons_evaluators.providers import (
 from learning_commons_evaluators.schemas.config import (
     EvaluationSettings,
     EvaluatorConfig,
-    LLMProvider,
     PromptSettings,
 )
 from learning_commons_evaluators.schemas.errors import (
