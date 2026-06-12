@@ -50,7 +50,6 @@ from learning_commons_evaluators.schemas.metadata import (
     prompt_settings_to_extras_value,
 )
 
-# TypeVars used by module-level helpers and the BaseEvaluator generic class.
 InputT = TypeVar("InputT", bound=EvaluationInput)
 OutputT = TypeVar("OutputT", bound=EvaluationResult)
 SettingsT = TypeVar("SettingsT", bound=EvaluationSettings)
@@ -418,17 +417,14 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         token_usage: TokenUsage | None = None
 
         if self._llm_provider is not None:
-            # ── Protocol path ──────────────────────────────────────────────
-            # Format the LangChain template to extract system/human strings,
-            # then delegate the actual LLM call to the injected provider.
-            # JSON parsing is handled directly via Pydantic — no LangChain parser needed.
+            # ── Protocol path ─────────────────────────────────────────────
             provider = self._llm_provider
 
             async def _run_via_provider() -> BaseModel | str:
                 nonlocal token_usage
                 try:
-                    # Template formatting is inside try so missing variables become EvaluatorErrors,
-                    # not bare KeyErrors — matching the error contract of the LangChain path.
+                    # Inside try: missing template variables become EvaluatorErrors,
+                    # not bare KeyErrors — consistent with the LangChain path's error contract.
                     formatted = await template.aformat_messages(**chain_inputs)
                     system_str = next(
                         (str(m.content) for m in formatted if getattr(m, "type", "") == "system"),
@@ -517,7 +513,6 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
                 from langchain_core.output_parsers.json import JsonOutputParser
 
                 if json_dict_normalizer is not None:
-                    # Use the shared helper so normalizer + error-wrapping logic stays in one place.
                     return _parse_json_output(
                         str(ai_message.content),
                         parser_output_type,
