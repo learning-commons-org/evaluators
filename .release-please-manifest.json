@@ -1,5 +1,8 @@
 {
   "evals/prompts": "1.5.0",
   "sdks/python": "0.2.0",
-  "sdks/typescript": "0.7.0"
+  "sdks/typescript": "0.7.0",
+  "integrations/langfuse-python": "0.1.0",
+  "integrations/arize-python": "0.1.0",
+  "integrations/braintrust-python": "0.1.0"
 }
