@@ -16,7 +16,6 @@ from learning_commons_evaluators.schemas.errors import (
     APIError,
     ConfigurationError,
     InputValidationError,
-    OutputValidationError,
 )
 from learning_commons_evaluators.schemas.grade_level_appropriateness import GradeLevelAnswer
 

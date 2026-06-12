@@ -45,7 +45,9 @@ class TestBraintrustAnthropicAdapter:
         mock_braintrust = MagicMock()
 
         with (
-            patch("braintrust.auto_instrument", mock_braintrust.auto_instrument),
+            # sys.modules mock covers all braintrust attribute access, including auto_instrument.
+            # Do NOT use patch("braintrust.auto_instrument") here — it tries to import the real
+            # module before the sys.modules replacement is applied (ModuleNotFoundError).
             patch.dict("sys.modules", {"braintrust": mock_braintrust}),
             patch("anthropic.AsyncAnthropic", return_value=mock_client),
         ):
