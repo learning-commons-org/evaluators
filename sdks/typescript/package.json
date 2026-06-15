@@ -82,7 +82,7 @@
   },
   "dependencies": {
     "compromise": "^14.13.0",
-    "csv-parse": "^6.1.0",
+    "csv-parse": "^7.0.0",
     "p-limit": "^7.3.0",
     "prompts": "^2.4.2",
     "syllable": "^5.0.1",
