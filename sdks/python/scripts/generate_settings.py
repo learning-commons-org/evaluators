@@ -327,19 +327,20 @@ def _snake_to_pascal(name: str) -> str:
 
 def _resolve_settings_class(evaluator_name: str) -> type[EvaluationSettings]:
     """Import ``<Pascal>EvaluationSettings`` from ``learning_commons_evaluators.schemas.<name>``."""
-    if not evaluator_name.isidentifier():
+    py_name = evaluator_name.replace("-", "_")
+    if not py_name.isidentifier():
         raise SystemExit(
-            f"Evaluator folder name {evaluator_name!r} is not a valid Python identifier; "
-            "rename the directory under sdks/settings/."
+            f"Evaluator folder name {evaluator_name!r} is not a valid Python identifier "
+            "(after converting hyphens to underscores); rename the directory under sdks/settings/."
         )
-    class_name = f"{_snake_to_pascal(evaluator_name)}EvaluationSettings"
-    module_name = f"{_LCE_PACKAGE}.schemas.{evaluator_name}"
+    class_name = f"{_snake_to_pascal(py_name)}EvaluationSettings"
+    module_name = f"{_LCE_PACKAGE}.schemas.{py_name}"
     try:
         mod = importlib.import_module(module_name)
     except ModuleNotFoundError as e:
         raise SystemExit(
             f"No Python module {module_name!r} for evaluator {evaluator_name!r} "
-            f"(expected class {class_name}). Add schemas/{evaluator_name}.py or align the folder name."
+            f"(expected class {class_name}). Add schemas/{py_name}.py or align the folder name."
         ) from e
     try:
         cls = getattr(mod, class_name)
@@ -375,7 +376,7 @@ def _discover_evaluators() -> list[_EvaluatorTarget]:
             continue
         name = child.name
         settings_cls = _resolve_settings_class(name)
-        output = _GENERATED_DIR / f"_generated_{name}_settings.py"
+        output = _GENERATED_DIR / f"_generated_{name.replace('-', '_')}_settings.py"
         out.append(
             _EvaluatorTarget(
                 name=name,

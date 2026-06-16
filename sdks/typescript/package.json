@@ -1,6 +1,6 @@
 {
   "name": "@learning-commons/evaluators",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "TypeScript SDK for Learning Commons educational evaluators",
   "type": "module",
   "types": "./dist/index.d.ts",
@@ -82,12 +82,12 @@
   },
   "dependencies": {
     "compromise": "^14.13.0",
-    "csv-parse": "^6.1.0",
+    "csv-parse": "^7.0.0",
     "p-limit": "^7.3.0",
     "prompts": "^2.4.2",
     "syllable": "^5.0.1",
     "text-readability": "^1.1.1",
-    "zod": "^3.22.4"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@ai-sdk/anthropic": "^3.0.12",

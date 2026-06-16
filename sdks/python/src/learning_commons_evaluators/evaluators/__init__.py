@@ -11,6 +11,10 @@ from learning_commons_evaluators.evaluators.conventionality import (
     ConventionalityEvaluationInput,
     ConventionalityEvaluator,
 )
+from learning_commons_evaluators.evaluators.grade_level_appropriateness import (
+    GradeLevelAppropriatenessEvaluationInput,
+    GradeLevelAppropriatenessEvaluator,
+)
 from learning_commons_evaluators.evaluators.vocabulary import (
     VocabularyEvaluationInput,
     VocabularyEvaluator,
@@ -21,6 +25,8 @@ __all__ = [
     "BaseEvaluator",
     "ConventionalityEvaluationInput",
     "ConventionalityEvaluator",
+    "GradeLevelAppropriatenessEvaluationInput",
+    "GradeLevelAppropriatenessEvaluator",
     "InputT",
     "OutputT",
     "VocabularyEvaluationInput",

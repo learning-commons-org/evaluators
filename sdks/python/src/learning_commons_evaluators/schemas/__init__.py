@@ -21,6 +21,12 @@ from learning_commons_evaluators.schemas.evaluator import (
     EvaluationResult,
     InputField,
 )
+from learning_commons_evaluators.schemas.grade_level_appropriateness import (
+    GradeLevelAnswer,
+    GradeLevelAppropriatenessEvaluationSettings,
+    GradeLevelAppropriatenessOutput,
+    GradeLevelAppropriatenessResult,
+)
 from learning_commons_evaluators.schemas.input_specs import (
     AnyInputSpec,
     GradeInputSpec,
@@ -54,6 +60,10 @@ __all__ = [
     "AnyInputSpec",
     "ConventionalityEvaluationSettings",
     "ConventionalityOutput",
+    "GradeLevelAnswer",
+    "GradeLevelAppropriatenessEvaluationSettings",
+    "GradeLevelAppropriatenessOutput",
+    "GradeLevelAppropriatenessResult",
     "GradeInputSpec",
     "InputSpec",
     "TextInputSpec",

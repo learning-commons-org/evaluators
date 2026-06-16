@@ -63,9 +63,6 @@ const EVALUATOR_GROUPS: EvaluatorGroup[] = [
   },
 ];
 
-/**
- * Returns the available evaluator groups.
- */
 export function getAvailableGroups(): EvaluatorGroup[] {
   return [...EVALUATOR_GROUPS];
 }
@@ -86,12 +83,12 @@ export class BatchEvaluator {
     this.config = {
       concurrency: 3,
       maxRetries: 2,
-      telemetry: false,
+      telemetry: true, // Opt out with --no-telemetry
       bypassRowLimit: false,
       ...config,
     };
 
-    this.limit = pLimit(this.config.concurrency!);
+    this.limit = pLimit(this.config.concurrency ?? 3);
   }
 
   /**
@@ -103,9 +100,6 @@ export class BatchEvaluator {
     return [...this.completedResults];
   }
 
-  /**
-   * Initialize evaluator instances for the given IDs
-   */
   private initializeEvaluators(evaluatorIds: readonly string[]): void {
     for (const id of evaluatorIds) {
       if (this.evaluatorInstances.has(id)) continue;
@@ -118,8 +112,10 @@ export class BatchEvaluator {
       const evaluator = new EvaluatorClass({
         googleApiKey: this.config.googleApiKey,
         openaiApiKey: this.config.openaiApiKey,
+        anthropicApiKey: this.config.anthropicApiKey,
         maxRetries: this.config.maxRetries,
         telemetry: this.config.telemetry,
+        modelOverride: this.config.modelOverride,
       });
 
       this.evaluatorInstances.set(id, evaluator);
@@ -129,8 +125,8 @@ export class BatchEvaluator {
   /**
    * Create tasks from inputs and evaluator IDs
    */
-  private createTasks(inputs: BatchInput[], evaluatorIds: readonly string[]): Array<BatchTask & { originalRow: Record<string, unknown> }> {
-    const tasks: Array<BatchTask & { originalRow: Record<string, unknown> }> = [];
+  private createTasks(inputs: BatchInput[], evaluatorIds: readonly string[]): BatchTask[] {
+    const tasks: BatchTask[] = [];
 
     for (const input of inputs) {
       for (const evaluatorId of evaluatorIds) {
@@ -147,11 +143,8 @@ export class BatchEvaluator {
     return tasks;
   }
 
-  /**
-   * Execute a single evaluation task
-   */
   private async executeTask(
-    task: BatchTask & { originalRow: Record<string, unknown> },
+    task: BatchTask,
     onProgress?: (result: BatchResult) => void
   ): Promise<BatchResult> {
     // Check if cancelled before starting
@@ -166,6 +159,8 @@ export class BatchEvaluator {
         processingTimeMs: 0,
         originalRow: task.originalRow,
       };
+      this.completedResults.push(batchResult);
+      if (onProgress) onProgress(batchResult);
       return batchResult;
     }
 
@@ -232,9 +227,6 @@ export class BatchEvaluator {
     }
   }
 
-  /**
-   * Calculate summary statistics
-   */
   private calculateSummary(results: BatchResult[], durationMs: number): BatchSummary {
     const summary: BatchSummary = {
       totalTasks: results.length,
