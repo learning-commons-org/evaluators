@@ -1,10 +1,36 @@
-## **Evaluators** Code and Prompts
+# Evaluators code and prompts
 
-## **Requirements**
+- [Requirements](#requirements)
+- [Quickstart](#quickstart)
 
-Please follow the detailed instructions in the top-level [README](../README.md) to set up your environment.
+  | Evaluator                   | Code                                                     | Prompts                                           |
+  | --------------------------- | -------------------------------------------------------- | ------------------------------------------------- |
+  | Grade Level Appropriateness | [Jupyter Notebook](./grade_level_evaluator.ipynb)        | [Prompts](./prompts/grade-level-appropriateness/) |
+  | Sentence Structure          | [Jupyter Notebook](./sentence_structure_evaluator.ipynb) | [Prompts](./prompts/sentence-structure/)          |
+  | Vocabulary                  | [Jupyter Notebook](./vocabulary_evaluator.ipynb)         | [Prompts](./prompts/vocabulary/)                  |
+  | Subject Matter Knowledge    | [Jupyter Notebook](./smk_evaluator.ipynb)                | [Prompts](./prompts/subject-matter-knowledge/)    |
+  | Conventionality             | [Jupyter Notebook](./conventionality_evaluator.ipynb)    | [Prompts](./prompts/conventionality/)             |
+  | Purpose                     | [Jupyter Notebook](./purpose_evaluator.ipynb)            | [Prompts](./prompts/purpose/)                     |
+  | Text complexity (combo)     | [Jupyter Notebook](./text_complexity_combo.ipynb)        |                                                   |
 
-## **Quick Start**
+## Requirements
+
+[Set up your environment](../README.md) and install your dependencies:
+
+```shell
+make install
+```
+
+Next, set your API keys as environment variables in your shell session:
+
+```shell
+export GOOGLE_API_KEY="..."
+export OPENAI_API_KEY="..."
+```
+
+You can also add these environment variables to an `.env` file.
+
+## Quickstart
 
 Use the provided Makefile to quickly set up your environment and install dependencies with `make` tool.
 
@@ -14,20 +40,10 @@ Use the provided Makefile to quickly set up your environment and install depende
 make install
 ```
 
-### Set your API keys
-
-Set `GOOGLE_API_KEY` and `OPENAI_API_KEY` in the environment variable in your shell session, or add to `.env` file.
-
-```shell
-export GOOGLE_API_KEY="..."
-export OPENAI_API_KEY="..."
-```
-
-### Run the Evaluator Code
-
-You are now ready to run the evaluator examples. We recommend using a Jupyter Notebook for interactive exploration.
+Next, start a Jupyter Notebook so you can run the evaluator examples and easily interact with your outputs:
 
 Start Jupyter Notebook:
+
 ```shell
 make jupyter
 ```
@@ -38,4 +54,4 @@ Jupyter will open in your web browser (usually at http://localhost:8888).
 2. Copy the text you want to evaluate into the last code cell of the notebook to try the evaluation of your text sample.
 3. Use the toolbar to run all cells, or run each cell in sequence until the end.
 
-    _If you prefer using an IDE with Python and Jupyter notebook support, such as VSCode with Microsoft's Python and Jupyter extensions, please refer to Microsoft's instructions for their installation and configuration._
+_If you prefer using an IDE with Python and Jupyter notebook support, such as VSCode with Microsoft's Python and Jupyter extensions, please refer to Microsoft's instructions for their installation and configuration._

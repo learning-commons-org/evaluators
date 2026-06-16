@@ -1,56 +1,41 @@
-# General Information
+# Datasets
 
-This readme file was generated on 2025-09-02 by the Learning Commons evaluators team.
+## Learning Commons annotations of CLEAR for qualitative text complexity
 
-Note: This file shares high-level details about the dataset. For detailed methodology on dataset creation, see the [Literacy Dataset](https://docs.learningcommons.org/evaluators/dataset/literacy-dataset) technical doc.
+[Download the dataset here](https://aidt-evaluators-files-public-prod.s3.us-west-2.amazonaws.com/Learning+Commons+annotations+of+CLEAR+for+qualitative+text+complexity+v1.0+2025-09-02.csv).
 
-# Dataset Information
-Title: **Learning Commons annotations of CLEAR for qualitative text complexity**
+| Version           | v1.0 2025-09-02 |
+| ----------------- | --------------: |
+| Number of columns |              14 |
+| Number of rows    |            1097 |
 
-Version: **v1.0 2025-09-02**
+### Columns
 
-Download link: [Learning Commons annotations of CLEAR for qualitative text complexity v1.0 2025-09-02.csv](https://aidt-evaluators-files-public-prod.s3.us-west-2.amazonaws.com/Learning+Commons+annotations+of+CLEAR+for+qualitative+text+complexity+v1.0+2025-09-02.csv)
+> NOTE: If text was not annotated for a given column, it will contain the value `not scored`.
 
-License: [https://github.com/learning-commons-org/evaluators/blob/main/LICENSE.md](https://github.com/learning-commons-org/evaluators/blob/main/LICENSE.md)
+| Column                          | Description                                                                                                                                                                                                                                                                                  |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UID                             | Unique identifier for each row                                                                                                                                                                                                                                                               |
+| Clear ID                        | Identifier for texts based on the CLEAR corpus. This is not a unique identifier, as some texts were scored for multiple grades.                                                                                                                                                              |
+| Grade                           | Grade-level for which text is scored. For example, if Grade=3 and Sentence Score=`slightly complex`, then the text is slightly complex for a third grade student (see overall project documentation for specific assumptions).                                                               |
+| Flesch Kincaid                  | Flesch-Kincaid Grade Level score for the text, provided from the CLEAR corpus.                                                                                                                                                                                                               |
+| Text                            | Text from the CLEAR corpus that was annotated                                                                                                                                                                                                                                                |
+| Sentence score                  | Overall annotator rating for sentence structure complexity. Takes the values `slightly complex`, `moderately complex`, `very complex`, and `exceedingly complex`. See the technical docs for additional details on these categories.                                                         |
+| Sentence score rationale        | Annotators’ explanations for their sentence structure score.                                                                                                                                                                                                                                 |
+| Vocabulary score                | Overall annotator rating for vocabulary complexity. Takes the values `slightly complex`, `moderately complex`, `very complex`, and `exceedingly complex`. See overall project documentation for additional details on these categories.                                                      |
+| Vocabulary score rationale      | Annotators’ explanations for their vocabulary score.                                                                                                                                                                                                                                         |
+| Tier 2 words                    | Tier 2 words identified by annotators.                                                                                                                                                                                                                                                       |
+| Tier 3 words                    | Tier 3 words identified by annotators.                                                                                                                                                                                                                                                       |
+| Archaic words                   | Archaic words identified by annotators.                                                                                                                                                                                                                                                      |
+| Other complex words             | Additional complex words for students of the grade level, as identified by annotators.                                                                                                                                                                                                       |
+| Background knowledge assumption | LLM-generated information on the background knowledge that students of a particular grade are likely to have about a topic. Information was provided to annotators as part of the scoring process. See the overall project documentation for detailed methodology on how this was generated. |
 
-## Data Structure
+### Methodology
 
-| Number of columns | 14    |
-|-|-:|
-| Number of rows    | 1097  |
-
-## Column Definitions
-- **UID**: Unique identifier for each row
-
-
-- **Clear ID**: Identifier for texts based on the CLEAR corpus. This is not a unique identifier, as some texts were scored for multiple grades.
-- **Grade**: Grade-level for which text is scored. For example, if Grade=3 and Sentence Score=`slightly complex`, then the text is slightly complex for a third grade student (see overall project documentation for specific assumptions).
-
-- **Flesch Kincaid**: Flesch-Kincaid Grade Level score for the text, provided from the CLEAR corpus.
-
-- **Text**: Text from the CLEAR corpus that was annotated
-
-- **Sentence Score**: Overall annotator rating for sentence structure complexity. Takes the values `slightly complex`, `moderately complex`, `very complex`, and `exceedingly complex`. See the technical docs for additional details on these categories.
-
-- **Sentence Score Rationale**: Annotators’ explanations for their sentence structure score.
-
-- **Vocabulary Score**: Overall annotator rating for vocabulary complexity. Takes the values `slightly complex`, `moderately complex`, `very complex`, and `exceedingly complex`. See overall project documentation for additional details on these categories.
-
-- **Vocabulary Score Rationale**: Annotators’ explanations for their vocabulary score.
-
-- **Tier 2 Words**: Tier 2 words identified by annotators.
-
-- **Tier 3 Words**: Tier 3 words identified by annotators.
-
-- **Archaic Words**: Archaic words identified by annotators.
-
-- **Other Complex Words**: Additional complex words for students of the grade level, as identified by annotators.
-
-- **Background Knowledge Assumption**: LLM-generated information on the background knowledge that students of a particular grade are likely to have about a topic. Information was provided to annotators as part of the scoring process. See the overall project documentation for detailed methodology on how this was generated.
-
-### Missing Data Code
-- `not scored`: Text was not annotated for this column.
-
-# Methodological Information
 Annotators were provided with specific assumptions about the student, text and information to score. These and other details are included in the [project docs](https://docs.learningcommons.org/evaluators/literacy-evaluators/literacy-evaluators#expert-annotated-benchmark-datasets).
 
+For detailed methodology on dataset creation, see the [Literacy dataset](https://docs.learningcommons.org/evaluators/dataset/literacy-dataset) documentation.
+
+## License
+
+[License](https://github.com/learning-commons-org/evaluators/blob/main/LICENSE.md)
