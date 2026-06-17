@@ -76,7 +76,10 @@ export interface MathStandardsAlignmentEvaluatorConfig extends BaseEvaluatorConf
   concurrency?: number;
   /** Max concurrent KG HTTP calls (default: 20) */
   kgConcurrency?: number;
-  /** Model for coarse filter Phase 1 (default: same as detail model from config.json) */
+  /**
+   * Override the Anthropic model used for evaluation (default: claude-haiku-4-5-20251001).
+   * Also used for the coarse filter unless coarseFilterModel is set separately.
+   */
   coarseFilterModel?: string;
   /** @internal Test seam — inject a pre-built client without a real API key */
   _kgClient?: KnowledgeGraphClient;
@@ -100,7 +103,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     name: 'Math Standards Alignment',
     description: 'Evaluates whether an assessment question aligns to a CCSS math standard via learning-component analysis',
     supportedGrades: SUPPORTED_GRADES as string[],
-    defaultProviders: [Provider.OpenAI] as const,
+    defaultProviders: [Provider.Anthropic] as const,
   };
 
   private readonly kgClient: KnowledgeGraphClient;
@@ -123,15 +126,15 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     this.llmConcurrency = config.concurrency ?? 10;
 
     this.detailProvider = this.createConfiguredProvider(
-      Provider.OpenAI,
+      Provider.Anthropic,
       DETAIL_MODEL,
-      config.openaiApiKey,
+      config.anthropicApiKey,
     );
 
     this.coarseProvider = this.createConfiguredProvider(
-      Provider.OpenAI,
+      Provider.Anthropic,
       config.coarseFilterModel ?? DETAIL_MODEL,
-      config.openaiApiKey,
+      config.anthropicApiKey,
     );
   }
 
@@ -174,13 +177,21 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         temperature: TEMPERATURE,
       });
 
-      const { evaluations } = response.data;
+      let { evaluations } = response.data;
 
-      if (evaluations.length !== components.length) {
+      if (evaluations.length < components.length) {
         throw new APIError(
           `Expected ${components.length} evaluations from LLM, got ${evaluations.length}. ` +
           `Standard: ${statementCode}`,
         );
+      }
+      // Truncate if the model returned extra entries (over-generation).
+      if (evaluations.length > components.length) {
+        this.logger.warn(
+          `LLM returned ${evaluations.length} evaluations for ${components.length} LCs on ${statementCode} — truncating extras.`,
+          { evaluator: MathStandardsAlignmentEvaluator.metadata.id, operation: 'evaluate' },
+        );
+        evaluations = evaluations.slice(0, components.length);
       }
 
       const latencyMs = Date.now() - startTime;

@@ -3,7 +3,7 @@ import { MathStandardsAlignmentEvaluator } from '../../src/evaluators/math/stand
 import { KnowledgeGraphClient } from '../../src/knowledge-graph/client.js';
 
 const RUN = process.env['RUN_INTEGRATION_TESTS'] === 'true';
-const OPENAI_KEY = process.env['OPENAI_API_KEY'];
+const ANTHROPIC_KEY = process.env['ANTHROPIC_API_KEY'];
 const PLATFORM_KEY = process.env['PLATFORM_API_KEY'];
 
 const itIf = (cond: boolean) => (cond ? it : it.skip);
@@ -35,7 +35,7 @@ function makeInstrumentedEvaluator() {
   baseClient.getLearningComponents = async (uuid: string) => { counters.lcFetches++; return origLc(uuid); };
 
   const evaluator = new MathStandardsAlignmentEvaluator({
-    openaiApiKey: OPENAI_KEY!,
+    anthropicApiKey: ANTHROPIC_KEY!,
     platformApiKey: PLATFORM_KEY!,
     _kgClient: baseClient,
   });
@@ -54,7 +54,7 @@ function makeInstrumentedEvaluator() {
 // ---------------------------------------------------------------------------
 
 describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, () => {
-  itIf(RUN && !!OPENAI_KEY && !!PLATFORM_KEY)(
+  itIf(RUN && !!ANTHROPIC_KEY && !!PLATFORM_KEY)(
     '3.MD.C.7 family: area L-shape question vs parent + all sub-standards',
     async () => {
       const questionItems = [

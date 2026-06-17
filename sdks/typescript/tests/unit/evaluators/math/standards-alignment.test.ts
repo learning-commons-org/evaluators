@@ -50,7 +50,7 @@ const MOCK_BATCH_RESPONSE = {
       { reasoning: 'Students must decompose the L-shape.', aligned: true, feedback: '' },
     ],
   },
-  model: 'openai:gpt-5.4-nano-2026-03-17',
+  model: 'anthropic:claude-haiku-4-5-20251001',
   usage: { inputTokens: 300, outputTokens: 150 },
   latencyMs: 1200,
 };
@@ -75,7 +75,7 @@ function makeMockKgClient(overrides: Partial<KnowledgeGraphClient> = {}): Knowle
 }
 
 function makeConfig(overrides: Partial<MathStandardsAlignmentEvaluatorConfig> = {}): MathStandardsAlignmentEvaluatorConfig {
-  return { openaiApiKey: 'sk-test', _kgClient: makeMockKgClient(), ...overrides };
+  return { anthropicApiKey: 'sk-ant-test', _kgClient: makeMockKgClient(), ...overrides };
 }
 
 beforeEach(() => {
@@ -89,19 +89,19 @@ beforeEach(() => {
 
 describe('MathStandardsAlignmentEvaluator - constructor', () => {
   it('throws ConfigurationError when neither platformApiKey nor _kgClient provided', () => {
-    expect(() => new MathStandardsAlignmentEvaluator({ openaiApiKey: 'sk-test' })).toThrow(ConfigurationError);
+    expect(() => new MathStandardsAlignmentEvaluator({ anthropicApiKey: 'sk-ant-test' })).toThrow(ConfigurationError);
   });
 
-  it('throws ConfigurationError when openaiApiKey is missing', () => {
+  it('throws ConfigurationError when anthropicApiKey is missing', () => {
     expect(() => new MathStandardsAlignmentEvaluator({ _kgClient: makeMockKgClient() })).toThrow(ConfigurationError);
   });
 
-  it('constructs successfully with _kgClient and openaiApiKey', () => {
+  it('constructs successfully with _kgClient and anthropicApiKey', () => {
     expect(() => new MathStandardsAlignmentEvaluator(makeConfig())).not.toThrow();
   });
 
   it('constructs successfully with platformApiKey instead of repository', () => {
-    expect(() => new MathStandardsAlignmentEvaluator({ openaiApiKey: 'sk-test', platformApiKey: 'pk-test' })).not.toThrow();
+    expect(() => new MathStandardsAlignmentEvaluator({ anthropicApiKey: 'sk-ant-test', platformApiKey: 'pk-test' })).not.toThrow();
   });
 });
 
@@ -357,7 +357,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateQuestionBank', () => {
     vi.mocked(mockProvider.generateStructured)
       .mockResolvedValueOnce({
         data: { standards: [{ standard: '3.MD.C.7.d', relevant: true }, { standard: '3.OA.A.1', relevant: false }] },
-        model: 'openai:mini', usage: { inputTokens: 50, outputTokens: 20 }, latencyMs: 200,
+        model: 'anthropic:claude-haiku-4-5-20251001', usage: { inputTokens: 50, outputTokens: 20 }, latencyMs: 200,
       })
       .mockResolvedValue(MOCK_BATCH_RESPONSE);
 
@@ -400,7 +400,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateQuestionBank', () => {
     vi.mocked(mockProvider.generateStructured)
       .mockResolvedValueOnce({
         data: { standards: [{ standard: '3.MD.C.7.d', relevant: true }, { standard: '3.OA.A.1', relevant: false }] },
-        model: 'openai:mini', usage: { inputTokens: 50, outputTokens: 20 }, latencyMs: 200,
+        model: 'anthropic:claude-haiku-4-5-20251001', usage: { inputTokens: 50, outputTokens: 20 }, latencyMs: 200,
       })
       .mockResolvedValue(MOCK_BATCH_RESPONSE);
 
