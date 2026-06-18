@@ -1,0 +1,224 @@
+{
+  "spec_version": "1.0",
+  "evaluator": {
+    "id": "is_anchored_in_student_response",
+    "version": "0.1",
+    "name": "Anchored In Student Response Feedback-Quality Evaluator",
+    "description": "Is the feedback clearly based on the student's specific response? (Key features generated from rubric text; concept paper did not list explicit key feature items.)",
+    "dimension": "is_anchored_in_student_response",
+    "output_type": "binary",
+    "labels": [
+      0,
+      1
+    ],
+    "optimization": {
+      "method": "GEPA",
+      "framework": "DSPy",
+      "base_model": "gpt-5.4",
+      "prompt_source": "outputs/gepa_prompt_gpt_5_4.txt",
+      "source_notebook": "build_evaluator.ipynb",
+      "optimized_at": "2026-06-18"
+    },
+    "owners": [
+      "ariena.chi@chanzuckerberg.com"
+    ]
+  },
+  "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "AnchoredInStudentResponseEvaluatorInput",
+    "type": "object",
+    "required": [
+      "student_text",
+      "feedback_text"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "student_text": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The student's written response."
+      },
+      "feedback_text": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The teacher feedback on that response."
+      }
+    }
+  },
+  "preprocessing": [],
+  "steps": [
+    {
+      "id": "evaluate_is_anchored_in_student_response",
+      "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
+      "prompt": {
+        "type": "chat",
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "df82c1b8d4116c307ea956bae349907c23e229a208373f8cc47c543ad29f6e7b"
+          },
+          {
+            "role": "human",
+            "source_path": "user.txt",
+            "sha256": "eaac7e6eadcc43716e4a98b9e7f34c493c1cbe46adb38367dd8697b904d11bfa"
+          }
+        ],
+        "placeholders": {
+          "student_text": {
+            "required": true,
+            "source": "input"
+          },
+          "feedback_text": {
+            "required": true,
+            "source": "input"
+          },
+          "format_instructions": {
+            "required": true,
+            "source": "parser.format_instructions"
+          }
+        }
+      },
+      "model": {
+        "provider": "openai",
+        "name": "gpt-5.4",
+        "alias": "is_anchored_in_student_response-evaluator-default"
+      },
+      "generation": {
+        "temperature": 1
+      },
+      "parser": {
+        "kind": "json_output_parser",
+        "format_instructions_placeholder": "format_instructions",
+        "output_schema_ref": "#/output_schema",
+        "notes": "Uses LangChain JsonOutputParser-style format_instructions injected into the system prompt."
+      },
+      "output_binding": "formatted_output"
+    }
+  ],
+  "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "EvaluatorOutput",
+    "description": "Final evaluator output for the is_anchored_in_student_response dimension.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "reasoning",
+      "key_features",
+      "proposed_adjustment",
+      "anchored_in_student_response_score"
+    ],
+    "properties": {
+      "reasoning": {
+        "type": "string",
+        "description": "Step-by-step reasoning before the final answer: assess the student response against the task goal, then judge whether the teacher feedback meets the criterion."
+      },
+      "key_features": {
+        "type": "object",
+        "description": "Per-key-feature assessment; each feature judged independently.",
+        "additionalProperties": false,
+        "required": [
+          "specific_reference_to_student_work",
+          "not_generic_or_template_based",
+          "engage_based_on_accurate_understanding"
+        ],
+        "properties": {
+          "specific_reference_to_student_work": {
+            "type": "object",
+            "description": "Feedback should clearly reference or build on the student's specific idea, wording, or use of evidence",
+            "required": [
+              "met",
+              "justification"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "met": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
+              },
+              "justification": {
+                "type": "string",
+                "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
+              }
+            }
+          },
+          "not_generic_or_template_based": {
+            "type": "object",
+            "description": "Feedback should not be a stock phrase that could apply to any response",
+            "required": [
+              "met",
+              "justification"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "met": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
+              },
+              "justification": {
+                "type": "string",
+                "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
+              }
+            }
+          },
+          "engage_based_on_accurate_understanding": {
+            "type": "object",
+            "description": "Engages with the student's actual response, rather than something the student did not actually say or attempt. Demonstrates accurate understanding of what the student wrote.",
+            "required": [
+              "met",
+              "justification"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "met": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
+              },
+              "justification": {
+                "type": "string",
+                "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
+              }
+            }
+          }
+        }
+      },
+      "proposed_adjustment": {
+        "type": "string",
+        "description": "How the teacher feedback could be modified to meet the criterion. If it already meets the criterion, say so briefly."
+      },
+      "anchored_in_student_response_score": {
+        "type": "integer",
+        "enum": [
+          0,
+          1
+        ],
+        "description": "Overall: 1 if the feedback meets the criterion, 0 otherwise."
+      }
+    }
+  },
+  "fixtures": {
+    "sniff_test_path": "fixtures.json"
+  },
+  "tracing": {
+    "expose": [
+      "rendered_prompt",
+      "raw_output",
+      "raw_text",
+      "formatted_output",
+      "usage"
+    ],
+    "notes": "Runtime engines MUST expose these five trace fields per evaluation."
+  }
+}
