@@ -30,7 +30,7 @@ function makeInstrumentedEvaluator() {
 
   // Wrap individual methods to count KG API calls
   const origInfo = baseClient.getStandardInfo.bind(baseClient);
-  baseClient.getStandardInfo = async (code: string) => { counters.uuidFetches++; return origInfo(code); };
+  baseClient.getStandardInfo = async (code, opts) => { counters.uuidFetches++; return origInfo(code, opts); };
   const origLc = baseClient.getLearningComponents.bind(baseClient);
   baseClient.getLearningComponents = async (uuid: string) => { counters.lcFetches++; return origLc(uuid); };
 
