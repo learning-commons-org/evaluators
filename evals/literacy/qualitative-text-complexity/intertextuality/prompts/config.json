@@ -1,0 +1,256 @@
+{
+  "spec_version": "1.0",
+  "evaluator": {
+    "id": "intertextuality",
+    "version": "0_3_light",
+    "name": "Intertextuality Dimension Text Complexity Evaluator",
+    "description": "Evaluates the Intertextuality dimension of qualitative text complexity for K-12 reading assessment, producing a 5-level rubric rating with structured pedagogical detail.",
+    "dimension": "intertextuality",
+    "rubric_levels": [
+      "slightly_complex",
+      "moderately_complex",
+      "very_complex",
+      "exceedingly_complex",
+      "more_context_needed"
+    ],
+    "owners": [
+      "gmu@chanzuckerberg.com"
+    ],
+    "optimization": {
+      "method": "GEPA",
+      "preset": "light",
+      "source_notebook": "Intertextuality/databricks/build_evaluator.py",
+      "optimized_at": "2026-06-15"
+    }
+  },
+  "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "IntertextualityEvaluatorInput",
+    "type": "object",
+    "required": [
+      "text",
+      "grade_level"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "text": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The passage to evaluate."
+      },
+      "grade_level": {
+        "type": "integer",
+        "minimum": 3,
+        "maximum": 12,
+        "description": "Target student grade level."
+      }
+    }
+  },
+  "preprocessing": [
+    {
+      "id": "fk_score",
+      "kind": "flesch_kincaid_grade",
+      "description": "Compute the Flesch-Kincaid Grade Level for the input text and bind it to {fk_score} in the prompt.",
+      "input": "text",
+      "output": "fk_score",
+      "implementation": {
+        "python": {
+          "library": "textstat",
+          "function": "flesch_kincaid_grade",
+          "post_transform": "round(value, 2)"
+        },
+        "typescript": {
+          "library": "text-readability",
+          "function": "fleschKincaidGrade",
+          "post_transform": "Math.round(value * 100) / 100"
+        }
+      }
+    }
+  ],
+  "steps": [
+    {
+      "id": "evaluate_intertextuality",
+      "description": "Single-call LLM step that produces the EvaluatorOutput JSON.",
+      "prompt": {
+        "type": "chat",
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "7e48d529b628b648248f31948ee851ccc56c20c5f14cb14caf7bc9cb20dcef64"
+          },
+          {
+            "role": "human",
+            "source_path": "user.txt",
+            "sha256": "86887ca1bd3cbcce0ef58d638e80cdfb3834a278ba4ca372daa6f10dd28a9cc3"
+          }
+        ],
+        "placeholders": {
+          "text": {
+            "required": true,
+            "source": "input"
+          },
+          "grade_level": {
+            "required": true,
+            "source": "input"
+          },
+          "fk_score": {
+            "required": true,
+            "source": "preprocessing.fk_score"
+          },
+          "format_instructions": {
+            "required": true,
+            "source": "parser.format_instructions"
+          }
+        }
+      },
+      "model": {
+        "provider": "google",
+        "name": "gemini-3-flash-preview",
+        "alias": "intertextuality-evaluator-default"
+      },
+      "generation": {
+        "temperature": 0.0
+      },
+      "parser": {
+        "kind": "json_output_parser",
+        "format_instructions_placeholder": "format_instructions",
+        "output_schema_ref": "#/output_schema",
+        "notes": "Uses LangChain JsonOutputParser-style format_instructions injected into the system prompt."
+      },
+      "output_binding": "formatted_output"
+    }
+  ],
+  "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "EvaluatorOutput",
+    "description": "The final Evaluator Output for the Intertextuality dimension.",
+    "type": "object",
+    "required": [
+      "complexity_score",
+      "reasoning",
+      "details"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "complexity_score": {
+        "type": "string",
+        "enum": [
+          "slightly_complex",
+          "moderately_complex",
+          "very_complex",
+          "exceedingly_complex",
+          "more_context_needed"
+        ],
+        "description": "The Intertextuality complexity level for the target grade."
+      },
+      "reasoning": {
+        "type": "string",
+        "description": "A high-level summary of why the text is at this complexity level for the target grade."
+      },
+      "details": {
+        "$ref": "#/output_schema/$defs/IntertextualityDetails"
+      }
+    },
+    "$defs": {
+      "DetailedSummaryItem": {
+        "type": "object",
+        "required": [
+          "factor",
+          "description",
+          "effect_on_complexity_dimension"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "factor": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "effect_on_complexity_dimension": {
+            "type": "string"
+          }
+        }
+      },
+      "ScaffoldingItem": {
+        "type": "object",
+        "required": [
+          "scaffolding_need",
+          "suggestion"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "scaffolding_need": {
+            "type": "string"
+          },
+          "suggestion": {
+            "type": "string"
+          }
+        }
+      },
+      "UseCaseItem": {
+        "type": "object",
+        "required": [
+          "opportunity",
+          "suggestion"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "opportunity": {
+            "type": "string"
+          },
+          "suggestion": {
+            "type": "string"
+          }
+        }
+      },
+      "IntertextualityDetails": {
+        "type": "object",
+        "required": [
+          "detailed_summary",
+          "adjustment_and_scaffolding",
+          "recommended_use_cases"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "detailed_summary": {
+            "type": "array",
+            "items": {
+              "$ref": "#/output_schema/$defs/DetailedSummaryItem"
+            }
+          },
+          "adjustment_and_scaffolding": {
+            "type": "array",
+            "items": {
+              "$ref": "#/output_schema/$defs/ScaffoldingItem"
+            }
+          },
+          "recommended_use_cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/output_schema/$defs/UseCaseItem"
+            }
+          }
+        }
+      }
+    }
+  },
+  "fixtures": {
+    "sniff_test_path": "fixtures.json",
+    "tolerance": {
+      "allow_adjacent_levels": true,
+      "notes": "If allow_adjacent_levels is true, predictions within one rubric step of the expected label count as a pass."
+    }
+  },
+  "tracing": {
+    "expose": [
+      "rendered_prompt",
+      "raw_output",
+      "raw_text",
+      "formatted_output",
+      "usage"
+    ],
+    "notes": "Runtime engines MUST expose these five trace fields per evaluation."
+  }
+}
