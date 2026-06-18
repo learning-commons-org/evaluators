@@ -36,9 +36,10 @@ describe('KnowledgeGraphClient - getStandardInfo', () => {
     await expect(new KnowledgeGraphClient(API_KEY).getStandardInfo('X.YZ.A.1')).rejects.toThrow(KnowledgeGraphError);
   });
 
-  it('throws KnowledgeGraphError when ambiguous (>1 results)', async () => {
+  it('returns first result when multiple results returned (caller uses limit=1 to avoid this)', async () => {
     mockFetch(200, [{ caseIdentifierUUID: 'a' }, { caseIdentifierUUID: 'b' }]);
-    await expect(new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD')).rejects.toThrow('Ambiguous');
+    const info = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD');
+    expect(info.uuid).toBe('a');
   });
 
   it('throws AuthenticationError on 401', async () => {

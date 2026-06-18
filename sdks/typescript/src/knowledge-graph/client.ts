@@ -14,6 +14,17 @@ const KG_TIMEOUT_MS = 30_000;
 
 type SpecLearningComponent = components['schemas']['LearningComponent'];
 
+export interface StandardInfoOptions {
+  jurisdiction?: string;
+  academicSubject?: string;
+  limit?: number;
+}
+
+export interface StandardsByGradeOptions {
+  jurisdiction?: string;
+  academicSubject?: string;
+}
+
 async function kgFetch(url: string, apiKey: string): Promise<unknown> {
   let response: Response;
   try {
@@ -61,20 +72,25 @@ export class KnowledgeGraphClient {
   private readonly apiKey: string;
   private readonly limit: ReturnType<typeof pLimit>;
 
+  // Cache key: `${statementCode}:${jurisdiction}`
   private readonly standardInfoCache = new Map<string, Promise<StandardInfo>>();
   private readonly lcCache = new Map<string, Promise<LearningComponent[]>>();
+  // Cache key: `${jurisdiction}:${academicSubject}`
+  private readonly frameworkUuidCache = new Map<string, Promise<string>>();
 
   constructor(apiKey: string, concurrency = 20) {
     this.apiKey = apiKey;
     this.limit = pLimit(concurrency);
   }
 
-  getStandardInfo(statementCode: string): Promise<StandardInfo> {
-    let p = this.standardInfoCache.get(statementCode);
+  getStandardInfo(statementCode: string, opts?: StandardInfoOptions): Promise<StandardInfo> {
+    const jurisdiction = opts?.jurisdiction ?? 'Multi-State';
+    const cacheKey = `${statementCode}:${jurisdiction}`;
+    let p = this.standardInfoCache.get(cacheKey);
     if (!p) {
-      p = this.limit(() => this._fetchStandardInfo(statementCode));
-      p = p.catch((err) => { this.standardInfoCache.delete(statementCode); throw err; });
-      this.standardInfoCache.set(statementCode, p);
+      p = this.limit(() => this._fetchStandardInfo(statementCode, opts));
+      p = p.catch((err) => { this.standardInfoCache.delete(cacheKey); throw err; });
+      this.standardInfoCache.set(cacheKey, p);
     }
     return p;
   }
@@ -89,13 +105,21 @@ export class KnowledgeGraphClient {
     return p;
   }
 
-  async getStandardsByGrade(grade: string): Promise<AcademicStandard[]> {
-    const url =
-      `${KG_BASE_URL}/academic-standards?limit=500` +
-      `&standardsFrameworkCaseIdentifierUUID=${CCSS_FRAMEWORK_UUID}` +
-      `&academicSubject=Mathematics` +
-      `&gradeLevel=${encodeURIComponent(grade)}` +
-      `&normalizedStatementType=Standard`;
+  async getStandardsByGrade(grade: string, opts?: StandardsByGradeOptions): Promise<AcademicStandard[]> {
+    const frameworkUuid = await this._getFrameworkUuid(
+      opts?.jurisdiction ?? 'Multi-State',
+      opts?.academicSubject,
+    );
+
+    const params = new URLSearchParams({
+      limit: '500',
+      standardsFrameworkCaseIdentifierUUID: frameworkUuid,
+      gradeLevel: grade,
+      normalizedStatementType: 'Standard',
+    });
+    if (opts?.academicSubject) params.set('academicSubject', opts.academicSubject);
+
+    const url = `${KG_BASE_URL}/academic-standards?${params.toString()}`;
 
     const data = (await kgFetch(url, this.apiKey)) as {
       data: Array<AcademicStandard>;
@@ -121,23 +145,60 @@ export class KnowledgeGraphClient {
 
   async getLearningComponentsByCode(
     statementCode: string,
+    opts?: StandardInfoOptions,
   ): Promise<{ uuid: string; description?: string; components: LearningComponent[] }> {
-    const { uuid, description } = await this.getStandardInfo(statementCode);
+    const { uuid, description } = await this.getStandardInfo(statementCode, opts);
     const components = await this.getLearningComponents(uuid);
     return { uuid, description, components };
   }
 
   // ---------------------------------------------------------------------------
 
-  private async _fetchStandardInfo(statementCode: string): Promise<StandardInfo> {
-    const url = `${KG_BASE_URL}/academic-standards/search?jurisdiction=Multi-State&statementCode=${encodeURIComponent(statementCode)}`;
+  private _getFrameworkUuid(jurisdiction: string, academicSubject?: string): Promise<string> {
+    if (jurisdiction === 'Multi-State') return Promise.resolve(CCSS_FRAMEWORK_UUID);
+
+    const cacheKey = `${jurisdiction}:${academicSubject ?? ''}`;
+    let p = this.frameworkUuidCache.get(cacheKey);
+    if (!p) {
+      p = this.limit(() => this._fetchFrameworkUuid(jurisdiction, academicSubject));
+      p = p.catch((err) => { this.frameworkUuidCache.delete(cacheKey); throw err; });
+      this.frameworkUuidCache.set(cacheKey, p);
+    }
+    return p;
+  }
+
+  private async _fetchFrameworkUuid(jurisdiction: string, academicSubject?: string): Promise<string> {
+    const params = new URLSearchParams({ jurisdiction });
+    if (academicSubject) params.set('academicSubject', academicSubject);
+
+    const url = `${KG_BASE_URL}/standards-frameworks?${params.toString()}`;
+    const data = (await kgFetch(url, this.apiKey)) as {
+      data: Array<{ caseIdentifierUUID: string }>;
+    };
+
+    const frameworks = data.data ?? [];
+    if (frameworks.length === 0) {
+      throw new KnowledgeGraphError(
+        `No standards framework found for jurisdiction "${jurisdiction}"` +
+        (academicSubject ? ` and subject "${academicSubject}"` : ''),
+      );
+    }
+    return frameworks[0].caseIdentifierUUID;
+  }
+
+  private async _fetchStandardInfo(statementCode: string, opts?: StandardInfoOptions): Promise<StandardInfo> {
+    const params = new URLSearchParams({
+      statementCode,
+      jurisdiction: opts?.jurisdiction ?? 'Multi-State',
+      limit: String(opts?.limit ?? 1),
+    });
+    if (opts?.academicSubject) params.set('academicSubject', opts.academicSubject);
+
+    const url = `${KG_BASE_URL}/academic-standards/search?${params.toString()}`;
     const data = (await kgFetch(url, this.apiKey)) as Array<{ caseIdentifierUUID: string; description?: string }>;
 
     if (!Array.isArray(data) || data.length === 0) {
       throw new KnowledgeGraphError(`Standard not found: "${statementCode}"`);
-    }
-    if (data.length > 1) {
-      throw new KnowledgeGraphError(`Ambiguous standard code: "${statementCode}", ${data.length} results returned`);
     }
     return { uuid: data[0].caseIdentifierUUID, description: data[0].description };
   }
