@@ -19,8 +19,11 @@ export interface AcademicStandard {
 /**
  * A learning component from the LC Knowledge Graph.
  * description is guaranteed non-null — nulls are filtered at fetch time.
+ * identifier is the KG system UUID echoed back by the model to verify
+ * each evaluation maps to the correct learning component.
  */
 export interface LearningComponent {
+  identifier: string;
   description: string;
 }
 

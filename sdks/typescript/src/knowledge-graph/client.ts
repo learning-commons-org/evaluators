@@ -158,7 +158,7 @@ export class KnowledgeGraphClient {
 
       for (const item of page.data ?? []) {
         if (item.description != null) {
-          results.push({ description: item.description });
+          results.push({ identifier: item.identifier, description: item.description });
         }
       }
 
