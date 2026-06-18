@@ -1,0 +1,248 @@
+{
+  "spec_version": "1.0",
+  "evaluator": {
+    "id": "is_actionable_revision",
+    "version": "0.1",
+    "name": "Actionable Revision Feedback-Quality Evaluator",
+    "description": "If revision is needed, does the feedback give a clear next step?",
+    "dimension": "is_actionable_revision",
+    "output_type": "binary",
+    "labels": [
+      0,
+      1
+    ],
+    "optimization": {
+      "method": "GEPA",
+      "framework": "DSPy",
+      "base_model": "gpt-5.4",
+      "prompt_source": "outputs/gepa_prompt_gpt_5_4.txt",
+      "source_notebook": "build_evaluator.ipynb",
+      "optimized_at": "2026-06-18"
+    },
+    "owners": [
+      "ariena.chi@chanzuckerberg.com"
+    ]
+  },
+  "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "ActionableRevisionEvaluatorInput",
+    "type": "object",
+    "required": [
+      "student_text",
+      "feedback_text"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "student_text": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The student's written response."
+      },
+      "feedback_text": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The teacher feedback on that response."
+      }
+    }
+  },
+  "preprocessing": [],
+  "steps": [
+    {
+      "id": "evaluate_is_actionable_revision",
+      "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
+      "prompt": {
+        "type": "chat",
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "d4504cc6043706dfabeb753988c6008b87053ce26ae9dc80c960c9d761d9c3d1"
+          },
+          {
+            "role": "human",
+            "source_path": "user.txt",
+            "sha256": "eaac7e6eadcc43716e4a98b9e7f34c493c1cbe46adb38367dd8697b904d11bfa"
+          }
+        ],
+        "placeholders": {
+          "student_text": {
+            "required": true,
+            "source": "input"
+          },
+          "feedback_text": {
+            "required": true,
+            "source": "input"
+          },
+          "format_instructions": {
+            "required": true,
+            "source": "parser.format_instructions"
+          }
+        }
+      },
+      "model": {
+        "provider": "openai",
+        "name": "gpt-5.4",
+        "alias": "is_actionable_revision-evaluator-default"
+      },
+      "generation": {
+        "temperature": 1
+      },
+      "parser": {
+        "kind": "json_output_parser",
+        "format_instructions_placeholder": "format_instructions",
+        "output_schema_ref": "#/output_schema",
+        "notes": "Uses LangChain JsonOutputParser-style format_instructions injected into the system prompt."
+      },
+      "output_binding": "formatted_output"
+    }
+  ],
+  "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "EvaluatorOutput",
+    "description": "Final evaluator output for the is_actionable_revision dimension.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "reasoning",
+      "key_features",
+      "proposed_adjustment",
+      "actionable_revision_score"
+    ],
+    "properties": {
+      "reasoning": {
+        "type": "string",
+        "description": "Step-by-step reasoning before the final answer: assess the student response against the task goal, then judge whether the teacher feedback meets the criterion."
+      },
+      "key_features": {
+        "type": "object",
+        "description": "Per-key-feature assessment; each feature judged independently.",
+        "additionalProperties": false,
+        "required": [
+          "directive_verb_or_focused_question",
+          "clarity_of_target",
+          "specificity_of_next_move",
+          "reasonable_student_action"
+        ],
+        "properties": {
+          "directive_verb_or_focused_question": {
+            "type": "object",
+            "description": "Presence of a directive verb or focused question",
+            "required": [
+              "met",
+              "justification"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "met": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
+              },
+              "justification": {
+                "type": "string",
+                "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
+              }
+            }
+          },
+          "clarity_of_target": {
+            "type": "object",
+            "description": "Clarity of the target (what to revise)",
+            "required": [
+              "met",
+              "justification"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "met": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
+              },
+              "justification": {
+                "type": "string",
+                "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
+              }
+            }
+          },
+          "specificity_of_next_move": {
+            "type": "object",
+            "description": "Specificity of the next move",
+            "required": [
+              "met",
+              "justification"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "met": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
+              },
+              "justification": {
+                "type": "string",
+                "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
+              }
+            }
+          },
+          "reasonable_student_action": {
+            "type": "object",
+            "description": "Whether the student could reasonably act without further clarification",
+            "required": [
+              "met",
+              "justification"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "met": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
+              },
+              "justification": {
+                "type": "string",
+                "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
+              }
+            }
+          }
+        }
+      },
+      "proposed_adjustment": {
+        "type": "string",
+        "description": "How the teacher feedback could be modified to meet the criterion. If it already meets the criterion, say so briefly."
+      },
+      "actionable_revision_score": {
+        "type": "integer",
+        "enum": [
+          0,
+          1
+        ],
+        "description": "Overall: 1 if the feedback meets the criterion, 0 otherwise."
+      }
+    }
+  },
+  "fixtures": {
+    "sniff_test_path": "fixtures.json"
+  },
+  "tracing": {
+    "expose": [
+      "rendered_prompt",
+      "raw_output",
+      "raw_text",
+      "formatted_output",
+      "usage"
+    ],
+    "notes": "Runtime engines MUST expose these five trace fields per evaluation."
+  }
+}

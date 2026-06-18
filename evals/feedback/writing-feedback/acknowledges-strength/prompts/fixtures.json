@@ -1,0 +1,26 @@
+[
+  {
+    "id": "0",
+    "description": "Example 1: Student writes about how AI powered pets help around the house. Feedback asks for additional details to strengthen the claim.",
+    "source": "Quill data",
+    "input": {
+      "student_text": "Some people think AI-powered pets are a good alternative to real pets because they could help around the house etc.",
+      "feedback_text": "You're right, the AI pets could help around the house. Can you find some other details from the article that you could add to make your claim stronger?"
+    },
+    "expected": {
+      "acknowledges_strength_score": 1
+    }
+  },
+  {
+    "id": "1",
+    "description": "Example 2: Student writes about how AI powered pets can help people with health issues. Feedback asks for an example and corrects spelling.",
+    "source": "Quill data",
+    "input": {
+      "student_text": "Some people think AI-powered pets are a good alternative to real pets because AI powered pets can be helpfull for people with health issues.",
+      "feedback_text": "How so? Can you give an example? Check your spelling of helpful."
+    },
+    "expected": {
+      "acknowledges_strength_score": 0
+    }
+  }
+]

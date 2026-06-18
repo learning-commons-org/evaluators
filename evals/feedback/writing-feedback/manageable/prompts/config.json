@@ -1,0 +1,248 @@
+{
+  "spec_version": "1.0",
+  "evaluator": {
+    "id": "is_manageable",
+    "version": "0.1",
+    "name": "Manageable Feedback-Quality Evaluator",
+    "description": "Is the amount of feedback manageable for the student?",
+    "dimension": "is_manageable",
+    "output_type": "binary",
+    "labels": [
+      0,
+      1
+    ],
+    "optimization": {
+      "method": "GEPA",
+      "framework": "DSPy",
+      "base_model": "gpt-5.4",
+      "prompt_source": "outputs/gepa_prompt_gpt_5_4.txt",
+      "source_notebook": "build_evaluator.ipynb",
+      "optimized_at": "2026-06-18"
+    },
+    "owners": [
+      "ariena.chi@chanzuckerberg.com"
+    ]
+  },
+  "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "ManageableEvaluatorInput",
+    "type": "object",
+    "required": [
+      "student_text",
+      "feedback_text"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "student_text": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The student's written response."
+      },
+      "feedback_text": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The teacher feedback on that response."
+      }
+    }
+  },
+  "preprocessing": [],
+  "steps": [
+    {
+      "id": "evaluate_is_manageable",
+      "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
+      "prompt": {
+        "type": "chat",
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "91f7840d9fc0d77951e168376f7f357de2d5114e740192785682fca6497b44fc"
+          },
+          {
+            "role": "human",
+            "source_path": "user.txt",
+            "sha256": "eaac7e6eadcc43716e4a98b9e7f34c493c1cbe46adb38367dd8697b904d11bfa"
+          }
+        ],
+        "placeholders": {
+          "student_text": {
+            "required": true,
+            "source": "input"
+          },
+          "feedback_text": {
+            "required": true,
+            "source": "input"
+          },
+          "format_instructions": {
+            "required": true,
+            "source": "parser.format_instructions"
+          }
+        }
+      },
+      "model": {
+        "provider": "openai",
+        "name": "gpt-5.4",
+        "alias": "is_manageable-evaluator-default"
+      },
+      "generation": {
+        "temperature": 1
+      },
+      "parser": {
+        "kind": "json_output_parser",
+        "format_instructions_placeholder": "format_instructions",
+        "output_schema_ref": "#/output_schema",
+        "notes": "Uses LangChain JsonOutputParser-style format_instructions injected into the system prompt."
+      },
+      "output_binding": "formatted_output"
+    }
+  ],
+  "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "EvaluatorOutput",
+    "description": "Final evaluator output for the is_manageable dimension.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "reasoning",
+      "key_features",
+      "proposed_adjustment",
+      "manageable_score"
+    ],
+    "properties": {
+      "reasoning": {
+        "type": "string",
+        "description": "Step-by-step reasoning before the final answer: assess the student response against the task goal, then judge whether the teacher feedback meets the criterion."
+      },
+      "key_features": {
+        "type": "object",
+        "description": "Per-key-feature assessment; each feature judged independently.",
+        "additionalProperties": false,
+        "required": [
+          "length",
+          "number_of_distinct_issues",
+          "clear_priority",
+          "student_knows_next_step"
+        ],
+        "properties": {
+          "length": {
+            "type": "object",
+            "description": "Length (e.g., four sentences or fewer)",
+            "required": [
+              "met",
+              "justification"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "met": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
+              },
+              "justification": {
+                "type": "string",
+                "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
+              }
+            }
+          },
+          "number_of_distinct_issues": {
+            "type": "object",
+            "description": "Number of distinct issues raised",
+            "required": [
+              "met",
+              "justification"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "met": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
+              },
+              "justification": {
+                "type": "string",
+                "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
+              }
+            }
+          },
+          "clear_priority": {
+            "type": "object",
+            "description": "Whether those issues are clearly prioritized",
+            "required": [
+              "met",
+              "justification"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "met": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
+              },
+              "justification": {
+                "type": "string",
+                "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
+              }
+            }
+          },
+          "student_knows_next_step": {
+            "type": "object",
+            "description": "Whether the student would know immediately what to do first and could process and act on the feedback in one revision attempt",
+            "required": [
+              "met",
+              "justification"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "met": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
+              },
+              "justification": {
+                "type": "string",
+                "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
+              }
+            }
+          }
+        }
+      },
+      "proposed_adjustment": {
+        "type": "string",
+        "description": "How the teacher feedback could be modified to meet the criterion. If it already meets the criterion, say so briefly."
+      },
+      "manageable_score": {
+        "type": "integer",
+        "enum": [
+          0,
+          1
+        ],
+        "description": "Overall: 1 if the feedback meets the criterion, 0 otherwise."
+      }
+    }
+  },
+  "fixtures": {
+    "sniff_test_path": "fixtures.json"
+  },
+  "tracing": {
+    "expose": [
+      "rendered_prompt",
+      "raw_output",
+      "raw_text",
+      "formatted_output",
+      "usage"
+    ],
+    "notes": "Runtime engines MUST expose these five trace fields per evaluation."
+  }
+}

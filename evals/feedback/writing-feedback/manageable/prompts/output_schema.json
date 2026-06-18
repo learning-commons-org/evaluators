@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "output_schema.json",
+  "title": "EvaluatorOutput",
+  "description": "Final evaluator output for the is_manageable dimension.",
+  "type": "object",
+  "required": [
+    "reasoning",
+    "key_features",
+    "proposed_adjustment",
+    "manageable_score"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "reasoning": {
+      "type": "string",
+      "description": "Step-by-step reasoning before the final answer: assess the student response against the task goal, then judge whether the teacher feedback meets the criterion."
+    },
+    "key_features": {
+      "$ref": "#/$defs/KeyFeatures"
+    },
+    "proposed_adjustment": {
+      "type": "string",
+      "description": "How the teacher feedback could be modified to meet the criterion. If it already meets the criterion, say so briefly."
+    },
+    "manageable_score": {
+      "type": "integer",
+      "enum": [
+        0,
+        1
+      ],
+      "description": "Overall: 1 if the feedback meets the criterion, 0 otherwise."
+    }
+  },
+  "$defs": {
+    "KeyFeatureAssessment": {
+      "type": "object",
+      "description": "Independent assessment of a single key feature.",
+      "required": [
+        "met",
+        "justification"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "met": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
+        },
+        "justification": {
+          "type": "string",
+          "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
+        }
+      }
+    },
+    "KeyFeatures": {
+      "type": "object",
+      "description": "Per-key-feature assessment; each feature judged independently.",
+      "required": [
+          "length",
+          "number_of_distinct_issues",
+          "clear_priority",
+          "student_knows_next_step"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "length": {
+          "$ref": "#/$defs/KeyFeatureAssessment",
+          "description": "The length of the feedback"
+        },
+        "number_of_distinct_issues": {
+          "$ref": "#/$defs/KeyFeatureAssessment",
+          "description": "Number of distinct issues raised"
+        },
+        "clear_priority": {
+          "$ref": "#/$defs/KeyFeatureAssessment",
+          "description": "Whether those issues are clearly prioritized"
+        },        
+        "student_knows_next_step": {
+          "$ref": "#/$defs/KeyFeatureAssessment",
+          "description": "Whether the student would know immediately what to do first and could process and act on the feedback in one revision attempt."
+        }
+      }
+    }
+  }
+}
