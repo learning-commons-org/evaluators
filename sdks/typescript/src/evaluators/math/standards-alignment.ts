@@ -157,8 +157,10 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         return { statementCode, grade, learningComponents: [], alignedCount: 0, totalCount: 0 };
       }
 
+      // Include the KG identifier in brackets so the model can echo it back,
+      // allowing us to verify each evaluation maps to the correct LC.
       const lcList = components
-        .map((lc, i) => `${i + 1}. ${lc.description}`)
+        .map((lc, i) => `${i + 1}. [${lc.identifier}] ${lc.description}`)
         .join('\n');
 
       const inputs = {
@@ -177,21 +179,28 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         temperature: TEMPERATURE,
       });
 
-      let { evaluations } = response.data;
+      const { evaluations } = response.data;
 
-      if (evaluations.length < components.length) {
+      // Index by the KG identifier the model echoed back.
+      const sentIds = new Set(components.map((lc) => lc.identifier));
+      const evalById = new Map(
+        evaluations
+          .filter((e: { lc_id: string }) => sentIds.has(e.lc_id))
+          .map((e: { lc_id: string; reasoning: string; aligned: boolean; feedback: string }) =>
+            [e.lc_id, e]
+          )
+      );
+
+      // Verify every LC we sent has a verified response.
+      const missingIds = components
+        .map((lc) => lc.identifier)
+        .filter((id) => !evalById.has(id));
+
+      if (missingIds.length > 0) {
         throw new APIError(
-          `Expected ${components.length} evaluations from LLM, got ${evaluations.length}. ` +
+          `LLM response missing verified evaluations for LC identifiers: ${missingIds.join(', ')}. ` +
           `Standard: ${statementCode}`,
         );
-      }
-      // Truncate if the model returned extra entries (over-generation).
-      if (evaluations.length > components.length) {
-        this.logger.warn(
-          `LLM returned ${evaluations.length} evaluations for ${components.length} LCs on ${statementCode} — truncating extras.`,
-          { evaluator: MathStandardsAlignmentEvaluator.metadata.id, operation: 'evaluate' },
-        );
-        evaluations = evaluations.slice(0, components.length);
       }
 
       const latencyMs = Date.now() - startTime;
@@ -207,12 +216,15 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         token_usage: tokenUsage,
       });
 
-      const learningComponents: LearningComponentResult[] = components.map((lc, i) => ({
-        description: lc.description,
-        reasoning: evaluations[i].reasoning,
-        aligned: evaluations[i].aligned,
-        feedback: evaluations[i].feedback,
-      }));
+      const learningComponents: LearningComponentResult[] = components.map((lc) => {
+        const ev = evalById.get(lc.identifier)!;
+        return {
+          description: lc.description,
+          reasoning: ev.reasoning,
+          aligned: ev.aligned,
+          feedback: ev.feedback,
+        };
+      });
 
       const alignedCount = learningComponents.filter((lc) => lc.aligned).length;
 

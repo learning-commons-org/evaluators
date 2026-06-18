@@ -39,15 +39,15 @@ const QUESTION =
   'What is the total area?';
 
 const LC_COMPONENTS = [
-  { description: 'Recognize area as additive' },
-  { description: 'Find areas of rectilinear figures by decomposing into non-overlapping rectangles' },
+  { identifier: 'lc-001', description: 'Recognize area as additive' },
+  { identifier: 'lc-002', description: 'Find areas of rectilinear figures by decomposing into non-overlapping rectangles' },
 ];
 
 const MOCK_BATCH_RESPONSE = {
   data: {
     evaluations: [
-      { reasoning: 'The question asks students to add areas.', aligned: true, feedback: '' },
-      { reasoning: 'Students must decompose the L-shape.', aligned: true, feedback: '' },
+      { lc_id: 'lc-001', reasoning: 'The question asks students to add areas.', aligned: true, feedback: '' },
+      { lc_id: 'lc-002', reasoning: 'Students must decompose the L-shape.', aligned: true, feedback: '' },
     ],
   },
   model: 'anthropic:claude-haiku-4-5-20251001',
@@ -142,11 +142,11 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
   it('throws APIError when LLM returns fewer evaluations than LCs', async () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue({
       ...MOCK_BATCH_RESPONSE,
-      data: { evaluations: [MOCK_BATCH_RESPONSE.data.evaluations[0]] },
+      data: { evaluations: [MOCK_BATCH_RESPONSE.data.evaluations[0]] }, // only lc-001, missing lc-002
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
     await expect(evaluator.evaluate(QUESTION, GRADE, STATEMENT_CODE)).rejects.toThrow(APIError);
-    await expect(evaluator.evaluate(QUESTION, GRADE, STATEMENT_CODE)).rejects.toThrow('Expected 2 evaluations');
+    await expect(evaluator.evaluate(QUESTION, GRADE, STATEMENT_CODE)).rejects.toThrow('missing verified evaluations for LC identifiers');
   });
 
   it('throws ValidationError for empty question', async () => {
@@ -171,11 +171,11 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
 
   it('correctly handles grade K standard', async () => {
     const kRepo = makeMockKgClient({
-      getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ description: 'Count objects' }] }),
+      getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ identifier: 'lc-k01', description: 'Count objects' }] }),
     });
     vi.mocked(mockProvider.generateStructured).mockResolvedValue({
       ...MOCK_BATCH_RESPONSE,
-      data: { evaluations: [{ reasoning: 'ok', aligned: true, feedback: '' }] },
+      data: { evaluations: [{ lc_id: 'lc-k01', reasoning: 'ok', aligned: true, feedback: '' }] },
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: kRepo }));
     const result = await evaluator.evaluate(QUESTION, 'K', 'K.CC.A.1');
@@ -187,10 +187,7 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue({
       ...MOCK_BATCH_RESPONSE,
       data: {
-        evaluations: [
-          { reasoning: 'Aligned', aligned: true, feedback: '' },
-          { reasoning: 'Not aligned', aligned: false, feedback: 'Revise to ask students to decompose' },
-        ],
+        evaluations: [{ lc_id: 'lc-001', reasoning: 'Aligned', aligned: true, feedback: '' }, { lc_id: 'lc-002', reasoning: 'Not aligned', aligned: false, feedback: 'Revise to ask students to decompose' }],
       },
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
@@ -214,10 +211,10 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems', () => {
   });
 
   it('evaluates each item against its own standards list', async () => {
-    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ description: 'LC' }] }) });
+    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ identifier: 'lc-t01', description: 'LC' }] }) });
     vi.mocked(mockProvider.generateStructured).mockResolvedValue({
       ...MOCK_BATCH_RESPONSE,
-      data: { evaluations: [{ reasoning: 'ok', aligned: true, feedback: '' }] },
+      data: { evaluations: [{ lc_id: 'lc-t01', reasoning: 'ok', aligned: true, feedback: '' }] },
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo }));
 
@@ -235,10 +232,10 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems', () => {
   });
 
   it('supports items with different grades', async () => {
-    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ description: 'LC' }] }) });
+    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ identifier: 'lc-t01', description: 'LC' }] }) });
     vi.mocked(mockProvider.generateStructured).mockResolvedValue({
       ...MOCK_BATCH_RESPONSE,
-      data: { evaluations: [{ reasoning: 'ok', aligned: true, feedback: '' }] },
+      data: { evaluations: [{ lc_id: 'lc-t01', reasoning: 'ok', aligned: true, feedback: '' }] },
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo }));
 
@@ -252,10 +249,10 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems', () => {
   });
 
   it('onProgress fires for each completed (item, standard) pair', async () => {
-    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ description: 'LC' }] }) });
+    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ identifier: 'lc-t01', description: 'LC' }] }) });
     vi.mocked(mockProvider.generateStructured).mockResolvedValue({
       ...MOCK_BATCH_RESPONSE,
-      data: { evaluations: [{ reasoning: 'ok', aligned: true, feedback: '' }] },
+      data: { evaluations: [{ lc_id: 'lc-t01', reasoning: 'ok', aligned: true, feedback: '' }] },
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo }));
 
@@ -290,10 +287,10 @@ describe('MathStandardsAlignmentEvaluator - evaluateQuestionBank', () => {
   });
 
   it('deduplicates statementCodes — evaluate called once per unique code regardless of duplicates in input', async () => {
-    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ description: 'LC' }] }) });
+    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ identifier: 'lc-t01', description: 'LC' }] }) });
     vi.mocked(mockProvider.generateStructured).mockResolvedValue({
       ...MOCK_BATCH_RESPONSE,
-      data: { evaluations: [{ reasoning: 'ok', aligned: true, feedback: '' }] },
+      data: { evaluations: [{ lc_id: 'lc-t01', reasoning: 'ok', aligned: true, feedback: '' }] },
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo }));
 
@@ -313,10 +310,10 @@ describe('MathStandardsAlignmentEvaluator - evaluateQuestionBank', () => {
   });
 
   it('onProgress total reflects unique standards, not raw input length with duplicates', async () => {
-    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ description: 'LC' }] }) });
+    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ identifier: 'lc-t01', description: 'LC' }] }) });
     vi.mocked(mockProvider.generateStructured).mockResolvedValue({
       ...MOCK_BATCH_RESPONSE,
-      data: { evaluations: [{ reasoning: 'ok', aligned: true, feedback: '' }] },
+      data: { evaluations: [{ lc_id: 'lc-t01', reasoning: 'ok', aligned: true, feedback: '' }] },
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo }));
     const progress: Array<[number, number]> = [];
@@ -438,8 +435,8 @@ describe('MathStandardsAlignmentEvaluator - evaluateQuestionBank', () => {
         ...MOCK_BATCH_RESPONSE,
         data: {
           evaluations: [
-            { reasoning: 'r', aligned, feedback: '' },
-            { reasoning: 'r', aligned, feedback: '' },
+            { lc_id: 'lc-001', reasoning: 'r', aligned, feedback: '' },
+            { lc_id: 'lc-002', reasoning: 'r', aligned, feedback: '' },
           ],
         },
       };

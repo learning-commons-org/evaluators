@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
+// Each LC evaluation echoes back the KG identifier of the LC it evaluated.
+// The evaluator verifies this matches what was sent — detecting silent mismatches.
 export const LCEvaluationSchema = z.object({
+  lc_id: z.string(),
   reasoning: z.string(),
   aligned: z.boolean(),
   feedback: z.string(),
