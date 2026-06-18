@@ -1,0 +1,50 @@
+[
+  {
+    "id": "NASA-001",
+    "description": "What Is the Artemis Program?",
+    "source": "Intertextuality ANET Samples - sniff_test_2_clean.csv",
+    "input": {
+      "text": "Why Is This Program Called Artemis?\nThe first astronauts landed on the Moon in 1969. The missions were called Apollo. The name Apollo came from stories told by Greek people long ago. In the stories, Apollo was a god. Apollo had a twin sister. Her name was Artemis. She was the goddess of the Moon in the Greek stories.\n\nWhat Spacecraft Will Be Used for the Artemis Program?\nNASA has a new rocket. It is the Space Launch System. It is called SLS for short. It is the most powerful rocket in the world. SLS will carry the Orion spacecraft on top. Orion can carry up to four astronauts. Orion will fly around, or orbit, the Moon. The crew will take trips in spacecraft called landers to get to work on the surface of the Moon. When all of their work is finished, the crew will return to Earth aboard Orion.\n\nWhen Will Artemis Go to the Moon?\nThe first Apollo missions were tests. NASA launched the rocket to be sure it was safe for people and work as planned. Artemis will be tested first, too: Artemis 1 launched SLS and Orion with no astronauts on Nov. 16, 2022. Artemis 2 is carrying astronauts. They will circle past the Moon and return to Earth. Artemis 3 will send a crew with the next man to land on the Moon. Artemis 4 will send astronauts to land on the Moon.\n\nWhat Will Artemis Astronauts Do on the Moon?\nThe Artemis 4 crew will visit the Moon’s South Pole. No one has ever been there. At the Moon, astronauts will:\nSearch for the Moon’s water and use it.\nLearn how to live and work on a different planet or moon.\nTest the new tools that astronauts will need for a mission to Mars.\n\nWhy Is the Artemis Program Important?\nThe Moon is a good place to learn new science. NASA will learn more about the Moon, Earth, and even the Sun. The Moon is also a place to learn how astronauts can one day live and work on Mars.\nAstronauts on the Artemis missions will need new tools. Many companies will make these new tools. This will mean new jobs for people and companies on Earth. Other countries will be NASA’s partners for the new Moon missions. They will work on Artemis to bring the world together for a mission to Earth’s nearest neighbor in space.",
+      "grade_level": 3
+    },
+    "expected": {
+      "complexity_level": "slightly_complex"
+    }
+  },
+  {
+    "id": "NASA-074",
+    "description": "What Is a Light-Year?",
+    "source": "Intertextuality ANET Samples - sniff_test_2_clean.csv",
+    "input": {
+      "text": "For most space objects, we use light-years to describe their distance. A light-year is the distance light travels in one Earth year. One light-year is about 6 trillion miles (9 trillion km). That is a 6 with 12 zeros behind it!\n\nWhen we use powerful telescopes to look at distant objects in space, we are actually looking back in time. How can this be?\n\nLight travels at a speed of 186,000 miles (or 300,000 km) per second. This seems really fast, but objects in space are so far away that it takes a lot of time for their light to reach us. The farther an object is, the farther in the past we see it.\n\nOur Sun is the closest star to us. It is about 93 million miles away. So, the Sun's light takes about 8.3 minutes to reach us. This means that we always see the Sun as it was about 8.3 minutes ago.\n\nThe next closest star to us is about 4.3 light-years away. So, when we see this star today, we’re actually seeing it as it was 4.3 years ago. All of the other stars we can see with our eyes are farther, some even thousands of light-years away.\n\nStars are found in large groups called galaxies. A galaxy can have millions or billions of stars. The nearest large galaxy to us, Andromeda, is 2.5 million light-years away. So, we see Andromeda as it was 2.5 million years in the past. The universe is filled with billions of galaxies, all farther away than this. Some of these galaxies are much farther away.\n\nIn 2016, NASA's Hubble Space Telescope looked at the farthest galaxy ever seen, called GN-z11. It is 13.4 billion light-years away, so today we can see it as it was 13.4 billion years ago. That is only 400 million years after the big bang. It is one of the first galaxies ever formed in the universe.\n\nLearning about the very first galaxies that formed after the big bang, like this one, helps us understand what the early universe was like.\n\nThis picture shows hundreds of very old and distant galaxies. The oldest one found so far in GN-z11 (shown in the close up image). The image is a bit blurry because this galaxy is so far away.",
+      "grade_level": 4
+    },
+    "expected": {
+      "complexity_level": "moderately_complex"
+    }
+  },
+  {
+    "id": "FYM-1106",
+    "description": "A Good Night’s Sleep: Necessary for Young Minds",
+    "source": "Intertextuality ANET Samples - sniff_test_2_clean.csv",
+    "input": {
+      "text": "How Much Sleep Do You Need?\n\nThe National Sleep Foundation recommends that school-aged kids (6–13 years) sleep between 9 and 11 h a night. Teens are recommended to get 8–10 h a night and adults about 7–9 h . If you are a student, particularly in the United States, you may find it difficult to get this amount of sleep on school nights. As you go through puberty, your body wants to go to bed later and sleep later. But school (particularly in the U.S.) often starts too early! This makes it hard for teenagers to get enough sleep on school nights. By the weekend, you probably have missed so much sleep that you feel particularly sleepy, and you may dramatically oversleep as your sleep homeostat works hard to recover the sleep you need. If you oversleep all weekend, however, this can make waking up on Monday morning a miserable experience.",
+      "grade_level": 7
+    },
+    "expected": {
+      "complexity_level": "moderately_complex"
+    }
+  },
+  {
+    "id": "CC-3983",
+    "description": "Italy's Violation of Faith",
+    "source": "Intertextuality ANET Samples - sniff_test_2_clean.csv",
+    "input": {
+      "text": "When I spoke eight days ago there was still a glimpse of hope that Italy's participation in the war could be avoided. That hope proved fallacious. German feeling strove against the belief in the possibility of such a change. Italy has now inscribed in the book of the world's history, in letters of blood which will never fade, her violation of faith.\n\nI believe Machiavelli once said that a war which is necessary is also just. Viewed from this sober, practical, political standpoint, which leaves out of account all moral considerations, has this war been necessary? Is it not, indeed, directly mad? [Cheers.] Nobody threatened Italy; neither Austria-Hungary nor Germany. Whether the Triple Entente was content with blandishments alone history will show later. [Cheers.] Without a drop of blood flowing, and without the life of a single Italian being endangered, Italy could have secured the long list of concessions which I recently read to the House—territory in Tyrol and on the Isonzo as far as the Italian speech is heard, satisfaction of the national aspirations in Trieste, a free hand in Albania, and the valuable port of Valona.\n\nWhy have they not taken it? Do they, perhaps, wish to conquer the German Tyrol? Hands off! [Prolonged cheers.] Did Italy wish to provoke Germany, to whom she owes so much in her upward growth of a great power, and from whom she is not separated by any conflict of interests? We left Rome in no doubt that an Italian attack on Austro-Hungarian troops would also strike the German troops. [Cheers.] Why did Rome refuse so light-heartedly the proposals of Vienna? The Italian manifesto of war, which conceals an uneasy conscience behind vain phrases, does not give us any explanation. They were too shy, perhaps, to say openly what was spread abroad as a pretext by the press and by gossip in the lobbies of the Chamber, namely, that Austria's offer came too late and could not be trusted.",
+      "grade_level": 10
+    },
+    "expected": {
+      "complexity_level": "exceedingly_complex"
+    }
+  }
+]
