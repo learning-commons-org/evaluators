@@ -427,7 +427,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       const evalById = new Map(
         evaluations
           .filter((e: { lc_id: string }) => sentIds.has(e.lc_id))
-          .map((e: { lc_id: string; reasoning: string; aligned: boolean; feedback: string }) =>
+          .map((e: { lc_id: string; reasoning: string; answer: 'Yes' | 'No'; feedback: string }) =>
             [e.lc_id, e]
           )
       );
@@ -462,7 +462,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         return {
           description: lc.description,
           reasoning: ev.reasoning,
-          aligned: ev.aligned,
+          aligned: ev.answer === 'Yes',
           feedback: ev.feedback,
         };
       });
@@ -473,7 +473,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         status: 'success',
         latencyMs,
         textLength: question.length,
-        grade: grade ?? '',
+        grade,
         provider: this.detailProvider.label,
         tokenUsage,
         metadata: { stage_details: stageDetails },
@@ -495,7 +495,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         status: 'error',
         latencyMs,
         textLength: question.length,
-        grade: grade ?? '',
+        grade,
         provider: this.detailProvider.label,
         tokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',

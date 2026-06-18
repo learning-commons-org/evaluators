@@ -5,7 +5,7 @@ import { z } from 'zod';
 export const LCEvaluationSchema = z.object({
   lc_id: z.string(),
   reasoning: z.string(),
-  aligned: z.boolean(),
+  answer: z.enum(['Yes', 'No']),
   feedback: z.string(),
 });
 

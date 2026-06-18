@@ -168,7 +168,7 @@ export class KnowledgeGraphClient {
   }
 
   private async _fetchFrameworkUuid(jurisdiction: string, academicSubject?: string): Promise<string> {
-    const params = new URLSearchParams({ jurisdiction });
+    const params = new URLSearchParams({ jurisdiction, limit: '1' });
     if (academicSubject) params.set('academicSubject', academicSubject);
 
     const url = `${KG_BASE_URL}/standards-frameworks?${params.toString()}`;

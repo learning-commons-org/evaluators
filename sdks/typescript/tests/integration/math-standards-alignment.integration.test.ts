@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MathStandardsAlignmentEvaluator } from '../../src/evaluators/math/standards-alignment.js';
+import { MathStandardsAlignmentEvaluator, Jurisdiction } from '../../src/evaluators/math/standards-alignment.js';
 import { KnowledgeGraphClient } from '../../src/knowledge-graph/client.js';
 
 const RUN = process.env['RUN_INTEGRATION_TESTS'] === 'true';
@@ -64,13 +64,13 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
 
       // ── Phase 1: ground truth (no coarse filter) ──────────────────────────
       const { evaluator: ev1, counters: c1 } = makeInstrumentedEvaluator();
-      const groundTruth = await ev1.evaluateQuestionBank(questionItems, MD_C_7_FAMILY, {
+      const groundTruth = await ev1.evaluateQuestionBank(questionItems, MD_C_7_FAMILY, Jurisdiction.MultiState, {
         useCoarseFilter: false,
       });
 
       // ── Phase 2: with coarse filter (explicitly opt in) ───────────────────
       const { evaluator: ev2, counters: c2 } = makeInstrumentedEvaluator();
-      const filtered = await ev2.evaluateQuestionBank(questionItems, MD_C_7_FAMILY, { useCoarseFilter: true });
+      const filtered = await ev2.evaluateQuestionBank(questionItems, MD_C_7_FAMILY, Jurisdiction.MultiState, { useCoarseFilter: true });
 
       // ── Log results ───────────────────────────────────────────────────────
       console.log('\n════ GROUND TRUTH (no coarse filter) ════');
