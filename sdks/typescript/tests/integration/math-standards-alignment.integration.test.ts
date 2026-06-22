@@ -58,24 +58,24 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
     '3.MD.C.7 family: area L-shape question vs parent + all sub-standards',
     async () => {
       const questionItems = [
-        { question: AREA_QUESTION, grade: '3' },
-        { question: UNRELATED_QUESTION, grade: '3' },
+        { question: AREA_QUESTION, statementCodes: MD_C_7_FAMILY },
+        { question: UNRELATED_QUESTION, statementCodes: MD_C_7_FAMILY },
       ];
 
       // ── Phase 1: ground truth (no coarse filter) ──────────────────────────
       const { evaluator: ev1, counters: c1 } = makeInstrumentedEvaluator();
-      const groundTruth = await ev1.evaluateQuestionBank(questionItems, MD_C_7_FAMILY, Jurisdiction.MultiState, {
+      const groundTruth = await ev1.evaluateItems(questionItems, Jurisdiction.MultiState, {
         useCoarseFilter: false,
       });
 
       // ── Phase 2: with coarse filter (explicitly opt in) ───────────────────
       const { evaluator: ev2, counters: c2 } = makeInstrumentedEvaluator();
-      const filtered = await ev2.evaluateQuestionBank(questionItems, MD_C_7_FAMILY, Jurisdiction.MultiState, { useCoarseFilter: true });
+      const filtered = await ev2.evaluateItems(questionItems, Jurisdiction.MultiState, { useCoarseFilter: true });
 
       // ── Log results ───────────────────────────────────────────────────────
       console.log('\n════ GROUND TRUTH (no coarse filter) ════');
       console.log(`KG calls: ${c1.uuidFetches} UUID, ${c1.lcFetches} LC | LLM calls: ${c1.llmCalls}`);
-      for (const qr of groundTruth.byQuestion) {
+      for (const qr of groundTruth) {
         console.log(`\n  Q: "${qr.question.slice(0, 70)}…"`);
         for (const s of qr.standards) {
           const tag = s.alignedCount > 0 ? `ALIGNED ${s.alignedCount}/${s.totalCount}` : `not aligned 0/${s.totalCount}`;
@@ -88,7 +88,7 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
 
       console.log('\n════ WITH COARSE FILTER ════');
       console.log(`KG calls: ${c2.uuidFetches} UUID, ${c2.lcFetches} LC | LLM calls: ${c2.llmCalls}`);
-      for (const qr of filtered.byQuestion) {
+      for (const qr of filtered) {
         console.log(`\n  Q: "${qr.question.slice(0, 70)}…"`);
         for (const s of qr.standards) {
           if (s.coarseFiltered) {
@@ -101,8 +101,8 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
       }
 
       console.log('\n════ COARSE FILTER ANALYSIS ════');
-      const areaGT = groundTruth.byQuestion.find((q) => q.question === AREA_QUESTION)!;
-      const areaFiltered = filtered.byQuestion.find((q) => q.question === AREA_QUESTION)!;
+      const areaGT = groundTruth.find((q) => q.question === AREA_QUESTION)!;
+      const areaFiltered = filtered.find((q) => q.question === AREA_QUESTION)!;
 
       let falseNegatives = 0;
       for (const gtStd of areaGT.standards) {
@@ -154,7 +154,7 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
       expect(s7d.alignedCount, '3.MD.C.7.d should align strongly (all LCs)').toBe(s7d.totalCount);
 
       // Unrelated question must not align to any standard
-      const unrelatedGT = groundTruth.byQuestion.find((q) => q.question === UNRELATED_QUESTION)!;
+      const unrelatedGT = groundTruth.find((q) => q.question === UNRELATED_QUESTION)!;
       for (const s of unrelatedGT.standards) {
         expect(s.alignedCount, `"12 + 7" should not align to ${s.statementCode}`).toBe(0);
       }

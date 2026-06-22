@@ -33,31 +33,26 @@ export interface LearningComponentResult {
 
 export interface StandardAlignmentResult {
   statementCode: string;
-  grade?: string;
   learningComponents: LearningComponentResult[];
   alignedCount: number;
   totalCount: number;
   coarseFiltered?: boolean;
 }
 
-/** A single question paired with its target grade and the standards to evaluate against. */
 export interface QuestionItem {
   question: string;
-  grade: string;
   statementCodes: string[];
 }
 
 export interface QuestionBankResult {
   byQuestion: Array<{
     question: string;
-    grade: string;
     standards: StandardAlignmentResult[];
   }>;
   byStandard: Array<{
     statementCode: string;
     coveredBy: Array<{
       question: string;
-      grade: string;
       alignedCount: number;
       totalCount: number;
     }>;
@@ -91,7 +86,6 @@ export interface MathStandardsAlignmentEvaluatorConfig extends BaseEvaluatorConf
 // Constants read from config.json (single source of truth)
 // ---------------------------------------------------------------------------
 
-const SUPPORTED_GRADES_SET = new Set(SUPPORTED_GRADES);
 const DETAIL_MODEL: string = STEP.model.name;
 const TEMPERATURE: number = STEP.generation.temperature;
 const KG_SUBJECT = 'Mathematics';
@@ -154,33 +148,78 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
   }
 
   // -------------------------------------------------------------------------
-  // evaluateItems — M questions each with their own pre-mapped standards
+  // evaluateItems — M questions × per-question standards
   //
-  // Use this when each question already has specific standards assigned to it
-  // (e.g. tagging validation — "does this question actually cover its mapped standards?").
-  // Each item carries its own grade since a question bank may span multiple grades.
+  // Each item specifies its own statementCodes list. Use this for:
+  //   - Tagging validation: verify a question covers its pre-mapped standards
+  //   - Grade-level coverage: pass the same codes to all items (evaluateByGrade does this)
+  //
+  // Set options.useCoarseFilter to true to run a fast pre-filter before the
+  // full per-LC evaluation — reduces LLM calls at scale, slight recall trade-off.
   // -------------------------------------------------------------------------
 
   async evaluateItems(
     items: QuestionItem[],
     jurisdiction: Jurisdiction,
     options?: QuestionBankOptions,
-  ): Promise<Array<{ question: string; grade: string; standards: StandardAlignmentResult[] }>> {
+  ): Promise<Array<{ question: string; standards: StandardAlignmentResult[] }>> {
     if (items.length === 0) return [];
-    items.forEach((item) => {
-      this.validateQuestion(item.question);
-      this.validateGradeInput(item.grade);
-    });
+    items.forEach((item) => this.validateQuestion(item.question));
 
+    const dedupedItems = items.map((item) => ({
+      question: item.question,
+      statementCodes: [...new Set(item.statementCodes)],
+    }));
+
+    const useCoarseFilter = options?.useCoarseFilter ?? false;
     const bankLimit = pLimit(options?.concurrency ?? this.llmConcurrency);
-    const total = items.reduce((sum, item) => sum + item.statementCodes.length, 0);
+
+    // Pre-fetch LC data for all unique codes — needed to report totalCount on coarse-filtered results.
+    const allCodes = [...new Set(dedupedItems.flatMap((i) => i.statementCodes))];
+    type LcCacheEntry = Awaited<ReturnType<KnowledgeGraphClient['getLearningComponentsByCode']>>;
+    const lcCache = new Map<string, LcCacheEntry>();
+
+    if (useCoarseFilter) {
+      await Promise.all(
+        allCodes.map((code) =>
+          this.kgClient.getLearningComponentsByCode(code, { jurisdiction, academicSubject: KG_SUBJECT, limit: 1 })
+            .then((result) => lcCache.set(code, result))
+            .catch(() => undefined),
+        ),
+      );
+    }
+
+    // Coarse filter: per-item, against that item's own statementCodes.
+    let relevanceMaps: Map<number, Set<string>>;
+    if (!useCoarseFilter) {
+      relevanceMaps = new Map(dedupedItems.map((item, i) => [i, new Set(item.statementCodes)]));
+    } else {
+      const filterResults = await Promise.all(
+        dedupedItems.map((item) => bankLimit(() => this.runCoarseFilter(item.question, item.statementCodes, jurisdiction))),
+      );
+      relevanceMaps = new Map(dedupedItems.map((_, i) => [i, filterResults[i]]));
+    }
+
+    const total = dedupedItems.reduce((sum, _, i) => sum + (relevanceMaps.get(i)?.size ?? 0), 0);
     let completed = 0;
 
     const settled = await Promise.allSettled(
-      items.map(async (item) => {
+      dedupedItems.map(async (item, i) => {
+        const relevant = relevanceMaps.get(i) ?? new Set(item.statementCodes);
+
         const standardSettled = await Promise.allSettled(
-          item.statementCodes.map(async (code) => {
-            const result = await bankLimit(() => this._evaluateCore(item.question, code, jurisdiction, item.grade));
+          item.statementCodes.map(async (code): Promise<StandardAlignmentResult> => {
+            if (!relevant.has(code)) {
+              const cached = lcCache.get(code);
+              return {
+                statementCode: code,
+                learningComponents: [],
+                alignedCount: 0,
+                totalCount: cached?.components.length ?? 0,
+                coarseFiltered: true,
+              };
+            }
+            const result = await bankLimit(() => this._evaluateCore(item.question, code, jurisdiction));
             completed++;
             options?.onProgress?.(completed, total);
             return result;
@@ -190,12 +229,10 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         const errors = standardSettled
           .filter((s): s is PromiseRejectedResult => s.status === 'rejected')
           .map((s) => s.reason instanceof Error ? s.reason : new Error(String(s.reason)));
-
         if (errors.length > 0) throw errors[0];
 
         return {
           question: item.question,
-          grade: item.grade,
           standards: standardSettled.map((s) =>
             s.status === 'fulfilled' ? s.value : { statementCode: '', learningComponents: [], alignedCount: 0, totalCount: 0 }
           ),
@@ -208,150 +245,25 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       .map((s) => s.reason instanceof Error ? s.reason : new Error(String(s.reason)));
     if (errors.length > 0) throw errors[0];
 
-    return (settled as Array<PromiseFulfilledResult<{ question: string; grade: string; standards: StandardAlignmentResult[] }>>).map((s) => s.value);
+    return (settled as Array<PromiseFulfilledResult<{ question: string; standards: StandardAlignmentResult[] }>>).map((s) => s.value);
   }
 
   // -------------------------------------------------------------------------
-  // evaluateQuestionBank — M questions × N standards (true cross-product)
-  //
-  // Use this when you have a set of questions and a target set of standards
-  // and want to know which questions cover which standards (coverage/gap analysis).
-  // All questions share the same statementCodes list. Each question carries its
-  // own grade since a bank may span multiple grades.
-  // -------------------------------------------------------------------------
-
-  async evaluateQuestionBank(
-    questions: Array<{ question: string; grade: string }>,
-    statementCodes: string[],
-    jurisdiction: Jurisdiction,
-    options?: QuestionBankOptions,
-  ): Promise<QuestionBankResult> {
-    if (questions.length === 0) throw new ValidationError('questions array must not be empty');
-    if (statementCodes.length === 0) throw new ValidationError('statementCodes array must not be empty');
-
-    questions.forEach((q) => {
-      this.validateQuestion(q.question);
-      this.validateGradeInput(q.grade);
-    });
-
-    // Deduplicate statementCodes so each standard is evaluated exactly once per question
-    // and progress totals stay accurate.
-    const uniqueStatementCodes = [...new Set(statementCodes)];
-
-    // useCoarseFilter defaults to false — full evaluation for correctness.
-    // Set to true for a cost-reduction pre-filter (may miss aligned standards at scale).
-    const useCoarseFilter = options?.useCoarseFilter ?? false;
-    const bankLimit = pLimit(options?.concurrency ?? this.llmConcurrency);
-
-    // Phase 1 — coarse filter: one LLM call per question over all standards
-    // Keyed by question index (not text) so duplicate question strings don't overwrite each other.
-    let relevanceMap: Map<number, Set<string>>;
-
-    if (!useCoarseFilter) {
-      relevanceMap = new Map(questions.map((_, i) => [i, new Set(uniqueStatementCodes)]));
-    } else {
-      const filterResults = await Promise.all(
-        questions.map((q) => bankLimit(() => this.runCoarseFilter(q.question, uniqueStatementCodes, jurisdiction))),
-      );
-      relevanceMap = new Map(questions.map((_, i) => [i, filterResults[i]]));
-    }
-
-    // Pre-fetch LC data for coarse-filtered standards (needed only for totalCount in skipped results)
-    const total = questions.reduce((sum, _, i) => sum + (relevanceMap.get(i)?.size ?? 0), 0);
-    let completed = 0;
-
-    type LcCacheEntry = Awaited<ReturnType<KnowledgeGraphClient['getLearningComponentsByCode']>>;
-    const lcCache = new Map<string, LcCacheEntry>();
-
-    if (useCoarseFilter) {
-      await Promise.all(
-        uniqueStatementCodes.map((code) =>
-          this.kgClient.getLearningComponentsByCode(code, { jurisdiction, academicSubject: KG_SUBJECT, limit: 1 })
-            .then((result) => lcCache.set(code, result))
-            .catch(() => undefined),
-        ),
-      );
-    }
-
-    // Phase 2 — detail eval for pairs that survived the coarse filter
-    const questionSettled = await Promise.allSettled(
-      questions.map(async (q, i) => {
-        const relevant = relevanceMap.get(i) ?? new Set(uniqueStatementCodes);
-
-        const standardSettled = await Promise.allSettled(
-          uniqueStatementCodes.map(async (code): Promise<StandardAlignmentResult> => {
-            if (!relevant.has(code)) {
-              const cached = lcCache.get(code);
-              return {
-                statementCode: code,
-                grade: q.grade,
-                learningComponents: [],
-                alignedCount: 0,
-                totalCount: cached?.components.length ?? 0,
-                coarseFiltered: true,
-              };
-            }
-
-            const result = await bankLimit(() => this._evaluateCore(q.question, code, jurisdiction, q.grade));
-            completed++;
-            options?.onProgress?.(completed, total);
-            return result;
-          }),
-        );
-
-        const errors = standardSettled
-          .filter((s): s is PromiseRejectedResult => s.status === 'rejected')
-          .map((s) => s.reason instanceof Error ? s.reason : new Error(String(s.reason)));
-        if (errors.length > 0) throw errors[0];
-
-        return {
-          question: q.question,
-          grade: q.grade,
-          standards: standardSettled.map((s) =>
-            s.status === 'fulfilled' ? s.value : { statementCode: '', grade: q.grade, learningComponents: [], alignedCount: 0, totalCount: 0 }
-          ),
-        };
-      }),
-    );
-
-    const questionErrors = questionSettled
-      .filter((s): s is PromiseRejectedResult => s.status === 'rejected')
-      .map((s) => s.reason instanceof Error ? s.reason : new Error(String(s.reason)));
-    if (questionErrors.length > 0) throw questionErrors[0];
-
-    const byQuestion = (questionSettled as Array<PromiseFulfilledResult<{ question: string; grade: string; standards: StandardAlignmentResult[] }>>).map((s) => s.value);
-
-    const byStandard = uniqueStatementCodes.map((code) => {
-      const coveredBy = byQuestion
-        .flatMap(({ question, grade, standards }) => {
-          const result = standards.find((s) => s.statementCode === code);
-          if (!result || result.alignedCount === 0) return [];
-          return [{ question, grade, alignedCount: result.alignedCount, totalCount: result.totalCount }];
-        });
-      return { statementCode: code, coveredBy, coverageCount: coveredBy.length };
-    });
-
-    return { byQuestion, byStandard };
-  }
-
-  // -------------------------------------------------------------------------
-  // evaluateByGrade — fetches all math standards for a grade then runs M×N
+  // evaluateByGrade — fetches all math standards for a grade, then evaluates
   //
   // Use when you don't have a predetermined standards list. Jurisdiction
-  // determines which state's adopted standards are used.
+  // determines which state's adopted standards are fetched from the KG.
+  // Returns both a by-question and by-standard view of coverage.
   // -------------------------------------------------------------------------
 
   async evaluateByGrade(
-    questions: Array<{ question: string; grade: string }> | string[],
+    questions: string[],
     grade: string,
     jurisdiction: Jurisdiction,
     options?: QuestionBankOptions,
   ): Promise<QuestionBankResult> {
+    if (questions.length === 0) throw new ValidationError('questions array must not be empty');
     this.validateGrade(grade, new Set(SUPPORTED_GRADES));
-
-    const normalised = (questions as Array<string | { question: string; grade: string }>).map((q) =>
-      typeof q === 'string' ? { question: q, grade } : q,
-    );
 
     const academicStandards = await this.kgClient.getStandardsByGrade(grade, {
       jurisdiction,
@@ -364,12 +276,24 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 
     if (codes.length === 0) {
       return {
-        byQuestion: normalised.map((q) => ({ ...q, standards: [] })),
+        byQuestion: questions.map((q) => ({ question: q, standards: [] })),
         byStandard: [],
       };
     }
 
-    return this.evaluateQuestionBank(normalised, codes, jurisdiction, options);
+    const items = questions.map((q) => ({ question: q, statementCodes: codes }));
+    const byQuestion = await this.evaluateItems(items, jurisdiction, options);
+
+    const byStandard = codes.map((code) => {
+      const coveredBy = byQuestion.flatMap(({ question, standards }) => {
+        const result = standards.find((s) => s.statementCode === code);
+        if (!result || result.alignedCount === 0) return [];
+        return [{ question, alignedCount: result.alignedCount, totalCount: result.totalCount }];
+      });
+      return { statementCode: code, coveredBy, coverageCount: coveredBy.length };
+    });
+
+    return { byQuestion, byStandard };
   }
 
   // -------------------------------------------------------------------------
@@ -380,7 +304,6 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     question: string,
     statementCode: string,
     jurisdiction: Jurisdiction,
-    grade?: string,
   ): Promise<StandardAlignmentResult> {
     this.validateQuestion(question);
     this.validateStatementCode(statementCode);
@@ -396,7 +319,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       });
 
       if (components.length === 0) {
-        return { statementCode, grade, learningComponents: [], alignedCount: 0, totalCount: 0 };
+        return { statementCode, learningComponents: [], alignedCount: 0, totalCount: 0 };
       }
 
       // Include the KG identifier in brackets so the model can echo it back,
@@ -473,14 +396,13 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         status: 'success',
         latencyMs,
         textLength: question.length,
-        grade,
         provider: this.detailProvider.label,
         tokenUsage,
         metadata: { stage_details: stageDetails },
         inputText: question,
       }).catch(() => undefined);
 
-      return { statementCode, grade, learningComponents, alignedCount, totalCount: components.length };
+      return { statementCode, learningComponents, alignedCount, totalCount: components.length };
     } catch (error) {
       const latencyMs = Date.now() - startTime;
 
@@ -495,7 +417,6 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         status: 'error',
         latencyMs,
         textLength: question.length,
-        grade,
         provider: this.detailProvider.label,
         tokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
@@ -563,14 +484,6 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     if (question.length > MAX_QUESTION_LENGTH) {
       throw new ValidationError(
         `question exceeds maximum length of ${MAX_QUESTION_LENGTH} characters (got ${question.length})`,
-      );
-    }
-  }
-
-  private validateGradeInput(grade: string): void {
-    if (!SUPPORTED_GRADES_SET.has(grade)) {
-      throw new ValidationError(
-        `Invalid grade "${grade}". Supported: ${[...SUPPORTED_GRADES].join(', ')}`,
       );
     }
   }
