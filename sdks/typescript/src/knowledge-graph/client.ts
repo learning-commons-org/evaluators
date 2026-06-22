@@ -1,4 +1,5 @@
 import pLimit from 'p-limit';
+import createClient, { type Middleware } from 'openapi-fetch';
 import {
   KnowledgeGraphError,
   AuthenticationError,
@@ -6,13 +7,46 @@ import {
   NetworkError,
 } from '../errors.js';
 import type { AcademicStandard, LearningComponent, StandardInfo } from './types.js';
-import type { components } from './kg-api.js';
+import type { paths, components } from './kg-api.js';
 
 const KG_BASE_URL = 'https://api.learningcommons.org/knowledge-graph/v0';
 const CCSS_FRAMEWORK_UUID = 'c6496676-d7cb-11e8-824f-0242ac160002';
 const KG_TIMEOUT_MS = 30_000;
 
-type SpecLearningComponent = components['schemas']['LearningComponent'];
+// Adds per-request timeout and maps network/timeout errors to domain types.
+async function kgFetchFn(input: Request, init?: Parameters<typeof fetch>[1]): Promise<Response> {
+  try {
+    return await fetch(input, { ...init, signal: AbortSignal.timeout(KG_TIMEOUT_MS) });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'TimeoutError') {
+      throw new NetworkError(`Knowledge Graph request timed out after ${KG_TIMEOUT_MS}ms`);
+    }
+    throw new NetworkError(`Knowledge Graph request failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+function wrapJsonError(err: unknown): never {
+  if (err instanceof SyntaxError) {
+    throw new KnowledgeGraphError(`Knowledge Graph returned invalid JSON: ${err.message}`);
+  }
+  throw err;
+}
+
+// Maps HTTP error responses to domain error types.
+const httpErrorMiddleware: Middleware = {
+  async onResponse({ response }) {
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      if (response.status === 401 || response.status === 403) {
+        throw new AuthenticationError(`Knowledge Graph authentication failed: ${body}`, response.status);
+      }
+      if (response.status === 429) {
+        throw new RateLimitError(`Knowledge Graph rate limit exceeded: ${body}`);
+      }
+      throw new KnowledgeGraphError(`Knowledge Graph request failed (${response.status}): ${body}`, response.status);
+    }
+  },
+};
 
 export interface StandardInfoOptions {
   jurisdiction?: string;
@@ -25,42 +59,6 @@ export interface StandardsByGradeOptions {
   academicSubject?: string;
 }
 
-async function kgFetch(url: string, apiKey: string): Promise<unknown> {
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      headers: { 'x-api-key': apiKey },
-      signal: AbortSignal.timeout(KG_TIMEOUT_MS),
-    });
-  } catch (err) {
-    if (err instanceof Error && err.name === 'TimeoutError') {
-      throw new NetworkError(`Knowledge Graph request timed out after ${KG_TIMEOUT_MS}ms`);
-    }
-    throw new NetworkError(`Knowledge Graph request failed: ${err instanceof Error ? err.message : String(err)}`);
-  }
-
-  if (response.ok) {
-    return response.json().catch((err: unknown) => {
-      throw new KnowledgeGraphError(
-        `Knowledge Graph returned invalid JSON: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    });
-  }
-
-  const body = await response.text().catch(() => '');
-
-  if (response.status === 401 || response.status === 403) {
-    throw new AuthenticationError(`Knowledge Graph authentication failed: ${body}`, response.status);
-  }
-  if (response.status === 429) {
-    throw new RateLimitError(`Knowledge Graph rate limit exceeded: ${body}`);
-  }
-  throw new KnowledgeGraphError(
-    `Knowledge Graph request failed (${response.status}): ${body}`,
-    response.status,
-  );
-}
-
 /**
  * HTTP client for the Learning Commons Knowledge Graph API.
  *
@@ -69,8 +67,8 @@ async function kgFetch(url: string, apiKey: string): Promise<unknown> {
  * (429, network blips) are retryable on the next call.
  */
 export class KnowledgeGraphClient {
-  private readonly apiKey: string;
   private readonly limit: ReturnType<typeof pLimit>;
+  private readonly http: ReturnType<typeof createClient<paths>>;
 
   // Cache key: `${statementCode}:${jurisdiction}`
   private readonly standardInfoCache = new Map<string, Promise<StandardInfo>>();
@@ -79,8 +77,13 @@ export class KnowledgeGraphClient {
   private readonly frameworkUuidCache = new Map<string, Promise<string>>();
 
   constructor(apiKey: string, concurrency = 20) {
-    this.apiKey = apiKey;
     this.limit = pLimit(concurrency);
+    this.http = createClient<paths>({
+      baseUrl: KG_BASE_URL,
+      headers: { 'x-api-key': apiKey },
+      fetch: kgFetchFn,
+    });
+    this.http.use(httpErrorMiddleware);
   }
 
   getStandardInfo(statementCode: string, opts?: StandardInfoOptions): Promise<StandardInfo> {
@@ -111,20 +114,20 @@ export class KnowledgeGraphClient {
       opts?.academicSubject,
     );
 
-    const params = new URLSearchParams({
-      limit: '500',
-      standardsFrameworkCaseIdentifierUUID: frameworkUuid,
-      gradeLevel: grade,
-      normalizedStatementType: 'Standard',
-    });
-    if (opts?.academicSubject) params.set('academicSubject', opts.academicSubject);
-
-    const url = `${KG_BASE_URL}/academic-standards?${params.toString()}`;
-
-    const data = (await kgFetch(url, this.apiKey)) as {
-      data: Array<AcademicStandard>;
-      pagination?: { hasMore: boolean; nextCursor: string | null };
-    };
+    const { data } = await this.http.GET('/academic-standards', {
+      params: {
+        query: {
+          limit: 500,
+          standardsFrameworkCaseIdentifierUUID: frameworkUuid,
+          gradeLevel: [grade] as components['parameters']['GradeLevelParam'],
+          normalizedStatementType: 'Standard' as components['schemas']['NormalizedStatementTypeENUM'],
+          ...(opts?.academicSubject
+            ? { academicSubject: opts.academicSubject as components['schemas']['AcademicSubjectENUM'] }
+            : {}),
+        },
+      },
+    }).catch(wrapJsonError);
+    if (data === undefined) throw new KnowledgeGraphError('Unexpected empty response from Knowledge Graph');
 
     if (data.pagination?.hasMore) {
       throw new KnowledgeGraphError(
@@ -134,13 +137,13 @@ export class KnowledgeGraphClient {
     }
 
     return (data.data ?? []).map((item) => ({
-        caseIdentifierUUID: item.caseIdentifierUUID,
-        statementCode: item.statementCode,
-        description: item.description,
-        statementType: item.statementType,
-        normalizedStatementType: item.normalizedStatementType,
-        gradeLevel: item.gradeLevel ?? [],
-      }));
+      caseIdentifierUUID: item.caseIdentifierUUID,
+      statementCode: item.statementCode ?? null,
+      description: item.description ?? null,
+      statementType: item.statementType ?? null,
+      normalizedStatementType: item.normalizedStatementType ?? null,
+      gradeLevel: item.gradeLevel ?? [],
+    }));
   }
 
   async getLearningComponentsByCode(
@@ -168,13 +171,18 @@ export class KnowledgeGraphClient {
   }
 
   private async _fetchFrameworkUuid(jurisdiction: string, academicSubject?: string): Promise<string> {
-    const params = new URLSearchParams({ jurisdiction, limit: '1' });
-    if (academicSubject) params.set('academicSubject', academicSubject);
-
-    const url = `${KG_BASE_URL}/standards-frameworks?${params.toString()}`;
-    const data = (await kgFetch(url, this.apiKey)) as {
-      data: Array<{ caseIdentifierUUID: string }>;
-    };
+    const { data } = await this.http.GET('/standards-frameworks', {
+      params: {
+        query: {
+          jurisdiction: jurisdiction as components['schemas']['JurisdictionENUM'],
+          limit: 1,
+          ...(academicSubject
+            ? { academicSubject: academicSubject as components['schemas']['AcademicSubjectENUM'] }
+            : {}),
+        },
+      },
+    }).catch(wrapJsonError);
+    if (data === undefined) throw new KnowledgeGraphError('Unexpected empty response from Knowledge Graph');
 
     const frameworks = data.data ?? [];
     if (frameworks.length === 0) {
@@ -187,20 +195,24 @@ export class KnowledgeGraphClient {
   }
 
   private async _fetchStandardInfo(statementCode: string, opts?: StandardInfoOptions): Promise<StandardInfo> {
-    const params = new URLSearchParams({
-      statementCode,
-      jurisdiction: opts?.jurisdiction ?? 'Multi-State',
-      limit: String(opts?.limit ?? 1),
-    });
-    if (opts?.academicSubject) params.set('academicSubject', opts.academicSubject);
+    const { data } = await this.http.GET('/academic-standards/search', {
+      params: {
+        query: {
+          statementCode,
+          jurisdiction: (opts?.jurisdiction ?? 'Multi-State') as components['schemas']['JurisdictionENUM'],
+          limit: opts?.limit ?? 1,
+          ...(opts?.academicSubject
+            ? { academicSubject: opts.academicSubject as components['schemas']['AcademicSubjectENUM'] }
+            : {}),
+        },
+      },
+    }).catch(wrapJsonError);
+    if (data === undefined) throw new KnowledgeGraphError('Unexpected empty response from Knowledge Graph');
 
-    const url = `${KG_BASE_URL}/academic-standards/search?${params.toString()}`;
-    const data = (await kgFetch(url, this.apiKey)) as Array<{ caseIdentifierUUID: string; description?: string }>;
-
-    if (!Array.isArray(data) || data.length === 0) {
+    if (data.length === 0) {
       throw new KnowledgeGraphError(`Standard not found: "${statementCode}"`);
     }
-    return { uuid: data[0].caseIdentifierUUID, description: data[0].description };
+    return { uuid: data[0].caseIdentifierUUID, description: data[0].description ?? undefined };
   }
 
   private async _fetchLearningComponents(caseIdentifierUUID: string): Promise<LearningComponent[]> {
@@ -208,22 +220,21 @@ export class KnowledgeGraphClient {
     let cursor: string | null = null;
 
     do {
-      const url =
-        `${KG_BASE_URL}/academic-standards/${encodeURIComponent(caseIdentifierUUID)}/learning-components?limit=100` +
-        (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '');
+      const query: { limit: number; cursor?: string } = { limit: 100 };
+      if (cursor) query.cursor = cursor;
 
-      const page = (await kgFetch(url, this.apiKey)) as {
-        data: SpecLearningComponent[];
-        pagination: { hasMore: boolean; nextCursor: string | null };
-      };
+      const { data } = await this.http.GET('/academic-standards/{caseIdentifierUUID}/learning-components', {
+        params: { path: { caseIdentifierUUID }, query },
+      }).catch(wrapJsonError);
+      if (data === undefined) throw new KnowledgeGraphError('Unexpected empty response from Knowledge Graph');
 
-      for (const item of page.data ?? []) {
+      for (const item of data.data ?? []) {
         if (item.description != null) {
           results.push({ identifier: item.identifier, description: item.description });
         }
       }
 
-      const { hasMore, nextCursor } = page.pagination ?? {};
+      const { hasMore, nextCursor } = data.pagination ?? {};
       if (hasMore && !nextCursor) {
         throw new KnowledgeGraphError(
           `Knowledge Graph pagination error: hasMore=true but nextCursor is null for UUID ${caseIdentifierUUID}`,

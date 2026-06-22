@@ -2,11 +2,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { KnowledgeGraphClient } from '../../../src/knowledge-graph/client.js';
 import { KnowledgeGraphError, AuthenticationError, RateLimitError, NetworkError } from '../../../src/errors.js';
 
+// openapi-fetch calls response.text() when there is no Content-Length header,
+// then JSON.parse()s the result. Both text and json must reflect the same body.
+function okResponse(body: unknown) {
+  const text = JSON.stringify(body);
+  return {
+    ok: true,
+    status: 200,
+    headers: new Headers({ 'content-type': 'application/json' }),
+    json: () => Promise.resolve(body),
+    text: () => Promise.resolve(text),
+  };
+}
+
 function mockFetch(status: number, body: unknown) {
   const text = typeof body === 'string' ? body : JSON.stringify(body);
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
     ok: status >= 200 && status < 300,
     status,
+    headers: new Headers({ 'content-type': 'application/json' }),
     json: () => Promise.resolve(body),
     text: () => Promise.resolve(text),
   }));
@@ -72,16 +86,17 @@ describe('KnowledgeGraphClient - getStandardInfo', () => {
   });
 
   it('sends x-api-key header', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve([{ caseIdentifierUUID: 'u1' }]), text: () => Promise.resolve('') });
+    const fetchMock = vi.fn().mockResolvedValue(okResponse([{ caseIdentifierUUID: 'u1' }]));
     vi.stubGlobal('fetch', fetchMock);
     await new KnowledgeGraphClient('my-secret-key').getStandardInfo('3.MD.C.7.d');
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({ headers: { 'x-api-key': 'my-secret-key' } });
+    const request = fetchMock.mock.calls[0][0] as Request;
+    expect(request.headers.get('x-api-key')).toBe('my-secret-key');
   });
 
   it('evicts cache on rejection so the next call retries', async () => {
     const fetchMock = vi.fn()
       .mockRejectedValueOnce(new Error('transient'))
-      .mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve([{ caseIdentifierUUID: 'recovered' }]), text: () => Promise.resolve('') });
+      .mockResolvedValue(okResponse([{ caseIdentifierUUID: 'recovered' }]));
     vi.stubGlobal('fetch', fetchMock);
     const client = new KnowledgeGraphClient(API_KEY);
     await expect(client.getStandardInfo('3.MD.C.7.d')).rejects.toThrow();
@@ -109,7 +124,8 @@ describe('KnowledgeGraphClient - getLearningComponents', () => {
     let call = 0;
     vi.stubGlobal('fetch', vi.fn().mockImplementation(() => {
       call++;
-      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ data: [{ description: `LC ${call}` }], pagination: { hasMore: call === 1, nextCursor: call === 1 ? 'page-2' : null } }), text: () => Promise.resolve('') });
+      const body = { data: [{ description: `LC ${call}` }], pagination: { hasMore: call === 1, nextCursor: call === 1 ? 'page-2' : null } };
+      return Promise.resolve(okResponse(body));
     }));
     const lcs = await new KnowledgeGraphClient(API_KEY).getLearningComponents('uuid-abc');
     expect(lcs).toHaveLength(2);
@@ -122,9 +138,10 @@ describe('KnowledgeGraphClient - getLearningComponents', () => {
   });
 
   it('evicts LC cache on rejection so the next call retries', async () => {
+    const body = { data: [{ description: 'Recovered LC' }], pagination: { hasMore: false, nextCursor: null } };
     const fetchMock = vi.fn()
       .mockRejectedValueOnce(new Error('transient 503'))
-      .mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ data: [{ description: 'Recovered LC' }], pagination: { hasMore: false, nextCursor: null } }), text: () => Promise.resolve('') });
+      .mockResolvedValue(okResponse(body));
     vi.stubGlobal('fetch', fetchMock);
     const client = new KnowledgeGraphClient(API_KEY);
     await expect(client.getLearningComponents('uuid-abc')).rejects.toThrow();
@@ -136,12 +153,12 @@ describe('KnowledgeGraphClient - getLearningComponents', () => {
 
 describe('KnowledgeGraphClient - getStandardsByGrade', () => {
   it('returns standards filtered to normalizedStatementType=Standard via URL', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ data: [
-      { caseIdentifierUUID: 'u1', statementCode: '3.MD.C.7.d', normalizedStatementType: 'Standard', gradeLevel: ['3'] },
-    ] }), text: () => Promise.resolve('') });
+    const body = { data: [{ caseIdentifierUUID: 'u1', statementCode: '3.MD.C.7.d', normalizedStatementType: 'Standard', gradeLevel: ['3'] }] };
+    const fetchMock = vi.fn().mockResolvedValue(okResponse(body));
     vi.stubGlobal('fetch', fetchMock);
     const results = await new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3');
-    expect(fetchMock.mock.calls[0][0]).toContain('normalizedStatementType=Standard');
+    const request = fetchMock.mock.calls[0][0] as Request;
+    expect(request.url).toContain('normalizedStatementType=Standard');
     expect(results).toHaveLength(1);
     expect(results[0].statementCode).toBe('3.MD.C.7.d');
   });
@@ -156,8 +173,8 @@ describe('KnowledgeGraphClient - getStandardsByGrade', () => {
 describe('KnowledgeGraphClient - getLearningComponentsByCode', () => {
   it('chains standard info lookup then LC fetch', async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve([{ caseIdentifierUUID: 'test-uuid', description: 'Area additive' }]), text: () => Promise.resolve('') })
-      .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ data: [{ description: 'LC one' }], pagination: { hasMore: false, nextCursor: null } }), text: () => Promise.resolve('') });
+      .mockResolvedValueOnce(okResponse([{ caseIdentifierUUID: 'test-uuid', description: 'Area additive' }]))
+      .mockResolvedValueOnce(okResponse({ data: [{ description: 'LC one' }], pagination: { hasMore: false, nextCursor: null } }));
     vi.stubGlobal('fetch', fetchMock);
     const result = await new KnowledgeGraphClient(API_KEY).getLearningComponentsByCode('3.MD.C.7.d');
     expect(result.uuid).toBe('test-uuid');
