@@ -116,6 +116,7 @@ export class BatchEvaluator {
         maxRetries: this.config.maxRetries,
         telemetry: this.config.telemetry,
         modelOverride: this.config.modelOverride,
+        llmProvider: this.config.llmProvider,
       });
 
       this.evaluatorInstances.set(id, evaluator);

@@ -86,6 +86,22 @@ export interface BaseEvaluatorConfig {
   modelOverride?: ModelOverride;
 
   /**
+   * Bring your own LLM provider.
+   *
+   * Inject any object implementing {@link LLMProvider} and the evaluator routes
+   * every LLM call through it, skipping the built-in OpenAI/Google/Anthropic
+   * API-key adapters entirely. Use this to run the evaluators on a provider you
+   * already have wired — Google Vertex AI, Amazon Bedrock, an AI-SDK gateway,
+   * or an eval framework's model system — with no separate API keys.
+   *
+   * When set, API-key validation is skipped (the injected provider manages its
+   * own model, auth, and retries). It is mutually exclusive with
+   * {@link BaseEvaluatorConfig.modelOverride}: setting both throws
+   * `ConfigurationError`. Ambient API keys, if present, are simply unused.
+   */
+  llmProvider?: LLMProvider;
+
+  /**
    * Maximum number of retries for failed API calls (default: 2)
    * Set to 0 to disable retries.
    *
@@ -161,6 +177,7 @@ export abstract class BaseEvaluator {
     googleApiKey?: string;
     openaiApiKey?: string;
     anthropicApiKey?: string;
+    llmProvider?: LLMProvider;
   };
 
   /**
@@ -192,11 +209,24 @@ export abstract class BaseEvaluator {
     // Initialize logger
     this.logger = createLogger(config.logger, config.logLevel ?? LogLevel.WARN);
 
-    // Validate modelOverride shape before key checks
-    this.validateModelOverride(config);
+    // An injected llmProvider replaces the built-in adapters entirely.
+    if (config.llmProvider) {
+      // modelOverride is a contradictory directive — it configures a built-in
+      // adapter that llmProvider bypasses. Fail fast rather than silently
+      // ignoring one. (API keys, by contrast, are ambient and simply unused.)
+      if (config.modelOverride) {
+        throw new ConfigurationError(
+          'Cannot set both llmProvider and modelOverride: llmProvider replaces the built-in provider entirely, so modelOverride does not apply. Set one or the other.'
+        );
+      }
+      // It manages its own model and auth, so API-key and override checks do not apply.
+    } else {
+      // Validate modelOverride shape before key checks
+      this.validateModelOverride(config);
 
-    // Validate required API keys based on metadata
-    this.validateApiKeys(config);
+      // Validate required API keys based on metadata
+      this.validateApiKeys(config);
+    }
 
     // Normalize telemetry config
     const telemetryConfig = this.normalizeTelemetryConfig(config.telemetry);
@@ -209,6 +239,7 @@ export abstract class BaseEvaluator {
       googleApiKey: config.googleApiKey,
       openaiApiKey: config.openaiApiKey,
       anthropicApiKey: config.anthropicApiKey,
+      llmProvider: config.llmProvider,
     };
 
     if (config.modelOverride) {
@@ -408,15 +439,19 @@ export abstract class BaseEvaluator {
   }
 
   /**
-   * Create an LLM provider, honouring modelOverride if set.
-   * When override is active, the key for the override provider is resolved
-   * from the matching top-level config field (e.g. anthropicApiKey for Anthropic).
+   * Create an LLM provider, honouring llmProvider then modelOverride if set.
+   * An injected llmProvider wins outright and is returned as-is. Otherwise, when
+   * override is active, the key for the override provider is resolved from the
+   * matching top-level config field (e.g. anthropicApiKey for Anthropic).
    */
   protected createConfiguredProvider(
     defaultType: Provider,
     defaultModel: string,
     defaultApiKey: string | undefined,
   ): LLMProvider {
+    if (this.config.llmProvider) {
+      return this.config.llmProvider;
+    }
     const override = this.config.modelOverride;
     if (override) {
       const apiKeyFor: Record<Provider, string | undefined> = {
