@@ -8,7 +8,7 @@
       "feedback_text": "You're right, the AI pets could help around the house. Can you find some other details from the article that you could add to make your claim stronger?"
     },
     "expected": {
-      "anchored_in_student_response_score": 0
+      "anchored_in_student_response_score": 1
     }
   },
   {

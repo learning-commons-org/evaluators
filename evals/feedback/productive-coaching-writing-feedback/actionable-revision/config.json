@@ -3,13 +3,7 @@
   "evaluator": {
     "id": "feedback.productive_coaching_writing_feedback.is_actionable_revision",
     "name": "Actionable Revision Feedback-Quality Evaluator",
-    "description": "If revision is needed, does the feedback give a clear next step?",
-    "dimension": "is_actionable_revision",
-    "output_type": "binary",
-    "labels": [
-      0,
-      1
-    ]
+    "description": "If revision is needed, does the feedback give a clear next step?"
   },
   "input_schema": {
     "$ref": "input_schema.json"
@@ -41,24 +35,18 @@
           "feedback_text": {
             "required": true,
             "source": "input"
-          },
-          "format_instructions": {
-            "required": true,
-            "source": "parser.format_instructions"
           }
         }
       },
       "model": {
         "provider": "openai",
-        "name": "gpt-5.4",
-        "alias": "is_actionable_revision-evaluator-default"
+        "name": "gpt-5.4"
       },
       "generation": {
         "temperature": 1
       },
       "parser": {
         "kind": "structured_output",
-        "format_instructions_placeholder": "format_instructions",
         "output_schema_ref": "#/output_schema",
         "notes": "Uses LangChain JsonOutputParser."
       },
@@ -70,15 +58,5 @@
   },
   "fixtures": {
     "sniff_test_path": "fixtures.json"
-  },
-  "tracing": {
-    "expose": [
-      "rendered_prompt",
-      "raw_output",
-      "raw_text",
-      "formatted_output",
-      "usage"
-    ],
-    "notes": "Runtime engines MUST expose these five trace fields per evaluation."
   }
 }

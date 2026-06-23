@@ -4,13 +4,7 @@
     "id": "feedback.productive_coaching_writing_feedback.is_anchored_in_student_response",
     "version": "0.1",
     "name": "Anchored In Student Response Feedback-Quality Evaluator",
-    "description": "Is the feedback clearly based on the student's specific response? (Key features generated from rubric text; concept paper did not list explicit key feature items.)",
-    "dimension": "is_anchored_in_student_response",
-    "output_type": "binary",
-    "labels": [
-      0,
-      1
-    ]
+    "description": "Is the feedback clearly based on the student's specific response? (Key features generated from rubric text; concept paper did not list explicit key feature items.)"
   },
   "input_schema": {
     "$ref": "input_schema.json"
@@ -29,7 +23,7 @@
             "sha256": "df82c1b8d4116c307ea956bae349907c23e229a208373f8cc47c543ad29f6e7b"
           },
           {
-            "role": "human",
+            "role": "user",
             "source_path": "user.txt",
             "sha256": "eaac7e6eadcc43716e4a98b9e7f34c493c1cbe46adb38367dd8697b904d11bfa"
           }
@@ -42,24 +36,18 @@
           "feedback_text": {
             "required": true,
             "source": "input"
-          },
-          "format_instructions": {
-            "required": true,
-            "source": "parser.format_instructions"
           }
         }
       },
       "model": {
         "provider": "openai",
-        "name": "gpt-5.4",
-        "alias": "is_anchored_in_student_response-evaluator-default"
+        "name": "gpt-5.4"
       },
       "generation": {
         "temperature": 1
       },
       "parser": {
         "kind": "structured_output",
-        "format_instructions_placeholder": "format_instructions",
         "output_schema_ref": "#/output_schema",
         "notes": "Uses LangChain JsonOutputParser."
       },
@@ -71,15 +59,5 @@
   },
   "fixtures": {
     "sniff_test_path": "fixtures.json"
-  },
-  "tracing": {
-    "expose": [
-      "rendered_prompt",
-      "raw_output",
-      "raw_text",
-      "formatted_output",
-      "usage"
-    ],
-    "notes": "Runtime engines MUST expose these five trace fields per evaluation."
   }
 }

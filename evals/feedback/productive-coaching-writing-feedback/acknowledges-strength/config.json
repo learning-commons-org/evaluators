@@ -3,13 +3,7 @@
   "evaluator": {
     "id": "feedback.productive_coaching_writing_feedback.is_acknowledges_strength",
     "name": "Acknowledges Strength Feedback-Quality Evaluator",
-    "description": "Does the feedback identify what the student did well?",
-    "dimension": "is_acknowledges_strength",
-    "output_type": "binary",
-    "labels": [
-      0,
-      1
-    ]
+    "description": "Does the feedback identify what the student did well?"
   },
   "input_schema": {
     "$ref": "input_schema.json"
@@ -41,24 +35,18 @@
           "feedback_text": {
             "required": true,
             "source": "input"
-          },
-          "format_instructions": {
-            "required": true,
-            "source": "parser.format_instructions"
           }
         }
       },
       "model": {
         "provider": "openai",
-        "name": "gpt-5.4",
-        "alias": "is_acknowledges_strength-evaluator-default"
+        "name": "gpt-5.4"
       },
       "generation": {
         "temperature": 1
       },
       "parser": {
         "kind": "structured_output",
-        "format_instructions_placeholder": "format_instructions",
         "output_schema_ref": "#/output_schema",
         "notes": "Uses LangChain JsonOutputParser."
       },
@@ -70,15 +58,5 @@
   },
   "fixtures": {
     "sniff_test_path": "fixtures.json"  
-  },
-  "tracing": {
-    "expose": [
-      "rendered_prompt",
-      "raw_output",
-      "raw_text",
-      "formatted_output",
-      "usage"
-    ],
-    "notes": "Runtime engines MUST expose these five trace fields per evaluation."
   }
 }
