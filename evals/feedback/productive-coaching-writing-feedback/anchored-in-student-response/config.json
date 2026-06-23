@@ -2,7 +2,6 @@
   "spec_version": "1.0",
   "evaluator": {
     "id": "feedback.productive_coaching_writing_feedback.is_anchored_in_student_response",
-    "version": "0.1",
     "name": "Anchored In Student Response Feedback-Quality Evaluator",
     "description": "Is the feedback clearly based on the student's specific response? (Key features generated from rubric text; concept paper did not list explicit key feature items.)"
   },
@@ -41,7 +40,7 @@
       },
       "model": {
         "provider": "openai",
-        "name": "gpt-5.4"
+        "name": "gpt-5.4-2026-03-05"
       },
       "generation": {
         "temperature": 1
