@@ -47,12 +47,12 @@
           {
             "role": "system",
             "source_path": "system.txt",
-            "sha256": "7e48d529b628b648248f31948ee851ccc56c20c5f14cb14caf7bc9cb20dcef64"
+            "sha256": "30302fe959ada9f3d78753c249396cd65245437dc54d5e17b0256152f2802908"
           },
           {
             "role": "user",
             "source_path": "user.txt",
-            "sha256": "86887ca1bd3cbcce0ef58d638e80cdfb3834a278ba4ca372daa6f10dd28a9cc3"
+            "sha256": "cd8e6347db1a55d104e34436f8f66e833bd6583645d4786a554aaefdd26479b2"
           }
         ],
         "placeholders": {

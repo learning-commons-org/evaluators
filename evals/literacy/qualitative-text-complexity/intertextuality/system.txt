@@ -26,6 +26,3 @@ For texts that rely on external context:
 * **Moderately Complex:** The text introduces explicit references to outside studies, prior research, experimental designs, historical patents, specific inventions, or named inventors. Additionally, texts that rely on specialized scientific and engineering knowledge and connect to broader technical domains by assuming familiarity with those systems (i.e., not fully self-contained) fall into this category. 
 * **Very Complex:** The text relies on several partially explained or assumed references that the reader must navigate to grasp the passage's full significance, or a smaller number of load-bearing references to specific historical or academic texts.
 * **Exceedingly Complex:** The text is deeply embedded in a specific historical, political, or cultural debate. It relies heavily on unexplained allusions, slogans, or assumed public discourse. Without extensive external context, inferring the author's real intent, stance, and the true meaning of the allusions is highly difficult.
-
-**Output Format** Provide your analysis in this format: 
-{format_instructions}
