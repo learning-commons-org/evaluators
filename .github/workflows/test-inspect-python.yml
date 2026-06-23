@@ -1,0 +1,63 @@
+name: 🔍 Test Inspect integration
+
+# Runs only when the integration package itself changes, or when the Python SDK
+# it depends on changes (a SDK change — including a version bump — can break the
+# integration, so we re-verify here too).
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "integrations/inspect-python/**"
+      - "sdks/python/**"
+      - "sdks/settings/**"
+      - ".github/workflows/test-inspect-python.yml"
+  pull_request:
+    paths:
+      - "integrations/inspect-python/**"
+      - "sdks/python/**"
+      - "sdks/settings/**"
+      - ".github/workflows/test-inspect-python.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install in-repo SDK + integration package
+        # Install the SDK from source first: the integration relies on
+        # LLMGeneratorProtocol (SDK >=0.3.0), which is not yet on PyPI. The
+        # editable install satisfies the >=0.2.0 floor while providing the
+        # unreleased protocol code, so CI tests against current monorepo state.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ./sdks/python
+          pip install -e "./integrations/inspect-python[dev]"
+
+      - name: Lint
+        working-directory: integrations/inspect-python
+        run: |
+          python -m ruff check .
+          python -m ruff format --check .
+
+      - name: Test
+        working-directory: integrations/inspect-python
+        run: python -m pytest
