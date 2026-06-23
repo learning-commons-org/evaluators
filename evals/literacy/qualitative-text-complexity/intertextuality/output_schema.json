@@ -12,8 +12,7 @@
         "slightly_complex",
         "moderately_complex",
         "very_complex",
-        "exceedingly_complex",
-        "more_context_needed"
+        "exceedingly_complex"
       ],
       "description": "The Intertextuality complexity level for the target grade."
     },

@@ -3,15 +3,7 @@
   "evaluator": {
     "id": "literacy.gla.intertextuality",
     "name": "Intertextuality Dimension Text Complexity Evaluator",
-    "description": "Evaluates the Intertextuality dimension of qualitative text complexity for K-12 reading assessment, producing a 5-level rubric rating with structured pedagogical detail.",
-    "dimension": "intertextuality",
-    "rubric_levels": [
-      "slightly_complex",
-      "moderately_complex",
-      "very_complex",
-      "exceedingly_complex",
-      "more_context_needed"
-    ]
+    "description": "Evaluates the Intertextuality dimension of qualitative text complexity for grades 3-12 reading assessment, producing a 4-level rubric rating with structured pedagogical detail."
   },
   "input_schema": {
     "$ref": "input_schema.json"
