@@ -28,8 +28,4 @@ For texts that rely on external context:
 * **Exceedingly Complex:** The text is deeply embedded in a specific historical, political, or cultural debate. It relies heavily on unexplained allusions, slogans, or assumed public discourse. Without extensive external context, inferring the author's real intent, stance, and the true meaning of the allusions is highly difficult.
 
 **Output Format** Provide your analysis in this format: 
-1. Step 0 Filter Analysis: Explicitly evaluate if the knowledge is self-contained or if it connects to broader technical domains, specialized systems, or external texts. 
-2. Identified Valid References: List true references (inventors, patents, outside theories, specialized systems) with their Explanation and Importance axes. 
-3. Complexity Drivers: Explain the cognitive load based on the presence of prior research, assumed specialized knowledge, self-contained explanations, or obscured historical intent. 
-4. Grade Level Context: Target grade impact. 
-5. Final Complexity Rating: State rating with a 1-2 sentence justification.
+{format_instructions}

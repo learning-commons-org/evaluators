@@ -1,5 +1,4 @@
- Text to Evaluate - text: {text}
- It is intended for grade {grade_level}
- Flesch–Kincaid grade level: {fk_score}
-
- Here is the format instructions: {format_instructions}
+Analyze:
+Text: {text}
+Grade: {grade_level}
+FK Score: {fk_score}
