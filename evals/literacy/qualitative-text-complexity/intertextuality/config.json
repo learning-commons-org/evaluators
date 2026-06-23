@@ -1,7 +1,7 @@
 {
   "spec_version": "1.0",
   "evaluator": {
-    "id": "intertextuality",
+    "id": "literacy.gla.intertextuality",
     "name": "Intertextuality Dimension Text Complexity Evaluator",
     "description": "Evaluates the Intertextuality dimension of qualitative text complexity for K-12 reading assessment, producing a 5-level rubric rating with structured pedagogical detail.",
     "dimension": "intertextuality",
