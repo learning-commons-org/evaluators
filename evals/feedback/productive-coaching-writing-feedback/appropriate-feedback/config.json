@@ -1,8 +1,7 @@
 {
   "spec_version": "1.0",
   "evaluator": {
-    "id": "is_appropriate_feedback",
-    "version": "0.1",
+    "id": "feedback.productive_coaching_writing_feedback.is_appropriate_feedback",
     "name": "Appropriate Feedback Feedback-Quality Evaluator",
     "description": "Did the feedback correctly identify whether the student needed to revise? (Key features generated from rubric text; concept paper did not list explicit key feature items.)",
     "dimension": "is_appropriate_feedback",
@@ -10,40 +9,10 @@
     "labels": [
       0,
       1
-    ],
-    "optimization": {
-      "method": "GEPA",
-      "framework": "DSPy",
-      "base_model": "gpt-5.4",
-      "prompt_source": "outputs/gepa_prompt_gpt_5_4.txt",
-      "source_notebook": "build_evaluator.ipynb",
-      "optimized_at": "2026-06-18"
-    },
-    "owners": [
-      "ariena.chi@chanzuckerberg.com"
     ]
   },
   "input_schema": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "AppropriateFeedbackEvaluatorInput",
-    "type": "object",
-    "required": [
-      "student_text",
-      "feedback_text"
-    ],
-    "additionalProperties": false,
-    "properties": {
-      "student_text": {
-        "type": "string",
-        "minLength": 1,
-        "description": "The student's written response."
-      },
-      "feedback_text": {
-        "type": "string",
-        "minLength": 1,
-        "description": "The teacher feedback on that response."
-      }
-    }
+    "$ref": "input_schema.json"
   },
   "preprocessing": [],
   "steps": [
@@ -88,125 +57,16 @@
         "temperature": 1
       },
       "parser": {
-        "kind": "json_output_parser",
+        "kind": "structured_output",
         "format_instructions_placeholder": "format_instructions",
         "output_schema_ref": "#/output_schema",
-        "notes": "Uses LangChain JsonOutputParser-style format_instructions injected into the system prompt."
+        "notes": "Uses LangChain JsonOutputParser."
       },
       "output_binding": "formatted_output"
     }
   ],
   "output_schema": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "EvaluatorOutput",
-    "description": "Final evaluator output for the is_appropriate_feedback dimension.",
-    "type": "object",
-    "additionalProperties": false,
-    "required": [
-      "reasoning",
-      "key_features",
-      "proposed_adjustment",
-      "appropriate_feedback_score"
-    ],
-    "properties": {
-      "reasoning": {
-        "type": "string",
-        "description": "Step-by-step reasoning before the final answer: assess the student response against the task goal, then judge whether the teacher feedback meets the criterion."
-      },
-      "key_features": {
-        "type": "object",
-        "description": "Per-key-feature assessment; each feature judged independently.",
-        "additionalProperties": false,
-        "required": [
-          "accurate_task_assessment",
-          "revision_need_identification",
-          "appropriate_signal_when_task_complete"
-        ],
-        "properties": {
-          "accurate_task_assessment": {
-            "type": "object",
-            "description": "Identifies whether the feedback correctly assesses revision need",
-            "required": [
-              "met",
-              "justification"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "met": {
-                "type": "integer",
-                "enum": [
-                  0,
-                  1
-                ],
-                "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
-              },
-              "justification": {
-                "type": "string",
-                "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
-              }
-            }
-          },
-          "revision_need_identification": {
-            "type": "object",
-            "description": "Distinguishes between needed revision and move-on feedback",
-            "required": [
-              "met",
-              "justification"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "met": {
-                "type": "integer",
-                "enum": [
-                  0,
-                  1
-                ],
-                "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
-              },
-              "justification": {
-                "type": "string",
-                "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
-              }
-            }
-          },
-          "appropriate_signal_when_task_complete": {
-            "type": "object",
-            "description": "Signals that the student can move on when the task goal is met",
-            "required": [
-              "met",
-              "justification"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "met": {
-                "type": "integer",
-                "enum": [
-                  0,
-                  1
-                ],
-                "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
-              },
-              "justification": {
-                "type": "string",
-                "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
-              }
-            }
-          }
-        }
-      },
-      "proposed_adjustment": {
-        "type": "string",
-        "description": "How the teacher feedback could be modified to meet the criterion. If it already meets the criterion, say so briefly."
-      },
-      "appropriate_feedback_score": {
-        "type": "integer",
-        "enum": [
-          0,
-          1
-        ],
-        "description": "Overall: 1 if the feedback meets the criterion, 0 otherwise."
-      }
-    }
+    "$ref": "output_schema.json"
   },
   "fixtures": {
     "sniff_test_path": "fixtures.json"
