@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "math_standards_alignment_input_schema.json",
   "type": "object",
-  "required": ["question", "grade", "statementCode"],
+  "required": ["question", "statementCode", "jurisdiction"],
   "additionalProperties": false,
   "properties": {
     "question": {
@@ -11,16 +11,16 @@
       "minLength": 1,
       "maxLength": 10000
     },
-    "grade": {
-      "type": "string",
-      "description": "Grade level the question targets.",
-      "enum": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
-    },
     "statementCode": {
       "type": "string",
-      "description": "CCSS math standard code (e.g. '3.MD.C.7.d', 'K.CC.A.1').",
+      "description": "Math standard code to evaluate against (e.g. '3.MD.C.7.d', 'K.CC.A.1').",
       "minLength": 1,
       "maxLength": 50
+    },
+    "jurisdiction": {
+      "type": "string",
+      "description": "Standards jurisdiction — 'Multi-State' for CCSS, or a specific state name (e.g. 'California', 'Texas'). Determines which framework the standard code is resolved against.",
+      "minLength": 1
     }
   }
 }

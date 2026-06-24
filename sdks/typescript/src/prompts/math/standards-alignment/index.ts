@@ -1,13 +1,13 @@
-import SYSTEM_PROMPT from '../../../../../../evals/prompts/math/standards-alignment/system.txt';
-import USER_PROMPT_TEMPLATE from '../../../../../../evals/prompts/math/standards-alignment/user.txt';
-import COARSE_FILTER_PROMPT_TEMPLATE from '../../../../../../evals/prompts/math/standards-alignment/coarse-filter-user.txt';
-import CONFIG from '../../../../../../evals/prompts/math/standards-alignment/config.json';
-import INPUT_SCHEMA from '../../../../../../evals/prompts/math/standards-alignment/input_schema.json';
+import SYSTEM_PROMPT from '../../../../../../evals/standards/math-question-alignment/system.txt';
+import USER_PROMPT_TEMPLATE from '../../../../../../evals/standards/math-question-alignment/user.txt';
+import COARSE_FILTER_PROMPT_TEMPLATE from '../../../../../../evals/standards/math-question-alignment/coarse-filter-user.txt';
+import CONFIG from '../../../../../../evals/standards/math-question-alignment/config.json';
+import INPUT_SCHEMA from '../../../../../../evals/standards/math-question-alignment/input_schema.json';
 import { createHash } from 'node:crypto';
 
 const STEP_ID = 'evaluate_standards_alignment';
 const _step = CONFIG.steps.find((s) => s.id === STEP_ID);
-if (!_step) throw new Error(`Step "${STEP_ID}" not found in math/standards-alignment config.json`);
+if (!_step) throw new Error(`Step "${STEP_ID}" not found in math-question-alignment config.json`);
 export const STEP = _step;
 export const EVALUATOR_ID: string = CONFIG.evaluator.id;
 
@@ -16,11 +16,11 @@ export const PROMPT_CHECKSUM = createHash('sha256')
   .update([SYSTEM_PROMPT, USER_PROMPT_TEMPLATE, COARSE_FILTER_PROMPT_TEMPLATE].join('\n---\n'), 'utf8')
   .digest('hex');
 
-export const SUPPORTED_GRADES: readonly string[] = INPUT_SCHEMA.properties.grade.enum;
+export const SUPPORTED_GRADES: readonly string[] = CONFIG.evaluator.supported_grades;
 export const MAX_QUESTION_LENGTH: number = INPUT_SCHEMA.properties.question.maxLength;
 
 const DETAIL_PLACEHOLDER_KEYS = Object.keys(STEP.prompt.placeholders) as string[];
-const SYSTEM_PLACEHOLDER_KEYS = ['grade'];
+const SYSTEM_PLACEHOLDER_KEYS: string[] = [];
 const COARSE_PLACEHOLDER_KEYS = ['question', 'standards'];
 
 function replace(template: string, keys: readonly string[], inputs: Record<string, string>): string {

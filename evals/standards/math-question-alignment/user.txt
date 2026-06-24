@@ -3,7 +3,6 @@ Evaluate the assessment question below against each of the {n} learning componen
 Each entry: { "lc_id": string, "reasoning": string, "aligned": boolean, "feedback": string }
 
 Assessment question: {question}
-Grade: {grade}
 
 Learning components:
 {learning_components}

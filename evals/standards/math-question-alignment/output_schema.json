@@ -2,16 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "math_standards_alignment_output_schema.json",
   "type": "object",
-  "required": ["statementCode", "grade", "learningComponents", "alignedCount", "totalCount"],
+  "required": ["statementCode", "learningComponents", "alignedCount", "totalCount"],
   "additionalProperties": false,
   "properties": {
     "statementCode": {
       "type": "string",
-      "description": "The CCSS standard code that was evaluated (matches the statementCode input)"
-    },
-    "grade": {
-      "type": "string",
-      "description": "Grade level from the input"
+      "description": "The standard code that was evaluated (matches the statementCode input)"
     },
     "learningComponents": {
       "type": "array",
@@ -33,8 +29,8 @@
             "description": "True if the question directly elicits the skill described by this learning component"
           },
           "feedback": {
-            "type": "string",
-            "description": "If aligned=false: concrete revision to make the item align. If aligned=true: brief confirmation."
+            "type": ["string", "null"],
+            "description": "If aligned=false: concrete revision to make the item align. If aligned=true: null."
           }
         }
       }
@@ -48,10 +44,6 @@
       "type": "integer",
       "minimum": 0,
       "description": "Total number of learning components for this standard"
-    },
-    "coarseFiltered": {
-      "type": "boolean",
-      "description": "True when this standard was excluded by the coarse filter in question bank mode — no LC-level evaluation was performed"
     }
   }
 }
