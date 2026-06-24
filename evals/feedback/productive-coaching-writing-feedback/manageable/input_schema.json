@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "input_schema.json",
+  "title": "EvaluatorInput",
+  "type": "object",
+  "required": ["student_text", "feedback_text"],
+  "additionalProperties": false,
+  "properties": {
+    "student_text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The student's written response."
+    },
+    "feedback_text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The teacher's feedback to the student."
+    }
+
+  }
+}
