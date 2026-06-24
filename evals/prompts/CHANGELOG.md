@@ -5,6 +5,13 @@ All notable changes to the evaluator prompt files will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.6.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.5.0...evals-prompts-v1.6.0) (2026-06-24)
+
+
+### Documentation
+
+* **prompts:** reorder evaluators and add Purpose section ([#116](https://github.com/learning-commons-org/evaluators/issues/116)) ([1856b07](https://github.com/learning-commons-org/evaluators/commit/1856b07513c250752ac0e2fb6fa326e5aaf33a9b))
+
 ## [1.5.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.4.0...evals-prompts-v1.5.0) (2026-05-07)
 
 
