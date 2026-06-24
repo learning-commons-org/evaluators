@@ -43,3 +43,14 @@ export {
   evaluatePurpose,
   type PurposeComplexityLevel,
 } from './purpose.js';
+
+export {
+  MathStandardsAlignmentEvaluator,
+  evaluateMathStandardsAlignment,
+  type MathStandardsAlignmentEvaluatorConfig,
+  type LearningComponentResult,
+  type StandardAlignmentResult,
+  type QuestionItem,
+  type QuestionBankResult,
+  type QuestionBankOptions,
+} from './math/standards-alignment.js';

@@ -1,0 +1,76 @@
+{
+  "spec_version": "1.0",
+  "evaluator": {
+    "id": "math.standards-alignment",
+    "name": "Math Standards Alignment",
+    "description": "Evaluates whether an assessment question aligns to a math standard by checking alignment against each of the standard's learning components from the Learning Commons Knowledge Graph.",
+    "supported_grades": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+  },
+  "input_schema": {
+    "$ref": "input_schema.json"
+  },
+  "preprocessing": [
+    {
+      "id": "get_standard_uuid",
+      "kind": "http_get",
+      "description": "Resolve the statementCode to its caseIdentifierUUID via the Knowledge Graph.",
+      "endpoint": "https://api.learningcommons.org/knowledge-graph/v0/academic-standards/search",
+      "params": {
+        "jurisdiction": "{jurisdiction}",
+        "statementCode": "{statementCode}"
+      },
+      "auth": "x-api-key",
+      "output": "caseIdentifierUUID"
+    },
+    {
+      "id": "get_learning_components",
+      "kind": "http_get",
+      "description": "Fetch all learning components for the standard using the caseIdentifierUUID from get_standard_uuid.",
+      "endpoint": "https://api.learningcommons.org/knowledge-graph/v0/academic-standards/{caseIdentifierUUID}/learning-components",
+      "params": {
+        "limit": 100
+      },
+      "pagination": "cursor",
+      "auth": "x-api-key",
+      "output": "learningComponents"
+    }
+  ],
+  "steps": [
+    {
+      "id": "evaluate_standards_alignment",
+      "description": "Single LLM call that evaluates the question against all learning components for the standard at once, returning one result per LC.",
+      "prompt": {
+        "type": "chat",
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt"
+          },
+          {
+            "role": "user",
+            "source_path": "user.txt"
+          }
+        ],
+        "placeholders": {
+          "question": { "required": true, "source": "input" },
+          "learning_components": { "required": true, "source": "preprocessing.get_learning_components", "note": "Numbered list of LC descriptions with identifiers" },
+          "n": { "required": true, "source": "derived", "note": "Count of learning components; enforces exact-length array output" }
+        }
+      },
+      "model": {
+        "provider": "anthropic",
+        "name": "claude-haiku-4-5-20251001"
+      },
+      "generation": {
+        "temperature": 0
+      },
+      "parser": {
+        "kind": "structured_output"
+      },
+      "output_binding": "formatted_output"
+    }
+  ],
+  "output_schema": {
+    "$ref": "output_schema.json"
+  }
+}

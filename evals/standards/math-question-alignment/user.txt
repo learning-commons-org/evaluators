@@ -1,0 +1,8 @@
+Evaluate the assessment question below against each of the {n} learning components listed. Return a JSON object with an "evaluations" array. Each entry must include the "lc_id" field copied exactly from the identifier shown in brackets — this is how we verify the result maps to the right learning component.
+
+Each entry: { "lc_id": string, "reasoning": string, "aligned": boolean, "feedback": string }
+
+Assessment question: {question}
+
+Learning components:
+{learning_components}
