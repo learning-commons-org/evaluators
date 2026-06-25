@@ -36,13 +36,15 @@ fails the PR (it never auto-fixes) — so fixing locally saves a round-trip.
 | Check | What it does |
 |-------|--------------|
 | `strip-notebooks` | Clears outputs, execution counts, and cell metadata from `.ipynb` files |
+| `eval-configs` | Validates evaluator `config.json`: referenced files exist, valid JSON, prompt `sha256` matches, `parser.kind` is `structured_output`, valid message roles, placeholder/template consistency |
 
 ## Coming next
 
 This is the seed of a broader self-service harness. Planned additions:
 
-- **eval-config validation** — parser kind, prompt `sha256` drift, no dangling
-  placeholders, fixture labels within the output schema enum.
+- **fixture-label validation** — fixture expected values within the output
+  schema enum. Needs a declared fixture→output-field mapping first, since some
+  evaluators rename the field (e.g. `complexity_score` → `complexity_level`).
 - **naming / structure conventions** for `evals/`.
 - **delegation to the SDK suites** (`sdks/typescript` lint/type/test,
   `sdks/python` Makefile) so one local command covers everything. CI keeps the

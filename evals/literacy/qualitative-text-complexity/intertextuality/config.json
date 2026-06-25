@@ -59,10 +59,6 @@
           "fk_score": {
             "required": true,
             "source": "preprocessing.fk_score"
-          },
-          "format_instructions": {
-            "required": true,
-            "source": "parser.format_instructions"
           }
         }
       },
@@ -75,10 +71,7 @@
         "temperature": 0.0
       },
       "parser": {
-        "kind": "structured_output",
-        "format_instructions_placeholder": "format_instructions",
-        "output_schema_ref": "#/output_schema",
-        "notes": "Uses LangChain JsonOutputParser-style format_instructions injected into the system prompt."
+        "kind": "structured_output"
       },
       "output_binding": "formatted_output"
     }
