@@ -1,0 +1,3 @@
+# Dependencies for the repo check harness (scripts/check.py).
+# Pinned so local runs and CI strip notebooks identically.
+nbstripout==0.9.1
