@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Repo check harness — the single entrypoint run locally and in CI.
 
-  python scripts/check.py            # verify everything (CI mode)
+  python scripts/check.py            # check everything (CI mode)
   python scripts/check.py --fix      # auto-fix what's safe, report the rest
   python scripts/check.py --list     # list available checks
   python scripts/check.py NAME ...   # run only the named check(s)
@@ -17,6 +17,7 @@ import argparse
 import sys
 
 from checks import ALL_CHECKS
+from checks.base import Result, Violation
 
 
 def main() -> int:
@@ -40,7 +41,14 @@ def main() -> int:
 
     selected = [by_name[n] for n in args.checks] if args.checks else ALL_CHECKS
 
-    results = [c.run(fix=args.fix) for c in selected]
+    results = []
+    for c in selected:
+        try:
+            results.append(c.run(fix=args.fix))
+        except Exception as e:  # one check crashing must not abort the rest
+            crashed = Result(c.name)
+            crashed.violations.append(Violation(c.name, f"check crashed: {e}"))
+            results.append(crashed)
 
     failures = 0
     for r in results:

@@ -49,8 +49,13 @@ class StripNotebooks(Check):
                 continue
 
             if fix:
-                subprocess.run(["nbstripout", *_FLAGS, path], capture_output=True, check=True)
-                result.fixed.append(path)
+                proc = subprocess.run(["nbstripout", *_FLAGS, path], capture_output=True, text=True)
+                if proc.returncode == 0:
+                    result.fixed.append(path)
+                else:  # report and keep going, don't abort the whole pass
+                    result.violations.append(
+                        Violation(path, f"nbstripout failed: {proc.stderr.strip() or 'non-zero exit'}")
+                    )
             else:
                 result.violations.append(
                     Violation(path, "has outputs/execution counts/cell metadata; run with --fix")

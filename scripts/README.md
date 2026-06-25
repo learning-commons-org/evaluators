@@ -12,7 +12,7 @@ pip install -r scripts/requirements.txt   # one-time; pinned tools the checks us
 ## Usage
 
 ```bash
-python scripts/check.py          # verify everything (what CI runs)
+python scripts/check.py          # check everything (what CI runs)
 python scripts/check.py --fix    # auto-fix what's safe, report the rest
 python scripts/check.py --list   # list available checks
 python scripts/check.py strip-notebooks   # run a single check
@@ -24,8 +24,8 @@ fails the PR (it never auto-fixes) — so fixing locally saves a round-trip.
 
 ## How it works
 
-- One check per concern, each with two modes: **`--check`** (verify, non-zero
-  exit on problems) and **`--fix`** (repair in place where safe).
+- One check per concern, two modes: **check** (the default — non-zero exit on
+  problems) and **`--fix`** (repair in place where safe).
 - The orchestrator runs **every** check and reports **all** failures at once —
   no stop-at-first, no whack-a-mole.
 - Tools the checks rely on are pinned in `requirements.txt` so local and CI
