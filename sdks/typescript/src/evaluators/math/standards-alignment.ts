@@ -25,6 +25,7 @@ export { Jurisdiction } from '../../knowledge-graph/index.js';
 // ---------------------------------------------------------------------------
 
 export interface LearningComponentResult {
+  identifier: string;
   description: string;
   reasoning: string;
   aligned: boolean;
@@ -383,6 +384,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       const learningComponents: LearningComponentResult[] = components.map((lc) => {
         const ev = evalById.get(lc.identifier)!;
         return {
+          identifier: lc.identifier,
           description: lc.description,
           reasoning: ev.reasoning,
           aligned: ev.answer === 'Yes',
