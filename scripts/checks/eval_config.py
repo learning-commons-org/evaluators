@@ -79,7 +79,12 @@ class EvalConfig(Check):
         if not os.path.exists(schema_path):
             fail(f"$schema not found: {ref}")
             return
-        validator = Draft202012Validator(load_json(schema_path))
+        try:
+            schema = load_json(schema_path)
+        except (OSError, json.JSONDecodeError) as e:
+            fail(f"$schema unreadable ({ref}): {e}")
+            return
+        validator = Draft202012Validator(schema)
         for err in sorted(validator.iter_errors(config), key=lambda e: list(e.path)):
             loc = "/".join(str(p) for p in err.path) or "(root)"
             fail(f"schema: {loc}: {err.message}")
@@ -110,21 +115,31 @@ class EvalConfig(Check):
                 fail(f"prompt file not found: {src}")
                 continue
 
-            text = open(path, encoding="utf-8").read()
-            used = set(_PLACEHOLDER.findall(text))
+            try:
+                with open(path, "rb") as f:
+                    raw = f.read()
+            except OSError as e:
+                fail(f"prompt file unreadable: {src}: {e}")
+                continue
+
+            used = set(_PLACEHOLDER.findall(raw.decode("utf-8", "replace")))
             template_vars |= used
 
-            self._check_sha(msg, src, text, fail)
+            self._check_sha(msg, src, raw, fail)
             self._check_role_placeholders(msg, src, used, fail)
         return template_vars
 
     @staticmethod
-    def _check_sha(msg: dict, src: str, text: str, fail) -> None:
-        """Declared sha256 must match the file — guards against silent drift."""
+    def _check_sha(msg: dict, src: str, raw: bytes, fail) -> None:
+        """Declared sha256 must match the file — guards against silent drift.
+
+        Hash the raw bytes (not decoded text) so the result is identical across
+        platforms — text-mode reads translate newlines and would skew the hash.
+        """
         declared = msg.get("sha256")
         if not declared:
             return
-        actual = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        actual = hashlib.sha256(raw).hexdigest()
         if actual != declared:
             fail(f"sha256 drift for {src}: declared {declared[:12]}…, actual {actual[:12]}…")
 
