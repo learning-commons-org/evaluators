@@ -20,6 +20,9 @@ export {
   KnowledgeGraphError,
 } from './errors.js';
 
+// Knowledge Graph
+export { Jurisdiction } from './knowledge-graph/index.js';
+
 // Logger
 export type { Logger, LogContext } from './logger.js';
 export { LogLevel } from './logger.js';

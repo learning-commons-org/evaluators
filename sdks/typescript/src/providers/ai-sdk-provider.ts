@@ -37,9 +37,13 @@ export class VercelAIProvider implements LLMProvider {
     const model = await this.getModel();
     const startTime = Date.now();
 
+    const systemMsg = request.messages.find((m) => m.role === 'system');
+    const nonSystemMessages = request.messages.filter((m) => m.role !== 'system');
+
     const { output, usage } = await aiGenerateText({
       model,
-      messages: request.messages,
+      ...(systemMsg ? { system: systemMsg.content } : {}),
+      messages: nonSystemMessages,
       output: Output.object({ schema: request.schema }),
       temperature: request.temperature ?? 0,
       maxRetries: this.config.maxRetries ?? 0,
@@ -64,9 +68,13 @@ export class VercelAIProvider implements LLMProvider {
     const model = await this.getModel();
     const startTime = Date.now();
 
+    const systemMsg = messages.find((m) => m.role === 'system');
+    const nonSystemMessages = messages.filter((m) => m.role !== 'system');
+
     const { text, usage } = await aiGenerateText({
       model,
-      messages,
+      ...(systemMsg ? { system: systemMsg.content } : {}),
+      messages: nonSystemMessages,
       temperature: temperature ?? this.config.temperature ?? 0,
       maxRetries: this.config.maxRetries ?? 0,
     });
