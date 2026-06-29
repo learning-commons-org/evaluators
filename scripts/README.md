@@ -45,15 +45,12 @@ fails the PR (it never auto-fixes) — so fixing locally saves a round-trip.
 
 This is the seed of a broader self-service harness. Planned additions:
 
-- **model-snapshot pinning** — require `model.name` to reference a pinned
-  snapshot (provider-specific), so evaluators don't float across model updates.
 - **delegation to the SDK suites** (`sdks/typescript` lint/type/test,
   `sdks/python` Makefile) so one local command covers everything. CI keeps the
   per-SDK workflows separate for parallelism and path-filtered signal.
 
-> **TODO** (once there are more checks): surface this from the root `README.md`
-> / `CONTRIBUTING.md` so newcomers discover it — e.g. "Before committing, run
-> `python scripts/check.py --fix` (see `scripts/README.md`)."
+> **TODO**: the root `README.md` links here for discoverability; give this a
+> proper home in a `CONTRIBUTING.md` once one exists.
 
 ## Adding a check
 
