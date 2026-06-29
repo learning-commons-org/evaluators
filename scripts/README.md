@@ -36,16 +36,19 @@ fails the PR (it never auto-fixes) — so fixing locally saves a round-trip.
 | Check | What it does |
 |-------|--------------|
 | `strip-notebooks` | Clears outputs, execution counts, and cell metadata from `.ipynb` files |
-| `eval-configs` | Validates evaluator `config.json`: referenced files exist, valid JSON, prompt `sha256` matches, `parser.kind` is `structured_output`, valid message roles, placeholder/template consistency |
+| `eval-config` | Validates each evaluator `config.json` against the shared schema (`evals/_schemas/config.schema.json`, referenced by the config's own `$schema`), plus cross-file rules: referenced files exist, prompt `sha256` matches, placeholders ⇄ template `{vars}` are in sync, system prompts carry no placeholders, and no obsolete `format_instructions` survive |
 
 ## Coming next
 
 This is the seed of a broader self-service harness. Planned additions:
 
-- **fixture-label validation** — fixture expected values within the output
-  schema enum. Needs a declared fixture→output-field mapping first, since some
-  evaluators rename the field (e.g. `complexity_score` → `complexity_level`).
-- **naming / structure conventions** for `evals/`.
+- **`eval-schemas`** — meta-validate each `input_schema.json` / `output_schema.json`
+  is a well-formed JSON Schema document.
+- **`eval-fixtures`** — validate `fixtures.json` against the shared
+  `evals/_schemas/fixtures.schema.json`, and bind each case's `input`/`expected`
+  to that evaluator's own input/output schema.
+- **`eval-notebook`** — where an evaluator ships an example notebook, confirm it
+  loads the config + prompt files from disk rather than hardcoding them.
 - **delegation to the SDK suites** (`sdks/typescript` lint/type/test,
   `sdks/python` Makefile) so one local command covers everything. CI keeps the
   per-SDK workflows separate for parallelism and path-filtered signal.

@@ -1,5 +1,5 @@
 {
-  "spec_version": "1.0",
+  "$schema": "../../_schemas/config.schema.json",
   "evaluator": {
     "id": "math.standards-alignment",
     "name": "Math Standards Alignment",
@@ -12,6 +12,7 @@
   "preprocessing": [
     {
       "id": "get_standard_uuid",
+      "type": "api",
       "kind": "http_get",
       "description": "Resolve the statementCode to its caseIdentifierUUID via the Knowledge Graph.",
       "endpoint": "https://api.learningcommons.org/knowledge-graph/v0/academic-standards/search",
@@ -24,6 +25,7 @@
     },
     {
       "id": "get_learning_components",
+      "type": "api",
       "kind": "http_get",
       "description": "Fetch all learning components for the standard using the caseIdentifierUUID from get_standard_uuid.",
       "endpoint": "https://api.learningcommons.org/knowledge-graph/v0/academic-standards/{caseIdentifierUUID}/learning-components",
@@ -38,9 +40,9 @@
   "steps": [
     {
       "id": "evaluate_standards_alignment",
+      "type": "llm",
       "description": "Single LLM call that evaluates the question against all learning components for the standard at once, returning one result per LC.",
       "prompt": {
-        "type": "chat",
         "messages": [
           {
             "role": "system",
@@ -66,8 +68,7 @@
       },
       "parser": {
         "kind": "structured_output"
-      },
-      "output_binding": "formatted_output"
+      }
     }
   ],
   "output_schema": {

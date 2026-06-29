@@ -1,9 +1,10 @@
 {
-  "spec_version": "1.0",
+  "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
     "id": "literacy.gla.intertextuality",
     "name": "Intertextuality Dimension Text Complexity Evaluator",
-    "description": "Evaluates the Intertextuality dimension of qualitative text complexity for grades 3-12 reading assessment, producing a 4-level rubric rating with structured pedagogical detail."
+    "description": "Evaluates the Intertextuality dimension of qualitative text complexity for grades 3-12 reading assessment, producing a 4-level rubric rating with structured pedagogical detail.",
+    "supported_grades": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
   },
   "input_schema": {
     "$ref": "input_schema.json"
@@ -11,6 +12,7 @@
   "preprocessing": [
     {
       "id": "fk_score",
+      "type": "computation",
       "kind": "flesch_kincaid_grade",
       "description": "Compute the Flesch-Kincaid Grade Level for the input text and bind it to {fk_score} in the prompt.",
       "input": "text",
@@ -32,9 +34,9 @@
   "steps": [
     {
       "id": "evaluate_intertextuality",
+      "type": "llm",
       "description": "Single-call LLM step that produces the EvaluatorOutput JSON.",
       "prompt": {
-        "type": "chat",
         "messages": [
           {
             "role": "system",
@@ -72,28 +74,17 @@
       },
       "parser": {
         "kind": "structured_output"
-      },
-      "output_binding": "formatted_output"
+      }
     }
   ],
   "output_schema": {
     "$ref": "output_schema.json"
   },
   "fixtures": {
-    "sniff_test_path": "fixtures.json",
+    "path": "fixtures.json",
     "tolerance": {
       "allow_adjacent_levels": true,
       "notes": "If allow_adjacent_levels is true, predictions within one rubric step of the expected label count as a pass."
     }
-  },
-  "tracing": {
-    "expose": [
-      "rendered_prompt",
-      "raw_output",
-      "raw_text",
-      "formatted_output",
-      "usage"
-    ],
-    "notes": "Runtime engines MUST expose these five trace fields per evaluation."
   }
 }
