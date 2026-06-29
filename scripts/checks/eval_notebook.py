@@ -13,11 +13,10 @@ by naming each prompt file). It does not execute the notebook.
 
 from __future__ import annotations
 
-import glob
 import json
 import os
 
-from .base import Check, Result, Violation, evaluator_configs, load_json
+from .base import Check, Result, Violation, evaluator_configs, load_json, tracked_files
 
 
 class EvalNotebook(Check):
@@ -32,11 +31,15 @@ class EvalNotebook(Check):
 
     def _check_notebook(self, cfg_path: str, result: Result) -> None:
         base = os.path.dirname(cfg_path)
-        notebooks = glob.glob(os.path.join(base, "*.ipynb"))
+        # Git-tracked only, so local/untracked notebooks and checkpoints don't trip the check.
+        notebooks = tracked_files(os.path.join(base, "*.ipynb"))
         if not notebooks:
             return  # config-only evaluator — nothing to check
 
-        config = load_json(cfg_path)
+        try:
+            config = load_json(cfg_path)
+        except (OSError, json.JSONDecodeError):
+            return  # eval-config reports unreadable configs
         prompt_files = [
             m["source_path"]
             for m in config.get("steps", [{}])[0].get("prompt", {}).get("messages", [])
@@ -45,6 +48,9 @@ class EvalNotebook(Check):
 
         for nb_path in notebooks:
             src = self._code_source(nb_path)
+            if src is None:
+                result.violations.append(Violation(nb_path, "invalid notebook JSON"))
+                continue
 
             if "config.json" not in src:
                 result.violations.append(
@@ -60,12 +66,12 @@ class EvalNotebook(Check):
                 )
 
     @staticmethod
-    def _code_source(nb_path: str) -> str:
-        """Concatenated source of a notebook's code cells."""
+    def _code_source(nb_path: str) -> str | None:
+        """Concatenated source of a notebook's code cells, or None if unreadable."""
         try:
             nb = load_json(nb_path)
         except (OSError, json.JSONDecodeError):
-            return ""
+            return None
         return "\n".join(
             "".join(c.get("source", []))
             for c in nb.get("cells", [])

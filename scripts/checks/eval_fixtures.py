@@ -35,7 +35,10 @@ class EvalFixtures(Check):
 
     def _check_fixtures(self, cfg_path: str, shared: Draft202012Validator, result: Result) -> None:
         base = os.path.dirname(cfg_path)
-        config = load_json(cfg_path)
+        try:
+            config = load_json(cfg_path)
+        except (OSError, json.JSONDecodeError):
+            return  # eval-config reports unreadable configs
 
         def fail(msg: str) -> None:
             result.violations.append(Violation(cfg_path, msg))
@@ -77,9 +80,8 @@ class EvalFixtures(Check):
         if not (isinstance(ref, dict) and "$ref" in ref):
             return None
         path = os.path.join(base, ref["$ref"])
-        if not os.path.exists(path):
-            return None
-        return self._safe_validator(load_json(path))
+        doc = self._load_or_none(path)
+        return self._safe_validator(doc) if doc is not None else None
 
     def _expected_validator(self, config: dict, base: str):
         """A partial validator: each expected field must match its output property.
@@ -92,9 +94,9 @@ class EvalFixtures(Check):
         if not (isinstance(ref, dict) and "$ref" in ref):
             return None
         path = os.path.join(base, ref["$ref"])
-        if not os.path.exists(path):
+        out = self._load_or_none(path)
+        if out is None:
             return None
-        out = load_json(path)
         schema = {
             "type": "object",
             "additionalProperties": False,
@@ -105,12 +107,22 @@ class EvalFixtures(Check):
         return self._safe_validator(schema)
 
     @staticmethod
-    def _safe_validator(schema: dict):
-        """Build a validator only if `schema` is itself a valid JSON Schema.
+    def _load_or_none(path: str):
+        """Load a JSON file, or None if missing/unreadable/invalid.
 
         A malformed input/output schema is reported by eval-schemas; here we just
         skip binding rather than crash on it.
         """
+        if not os.path.exists(path):
+            return None
+        try:
+            return load_json(path)
+        except (OSError, json.JSONDecodeError):
+            return None
+
+    @staticmethod
+    def _safe_validator(schema: dict):
+        """Build a validator only if `schema` is itself a valid JSON Schema."""
         try:
             Draft202012Validator.check_schema(schema)
         except SchemaError:
