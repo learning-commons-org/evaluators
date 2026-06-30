@@ -211,9 +211,6 @@ export abstract class BaseEvaluator {
 
     // An injected llmProvider replaces the built-in adapters entirely.
     if (config.llmProvider) {
-      // Fail fast on a malformed provider — JS consumers get no compile-time
-      // check, and a bad object would otherwise surface mid-evaluation as an
-      // opaque "generateStructured is not a function".
       this.validateLlmProvider(config.llmProvider);
 
       // modelOverride is a contradictory directive — it configures a built-in
@@ -282,9 +279,7 @@ export abstract class BaseEvaluator {
 
   /**
    * Validate that an injected llmProvider implements the LLMProvider contract:
-   * a string `label` and `generateStructured` / `generateText` methods. JS
-   * consumers get no compile-time check, so this surfaces misconfiguration as an
-   * actionable error at construction rather than deep inside an evaluation.
+   * a string `label` and `generateStructured` / `generateText` methods.
    * @throws {ConfigurationError} If the provider is missing required members
    */
   private validateLlmProvider(provider: LLMProvider): void {
