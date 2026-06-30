@@ -94,4 +94,25 @@ describe('llmProvider — bring-your-own-provider', () => {
         })
     ).toThrow(ConfigurationError);
   });
+
+  describe('rejects a malformed llmProvider at construction', () => {
+    const cases: Array<[string, unknown]> = [
+      ['empty object', {}],
+      ['missing generateText', { label: 'x', generateStructured: vi.fn() }],
+      ['missing generateStructured', { label: 'x', generateText: vi.fn() }],
+      ['non-string label', { label: 5, generateStructured: vi.fn(), generateText: vi.fn() }],
+      ['method is not a function', { label: 'x', generateStructured: 'nope', generateText: vi.fn() }],
+    ];
+
+    it.each(cases)('throws ConfigurationError — %s', (_name, bad) => {
+      expect(
+        () =>
+          new GradeLevelAppropriatenessEvaluator({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            llmProvider: bad as any,
+            telemetry: false,
+          })
+      ).toThrow(ConfigurationError);
+    });
+  });
 });

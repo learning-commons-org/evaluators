@@ -211,6 +211,11 @@ export abstract class BaseEvaluator {
 
     // An injected llmProvider replaces the built-in adapters entirely.
     if (config.llmProvider) {
+      // Fail fast on a malformed provider — JS consumers get no compile-time
+      // check, and a bad object would otherwise surface mid-evaluation as an
+      // opaque "generateStructured is not a function".
+      this.validateLlmProvider(config.llmProvider);
+
       // modelOverride is a contradictory directive — it configures a built-in
       // adapter that llmProvider bypasses. Fail fast rather than silently
       // ignoring one. (API keys, by contrast, are ambient and simply unused.)
@@ -273,6 +278,26 @@ export abstract class BaseEvaluator {
       );
     }
     return meta;
+  }
+
+  /**
+   * Validate that an injected llmProvider implements the LLMProvider contract:
+   * a string `label` and `generateStructured` / `generateText` methods. JS
+   * consumers get no compile-time check, so this surfaces misconfiguration as an
+   * actionable error at construction rather than deep inside an evaluation.
+   * @throws {ConfigurationError} If the provider is missing required members
+   */
+  private validateLlmProvider(provider: LLMProvider): void {
+    const p = provider as Partial<LLMProvider>;
+    if (
+      typeof p.label !== 'string' ||
+      typeof p.generateStructured !== 'function' ||
+      typeof p.generateText !== 'function'
+    ) {
+      throw new ConfigurationError(
+        'llmProvider must implement the LLMProvider interface: a string `label` and `generateStructured` / `generateText` methods.'
+      );
+    }
   }
 
   /**
