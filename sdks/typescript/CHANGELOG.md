@@ -2,7 +2,7 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
-## [0.8.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v0.7.0...sdks-typescript-v0.8.0) (2026-06-29)
+## [0.8.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v0.7.0...sdks-typescript-v0.8.0) (2026-06-30)
 
 
 ### Features
