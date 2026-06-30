@@ -1,188 +1,68 @@
-# Evaluators
+# Learning Commons Evaluators
 
 <img style="width:100%" alt="Evaluators project banner logo" src="https://raw.githubusercontent.com/learning-commons-org/.github/refs/heads/main/assets/evals_hero_2.jpg" />
 
 <p align="center">
-  <a href="https://platform.learningcommons.org/apps/evaluators/playground" target="_blank">Try it in the Playground </a>
+  <a href="https://platform.learningcommons.org/apps/evaluators/playground" target="_blank">Demo</a>
    •
   <a href="https://docs.learningcommons.org/evaluators/getting-started/quickstart" target="_blank">Quickstart</a>
   •
-  <a href="https://docs.learningcommons.org/evaluators/understanding-evaluators/core-concepts" target="_blank">Core concepts</a>
+  <a href="https://docs.learningcommons.org/evaluators" target="_blank">Docs</a>
 </p>
 
-Evaluators help you to measure the attributes of LLM-generated text through the lens of learning science.
+[Learning Commons](https://learningcommons.org/) evaluators measure the quality of AI-generated educational content by assessing specific dimensions of text and identifying areas for improvement.
 
-We build learning-science-backed systems that follow LLM-as-a-judge methodology and can be directly integrated to your product or evaluation stack.
+Edtech developers can use Evaluators to reliably assess their LLM outputs and build evidence-based tools that reinforce student learning.
 
-Use cases include:
+## Available evaluators
 
-- **Feature optimization**: Use fine-grained literacy evaluation to sharpen and consistently deliver a feature’s AI-generated content so it aligns with pedagogy and your goals.
-- **Maintaining performance**: Ensure content is generated as expected by using the evaluators as product analytics for your LLM output.
-- **Model selection**: Make a confident decision about which model is right for your product by testing the output of models you’re considering.
-
-Evaluators and the supporting datasets are built in collaboration with leading literacy experts from Student Achievement Partners and the Achievement Network.
+| Evaluators                                                                                                | Description                                                                             |
+| :-------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------- |
+| [**Literacy evaluators**](https://docs.learningcommons.org/evaluators/literacy-evaluators/introduction)   | Assess the qualitative text complexity of a passage, often for a particular grade level |
+| [**Feedback evaluators**](https://docs.learningcommons.org/evaluators/feedback-evaluators/introduction)   | Assess the quality of feedback on a student's response to a task goal                   |
+| [**Standards evaluators**](https://docs.learningcommons.org/evaluators/standards-evaluators/introduction) | Assess the alignment of educational content to academic standards                       |
 
 ## Repository contents
 
-| Path                      | Description                                                      |
-| :------------------------ | :--------------------------------------------------------------- |
-| [`evals`](./evals/)       | Evaluators code and prompts                                      |
-| [`datasets`](./datasets/) | Expert annotated datasets used to create and validate evaluators |
-| [`LICENSE`](./LICENSE.md) | Open source license details                                      |
+| Path                      | Description                                                                                                                          |
+| :------------------------ | :----------------------------------------------------------------------------------------------------------------------------------- |
+| [`evals`](./evals/)       | Evaluators code (notebooks) and [prompts](./evals/prompts)                                                                           |
+| [`datasets`](./datasets/) | [Expert-annotated datasets](https://docs.learningcommons.org/evaluators/dataset/introduction) used to create and validate evaluators |
+| [`sdks`](./sdks/)         | [Python](./sdks/python/) and [TypeScript](./sdks/python/) SDKs for integrating evaluators into your own project                      |
+| [`LICENSE`](./LICENSE.md) | Open source license details                                                                                                          |
 
-Check out the [Evaluators docs](https://docs.learningcommons.org/evaluators) for complete setup instructions and usage examples.
+## Getting started
 
-## Try the evaluators
+Sign up for a [Learning Commons Platform](https://platform.learningcommons.org) account, then select one of the following access methods to start using Evaluators:
 
-You can test the evaluators with your own text in the [Evaluators Playground](https://platform.learningcommons.org/apps/evaluators/playground) on the Learning Commons Platform.
+| Access method                                                                                | When to use                                         | Instructions                                                                                               |
+| :------------------------------------------------------------------------------------------- | :-------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [**Evaluators Playground**](https://platform.learningcommons.org/apps/evaluators/playground) | For a quick demo of how evaluators work             | [Quickstart](https://docs.learningcommons.org/evaluators/getting-started/quickstart#evaluators-playground) |
+| **SDK**                                                                                      | To integrate into your TypeScript or Python project | [Quickstart](https://docs.learningcommons.org/evaluators/getting-started/quickstart#sdk)                   |
+| **Python notebooks**                                                                         | For quick prototyping                               | [Quickstart](https://docs.learningcommons.org/evaluators/getting-started/quickstart#python-notebooks)      |
 
-## Quickstart
+If you're using an SDK or Python notebook, you must also:
 
-To use the evaluators, clone the repository and follow the instructions below.
+- Generate your Learning Commons [API keys](https://platform.learningcommons.org/api-keys) – Required for authentication
+- Generate the API keys required for the evaluators you want to use – see [API key requirements here](https://docs.learningcommons.org/evaluators/getting-started/quickstart#required-api-keys).
 
-If you’d like to download or access our evaluators and datasets directly, follow the links below.
+## Resources
 
-- Evaluators literacy package
-  - [Prompts](./evals/prompts)
-  - [Notebooks](./evals)
-- Datasets
-  - [Learning Commons annotations of CLEAR for qualitative text complexity v1.0 2025-09-02.csv](https://aidt-evaluators-files-public-prod.s3.us-west-2.amazonaws.com/Learning+Commons+annotations+of+CLEAR+for+qualitative+text+complexity+v1.0+2025-09-02.csv)
+|                |                                                                                                                                                                                                                                                                                                                 |
+| :------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Basics**     | [Use cases](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction#when-to-use-evaluators), [Core concepts](https://docs.learningcommons.org/evaluators/understanding-evaluators/core-concepts)                                                                                      |
+| **Evaluators** | [Literacy evaluators](https://docs.learningcommons.org/evaluators/literacy-evaluators/introduction), [Feedback evaluators](https://docs.learningcommons.org/evaluators/feedback-evaluators/introduction), [Standards evaluators](https://docs.learningcommons.org/evaluators/standards-evaluators/introduction) |
+| **Datasets**   | [Introduction](https://docs.learningcommons.org/evaluators/dataset/introduction), [Literacy](https://docs.learningcommons.org/evaluators/dataset/literacy)                                                                                                                                                      |
+| **Reference**  | [SDK API reference](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview)                                                                                                                                                                                                                     |
+| **Other**      | [Roadmap](https://docs.learningcommons.org/evaluators/understanding-evaluators/roadmap)                                                                                                                                                                                                                         |
 
-## Requirements
+## Contact us
 
-We rely on the Python interpreter to power the evaluators. All examples and tutorials are provided as Python code snippets.
-
-## Setup on Mac/Linux
-
-You’ll need Python 3.10 or newer. To verify your version of Python, run the following code in the terminal:
-
-```shell
-python3 --version
-```
-
-### 1. Create a virtual environment
-
-Creating an isolated environment is a best practice that prevents conflicts between Python packages used in this project and others on your system.
-
-```shell
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-Remember to activate the virtual environment for each new shell session when working with Evaluators.
-
-### 2. Install dependencies
-
-The required packages are listed in the `requirements.txt` file.
-
-```shell
-pip install -r evals/requirements.txt
-```
-
-### 3. Set your API keys
-
-We are using **both** OpenAI and Google Gemini for different evaluators. You need API keys from both platforms:
-
-- OpenAI: [https://platform.openai.com/](https://platform.openai.com/)
-- Gemini: [https://aistudio.google.com/](https://aistudio.google.com/)
-
-Set the key(s) as environment variables in your shell session:
-
-```shell
-export OPENAI_API_KEY="sk-your-key-here"
-export GOOGLE_API_KEY="your-key-here"
-```
-
-</details>
-<details>
-<summary>Setup on Windows</summary>
-
-## Setup on Windows
-
-You’ll need Python 3.10 or newer. To verify your version of python, run the following code in the terminal:
-
-```shell
-python --version
-```
-
-### 1. Create a virtual environment
-
-Open a Command Prompt and run:
-
-```cmd
-python -m venv .venv
-.venv\Scripts\activate
-```
-
-Or in PowerShell:
-
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-```
-
-Remember to activate the virtual environment for each new shell session when working with Evaluators.
-
-### 2. Install dependencies
-
-```cmd
-pip install -r evals/requirements.txt
-```
-
-### 3. Set your API keys
-
-Get your API keys from:
-
-- OpenAI: [https://platform.openai.com/](https://platform.openai.com/)
-- Gemini: [https://aistudio.google.com/](https://aistudio.google.com/)
-
-Set the key(s) as environment variables:
-
-In Command Prompt:
-
-```cmd
-set OPENAI_API_KEY=sk-your-key-here
-set GOOGLE_API_KEY=your-key-here
-```
-
-In PowerShell:
-
-```powershell
-$env:OPENAI_API_KEY="sk-your-key-here"
-$env:GOOGLE_API_KEY="your-key-here"
-```
-
-</details>
-
-## Run the Evaluators' code
-
-You are now ready to run the evaluator examples. We recommend using a Jupyter Notebook for interactive exploration.
-
-1. **Start Jupyter Notebooks Lab:**
-
-```shell
-jupyter lab
-```
-
-Jupyter will open in your web browser (usually at `http://localhost:8888`).
-
-2. Browse into the `evals` folder, then double click on the evaluator you want to try.
-3. You can now copy the text you want to evaluate into the last code cell of the notebook to run an evaluator on your text sample.
-
-If you prefer using an IDE with Python and Jupyter notebook support, such as VSCode with Microsoft's Python and Jupyter extensions, please refer to Microsoft's instructions for their installation and configuration.
-
-## Support & feedback
-
-We want to hear from you. For questions or feedback, please [open an issue](https://github.com/learning-commons-org/evaluators/issues) or reach out to us at [support@learningcommons.org](mailto:support@learningcommons.org)
-
-## Stay up to date
-
-Sign up for a <a href="https://platform.learningcommons.org" target="_blank">Learning Commons account</a> to receive news about the latest Evaluators updates, and releases.
-
-## Reporting security issues
-
-If you believe you have found a security issue, please responsibly disclose by contacting us at [security@learningcommons.org](mailto:security@learningcommons.org).
+| Topic                      | Contact                                                                                                                                                              |
+| :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Questions or feedback      | [Open a GitHub issue](https://github.com/learning-commons-org/evaluators/issues) or email [support@learningcommons.org](mailto:support@learningcommons.org)          |
+| Reporting security issues  | Email [security@learningcommons.org](mailto:security@learningcommons.org)                                                                                            |
 
 ## Disclaimer
 
-Use of the resources provided in this repository is subject to [our Terms of Use](https://learningcommons.org/terms-of-use/).
+Use of the resources provided in this repository is subject to our [Terms of Use](https://learningcommons.org/terms-of-use/).
