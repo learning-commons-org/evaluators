@@ -1,7 +1,7 @@
 # Feature Specification: Math Standards Alignment Evaluator Page
 
 **Feature ID**: `002-math-standards-alignment`
-**Branch**: `worktree-ahussain+ts_sdk_demo_app`
+**Branch**: `002-math-standards-alignment`
 **Created**: 2026-07-16
 **Status**: Implemented
 **Input**: "Implement a Math Standard Alignment evaluator page — everything related to the

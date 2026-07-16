@@ -1,7 +1,7 @@
 # Feature Specification: Demo App Scaffold
 
 **Feature ID**: `001-demo-app-scaffold`
-**Branch**: `worktree-ahussain+ts_sdk_demo_app`
+**Branch**: `001-demo-app-scaffold`
 **Created**: 2026-07-16
 **Status**: Implemented
 **Input**: "Implement a TS SDK demo app — the empty demo app shell, ready to go, that
