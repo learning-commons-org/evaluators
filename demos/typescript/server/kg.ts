@@ -16,7 +16,7 @@ async function kgGet(path: string, params: Record<string, string>, apiKey: strin
   const response = await fetch(url, { headers: { 'x-api-key': apiKey } });
   if (!response.ok) {
     const body = await response.text().catch(() => '');
-    throw new Error(`Knowledge Graph request failed (${response.status}): ${body}`);
+    throw new Error(`Knowledge Graph request failed (${response.status}): ${body.slice(0, 500)}`);
   }
   return response.json();
 }

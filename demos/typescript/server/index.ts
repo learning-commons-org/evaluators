@@ -14,17 +14,25 @@ const evaluator = new MathStandardsAlignmentEvaluator({
   platformApiKey: PLATFORM_API_KEY,
 });
 
+const GRADES = new Set(['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
+const JURISDICTIONS = new Set<string>(Object.values(Jurisdiction));
+const MAX_QUESTION_LENGTH = 10_000;
+
 const app = express();
 app.use(express.json());
 
 app.get('/api/jurisdictions', (_req, res) => {
-  res.json(Object.values(Jurisdiction));
+  res.json([...JURISDICTIONS]);
 });
 
 app.get('/api/standards', async (req, res) => {
   const { grade, jurisdiction } = req.query;
-  if (typeof grade !== 'string' || typeof jurisdiction !== 'string') {
-    res.status(400).json({ error: 'grade and jurisdiction query params are required' });
+  if (typeof grade !== 'string' || !GRADES.has(grade)) {
+    res.status(400).json({ error: 'grade must be one of K, 1–12' });
+    return;
+  }
+  if (typeof jurisdiction !== 'string' || !JURISDICTIONS.has(jurisdiction)) {
+    res.status(400).json({ error: 'jurisdiction must be a supported Jurisdiction value' });
     return;
   }
   try {
@@ -38,11 +46,16 @@ app.post('/api/evaluate', async (req, res) => {
   const { question, statementCodes, jurisdiction } = req.body ?? {};
   if (
     typeof question !== 'string' ||
+    question.trim().length === 0 ||
+    question.length > MAX_QUESTION_LENGTH ||
     !Array.isArray(statementCodes) ||
     statementCodes.length === 0 ||
-    !Object.values(Jurisdiction).includes(jurisdiction)
+    !statementCodes.every((c) => typeof c === 'string' && c.length > 0) ||
+    !JURISDICTIONS.has(jurisdiction)
   ) {
-    res.status(400).json({ error: 'question, statementCodes (non-empty array), and a valid jurisdiction are required' });
+    res.status(400).json({
+      error: `question (non-empty, ≤${MAX_QUESTION_LENGTH} chars), statementCodes (non-empty array of strings), and a valid jurisdiction are required`,
+    });
     return;
   }
   try {

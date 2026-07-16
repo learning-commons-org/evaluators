@@ -119,12 +119,20 @@ export default function App() {
 
         <label>
           Jurisdiction
-          <select value={jurisdiction} onChange={(e) => setJurisdiction(e.target.value)}>
-            {jurisdictions.map((j) => (
-              <option key={j} value={j}>
-                {j}
-              </option>
-            ))}
+          <select
+            value={jurisdiction}
+            onChange={(e) => setJurisdiction(e.target.value)}
+            disabled={jurisdictions.length === 0}
+          >
+            {jurisdictions.length === 0 ? (
+              <option value={jurisdiction}>{jurisdiction}</option>
+            ) : (
+              jurisdictions.map((j) => (
+                <option key={j} value={j}>
+                  {j}
+                </option>
+              ))
+            )}
           </select>
         </label>
       </div>
