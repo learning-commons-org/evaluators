@@ -57,7 +57,7 @@ export function registerMathStandardsAlignment(app: Express): void {
       question.length > MAX_QUESTION_LENGTH ||
       !Array.isArray(statementCodes) ||
       statementCodes.length === 0 ||
-      !statementCodes.every((c) => typeof c === 'string' && c.length > 0) ||
+      !statementCodes.every((c) => typeof c === 'string' && c.trim().length > 0) ||
       !JURISDICTIONS.has(jurisdiction)
     ) {
       res.status(400).json({
