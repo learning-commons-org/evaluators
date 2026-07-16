@@ -37,7 +37,8 @@
 - [x] T007 `tsc --noEmit` clean; `vite build` clean.
 - [x] T008 Live smoke: `/api/standards` returns real standards (e.g. grade 3 / Multi-State →
       `3.MD.C.7.d`); input validation returns 400; evaluate reaches the model layer.
-- [ ] T009 Final real-key end-to-end evaluation run (pending user keys).
+- [x] T009 Final real-key end-to-end evaluation run — verified locally: full click-through
+      (grade → jurisdiction → standards → word problem → Evaluate) returned a successful result.
 
 ## Dependencies
 

@@ -95,4 +95,4 @@ evaluation. The raw SDK result appears so they can inspect exactly what the SDK 
 - [x] Requirements generated
 - [x] Entities identified
 - [x] Implemented; standards lookup verified live; evaluate verified through the model layer
-- [ ] Final real-key end-to-end evaluation run (pending user keys)
+- [x] Final real-key end-to-end evaluation run — verified locally via full UI click-through
