@@ -97,6 +97,8 @@ describe('llmProvider — bring-your-own-provider', () => {
 
   describe('rejects a malformed llmProvider at construction', () => {
     const cases: Array<[string, unknown]> = [
+      ['null', null],
+      ['a primitive', 'not-a-provider'],
       ['empty object', {}],
       ['missing generateText', { label: 'x', generateStructured: vi.fn() }],
       ['missing generateStructured', { label: 'x', generateText: vi.fn() }],

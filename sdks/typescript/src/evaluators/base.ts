@@ -210,7 +210,10 @@ export abstract class BaseEvaluator {
     this.logger = createLogger(config.logger, config.logLevel ?? LogLevel.WARN);
 
     // An injected llmProvider replaces the built-in adapters entirely.
-    if (config.llmProvider) {
+    // Treat "provided" as `!== undefined` so a falsy-but-present value (e.g.
+    // `null` from an untyped JS caller) fails fast with an llmProvider error
+    // rather than falling through to a misleading "missing API key" error.
+    if (config.llmProvider !== undefined) {
       this.validateLlmProvider(config.llmProvider);
 
       // modelOverride is a contradictory directive — it configures a built-in
@@ -282,7 +285,13 @@ export abstract class BaseEvaluator {
    * a string `label` and `generateStructured` / `generateText` methods.
    * @throws {ConfigurationError} If the provider is missing required members
    */
-  private validateLlmProvider(provider: LLMProvider): void {
+  private validateLlmProvider(provider: unknown): void {
+    if (provider === null || typeof provider !== 'object') {
+      throw new ConfigurationError(
+        'llmProvider must be an object implementing the LLMProvider interface; received ' +
+          (provider === null ? 'null' : typeof provider) + '.'
+      );
+    }
     const p = provider as Partial<LLMProvider>;
     if (
       typeof p.label !== 'string' ||
