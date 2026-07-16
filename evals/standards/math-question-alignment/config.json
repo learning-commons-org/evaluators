@@ -55,8 +55,7 @@
         ],
         "placeholders": {
           "question": { "required": true, "source": "input" },
-          "learning_components": { "required": true, "source": "preprocessing.get_learning_components", "note": "Numbered list of LC descriptions with identifiers" },
-          "n": { "required": true, "source": "derived", "note": "Count of learning components; enforces exact-length array output" }
+          "learning_components": { "required": true, "source": "preprocessing.get_learning_components", "note": "Numbered list of LC descriptions with identifiers" }
         }
       },
       "model": {
