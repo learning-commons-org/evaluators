@@ -2,6 +2,7 @@
  * Batch evaluation types
  */
 import type { TelemetryOptions, ModelOverride } from '../evaluators/base.js';
+import type { LLMProvider } from '../providers/index.js';
 
 /**
  * Input row from CSV
@@ -87,4 +88,11 @@ export interface BatchConfig {
   telemetry?: boolean | TelemetryOptions;
   bypassRowLimit?: boolean;
   modelOverride?: ModelOverride;
+
+  /**
+   * Bring your own LLM provider for every evaluator in the batch.
+   * See {@link BaseEvaluatorConfig.llmProvider}. When set, no API keys are
+   * required; mutually exclusive with modelOverride (setting both throws).
+   */
+  llmProvider?: LLMProvider;
 }
