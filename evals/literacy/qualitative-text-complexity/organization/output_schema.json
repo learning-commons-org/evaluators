@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "output_schema.json",
+  "title": "EvaluatorOutput",
+  "type": "object",
+  "required": [
+    "complexity_score",
+    "reasoning",
+    "details"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "complexity_score": {
+      "type": "string",
+      "enum": [
+        "slightly_complex",
+        "moderately_complex",
+        "very_complex",
+        "exceedingly_complex"
+      ],
+      "description": "The Organization complexity level for the target grade."
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "A high-level summary of why the text is at this organizational complexity level for the target grade."
+    },
+    "details": {
+      "$ref": "#/$defs/OrganizationDetails"
+    }
+  },
+  "$defs": {
+    "DetailedSummaryItem": {
+      "type": "object",
+      "required": [
+        "factor",
+        "description",
+        "effect_on_complexity_dimension"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "factor": {
+          "type": "string",
+          "description": "The specific text complexity factor identified."
+        },
+        "description": {
+          "type": "string",
+          "description": "How this factor manifests in the text."
+        },
+        "effect_on_complexity_dimension": {
+          "type": "string",
+          "description": "How this factor affects the reader's ability to understand the text's specific complexity dimension."
+        }
+      }
+    },
+    "ScaffoldingItem": {
+      "type": "object",
+      "required": [
+        "scaffolding_need",
+        "suggestion"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "scaffolding_need": {
+          "type": "string",
+          "description": "The complexity factor that requires scaffolding."
+        },
+        "suggestion": {
+          "type": "string",
+          "description": "A specific instructional strategy to support students with this factor."
+        }
+      }
+    },
+    "UseCaseItem": {
+      "type": "object",
+      "required": [
+        "opportunity",
+        "suggestion"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "opportunity": {
+          "type": "string",
+          "description": "An instructional opportunity related to the text."
+        },
+        "suggestion": {
+          "type": "string",
+          "description": "A specific way to leverage this text for that instructional purpose."
+        }
+      }
+    },
+    "OrganizationDetails": {
+      "type": "object",
+      "description": "Practical instructional details including scaffolding strategies and recommended use cases.",
+      "required": [
+        "detailed_summary",
+        "adjustment_and_scaffolding",
+        "recommended_use_cases"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "detailed_summary": {
+          "type": "array",
+          "description": "Individual organizational complexity factors with descriptions and their effects.",
+          "items": {
+            "$ref": "#/$defs/DetailedSummaryItem"
+          }
+        },
+        "adjustment_and_scaffolding": {
+          "type": "array",
+          "description": "Scaffolding strategies to make the text's structure accessible at the target grade.",
+          "items": {
+            "$ref": "#/$defs/ScaffoldingItem"
+          }
+        },
+        "recommended_use_cases": {
+          "type": "array",
+          "description": "Additional instructional opportunities for using this text's structure.",
+          "items": {
+            "$ref": "#/$defs/UseCaseItem"
+          }
+        }
+      }
+    }
+  }
+}
