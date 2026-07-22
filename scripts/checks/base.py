@@ -8,8 +8,13 @@ Every check is a `Check` subclass that implements `run(fix)` and returns a
 
 from __future__ import annotations
 
+import json
+import os
 import subprocess
 from dataclasses import dataclass, field
+
+# Shared, version-pinned schemas live here (not duplicated per evaluator).
+SCHEMA_ROOT = "evals/_schemas"
 
 
 @dataclass
@@ -48,3 +53,18 @@ def tracked_files(pattern: str) -> list[str]:
     """Git-tracked paths matching `pattern`, excluding checkpoint dirs."""
     out = subprocess.check_output(["git", "ls-files", pattern], text=True)
     return [p for p in out.splitlines() if ".ipynb_checkpoints" not in p]
+
+
+def evaluator_configs() -> list[str]:
+    """Every evaluator's config.json (an evaluator = a dir under evals/ with one)."""
+    return tracked_files("evals/**/config.json")
+
+
+def shared_schema_path(name: str) -> str:
+    """Path to a shared schema, e.g. evals/_schemas/fixtures.schema.json."""
+    return os.path.join(SCHEMA_ROOT, name)
+
+
+def load_json(path: str):
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)

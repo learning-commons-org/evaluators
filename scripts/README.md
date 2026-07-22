@@ -36,21 +36,21 @@ fails the PR (it never auto-fixes) — so fixing locally saves a round-trip.
 | Check | What it does |
 |-------|--------------|
 | `strip-notebooks` | Clears outputs, execution counts, and cell metadata from `.ipynb` files |
+| `eval-config` | Validates each evaluator `config.json` against the shared schema (`evals/_schemas/config.schema.json`, referenced by the config's own `$schema`), plus cross-file rules: referenced files exist, prompt `sha256` matches, placeholders ⇄ template `{vars}` are in sync, system prompts carry no placeholders, and no obsolete `format_instructions` survive |
+| `eval-schemas` | Meta-validates each `input_schema.json` / `output_schema.json` is a well-formed JSON Schema document |
+| `eval-fixtures` | Validates `fixtures.json` against the shared `evals/_schemas/fixtures.schema.json`, and binds each case's `input`/`expected` to that evaluator's own input/output schema |
+| `eval-notebook` | Where an evaluator ships an example notebook, confirms it loads the config + prompt files from disk rather than hardcoding them |
 
 ## Coming next
 
 This is the seed of a broader self-service harness. Planned additions:
 
-- **eval-config validation** — parser kind, prompt `sha256` drift, no dangling
-  placeholders, fixture labels within the output schema enum.
-- **naming / structure conventions** for `evals/`.
 - **delegation to the SDK suites** (`sdks/typescript` lint/type/test,
   `sdks/python` Makefile) so one local command covers everything. CI keeps the
   per-SDK workflows separate for parallelism and path-filtered signal.
 
-> **TODO** (once there are more checks): surface this from the root `README.md`
-> / `CONTRIBUTING.md` so newcomers discover it — e.g. "Before committing, run
-> `python scripts/check.py --fix` (see `scripts/README.md`)."
+> **TODO**: the root `README.md` links here for discoverability; give this a
+> proper home in a `CONTRIBUTING.md` once one exists.
 
 ## Adding a check
 

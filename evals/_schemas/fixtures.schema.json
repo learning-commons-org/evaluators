@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fixtures.schema.json",
+  "title": "Evaluator fixtures",
+  "description": "Shared contract for evals/**/fixtures.json. Each case carries inputs and the expected label(s); per-evaluator input/expected shapes are validated against the evaluator's own input_schema/output_schema by the eval-fixtures check, not here.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "input", "expected"],
+    "properties": {
+      "id": { "type": "string", "minLength": 1 },
+      "description": { "type": "string" },
+      "source": { "type": "string" },
+      "input": { "type": "object" },
+      "expected": { "type": "object" }
+    }
+  }
+}
