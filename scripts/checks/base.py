@@ -60,9 +60,9 @@ def evaluator_configs() -> list[str]:
     return tracked_files("evals/**/config.json")
 
 
-def shared_schema_path(spec_version: str, name: str) -> str:
-    """Path to a version-pinned shared schema, e.g. evals/_schemas/1.0/<name>."""
-    return os.path.join(SCHEMA_ROOT, spec_version, name)
+def shared_schema_path(name: str) -> str:
+    """Path to a shared schema, e.g. evals/_schemas/fixtures.schema.json."""
+    return os.path.join(SCHEMA_ROOT, name)
 
 
 def load_json(path: str):
