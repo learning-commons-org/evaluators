@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "output_schema.json",
+  "title": "EvaluatorOutput",
+  "description": "Final evaluator output for the is_not_answer_giving dimension.",
+  "type": "object",
+  "required": [
+    "reasoning",
+    "key_features",
+    "proposed_adjustment",
+    "not_answer_giving_score"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "reasoning": {
+      "type": "string",
+      "description": "Step-by-step reasoning before the final answer: assess the student response against the task goal, then judge whether the teacher feedback meets the criterion."
+    },
+    "key_features": {
+      "$ref": "#/$defs/KeyFeatures"
+    },
+    "proposed_adjustment": {
+      "type": "string",
+      "description": "How the teacher feedback could be modified to meet the criterion. If it already meets the criterion, say so briefly."
+    },
+    "not_answer_giving_score": {
+      "type": "integer",
+      "enum": [
+        0,
+        1
+      ],
+      "description": "Overall: 1 if the feedback meets the criterion, 0 otherwise."
+    }
+  },
+  "$defs": {
+    "KeyFeatureAssessment": {
+      "type": "object",
+      "description": "Independent assessment of a single key feature.",
+      "required": [
+        "met",
+        "justification"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "met": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
+        },
+        "justification": {
+          "type": "string",
+          "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
+        }
+      }
+    },
+    "KeyFeatures": {
+      "type": "object",
+      "description": "Per-key-feature assessment; each feature judged independently.",
+      "required": [
+        "points_toward_evidence_without_supplying",
+        "prompts_revision_without_rewriting",
+        "leaves_core_thinking_to_student"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "points_toward_evidence_without_supplying": {
+          "$ref": "#/$defs/KeyFeatureAssessment",
+          "description": "Whether the feedback points toward where to find evidence rather than supplying the actual evidence"
+        },
+        "prompts_revision_without_rewriting": {
+          "$ref": "#/$defs/KeyFeatureAssessment",
+          "description": "Whether it prompts the student to revise rather than rewriting or modeling the full response"
+        },
+        "leaves_core_thinking_to_student": {
+          "$ref": "#/$defs/KeyFeatureAssessment",
+          "description": "Whether the guidance leaves the core thinking (selecting, explaining, or wording the evidence) to the student"
+        }
+      }
+    }
+  }
+}

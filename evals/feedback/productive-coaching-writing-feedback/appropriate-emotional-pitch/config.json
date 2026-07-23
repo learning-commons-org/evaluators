@@ -1,0 +1,62 @@
+{
+  "spec_version": "1.0",
+  "evaluator": {
+    "id": "feedback.productive_coaching_writing_feedback.is_appropriate_emotional_pitch",
+    "name": "Appropriate Emotional Pitch Feedback-Quality Evaluator",
+    "description": "Is the tone appropriate and constructive for the student?"
+  },
+  "input_schema": {
+    "$ref": "input_schema.json"
+  },
+  "preprocessing": [],
+  "steps": [
+    {
+      "id": "evaluate_is_appropriate_emotional_pitch",
+      "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
+      "prompt": {
+        "type": "chat",
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "7b73119327933b1dd1b30a4297840a1fac9a9521bdfd7aaa3b66409f3dadb019"
+          },
+          {
+            "role": "user",
+            "source_path": "user.txt",
+            "sha256": "eaac7e6eadcc43716e4a98b9e7f34c493c1cbe46adb38367dd8697b904d11bfa"
+          }
+        ],
+        "placeholders": {
+          "student_text": {
+            "required": true,
+            "source": "input"
+          },
+          "feedback_text": {
+            "required": true,
+            "source": "input"
+          }
+        }
+      },
+      "model": {
+        "provider": "openai",
+        "name": "gpt-5.4-2026-03-05"
+      },
+      "generation": {
+        "temperature": 1
+      },
+      "parser": {
+        "kind": "structured_output",
+        "output_schema_ref": "#/output_schema",
+        "notes": "Uses LangChain JsonOutputParser."
+      },
+      "output_binding": "formatted_output"
+    }
+  ],
+  "output_schema": {
+    "$ref": "output_schema.json"
+  },
+  "fixtures": {
+    "path": "fixtures.json"
+  }
+}
