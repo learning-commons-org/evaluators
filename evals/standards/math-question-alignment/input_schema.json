@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "math_standards_alignment_input_schema.json",
+  "type": "object",
+  "required": ["question", "statementCode", "jurisdiction"],
+  "additionalProperties": false,
+  "properties": {
+    "question": {
+      "type": "string",
+      "description": "The assessment question to evaluate for standards alignment",
+      "minLength": 1,
+      "maxLength": 10000
+    },
+    "statementCode": {
+      "type": "string",
+      "description": "Math standard code to evaluate against (e.g. '3.MD.C.7.d', 'K.CC.A.1').",
+      "minLength": 1,
+      "maxLength": 50
+    },
+    "jurisdiction": {
+      "type": "string",
+      "description": "Standards jurisdiction — 'Multi-State' for CCSS, or a specific state name (e.g. 'California', 'Texas'). Determines which framework the standard code is resolved against.",
+      "minLength": 1
+    }
+  }
+}

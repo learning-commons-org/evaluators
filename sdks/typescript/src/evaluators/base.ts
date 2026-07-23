@@ -75,12 +75,31 @@ export interface BaseEvaluatorConfig {
   /** Learning Commons partner key for authenticated telemetry (optional) */
   partnerKey?: string;
 
+  /** Learning Commons platform API key — used for Knowledge Graph API access */
+  platformApiKey?: string;
+
   /**
    * Override the provider and model used by this evaluator.
    * When set, all LLM calls use this provider and model instead of the defaults.
    * See {@link ModelOverride} for details.
    */
   modelOverride?: ModelOverride;
+
+  /**
+   * Bring your own LLM provider.
+   *
+   * Inject any object implementing {@link LLMProvider} and the evaluator routes
+   * every LLM call through it, skipping the built-in OpenAI/Google/Anthropic
+   * API-key adapters entirely. Use this to run the evaluators on a provider you
+   * already have wired — Google Vertex AI, Amazon Bedrock, an AI-SDK gateway,
+   * or an eval framework's model system — with no separate API keys.
+   *
+   * When set, API-key validation is skipped (the injected provider manages its
+   * own model, auth, and retries). It is mutually exclusive with
+   * {@link BaseEvaluatorConfig.modelOverride}: setting both throws
+   * `ConfigurationError`. Ambient API keys, if present, are simply unused.
+   */
+  llmProvider?: LLMProvider;
 
   /**
    * Maximum number of retries for failed API calls (default: 2)
@@ -158,6 +177,7 @@ export abstract class BaseEvaluator {
     googleApiKey?: string;
     openaiApiKey?: string;
     anthropicApiKey?: string;
+    llmProvider?: LLMProvider;
   };
 
   /**
@@ -189,11 +209,29 @@ export abstract class BaseEvaluator {
     // Initialize logger
     this.logger = createLogger(config.logger, config.logLevel ?? LogLevel.WARN);
 
-    // Validate modelOverride shape before key checks
-    this.validateModelOverride(config);
+    // An injected llmProvider replaces the built-in adapters entirely.
+    // Treat "provided" as `!== undefined` so a falsy-but-present value (e.g.
+    // `null` from an untyped JS caller) fails fast with an llmProvider error
+    // rather than falling through to a misleading "missing API key" error.
+    if (config.llmProvider !== undefined) {
+      this.validateLlmProvider(config.llmProvider);
 
-    // Validate required API keys based on metadata
-    this.validateApiKeys(config);
+      // modelOverride is a contradictory directive — it configures a built-in
+      // adapter that llmProvider bypasses. Fail fast rather than silently
+      // ignoring one. (API keys, by contrast, are ambient and simply unused.)
+      if (config.modelOverride) {
+        throw new ConfigurationError(
+          'Cannot set both llmProvider and modelOverride: llmProvider replaces the built-in provider entirely, so modelOverride does not apply. Set one or the other.'
+        );
+      }
+      // It manages its own model and auth, so API-key and override checks do not apply.
+    } else {
+      // Validate modelOverride shape before key checks
+      this.validateModelOverride(config);
+
+      // Validate required API keys based on metadata
+      this.validateApiKeys(config);
+    }
 
     // Normalize telemetry config
     const telemetryConfig = this.normalizeTelemetryConfig(config.telemetry);
@@ -206,6 +244,7 @@ export abstract class BaseEvaluator {
       googleApiKey: config.googleApiKey,
       openaiApiKey: config.openaiApiKey,
       anthropicApiKey: config.anthropicApiKey,
+      llmProvider: config.llmProvider,
     };
 
     if (config.modelOverride) {
@@ -239,6 +278,30 @@ export abstract class BaseEvaluator {
       );
     }
     return meta;
+  }
+
+  /**
+   * Validate that an injected llmProvider implements the LLMProvider contract:
+   * a string `label` and `generateStructured` / `generateText` methods.
+   * @throws {ConfigurationError} If the provider is missing required members
+   */
+  private validateLlmProvider(provider: unknown): void {
+    if (provider === null || typeof provider !== 'object') {
+      throw new ConfigurationError(
+        'llmProvider must be an object implementing the LLMProvider interface; received ' +
+          (provider === null ? 'null' : typeof provider) + '.'
+      );
+    }
+    const p = provider as Partial<LLMProvider>;
+    if (
+      typeof p.label !== 'string' ||
+      typeof p.generateStructured !== 'function' ||
+      typeof p.generateText !== 'function'
+    ) {
+      throw new ConfigurationError(
+        'llmProvider must implement the LLMProvider interface: a string `label` and `generateStructured` / `generateText` methods.'
+      );
+    }
   }
 
   /**
@@ -405,15 +468,19 @@ export abstract class BaseEvaluator {
   }
 
   /**
-   * Create an LLM provider, honouring modelOverride if set.
-   * When override is active, the key for the override provider is resolved
-   * from the matching top-level config field (e.g. anthropicApiKey for Anthropic).
+   * Create an LLM provider, honouring llmProvider then modelOverride if set.
+   * An injected llmProvider wins outright and is returned as-is. Otherwise, when
+   * override is active, the key for the override provider is resolved from the
+   * matching top-level config field (e.g. anthropicApiKey for Anthropic).
    */
   protected createConfiguredProvider(
     defaultType: Provider,
     defaultModel: string,
     defaultApiKey: string | undefined,
   ): LLMProvider {
+    if (this.config.llmProvider) {
+      return this.config.llmProvider;
+    }
     const override = this.config.modelOverride;
     if (override) {
       const apiKeyFor: Record<Provider, string | undefined> = {

@@ -2,6 +2,20 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
+## [0.8.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v0.7.0...sdks-typescript-v0.8.0) (2026-06-30)
+
+
+### Features
+
+* **ts-sdk:** jurisdiction support for math standards alignment ([#108](https://github.com/learning-commons-org/evaluators/issues/108)) ([5c6bea8](https://github.com/learning-commons-org/evaluators/commit/5c6bea83905426a7499d24fe159072745e370aac))
+* **ts-sdk:** Knowledge Graph client layer ([#97](https://github.com/learning-commons-org/evaluators/issues/97)) ([b4fec20](https://github.com/learning-commons-org/evaluators/commit/b4fec202b651e6162252dd2fe4673337c736bdd8))
+* **ts-sdk:** Math Standards Alignment Evaluator ([#91](https://github.com/learning-commons-org/evaluators/issues/91)) ([94d8505](https://github.com/learning-commons-org/evaluators/commit/94d8505e99c05c229dbb6eaf0189e6affc823cb0))
+
+
+### Bug Fixes
+
+* **typescript-sdk:** prevent bundlers from requiring unused [@ai-sdk](https://github.com/ai-sdk) providers ([#105](https://github.com/learning-commons-org/evaluators/issues/105)) ([e02531a](https://github.com/learning-commons-org/evaluators/commit/e02531a4ca8d2847c7837344761a99e449304d50))
+
 ## [0.7.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v0.6.0...sdks-typescript-v0.7.0) (2026-06-11)
 
 

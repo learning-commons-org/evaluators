@@ -8,7 +8,7 @@
       "grade_level": 3
     },
     "expected": {
-      "complexity_level": "slightly_complex"
+      "complexity_score": "slightly_complex"
     }
   },
   {
@@ -20,7 +20,7 @@
       "grade_level": 9
     },
     "expected": {
-      "complexity_level": "slightly_complex"
+      "complexity_score": "slightly_complex"
     }
   },
   {
@@ -32,7 +32,7 @@
       "grade_level": 11
     },
     "expected": {
-      "complexity_level": "moderately_complex"
+      "complexity_score": "moderately_complex"
     }
   },
   {
@@ -44,7 +44,7 @@
       "grade_level": 9
     },
     "expected": {
-      "complexity_level": "moderately_complex"
+      "complexity_score": "moderately_complex"
     }
   },
   {
@@ -56,7 +56,7 @@
       "grade_level": 6
     },
     "expected": {
-      "complexity_level": "moderately_complex"
+      "complexity_score": "moderately_complex"
     }
   }
 ]

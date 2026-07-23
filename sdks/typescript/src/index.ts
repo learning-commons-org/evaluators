@@ -17,7 +17,11 @@ export {
   RateLimitError,
   NetworkError,
   TimeoutError,
+  KnowledgeGraphError,
 } from './errors.js';
+
+// Knowledge Graph
+export { Jurisdiction } from './knowledge-graph/index.js';
 
 // Logger
 export type { Logger, LogContext } from './logger.js';
@@ -82,6 +86,14 @@ export {
   PurposeEvaluator,
   evaluatePurpose,
   type PurposeComplexityLevel,
+  MathStandardsAlignmentEvaluator,
+  evaluateMathStandardsAlignment,
+  type MathStandardsAlignmentEvaluatorConfig,
+  type LearningComponentResult,
+  type StandardAlignmentResult,
+  type QuestionItem,
+  type QuestionBankResult,
+  type QuestionBankOptions,
   Provider,
   type BaseEvaluatorConfig,
   type ModelOverride,

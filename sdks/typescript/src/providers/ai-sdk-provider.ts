@@ -37,9 +37,13 @@ export class VercelAIProvider implements LLMProvider {
     const model = await this.getModel();
     const startTime = Date.now();
 
+    const systemMsg = request.messages.find((m) => m.role === 'system');
+    const nonSystemMessages = request.messages.filter((m) => m.role !== 'system');
+
     const { output, usage } = await aiGenerateText({
       model,
-      messages: request.messages,
+      ...(systemMsg ? { system: systemMsg.content } : {}),
+      messages: nonSystemMessages,
       output: Output.object({ schema: request.schema }),
       temperature: request.temperature ?? 0,
       maxRetries: this.config.maxRetries ?? 0,
@@ -64,9 +68,13 @@ export class VercelAIProvider implements LLMProvider {
     const model = await this.getModel();
     const startTime = Date.now();
 
+    const systemMsg = messages.find((m) => m.role === 'system');
+    const nonSystemMessages = messages.filter((m) => m.role !== 'system');
+
     const { text, usage } = await aiGenerateText({
       model,
-      messages,
+      ...(systemMsg ? { system: systemMsg.content } : {}),
+      messages: nonSystemMessages,
       temperature: temperature ?? this.config.temperature ?? 0,
       maxRetries: this.config.maxRetries ?? 0,
     });
@@ -83,14 +91,22 @@ export class VercelAIProvider implements LLMProvider {
 
   /**
    * Get the configured language model.
-   * Uses dynamic imports so consumers only need to install the provider packages they use.
+   *
+   * Uses dynamic imports so consumers only need to install the provider packages
+   * they actually use. The `webpackIgnore` / `turbopackIgnore` / `@vite-ignore`
+   * magic comments stop bundlers (Next.js, webpack, Vite/Rollup, etc.) from
+   * statically resolving the uninstalled providers at build time — without them,
+   * bundling fails with "Module not found: Can't resolve '@ai-sdk/...'" even
+   * though the import is guarded at runtime.
    */
   private async getModel() {
     const apiKey = this.config.apiKey;
 
     switch (this.config.type) {
       case 'openai': {
-        const { createOpenAI } = await import('@ai-sdk/openai').catch(() => {
+        const { createOpenAI } = await import(
+          /* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ '@ai-sdk/openai'
+        ).catch(() => {
           throw new Error(
             'To use the OpenAI provider, install its adapter: npm install @ai-sdk/openai'
           );
@@ -98,7 +114,9 @@ export class VercelAIProvider implements LLMProvider {
         return createOpenAI(apiKey ? { apiKey } : {})(this.model);
       }
       case 'anthropic': {
-        const { createAnthropic } = await import('@ai-sdk/anthropic').catch(() => {
+        const { createAnthropic } = await import(
+          /* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ '@ai-sdk/anthropic'
+        ).catch(() => {
           throw new Error(
             'To use the Anthropic provider, install its adapter: npm install @ai-sdk/anthropic'
           );
@@ -106,7 +124,9 @@ export class VercelAIProvider implements LLMProvider {
         return createAnthropic(apiKey ? { apiKey } : {})(this.model);
       }
       case 'google': {
-        const { createGoogleGenerativeAI } = await import('@ai-sdk/google').catch(() => {
+        const { createGoogleGenerativeAI } = await import(
+          /* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ '@ai-sdk/google'
+        ).catch(() => {
           throw new Error(
             'To use the Google provider, install its adapter: npm install @ai-sdk/google'
           );

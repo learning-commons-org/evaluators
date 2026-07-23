@@ -1,9 +1,10 @@
 {
-  "spec_version": "1.0",
+  "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
     "id": "feedback.productive_coaching_writing_feedback.is_actionable_revision",
     "name": "Actionable Revision Feedback-Quality Evaluator",
-    "description": "If revision is needed, does the feedback give a clear next step?"
+    "description": "If revision is needed, does the feedback give a clear next step?",
+    "supported_grades": ["8", "9"]
   },
   "input_schema": {
     "$ref": "input_schema.json"
@@ -12,9 +13,9 @@
   "steps": [
     {
       "id": "evaluate_is_actionable_revision",
+      "type": "llm",
       "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
       "prompt": {
-        "type": "chat",
         "messages": [
           {
             "role": "system",
@@ -40,23 +41,20 @@
       },
       "model": {
         "provider": "openai",
-        "name": "gpt-5.4"
+        "name": "gpt-5.4-2026-03-05"
       },
       "generation": {
         "temperature": 1
       },
       "parser": {
-        "kind": "structured_output",
-        "output_schema_ref": "#/output_schema",
-        "notes": "Uses LangChain JsonOutputParser."
-      },
-      "output_binding": "formatted_output"
+        "kind": "structured_output"
+      }
     }
   ],
   "output_schema": {
     "$ref": "output_schema.json"
   },
   "fixtures": {
-    "sniff_test_path": "fixtures.json"
+    "path": "fixtures.json"
   }
 }

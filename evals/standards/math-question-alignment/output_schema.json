@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "math_standards_alignment_output_schema.json",
+  "type": "object",
+  "required": ["statementCode", "learningComponents", "alignedCount", "totalCount"],
+  "additionalProperties": false,
+  "properties": {
+    "statementCode": {
+      "type": "string",
+      "description": "The standard code that was evaluated (matches the statementCode input)"
+    },
+    "learningComponents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["description", "reasoning", "aligned", "feedback"],
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "The learning component description from the Knowledge Graph"
+          },
+          "reasoning": {
+            "type": "string",
+            "description": "Concise explanation of what the LC requires, what the question asks, and why they do or do not align"
+          },
+          "aligned": {
+            "type": "boolean",
+            "description": "True if the question directly elicits the skill described by this learning component"
+          },
+          "feedback": {
+            "type": ["string", "null"],
+            "description": "If aligned=false: concrete revision to make the item align. If aligned=true: null."
+          }
+        }
+      }
+    },
+    "alignedCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of learning components this question aligns to"
+    },
+    "totalCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of learning components for this standard"
+    }
+  }
+}

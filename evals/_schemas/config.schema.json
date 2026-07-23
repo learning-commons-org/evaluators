@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config.schema.json",
+  "title": "Evaluator config",
+  "description": "Shared contract for evals/**/config.json. One living schema, referenced by each config via its $schema field. Strict: additionalProperties is false at every level, so any new field must be added here deliberately.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "evaluator", "input_schema", "steps", "output_schema"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "evaluator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "description", "supported_grades"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "supported_grades": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+          }
+        }
+      }
+    },
+    "input_schema": { "type": "object" },
+    "output_schema": { "type": "object" },
+    "preprocessing": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "kind"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "type": { "enum": ["api", "computation"] },
+          "kind": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "input": { "type": "string" },
+          "output": { "type": "string" },
+          "implementation": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["library", "function"],
+              "properties": {
+                "library": { "type": "string", "minLength": 1 },
+                "function": { "type": "string", "minLength": 1 },
+                "post_transform": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["type"],
+                  "properties": {
+                    "type": { "enum": ["round"] },
+                    "precision": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "endpoint": { "type": "string" },
+          "params": { "type": "object" },
+          "auth": { "type": "string" },
+          "pagination": { "type": "string" }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "type": { "const": "api" } } },
+            "then": { "required": ["endpoint", "params", "auth"] }
+          },
+          {
+            "if": { "properties": { "type": { "const": "computation" } } },
+            "then": { "required": ["implementation", "input", "output"] }
+          }
+        ]
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "type": { "enum": ["llm", "api"] },
+          "description": { "type": "string" },
+          "prompt": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["messages", "placeholders"],
+            "properties": {
+              "messages": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["role", "source_path"],
+                  "properties": {
+                    "role": { "enum": ["system", "user", "assistant"] },
+                    "source_path": { "type": "string", "minLength": 1 },
+                    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+                  }
+                }
+              },
+              "placeholders": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["required", "source"],
+                  "properties": {
+                    "required": { "type": "boolean" },
+                    "source": { "type": "string" },
+                    "note": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "model": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["provider", "name"],
+            "properties": {
+              "provider": { "enum": ["google", "openai", "anthropic"] },
+              "name": { "type": "string", "minLength": 1 },
+              "alias": { "type": "string" }
+            }
+          },
+          "generation": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "temperature": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          },
+          "parser": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": {
+              "kind": { "const": "structured_output" }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "type": { "const": "llm" } } },
+            "then": { "required": ["prompt", "model", "parser"] }
+          }
+        ]
+      }
+    },
+    "fixtures": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string" },
+        "tolerance": { "type": "object" }
+      }
+    }
+  }
+}

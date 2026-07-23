@@ -1,9 +1,10 @@
 {
-  "spec_version": "1.0",
+  "$schema": "../../_schemas/config.schema.json",
   "evaluator": {
     "id": "literacy.gla.purpose",
     "name": "Purpose Dimension Text Complexity Evaluator",
-    "description": "Evaluates the Purpose dimension of qualitative text complexity for K-12 reading assessment, producing a 5-level rubric rating with structured pedagogical detail."
+    "description": "Evaluates the Purpose dimension of qualitative text complexity for K-12 reading assessment, producing a 5-level rubric rating with structured pedagogical detail.",
+    "supported_grades": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
   },
   "input_schema": {
     "$ref": "input_schema.json"
@@ -11,6 +12,7 @@
   "preprocessing": [
     {
       "id": "fk_score",
+      "type": "computation",
       "kind": "flesch_kincaid_grade",
       "description": "Compute the Flesch-Kincaid Grade Level for the input text and bind it to {fk_score} in the prompt.",
       "input": "text",
@@ -38,9 +40,9 @@
   "steps": [
     {
       "id": "evaluate_purpose",
+      "type": "llm",
       "description": "Single-call LLM step that produces the EvaluatorOutput JSON.",
       "prompt": {
-        "type": "chat",
         "messages": [
           {
             "role": "system",
@@ -77,60 +79,17 @@
       },
       "parser": {
         "kind": "structured_output"
-      },
-      "output_binding": "formatted_output"
+      }
     }
   ],
   "output_schema": {
     "$ref": "output_schema.json"
   },
   "fixtures": {
-    "sniff_test_path": "fixtures.json",
+    "path": "fixtures.json",
     "tolerance": {
       "allow_adjacent_levels": true,
       "notes": "If allow_adjacent_levels is true, predictions within one rubric step of the expected label count as a pass. Slightly Complex < Moderately Complex < Very Complex < Exceedingly Complex; more_context_needed has no adjacency."
-    },
-    "schema": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "$id": "fixtures_schema.json",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "id",
-          "input",
-          "expected"
-        ],
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "source": {
-            "type": "string",
-            "description": "Optional provenance label (e.g., the source CSV or dataset). Not required."
-          },
-          "input": {
-            "$ref": "input_schema.json"
-          },
-          "expected": {
-            "type": "object",
-            "required": [
-              "complexity_level"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "complexity_level": {
-                "$ref": "output_schema.json#/properties/complexity_score",
-                "description": "Expected complexity rating for this fixture. Renamed from the runtime field 'complexity_score' for clarity in the test file -- only the level itself is being tested; reasoning is non-deterministic across LLM runs."
-              }
-            }
-          }
-        }
-      }
     }
   }
 }
