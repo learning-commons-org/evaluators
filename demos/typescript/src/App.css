@@ -1,0 +1,138 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #f7f7f8;
+  color: #1a1a1a;
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+h1 {
+  margin-bottom: 0.25rem;
+}
+
+.subtitle {
+  margin-top: 0;
+  color: #555;
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+.evaluator-list {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.evaluator-list a {
+  display: block;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.evaluator-list a:hover {
+  border-color: #2563eb;
+}
+
+.evaluator-title {
+  display: block;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.evaluator-desc {
+  display: block;
+  margin-top: 0.25rem;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.row {
+  display: flex;
+  gap: 1rem;
+}
+
+.row label {
+  flex: 1;
+}
+
+label {
+  display: block;
+  margin: 1rem 0;
+  font-weight: 600;
+}
+
+select,
+textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.5rem;
+  font: inherit;
+  font-weight: 400;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+}
+
+label > div {
+  margin-top: 0.35rem;
+  font-weight: 400;
+}
+
+button {
+  padding: 0.6rem 1.5rem;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #9db6e8;
+  cursor: not-allowed;
+}
+
+.error {
+  padding: 0.75rem;
+  color: #991b1b;
+  background: #fee2e2;
+  border-radius: 4px;
+  white-space: pre-wrap;
+}
+
+.output {
+  padding: 1rem;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
