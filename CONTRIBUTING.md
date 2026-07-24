@@ -1,14 +1,6 @@
 # Contributing
 
-This repository is **public but not open to external contributions.** It's the
-published export of evaluators developed internally at Learning Commons, so we
-don't accept outside pull requests. For questions or feedback, please
-[open an issue](https://github.com/learning-commons-org/evaluators/issues) or
-reach us at [support@learningcommons.org](mailto:support@learningcommons.org).
-
-## For Learning Commons contributors
-
-### One-time setup (per clone)
+## One-time setup (per clone)
 
 Enable the local check hooks:
 
@@ -18,7 +10,7 @@ scripts/setup.sh
 
 (equivalently: `pip install pre-commit && pre-commit install`)
 
-### Before committing
+## Before committing
 
 The pre-commit hook runs `python scripts/check.py --fix` automatically — it
 strips notebook outputs and validates evaluator `config.json` / schemas /
