@@ -111,6 +111,11 @@
     "typescript": "^5.3.3",
     "vitest": "^4.0.17"
   },
+  "overrides": {
+    "@redocly/openapi-core": {
+      "js-yaml": "^4.3.0"
+    }
+  },
   "engines": {
     "node": ">=20.19.0"
   }
