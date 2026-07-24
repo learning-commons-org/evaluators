@@ -1,6 +1,6 @@
-# Local check hooks. Enable once per clone with `scripts/setup.sh`
-# (or `pip install pre-commit && pre-commit install`). CI runs the same
-# checks regardless, so `git commit --no-verify` is a safe bypass.
+# Local check hooks. Enable once per clone with `scripts/setup.sh` (it also
+# installs the harness deps so `scripts/check.py` can be run directly). CI runs
+# the same checks regardless, so `git commit --no-verify` is a safe bypass.
 #
 # Declaring the git hook types here means a single `pre-commit install` also
 # covers any commit-msg / pre-push hooks we add later — no reinstall needed.
@@ -12,7 +12,7 @@ repos:
       - id: repo-checks
         name: repo checks (scripts/check.py)
         # --fix auto-strips notebooks and reports anything else to fix by hand.
-        entry: python scripts/check.py --fix
+        entry: python3 scripts/check.py --fix
         language: python
         additional_dependencies: ["nbstripout==0.9.1", "jsonschema==4.23.0"]
         pass_filenames: false

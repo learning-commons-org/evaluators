@@ -11,12 +11,12 @@ scripts/setup.sh
 
 ## Before committing
 
-The pre-commit hook runs `python scripts/check.py --fix` automatically — it
+The pre-commit hook runs `python3 scripts/check.py --fix` automatically — it
 strips notebook outputs and validates evaluator `config.json` / schemas /
 fixtures against the shared contract. You can also run it by hand at any time:
 
 ```shell
-python scripts/check.py --fix
+python3 scripts/check.py --fix
 ```
 
 If the hook ever gets in your way, `git commit --no-verify` bypasses it for one
