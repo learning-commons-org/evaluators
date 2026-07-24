@@ -2,13 +2,12 @@
 
 ## One-time setup (per clone)
 
-Enable the local check hooks:
+Enable the local check hooks (installs `pre-commit` + the harness deps and
+wires up the git hook):
 
 ```shell
 scripts/setup.sh
 ```
-
-(equivalently: `pip install pre-commit && pre-commit install`)
 
 ## Before committing
 

@@ -51,10 +51,12 @@ This is the seed of a broader self-service harness. Planned additions:
 
 ## Running before every commit
 
-`scripts/setup.sh` (once per clone) installs a pre-commit hook that runs
-`python scripts/check.py --fix` on each commit. It's opt-in convenience —
-`git commit --no-verify` bypasses it and CI runs the same checks regardless.
-See [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+`scripts/setup.sh` (once per clone) installs `pre-commit` + the harness deps and
+enables a hook that runs `python scripts/check.py --fix` on each commit (the hook
+runs in pre-commit's own pinned, isolated env). Because setup also installs the
+deps, you can run it directly too: `python scripts/check.py --fix`. It's opt-in
+convenience — `git commit --no-verify` bypasses it, and CI runs the same checks
+regardless. See [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
 ## Adding a check
 

@@ -2,8 +2,8 @@
 # (or `pip install pre-commit && pre-commit install`). CI runs the same
 # checks regardless, so `git commit --no-verify` is a safe bypass.
 #
-# Declaring the stages here means a single `pre-commit install` also covers
-# any commit-msg / pre-push hooks we add later — no reinstall needed.
+# Declaring the git hook types here means a single `pre-commit install` also
+# covers any commit-msg / pre-push hooks we add later — no reinstall needed.
 default_install_hook_types: [pre-commit, commit-msg, pre-push]
 
 repos:
