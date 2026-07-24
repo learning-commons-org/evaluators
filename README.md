@@ -172,6 +172,10 @@ Jupyter will open in your web browser (usually at `http://localhost:8888`).
 
 If you prefer using an IDE with Python and Jupyter notebook support, such as VSCode with Microsoft's Python and Jupyter extensions, please refer to Microsoft's instructions for their installation and configuration.
 
+## Contributing
+
+This repository is public but **not open to external contributions** — it's the published export of internally-developed evaluators. See [CONTRIBUTING.md](./CONTRIBUTING.md).
+
 ## Support & feedback
 
 We want to hear from you. For questions or feedback, please [open an issue](https://github.com/learning-commons-org/evaluators/issues) or reach out to us at [support@learningcommons.org](mailto:support@learningcommons.org)

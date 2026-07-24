@@ -49,8 +49,12 @@ This is the seed of a broader self-service harness. Planned additions:
   `sdks/python` Makefile) so one local command covers everything. CI keeps the
   per-SDK workflows separate for parallelism and path-filtered signal.
 
-> **TODO**: the root `README.md` links here for discoverability; give this a
-> proper home in a `CONTRIBUTING.md` once one exists.
+## Running before every commit
+
+`scripts/setup.sh` (once per clone) installs a pre-commit hook that runs
+`python scripts/check.py --fix` on each commit. It's opt-in convenience —
+`git commit --no-verify` bypasses it and CI runs the same checks regardless.
+See [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
 ## Adding a check
 
