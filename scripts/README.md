@@ -12,13 +12,13 @@ pip install -r scripts/requirements.txt   # one-time; pinned tools the checks us
 ## Usage
 
 ```bash
-python scripts/check.py          # check everything (what CI runs)
-python scripts/check.py --fix    # auto-fix what's safe, report the rest
-python scripts/check.py --list   # list available checks
-python scripts/check.py strip-notebooks   # run a single check
+python3 scripts/check.py          # check everything (what CI runs)
+python3 scripts/check.py --fix    # auto-fix what's safe, report the rest
+python3 scripts/check.py --list   # list available checks
+python3 scripts/check.py strip-notebooks   # run a single check
 ```
 
-**Run `python scripts/check.py --fix` before you commit.** It catches issues
+**Run `python3 scripts/check.py --fix` before you commit.** It catches issues
 early with clear messages and fixes what it can. CI runs the same harness and
 fails the PR (it never auto-fixes) — so fixing locally saves a round-trip.
 
@@ -49,8 +49,14 @@ This is the seed of a broader self-service harness. Planned additions:
   `sdks/python` Makefile) so one local command covers everything. CI keeps the
   per-SDK workflows separate for parallelism and path-filtered signal.
 
-> **TODO**: the root `README.md` links here for discoverability; give this a
-> proper home in a `CONTRIBUTING.md` once one exists.
+## Running before every commit
+
+`scripts/setup.sh` (once per clone) installs `pre-commit` + the harness deps and
+enables a hook that runs `python3 scripts/check.py --fix` on each commit (the hook
+runs in pre-commit's own pinned, isolated env). Because setup also installs the
+deps, you can run it directly too: `python3 scripts/check.py --fix`. It's opt-in
+convenience — `git commit --no-verify` bypasses it, and CI runs the same checks
+regardless. See [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
 ## Adding a check
 

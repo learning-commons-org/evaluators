@@ -28,7 +28,7 @@ Evaluators and the supporting datasets are built in collaboration with leading l
 | :------------------------ | :--------------------------------------------------------------- |
 | [`evals`](./evals/)       | Evaluators code and prompts                                      |
 | [`datasets`](./datasets/) | Expert annotated datasets used to create and validate evaluators |
-| [`scripts`](./scripts/)   | Repo check harness — run `python scripts/check.py --fix` before committing (see [scripts/README](./scripts/README.md)) |
+| [`scripts`](./scripts/)   | Repo check harness — run `python3 scripts/check.py --fix` before committing (see [scripts/README](./scripts/README.md)) |
 | [`LICENSE`](./LICENSE.md) | Open source license details                                      |
 
 Check out the [Evaluators docs](https://docs.learningcommons.org/evaluators) for complete setup instructions and usage examples.
