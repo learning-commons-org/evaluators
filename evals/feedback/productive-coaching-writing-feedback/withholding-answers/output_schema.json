@@ -2,13 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "output_schema.json",
   "title": "EvaluatorOutput",
-  "description": "Final evaluator output for the is_not_answer_giving dimension.",
+  "description": "Final evaluator output for the is_withholding_answers dimension.",
   "type": "object",
   "required": [
     "reasoning",
     "key_features",
     "proposed_adjustment",
-    "answer_withholding_score"
+    "withholding_answers_score"
   ],
   "additionalProperties": false,
   "properties": {
@@ -23,7 +23,7 @@
       "type": "string",
       "description": "How the teacher feedback could be modified to meet the criterion. If it already meets the criterion, say so briefly."
     },
-    "answer_withholding_score": {
+    "withholding_answers_score": {
       "type": "integer",
       "enum": [
         0,

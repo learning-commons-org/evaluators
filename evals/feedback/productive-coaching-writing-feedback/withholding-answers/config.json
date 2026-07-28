@@ -1,8 +1,8 @@
 {
   "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "feedback.productive_coaching_writing_feedback.is_answer_withholding",
-    "name": "Answer Withholding Feedback-Quality Evaluator",
+    "id": "feedback.productive_coaching_writing_feedback.is_withholding_answers",
+    "name": "Withholding Answers Feedback-Quality Evaluator",
     "description": "Does the feedback avoid giving away the answer?",    
     "supported_grades": ["8", "9"]
   },
@@ -12,7 +12,7 @@
   "preprocessing": [],
   "steps": [
     {
-      "id": "evaluate_is_answer_withholding",
+      "id": "evaluate_is_withholding_answers",
       "type": "llm",
       "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
       "prompt": {
