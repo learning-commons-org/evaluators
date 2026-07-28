@@ -8,7 +8,7 @@
     "reasoning",
     "key_features",
     "proposed_adjustment",
-    "not_answer_giving_score"
+    "answer_withholding_score"
   ],
   "additionalProperties": false,
   "properties": {
@@ -23,7 +23,7 @@
       "type": "string",
       "description": "How the teacher feedback could be modified to meet the criterion. If it already meets the criterion, say so briefly."
     },
-    "not_answer_giving_score": {
+    "answer_withholding_score": {
       "type": "integer",
       "enum": [
         0,
