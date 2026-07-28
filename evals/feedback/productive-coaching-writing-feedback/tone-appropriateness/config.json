@@ -1,8 +1,8 @@
 {
   "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "feedback.productive_coaching_writing_feedback.is_appropriate_emotional_pitch",
-    "name": "Appropriate Emotional Pitch Feedback-Quality Evaluator",
+    "id": "feedback.productive_coaching_writing_feedback.is_tone_appropriate",
+    "name": "Tone Appropriateness Feedback-Quality Evaluator",
     "description": "Is the tone appropriate and constructive for the student?",
     "supported_grades": ["8", "9"]
   },
@@ -12,7 +12,7 @@
   "preprocessing": [],
   "steps": [
     {
-      "id": "evaluate_is_appropriate_emotional_pitch",
+      "id": "evaluate_is_tone_appropriate",
       "type": "llm",
       "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
       "prompt": {

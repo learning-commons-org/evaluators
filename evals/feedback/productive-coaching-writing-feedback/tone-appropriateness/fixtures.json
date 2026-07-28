@@ -8,7 +8,7 @@
       "feedback_text": "This is absolutely brilliant! AI powered pets don't come with additional costs like vet bills or food, and your response is basically perfect. There's really not much else to improve, but maybe add a few more details from the article if you want."
     },
     "expected": {
-      "appropriate_emotional_pitch_score": 0
+      "tone_appropriateness_score": 0
     }
   },
   {
@@ -20,7 +20,7 @@
       "feedback_text": "That's true—AI pets are more affordable than real pets! Now be more specific. What makes AI pets more affordable than real pets?"
     },
     "expected": {
-      "appropriate_emotional_pitch_score": 1
+      "tone_appropriateness_score": 1
     }
   },
   {
@@ -32,7 +32,7 @@
       "feedback_text": "You used specific evidence from the text.  Challenge yourself to use varied vocabulary.  What could you say instead of \"additional?\""
     },
     "expected": {
-      "appropriate_emotional_pitch_score": 1
+      "tone_appropriateness_score": 1
     }
   },
   {
@@ -44,7 +44,7 @@
       "feedback_text": "You put evidence from the text in your own words to finish the sentence, but this response is pretty weak. Let's take it up a notch by making the sentence richer; rather than saying a general word like \"cost,\" you should have listed specific costs of owning an animal. Go back to the text and find those details because this answer feels incomplete."
     },
     "expected": {
-      "appropriate_emotional_pitch_score": 0
+      "tone_appropriateness_score": 0
     }
   },
   {
@@ -56,7 +56,7 @@
       "feedback_text": "Revise your answer by providing specific details from the text to support your claim. Right now, your response feels careless and underdeveloped. Use that detail to explain why AI-powered pets are a better option than a real living animal for some people."
     },
     "expected": {
-      "appropriate_emotional_pitch_score": 0
+      "tone_appropriateness_score": 0
     }
   },
   {
@@ -68,7 +68,7 @@
       "feedback_text": "That's true—AI pets are less of a responsibility than real pets! Now be more specific. What makes AI pets less of a responsibility than real pets?"
     },
     "expected": {
-      "appropriate_emotional_pitch_score": 1
+      "tone_appropriateness_score": 1
     }
   },
   {
@@ -80,7 +80,7 @@
       "feedback_text": "What, specifically, does the text say makes them a better option? Right now your sentence is too vague and shows careless reading."
     },
     "expected": {
-      "appropriate_emotional_pitch_score": 0
+      "tone_appropriateness_score": 0
     }
   },
   {
@@ -92,7 +92,7 @@
       "feedback_text": "Amazing job—this is an excellent response. Could you cite the paragraph where this is stated? Could you elaborate on your reasoning why pets not needing medicine or not dying is a good reason for some people to get AI pets instead?"
     },
     "expected": {
-      "appropriate_emotional_pitch_score": 0
+      "tone_appropriateness_score": 0
     }
   },
   {
@@ -104,7 +104,7 @@
       "feedback_text": "Good start; elaborate more on the health problems.  What specific example from the text can you add to make this argument stronger?"
     },
     "expected": {
-      "appropriate_emotional_pitch_score": 1
+      "tone_appropriateness_score": 1
     }
   },
   {
@@ -116,7 +116,7 @@
       "feedback_text": "This is an absolutely amazing response—you are clearly a brilliant writer. I love how you added extra sentences to support your claim. You also made incredibly sophisticated vocabulary choices (cost efficient)."
     },
     "expected": {
-      "appropriate_emotional_pitch_score": 0
+      "tone_appropriateness_score": 0
     }
   },
   {
@@ -128,7 +128,7 @@
       "feedback_text": "This doesn’t make much sense, and it seems like you didn’t really use the text carefully. Go back and find actual details from the article if you want this sentence to work."
     },
     "expected": {
-      "appropriate_emotional_pitch_score": 0
+      "tone_appropriateness_score": 0
     }
   },
   {
@@ -140,7 +140,7 @@
       "feedback_text": "Amazing job—this is an excellent example and you clearly understand the assignment perfectly. The only tiny thing you should do is cite the paragraph where your evidence is mentioned, but otherwise this is fantastic work."
     },
     "expected": {
-      "appropriate_emotional_pitch_score": 0
+      "tone_appropriateness_score": 0
     }
   },
   {
@@ -152,7 +152,7 @@
       "feedback_text": "Excellent, flawless response. You're obviously an outstanding writer, and this is absolutely perfect because you've brought in multiple details from the text as evidence."
     },
     "expected": {
-      "appropriate_emotional_pitch_score": 0
+      "tone_appropriateness_score": 0
     }
   }
 ]
