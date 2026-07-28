@@ -18,14 +18,14 @@
         "very_complex",
         "exceedingly_complex"
       ],
-      "description": "The Organization complexity level for the target grade."
+      "description": "The Organizational Structure complexity level for the target grade."
     },
     "reasoning": {
       "type": "string",
       "description": "A high-level summary of why the text is at this organizational complexity level for the target grade."
     },
     "details": {
-      "$ref": "#/$defs/OrganizationDetails"
+      "$ref": "#/$defs/OrganizationalStructureDetails"
     }
   },
   "$defs": {
@@ -88,7 +88,7 @@
         }
       }
     },
-    "OrganizationDetails": {
+    "OrganizationalStructureDetails": {
       "type": "object",
       "description": "Practical instructional details including scaffolding strategies and recommended use cases.",
       "required": [

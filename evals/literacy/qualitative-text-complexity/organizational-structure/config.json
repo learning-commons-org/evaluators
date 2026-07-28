@@ -1,9 +1,9 @@
 {
   "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "literacy.gla.organization",
-    "name": "Organization Dimension Text Complexity Evaluator",
-    "description": "Evaluates the Organization dimension of qualitative text complexity for grades 3-12 reading assessment, producing a 4-level rubric rating with structured pedagogical detail.",
+    "id": "literacy.gla.organizational_structure",
+    "name": "Organizational Structure Dimension Text Complexity Evaluator",
+    "description": "Evaluates the Organizational Structure dimension of qualitative text complexity for grades 3-12 reading assessment, producing a 4-level rubric rating with structured pedagogical detail.",
     "supported_grades": [
       "3",
       "4",
@@ -48,7 +48,7 @@
   ],
   "steps": [
     {
-      "id": "evaluate_organization",
+      "id": "evaluate_organizational_structure",
       "type": "llm",
       "description": "Single-call LLM step that produces the EvaluatorOutput JSON.",
       "prompt": {
@@ -82,7 +82,7 @@
       "model": {
         "provider": "google",
         "name": "gemini-3-flash-preview",
-        "alias": "organization-evaluator-default"
+        "alias": "organizational-structure-evaluator-default"
       },
       "generation": {
         "temperature": 1
