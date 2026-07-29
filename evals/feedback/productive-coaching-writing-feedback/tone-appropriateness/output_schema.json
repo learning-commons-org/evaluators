@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "output_schema.json",
+  "title": "EvaluatorOutput",
+  "description": "Final evaluator output for the is_tone_appropriate dimension.",
+  "type": "object",
+  "required": [
+    "reasoning",
+    "key_features",
+    "proposed_adjustment",
+    "tone_appropriateness_score"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "reasoning": {
+      "type": "string",
+      "description": "Step-by-step reasoning before the final answer: assess the student response against the task goal, then judge whether the teacher feedback meets the criterion."
+    },
+    "key_features": {
+      "$ref": "#/$defs/KeyFeatures"
+    },
+    "proposed_adjustment": {
+      "type": "string",
+      "description": "How the teacher feedback could be modified to meet the criterion. If it already meets the criterion, say so briefly."
+    },
+    "tone_appropriateness_score": {
+      "type": "integer",
+      "enum": [
+        0,
+        1
+      ],
+      "description": "Overall: 1 if the feedback meets the criterion, 0 otherwise."
+    }
+  },
+  "$defs": {
+    "KeyFeatureAssessment": {
+      "type": "object",
+      "description": "Independent assessment of a single key feature.",
+      "required": [
+        "met",
+        "justification"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "met": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "1 if this key feature is satisfied by the feedback, 0 otherwise."
+        },
+        "justification": {
+          "type": "string",
+          "description": "One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback."
+        }
+      }
+    },
+    "KeyFeatures": {
+      "type": "object",
+      "description": "Per-key-feature assessment; each feature judged independently.",
+      "required": [
+        "neutral_professional_language",
+        "targets_work_not_student",
+        "praise_proportionate_to_work"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "neutral_professional_language": {
+          "$ref": "#/$defs/KeyFeatureAssessment",
+          "description": "Whether the language is neutral and professional versus harsh or dismissive"
+        },
+        "targets_work_not_student": {
+          "$ref": "#/$defs/KeyFeatureAssessment",
+          "description": "Whether the feedback targets the work versus judging the student as a person"
+        },
+        "praise_proportionate_to_work": {
+          "$ref": "#/$defs/KeyFeatureAssessment",
+          "description": "Whether any praise matches the actual quality of the work versus overstating it"
+        }
+      }
+    }
+  }
+}

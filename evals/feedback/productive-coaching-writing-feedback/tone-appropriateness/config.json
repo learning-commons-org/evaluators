@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../_schemas/config.schema.json",
+  "evaluator": {
+    "id": "feedback.productive_coaching_writing_feedback.is_tone_appropriate",
+    "name": "Tone Appropriateness Feedback-Quality Evaluator",
+    "description": "Is the tone appropriate and constructive for the student?",
+    "supported_grades": ["8", "9"]
+  },
+  "input_schema": {
+    "$ref": "input_schema.json"
+  },
+  "preprocessing": [],
+  "steps": [
+    {
+      "id": "evaluate_is_tone_appropriate",
+      "type": "llm",
+      "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
+      "prompt": {
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "7b73119327933b1dd1b30a4297840a1fac9a9521bdfd7aaa3b66409f3dadb019"
+          },
+          {
+            "role": "user",
+            "source_path": "user.txt",
+            "sha256": "eaac7e6eadcc43716e4a98b9e7f34c493c1cbe46adb38367dd8697b904d11bfa"
+          }
+        ],
+        "placeholders": {
+          "student_text": {
+            "required": true,
+            "source": "input"
+          },
+          "feedback_text": {
+            "required": true,
+            "source": "input"
+          }
+        }
+      },
+      "model": {
+        "provider": "openai",
+        "name": "gpt-5.4-2026-03-05"
+      },
+      "generation": {
+        "temperature": 1
+      },
+      "parser": {
+        "kind": "structured_output"
+      }
+    }
+  ],
+  "output_schema": {
+    "$ref": "output_schema.json"
+  },
+  "fixtures": {
+    "path": "fixtures.json"
+  }
+}
