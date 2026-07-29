@@ -65,10 +65,10 @@
   },
   "homepage": "https://github.com/learning-commons-org/evaluators/tree/main/sdks/typescript#readme",
   "peerDependencies": {
-    "@ai-sdk/anthropic": ">=3.0.0",
-    "@ai-sdk/google": ">=3.0.0",
-    "@ai-sdk/openai": ">=3.0.0",
-    "ai": ">=6.0.0"
+    "@ai-sdk/anthropic": ">=4.0.0",
+    "@ai-sdk/google": ">=4.0.0",
+    "@ai-sdk/openai": ">=4.0.0",
+    "ai": ">=7.0.0"
   },
   "peerDependenciesMeta": {
     "@ai-sdk/openai": {
