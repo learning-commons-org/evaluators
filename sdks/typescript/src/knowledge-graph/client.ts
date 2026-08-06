@@ -2,6 +2,7 @@ import pLimit from 'p-limit';
 import createClient, { type Middleware } from 'openapi-fetch';
 import {
   KnowledgeGraphError,
+  StandardNotFoundError,
   AuthenticationError,
   RateLimitError,
   NetworkError,
@@ -131,7 +132,7 @@ export class KnowledgeGraphClient {
       if (this.standardInfoCache.get(cacheKey) === p) this.standardInfoCache.delete(cacheKey);
       // Thrown per caller, not inside the shared request, so concurrent callers with
       // different spellings each see their own in the message.
-      throw new KnowledgeGraphError(`Standard not found: "${statementCode}"`);
+      throw new StandardNotFoundError(`Standard not found: "${statementCode}"`, normalized);
     }
     // Copies: a caller sorting these to choose would otherwise reorder the cache.
     return candidates.map((c) => ({ ...c }));
