@@ -53,6 +53,15 @@ export interface TelemetryOptions {
  * `ConfigurationError` at evaluation time when the provider rejects it.
  *
  * Results may vary; evaluators are validated against their recommended models.
+ *
+ * Two things to know before overriding:
+ *
+ * - The override is evaluator-wide, not per call site. `VocabularyEvaluator`
+ *   deliberately uses three models (Gemini 2.5 Pro for grades 3-4, GPT-4.1 for
+ *   5-12, GPT-4o for background knowledge); an override collapses all three.
+ * - `PurposeEvaluator` takes its model from the shared cross-language eval config
+ *   (`evals/prompts/purpose/config.json`), so overriding it diverges from that
+ *   rather than from a hardcoded default.
  */
 export interface ModelOverride {
   provider: Provider;

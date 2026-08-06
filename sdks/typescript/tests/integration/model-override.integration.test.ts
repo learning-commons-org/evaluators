@@ -15,10 +15,11 @@ import { Provider } from '../../src/evaluators/base.js';
  * ```
  */
 
-const SKIP_INTEGRATION = !process.env.RUN_INTEGRATION_TESTS &&
-                         !process.env.OPENAI_API_KEY;
+// Both required: with `&&` this ran whenever RUN_INTEGRATION_TESTS was set and
+// failed on the missing key instead of skipping.
+const RUN_INTEGRATION = process.env.RUN_INTEGRATION_TESTS === 'true' && !!process.env.OPENAI_API_KEY;
 
-const describeIntegration = SKIP_INTEGRATION ? describe.skip : describe;
+const describeIntegration = RUN_INTEGRATION ? describe : describe.skip;
 
 const TEST_TIMEOUT_MS = 2 * 60 * 1000;
 
