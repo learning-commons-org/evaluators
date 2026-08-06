@@ -90,4 +90,10 @@ export interface LearningComponent {
 export interface StandardInfo {
   uuid: string;
   description?: string;
+  /** The KG's spelling — use for display and joins. CCSS sub-standards are lowercase. */
+  statementCode: string;
+  /** Canonical lookup key (see normalizeStatementCode) — dedupe on this. */
+  normalizedCode: string;
+  /** Code matched multiple standards; uuid/description are the first match. */
+  ambiguous?: boolean;
 }
