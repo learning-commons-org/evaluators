@@ -52,5 +52,6 @@ export {
   type StandardAlignmentResult,
   type QuestionItem,
   type QuestionBankResult,
+  type QuestionResult,
   type QuestionBankOptions,
 } from './math/standards-alignment.js';
