@@ -264,6 +264,18 @@ describe('KnowledgeGraphClient - getStandardInfo', () => {
     expect(info.uuid).toBe('recovered');
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it('caches successful lookups so repeated same-code calls fetch once', async () => {
+    // Guarantees a batch of N items over M unique standards does M fetches,
+    // not N (the standards family reuses one client across all rows).
+    const fetchMock = vi.fn().mockResolvedValue(okResponse([{ caseIdentifierUUID: 'u1' }]));
+    vi.stubGlobal('fetch', fetchMock);
+    const client = new KnowledgeGraphClient(API_KEY);
+    await client.getStandardInfo('4.G.A.1');
+    await client.getStandardInfo('4.G.A.1');
+    await client.getStandardInfo('4.G.A.1');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('KnowledgeGraphClient - getLearningComponents', () => {

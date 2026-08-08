@@ -59,8 +59,10 @@ describeIntegration('Batch Evaluator - Integration', () => {
 
       const startTime = Date.now();
       const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-      const output = await evaluator.evaluate(inputs, group.id, (result) => {
-        console.log(`  ✓ Row ${result.rowIndex} [${result.evaluatorId}] - ${result.status}: ${result.score || result.error}`);
+      const output = await evaluator.evaluate(inputs, group.id, {
+        onProgress: (result) => {
+          console.log(`  ✓ Row ${result.rowIndex} [${result.evaluatorId}] - ${result.status}: ${result.score || result.error}`);
+        },
       });
       const duration = Date.now() - startTime;
 
@@ -120,13 +122,15 @@ describeIntegration('Batch Evaluator - Integration', () => {
 
       // Single row — verify all group evaluators ran
       const inputs: BatchInput[] = [
-        { text: 'The cat sat on the mat.', grade: '3', rowIndex: 1, originalRow: { text: 'The cat sat on the mat.', grade: '3' } },
+        { rowIndex: 1, columns: { text: 'The cat sat on the mat.', grade: '3' }, originalRow: { text: 'The cat sat on the mat.', grade: '3' } },
       ];
 
       console.log(`\n📊 Processing 1 row with ${group.evaluatorIds.length} evaluators...`);
 
-      const output = await evaluator.evaluate(inputs, group.id, (result) => {
-        console.log(`  ✓ ${result.evaluatorId} - ${result.status}: ${result.score || result.error}`);
+      const output = await evaluator.evaluate(inputs, group.id, {
+        onProgress: (result) => {
+          console.log(`  ✓ ${result.evaluatorId} - ${result.status}: ${result.score || result.error}`);
+        },
       });
 
       // Should have 1 result per evaluator in the group

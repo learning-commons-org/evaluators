@@ -381,9 +381,11 @@ async function main() {
 
     let output;
     try {
-      output = await evaluator.evaluate(inputs, group.id, (result) => {
-        tracker.update(result);
-        tracker.display();
+      output = await evaluator.evaluate(inputs, group.id, {
+        onProgress: (result) => {
+          tracker.update(result);
+          tracker.display();
+        },
       });
     } finally {
       process.off('SIGINT', handleShutdown);
