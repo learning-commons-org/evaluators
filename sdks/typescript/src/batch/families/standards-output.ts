@@ -1,5 +1,5 @@
 import type { BatchOutput, BatchResult } from '../types.js';
-import type { StandardsVerdict } from './standards.js';
+import { STANDARDS_COLUMNS, type StandardsVerdict } from './standards.js';
 import standardsReportTemplate from './standards-report.html';
 
 /** Metadata shared by every output projection. */
@@ -30,18 +30,38 @@ interface StandardsRow {
   originalRow: Record<string, unknown>;
 }
 
+/**
+ * Reads a canonical column, preferring the normalized value and falling back to
+ * the untouched source row. The fallback matches case-insensitively against the
+ * family's own aliases: a hand-rolled list here would drift from the spec and
+ * drop headers the CLI accepts on input (rows that fail normalization carry no
+ * canonical columns, so the source row is all that is left).
+ */
+function column(result: BatchResult, canonical: string): string {
+  const normalized = result.columns?.[canonical];
+  if (normalized !== undefined && normalized !== '') return normalized;
+
+  const spec = STANDARDS_COLUMNS.find((c) => c.name === canonical);
+  const names = [canonical, ...(spec?.aliases ?? [])].map((n) => n.toLowerCase());
+  for (const [key, value] of Object.entries(result.originalRow ?? {})) {
+    if (names.includes(key.toLowerCase().trim()) && value != null && value !== '') {
+      return String(value);
+    }
+  }
+  return '';
+}
+
 function toRow(result: BatchResult): StandardsRow {
   const verdict = result.payload as StandardsVerdict | undefined;
   const original = result.originalRow ?? {};
-  const idValue = original.id ?? original.item_id ?? '';
   return {
     rowIndex: result.rowIndex,
-    id: String(idValue),
-    grade: result.grade ?? '',
-    statementCode: verdict?.statementCode ?? String(original.statementCode ?? original.ccss_standard ?? ''),
-    // Keep context on error rows (no payload) by falling back to the source row.
-    jurisdiction: verdict?.jurisdiction ?? String(original.jurisdiction ?? ''),
-    question: verdict?.question ?? result.text ?? '',
+    id: column(result, 'id'),
+    grade: result.grade || column(result, 'grade'),
+    // Keep context on error rows, which carry no verdict to read from.
+    statementCode: verdict?.statementCode ?? column(result, 'statementCode'),
+    jurisdiction: verdict?.jurisdiction ?? column(result, 'jurisdiction'),
+    question: verdict?.question ?? result.text ?? column(result, 'question'),
     status: result.status,
     alignedCount: verdict ? verdict.alignedCount : null,
     totalCount: verdict ? verdict.totalCount : null,
@@ -206,5 +226,9 @@ export function injectReportData(template: string, payload: string): string {
   if (!template.includes(INJECTION_MARKER)) {
     throw new Error('Standards report template injection marker not found — template may be corrupted');
   }
-  return template.replace(INJECTION_MARKER, `var REPORT_DATA = ${payload};`);
+  // Replacer function, not a string: as a string, `$$`/`$&`/`` $` ``/`$'` in the
+  // payload are substitution patterns. `$$x^2$$` in a question would render as
+  // `$x^2$`, and `$'` splices the template tail — including `</script>` — into the
+  // inline script, defeating the escaping applied to the payload.
+  return template.replace(INJECTION_MARKER, () => `var REPORT_DATA = ${payload};`);
 }

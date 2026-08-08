@@ -41,6 +41,9 @@ export interface BatchResult {
   error?: string;
   payload?: unknown;
   processingTimeMs: number;
+  /** Canonical columns after family normalization (aliases + defaults applied).
+   * Absent on a hand-built result; empty for a row that failed normalization. */
+  columns?: Record<string, string>;
   originalRow: Record<string, unknown>; // Preserve all original CSV columns
 }
 

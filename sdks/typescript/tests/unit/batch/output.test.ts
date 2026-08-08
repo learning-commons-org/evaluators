@@ -172,6 +172,23 @@ describe('injectReportData', () => {
   it('throws rather than emitting a report with no data when the marker is missing', () => {
     expect(() => injectReportData('<html>no marker here</html>', '{}')).toThrow(/marker not found/);
   });
+
+  // As a replacement *string*, `$$`/`$&`/`$'` are substitution patterns: `$$x^2$$`
+  // would collapse to `$x^2$` and `$'` would splice the template tail — including
+  // the closing </script> — into the inline script.
+  it.each([
+    ['$$ (LaTeX)', '{"q":"Evaluate $$x^2$$"}'],
+    ["$' (tail splice)", `{"q":"see $' here"}`],
+    ['$& (whole match)', '{"q":"a $& b"}'],
+    ['$` (prefix)', '{"q":"a $` b"}'],
+  ])('inserts %s verbatim instead of expanding it', (_label, payload) => {
+    const template = `<script>\nvar REPORT_DATA = null; // __REPLACED_BY_FORMATTER__\n</script>\n<div>TAIL</div>`;
+    const out = injectReportData(template, payload);
+
+    expect(out).toContain(`var REPORT_DATA = ${payload};`);
+    // Exactly one closing script tag: the tail was not spliced into the script.
+    expect(out.match(/<\/script>/g)).toHaveLength(1);
+  });
 });
 
 describe('standards CSV — escaping, header contract, and blank handling', () => {
@@ -220,6 +237,38 @@ describe('standards CSV — escaping, header contract, and blank handling', () =
     const cells = bad.csv.split('\n')[1].split(',');
     expect(cells.slice(-6)).toEqual(['', '', '', 'error', 'KG timeout', '[]']);
     expect(JSON.parse(bad.json).items[0].learningComponents).toEqual([]);
+  });
+
+  // normalizeRow matches headers case-insensitively and via the family's aliases,
+  // so anything accepted on input must survive into the outputs.
+  it.each([
+    ['canonical, normalized', { columns: { id: 'itm-9', statementCode: '5.NF.B.3', jurisdiction: 'Utah' } }],
+    ['aliased + capitalized source headers', {
+      columns: undefined,
+      originalRow: { Item_ID: 'itm-9', CCSS_Standard: '5.NF.B.3', Jurisdiction: 'Utah' },
+    }],
+    // Blank/null/padded keys must all fall through to a populated alias rather
+    // than resolving to '' or the string "null".
+    ['blank, null and padded keys, falling through to a populated alias', {
+      columns: { id: '', statementCode: '', jurisdiction: '' },
+      originalRow: {
+        statementCode: '',
+        statement_code: null,
+        Item_ID: 'itm-9',
+        CCSS_Standard: '5.NF.B.3',
+        '  Jurisdiction  ': 'Utah',
+      },
+    }],
+  ])('carries id/statementCode/jurisdiction from %s onto an error row', (_label, over) => {
+    const bundle = renderOutputs(
+      'math-standards-alignment',
+      output([standardsResult({ status: 'error', error: 'KG 401', score: undefined, payload: undefined, ...over })]),
+      meta,
+    );
+    const [item] = JSON.parse(bundle.json).items;
+    expect(item.id).toBe('itm-9');
+    expect(item.statementCode).toBe('5.NF.B.3');
+    expect(item.jurisdiction).toBe('Utah');
   });
 
   it('orders rows by source row index regardless of completion order', () => {

@@ -48,6 +48,19 @@ const COLUMNS: ColumnSpec[] = [
   { name: 'grade', required: true },
 ];
 
+/**
+ * Per-member providers, so selecting a subset doesn't demand keys the run won't
+ * use. Only `vocabulary` and `sentence-structure` reach OpenAI.
+ */
+const PROVIDERS_BY_MEMBER = new Map<string, readonly Provider[]>([
+  [GradeLevelAppropriatenessEvaluator.metadata.id, GradeLevelAppropriatenessEvaluator.metadata.defaultProviders],
+  [SmkEvaluator.metadata.id, SmkEvaluator.metadata.defaultProviders],
+  [VocabularyEvaluator.metadata.id, VocabularyEvaluator.metadata.defaultProviders],
+  [SentenceStructureEvaluator.metadata.id, SentenceStructureEvaluator.metadata.defaultProviders],
+  [ConventionalityEvaluator.metadata.id, ConventionalityEvaluator.metadata.defaultProviders],
+  [PurposeEvaluator.metadata.id, PurposeEvaluator.metadata.defaultProviders],
+]);
+
 class QtcRunner implements FamilyRunner {
   readonly members;
   private readonly instances = new Map<string, SimpleEvaluator>();
@@ -88,9 +101,13 @@ export const QTC_FAMILY: EvaluatorFamily = {
   members: MEMBERS,
   columns: COLUMNS,
   maxInputRows: 50,
-  requiredKeys(_selectedMemberIds: string[], modelOverride?: ModelOverride): KeyKind[] {
+  requiredKeys(selectedMemberIds: string[], modelOverride?: ModelOverride): KeyKind[] {
     if (modelOverride) return [modelOverride.provider];
-    return [Provider.Google, Provider.OpenAI];
+    const keys = new Set<KeyKind>();
+    for (const member of resolveMembers(QTC_FAMILY, selectedMemberIds)) {
+      for (const provider of PROVIDERS_BY_MEMBER.get(member.id) ?? []) keys.add(provider);
+    }
+    return [...keys];
   },
   createRunner(ctx: FamilyRunContext, selectedMemberIds?: string[]): FamilyRunner {
     return new QtcRunner(ctx, selectedMemberIds);
