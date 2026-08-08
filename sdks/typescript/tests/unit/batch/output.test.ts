@@ -73,6 +73,18 @@ describe('renderOutputs — standards family', () => {
     expect(row).toContain('4.OA.A.1');
   });
 
+  it('prefixes verdict columns that collide with source columns (joinable, no dupes)', () => {
+    const r = standardsResult({ originalRow: { id: 'x', jurisdiction: 'California', statement_code: '4.OA.A.1' } });
+    const [header] = renderOutputs('math-standards-alignment', output([r]), meta).csv.split('\n');
+    const cols = header.split(',');
+    // Source columns kept as-is; colliding verdict columns are namespaced.
+    expect(cols.filter((c) => c === 'jurisdiction')).toHaveLength(1);
+    expect(cols).toContain('verdict_jurisdiction');
+    expect(cols).toContain('verdict_statement_code');
+    // Non-colliding verdict columns keep clean names.
+    expect(cols).toContain('aligned_ratio');
+  });
+
   it('HTML injects report data and leaves no placeholder marker', () => {
     const bundle = renderOutputs('math-standards-alignment', output([standardsResult()]), meta);
     expect(bundle.html).not.toContain('__REPLACED_BY_FORMATTER__');

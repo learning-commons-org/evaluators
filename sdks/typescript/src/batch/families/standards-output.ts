@@ -96,7 +96,7 @@ export function formatStandardsJSON(output: BatchOutput, meta: StandardsOutputMe
 // --- CSV -------------------------------------------------------------------
 
 function escapeCSV(field: string): string {
-  if (field.includes(',') || field.includes('"') || field.includes('\n')) {
+  if (/[",\n\r]/.test(field)) {
     return `"${field.replace(/"/g, '""')}"`;
   }
   return field;
@@ -105,14 +105,17 @@ function escapeCSV(field: string): string {
 /**
  * Flat, joinable CSV: passthrough of every original column, then the verdict
  * roll-ups. Per-component detail rides along as a JSON string so no data is
- * lost while the file stays spreadsheet-friendly.
+ * lost while the file stays spreadsheet-friendly. Verdict columns that would
+ * collide with an existing source column are `verdict_`-prefixed so joins stay
+ * unambiguous.
  */
 export function formatStandardsCSV(output: BatchOutput): string {
   const rows = collectRows(output);
   if (rows.length === 0) return '';
 
   const originalColumns = Object.keys(rows[0].originalRow);
-  const verdictColumns = [
+  const lowerOriginal = new Set(originalColumns.map((c) => c.toLowerCase()));
+  const verdictFields = [
     'statement_code',
     'jurisdiction',
     'aligned_count',
@@ -122,7 +125,10 @@ export function formatStandardsCSV(output: BatchOutput): string {
     'error',
     'learning_components_json',
   ];
-  const headers = [...originalColumns, ...verdictColumns];
+  const verdictColumns = verdictFields.map((name) =>
+    lowerOriginal.has(name.toLowerCase()) ? `verdict_${name}` : name,
+  );
+  const headers = [...originalColumns, ...verdictColumns].map(escapeCSV);
 
   const lines = rows.map((r) => {
     const originalValues = originalColumns.map((col) => escapeCSV(String(r.originalRow[col] ?? '')));
