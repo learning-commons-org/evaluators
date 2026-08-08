@@ -149,7 +149,7 @@ export function formatAsCSV(output: BatchOutput): string {
   return [headers, ...rows].map(row => row.join(',')).join('\n');
 }
 
-// ---- HTML Formatter ----
+// ---- JSON Formatter ----
 
 export interface ReportMeta {
   csvPath: string;
@@ -158,6 +158,41 @@ export interface ReportMeta {
   generatedAt: Date;
   totalInputRows: number;
 }
+
+/**
+ * Generic machine-readable output for the text-complexity family: one entry per
+ * (row, evaluator) with score/reasoning plus the untouched original row.
+ */
+export function formatAsJSON(output: BatchOutput, meta: ReportMeta): string {
+  return JSON.stringify(
+    {
+      meta: {
+        reportId: meta.reportId,
+        family: meta.groupId,
+        generatedAt: meta.generatedAt.toISOString(),
+        sourcePath: meta.csvPath,
+        totalInputRows: meta.totalInputRows,
+      },
+      summary: output.summary,
+      results: output.results
+        .slice()
+        .sort((a, b) => a.rowIndex - b.rowIndex || a.evaluatorId.localeCompare(b.evaluatorId))
+        .map((r) => ({
+          rowIndex: r.rowIndex,
+          evaluatorId: r.evaluatorId,
+          status: r.status,
+          score: r.score ?? null,
+          reasoning: r.reasoning ?? null,
+          error: r.error ?? null,
+          originalRow: r.originalRow,
+        })),
+    },
+    null,
+    2,
+  );
+}
+
+// ---- HTML Formatter ----
 
 export function formatAsHTML(output: BatchOutput, meta: ReportMeta): string {
   const { results } = output;

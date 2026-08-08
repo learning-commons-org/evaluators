@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseArgs, parseModelOverride, requiredProviders } from '../../../src/batch/cli-args.js';
+import { parseArgs, parseModelOverride, requiredProviders, resolveModel } from '../../../src/batch/cli-args.js';
 import { Provider } from '../../../src/batch/index.js';
 import type { EvaluatorGroup } from '../../../src/batch/index.js';
 
@@ -213,6 +213,53 @@ describe('parseArgs', () => {
       concurrency: 5,
       noTelemetry: true,
     });
+  });
+});
+
+// ---- new family/member/model/key/yes flags ----
+
+describe('parseArgs — family selection flags', () => {
+  it('parses --family', () => {
+    expect(parseArgs(['--family', 'math-standards-alignment'])).toMatchObject({ family: 'math-standards-alignment' });
+  });
+
+  it('parses --evaluator as a comma-separated list', () => {
+    expect(parseArgs(['--evaluator', 'vocabulary,conventionality']).evaluators).toEqual(['vocabulary', 'conventionality']);
+  });
+
+  it('accumulates repeated --evaluator flags', () => {
+    expect(parseArgs(['--evaluator', 'vocabulary', '--evaluator', 'purpose']).evaluators).toEqual(['vocabulary', 'purpose']);
+  });
+
+  it('parses --platform-api-key (space and = form)', () => {
+    expect(parseArgs(['--platform-api-key', 'pk']).platformApiKey).toBe('pk');
+    expect(parseArgs(['--platform-api-key=pk']).platformApiKey).toBe('pk');
+  });
+
+  it('parses --model and --yes/-y', () => {
+    expect(parseArgs(['--model', 'haiku']).model).toBe('haiku');
+    expect(parseArgs(['--yes']).yes).toBe(true);
+    expect(parseArgs(['-y']).yes).toBe(true);
+  });
+});
+
+// ---- resolveModel ----
+
+describe('resolveModel', () => {
+  it('resolves the haiku shortcode', () => {
+    expect(resolveModel('haiku')).toEqual({ provider: Provider.Anthropic, model: 'claude-haiku-4-5-20251001' });
+  });
+
+  it('resolves the opus shortcode case-insensitively', () => {
+    expect(resolveModel('OPUS')).toEqual({ provider: Provider.Anthropic, model: 'claude-opus-4-8' });
+  });
+
+  it('passes through a literal provider:model', () => {
+    expect(resolveModel('openai:gpt-5')).toEqual({ provider: Provider.OpenAI, model: 'gpt-5' });
+  });
+
+  it('throws for an unknown bare word (no colon, not a shortcode)', () => {
+    expect(() => resolveModel('gpt5')).toThrow(/shortcode/);
   });
 });
 

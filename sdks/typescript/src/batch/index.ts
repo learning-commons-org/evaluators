@@ -18,8 +18,10 @@
 export { BatchEvaluator, getAvailableGroups, getFamilies, getFamily } from './evaluator.js';
 export type { BatchRunOptions } from './evaluator.js';
 export { parseCSV } from './csv.js';
-export { formatAsCSV, formatAsHTML } from './formatters.js';
+export { formatAsCSV, formatAsHTML, formatAsJSON } from './formatters.js';
 export type { ReportMeta } from './formatters.js';
+export { renderOutputs } from './output.js';
+export type { OutputBundle } from './output.js';
 export type {
   EvaluatorFamily,
   FamilyMember,
