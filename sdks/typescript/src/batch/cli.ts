@@ -218,8 +218,9 @@ async function main() {
   if (cliArgs.help) { printHelp(); process.exit(0); }
   if (cliArgs.version) { console.log(getSDKVersion()); process.exit(0); }
 
-  // Non-interactive when --yes is passed or there is no attached terminal (CI).
-  const interactive = !cliArgs.yes && Boolean(process.stdout.isTTY);
+  // Non-interactive when --yes is passed or either stream lacks a terminal
+  // (CI, or stdout redirected to a file). Prompting needs a real stdin+stdout.
+  const interactive = !cliArgs.yes && Boolean(process.stdin.isTTY && process.stdout.isTTY);
 
   console.log('\n📊 Batch CSV Evaluator\n');
 

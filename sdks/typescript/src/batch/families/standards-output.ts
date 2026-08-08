@@ -39,7 +39,8 @@ function toRow(result: BatchResult): StandardsRow {
     id: String(idValue),
     grade: result.grade ?? '',
     statementCode: verdict?.statementCode ?? String(original.statementCode ?? original.ccss_standard ?? ''),
-    jurisdiction: verdict?.jurisdiction ?? '',
+    // Keep context on error rows (no payload) by falling back to the source row.
+    jurisdiction: verdict?.jurisdiction ?? String(original.jurisdiction ?? ''),
     question: verdict?.question ?? result.text ?? '',
     status: result.status,
     alignedCount: verdict ? verdict.alignedCount : null,
@@ -113,7 +114,18 @@ export function formatStandardsCSV(output: BatchOutput): string {
   const rows = collectRows(output);
   if (rows.length === 0) return '';
 
-  const originalColumns = Object.keys(rows[0].originalRow);
+  // Union of source columns across all rows (first-seen order) so a ragged /
+  // programmatically-built result set can't silently drop columns.
+  const originalColumns: string[] = [];
+  const seenOriginal = new Set<string>();
+  for (const r of rows) {
+    for (const col of Object.keys(r.originalRow)) {
+      if (!seenOriginal.has(col)) {
+        seenOriginal.add(col);
+        originalColumns.push(col);
+      }
+    }
+  }
   const lowerOriginal = new Set(originalColumns.map((c) => c.toLowerCase()));
   const verdictFields = [
     'statement_code',
@@ -181,10 +193,18 @@ export function formatStandardsHTML(output: BatchOutput, meta: StandardsOutputMe
   const safeJson = JSON.stringify(reportData)
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e')
-    .replace(/&/g, '\\u0026');
+    .replace(/&/g, '\\u0026')
+    // U+2028/U+2029 are valid JSON but break inline <script> parsing pre-ES2019.
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 
-  if (!standardsReportTemplate.includes(INJECTION_MARKER)) {
+  return injectReportData(standardsReportTemplate, safeJson);
+}
+
+/** Takes the template as a parameter so the corruption guard is reachable in tests. */
+export function injectReportData(template: string, payload: string): string {
+  if (!template.includes(INJECTION_MARKER)) {
     throw new Error('Standards report template injection marker not found — template may be corrupted');
   }
-  return standardsReportTemplate.replace(INJECTION_MARKER, `var REPORT_DATA = ${safeJson};`);
+  return template.replace(INJECTION_MARKER, `var REPORT_DATA = ${payload};`);
 }
