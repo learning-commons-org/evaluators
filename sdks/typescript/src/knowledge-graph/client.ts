@@ -6,7 +6,7 @@ import {
   RateLimitError,
   NetworkError,
 } from '../errors.js';
-import type { AcademicStandard, LearningComponent, StandardInfo } from './types.js';
+import type { AcademicStandard, LearningComponent, LearningComponentSet, StandardInfo } from './types.js';
 import type { paths, components } from './kg-api.js';
 
 const KG_BASE_URL = 'https://api.learningcommons.org/knowledge-graph/v0';
@@ -87,7 +87,7 @@ export class KnowledgeGraphClient {
   // Cache key: `${normalizedCode}:${jurisdiction}:${academicSubject}`
   // Holds every candidate, so resolving an ambiguous code costs no extra request.
   private readonly standardInfoCache = new Map<string, Promise<StandardInfo[]>>();
-  private readonly lcCache = new Map<string, Promise<LearningComponent[]>>();
+  private readonly lcCache = new Map<string, Promise<LearningComponentSet>>();
   // Cache key: `${jurisdiction}:${academicSubject}`
   private readonly frameworkUuidCache = new Map<string, Promise<string>>();
 
@@ -137,7 +137,13 @@ export class KnowledgeGraphClient {
     return candidates.map((c) => ({ ...c }));
   }
 
-  getLearningComponents(caseIdentifierUUID: string): Promise<LearningComponent[]> {
+  /** Evaluable components only. See {@link getLearningComponentSet} to tell an
+   * empty standard apart from one whose components have no descriptions. */
+  async getLearningComponents(caseIdentifierUUID: string): Promise<LearningComponent[]> {
+    return (await this.getLearningComponentSet(caseIdentifierUUID)).components;
+  }
+
+  getLearningComponentSet(caseIdentifierUUID: string): Promise<LearningComponentSet> {
     let p = this.lcCache.get(caseIdentifierUUID);
     if (!p) {
       p = this.limit(() => this._fetchLearningComponents(caseIdentifierUUID));
@@ -313,8 +319,9 @@ export class KnowledgeGraphClient {
     }));
   }
 
-  private _fetchLearningComponents(caseIdentifierUUID: string): Promise<LearningComponent[]> {
-    return this._paginate(`UUID ${caseIdentifierUUID}`, async (cursor) => {
+  private async _fetchLearningComponents(caseIdentifierUUID: string): Promise<LearningComponentSet> {
+    let undescribedCount = 0;
+    const components = await this._paginate(`UUID ${caseIdentifierUUID}`, async (cursor) => {
       const query: { limit: number; cursor?: string } = { limit: LC_PAGE_SIZE };
       if (cursor) query.cursor = cursor;
 
@@ -327,10 +334,14 @@ export class KnowledgeGraphClient {
       for (const item of data.data ?? []) {
         if (item.description != null) {
           items.push({ identifier: item.identifier, description: item.description });
+        } else {
+          undescribedCount++;
         }
       }
 
       return { items, hasMore: data.pagination?.hasMore, nextCursor: data.pagination?.nextCursor };
     });
+
+    return { components, undescribedCount };
   }
 }

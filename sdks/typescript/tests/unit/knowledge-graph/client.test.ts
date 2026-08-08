@@ -274,22 +274,34 @@ describe('KnowledgeGraphClient - getLearningComponents', () => {
     expect(lcs[0].description).toBe('Recognize area as additive');
   });
 
-  it('filters out null descriptions', async () => {
+  it('filters out null descriptions but reports how many were dropped', async () => {
     mockFetch(200, { data: [{ description: 'Valid' }, { description: null }, { description: 'Also valid' }], pagination: { hasMore: false, nextCursor: null } });
-    const lcs = await new KnowledgeGraphClient(API_KEY).getLearningComponents('uuid-abc');
-    expect(lcs).toHaveLength(2);
+    // The count is what lets a caller say "components exist but are undescribed"
+    // instead of "nothing is authored against this standard".
+    const set = await new KnowledgeGraphClient(API_KEY).getLearningComponentSet('uuid-abc');
+    expect(set.components).toHaveLength(2);
+    expect(set.undescribedCount).toBe(1);
+  });
+
+  it('reports undescribedCount with no evaluable components at all', async () => {
+    mockFetch(200, { data: [{ description: null }, { description: null }], pagination: { hasMore: false, nextCursor: null } });
+    const set = await new KnowledgeGraphClient(API_KEY).getLearningComponentSet('uuid-abc');
+    expect(set.components).toEqual([]);
+    expect(set.undescribedCount).toBe(2);
   });
 
   it('follows cursor pagination across pages, sending the cursor and the uuid', async () => {
     let call = 0;
     const fetchMock = vi.fn().mockImplementation(() => {
       call++;
-      const body = { data: [{ description: `LC ${call}` }], pagination: { hasMore: call === 1, nextCursor: call === 1 ? 'page-2' : null } };
+      const body = { data: [{ description: `LC ${call}` }, { description: null }], pagination: { hasMore: call === 1, nextCursor: call === 1 ? 'page-2' : null } };
       return Promise.resolve(okResponse(body));
     });
     vi.stubGlobal('fetch', fetchMock);
-    const lcs = await new KnowledgeGraphClient(API_KEY).getLearningComponents('uuid-abc');
-    expect(lcs).toHaveLength(2);
+    const set = await new KnowledgeGraphClient(API_KEY).getLearningComponentSet('uuid-abc');
+    expect(set.components).toHaveLength(2);
+    // Accumulated across pages, not reset per page.
+    expect(set.undescribedCount).toBe(2);
     expect(call).toBe(2);
     expect((fetchMock.mock.calls[0][0] as Request).url).toContain('uuid-abc');
     expect((fetchMock.mock.calls[0][0] as Request).url).not.toContain('cursor=');
@@ -303,6 +315,8 @@ describe('KnowledgeGraphClient - getLearningComponents', () => {
     const client = new KnowledgeGraphClient(API_KEY);
     await Promise.all([client.getLearningComponents('uuid-abc'), client.getLearningComponents('uuid-abc')]);
     await client.getLearningComponents('uuid-abc');
+    // Both accessors share one cache entry, so asking for the count is free.
+    await client.getLearningComponentSet('uuid-abc');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
