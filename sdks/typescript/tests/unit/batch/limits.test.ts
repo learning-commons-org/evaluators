@@ -244,6 +244,37 @@ describe('BatchEvaluator.evaluate() — row-level failures and empty input', () 
     expect(createRunner).not.toHaveBeenCalled();
   });
 
+  // One key at a time: the hint must fire on either alone, not only on both.
+  it.each(['text', 'grade'])(
+    'rejects a row in the pre-family shape carrying only %s, naming the fix',
+    async (key) => {
+      const evaluator = new BatchEvaluator({ telemetry: false });
+      const family = stubFamily(async () => ({ score: 's', reasoning: '' }));
+      // Without the shape check this reached Object.keys(undefined) and threw a bare
+      // "Cannot convert undefined or null to object", naming nothing.
+      const legacy = [{ [key]: '3', rowIndex: 2, originalRow: {} }];
+
+      await expect(evaluator.evaluate(legacy as never, family)).rejects.toThrow(
+        /row 2: expected a "columns" record.*received undefined.*predate family-aware input/s,
+      );
+    },
+  );
+
+  it.each([
+    ['null', null, 'null'],
+    ['an array', ['text', 'grade'], 'an array'],
+    ['a string', 'text,grade', 'string'],
+  ])('rejects columns given as %s, reporting what it received', async (_label, columns, received) => {
+    const evaluator = new BatchEvaluator({ telemetry: false });
+    const family = stubFamily(async () => ({ score: 's', reasoning: '' }));
+    const bad = [{ rowIndex: 7, columns, originalRow: {} }];
+
+    const run = evaluator.evaluate(bad as never, family);
+    await expect(run).rejects.toThrow(`received ${received}.`);
+    // No legacy keys, so the generic guidance applies rather than the migration hint.
+    await expect(run).rejects.toThrow(/supply columns explicitly/);
+  });
+
   it('turns a row that fails normalization into per-member errors without losing the good rows', async () => {
     const evaluator = new BatchEvaluator({ telemetry: false });
     const family = stubFamily(async () => ({ score: 'slightly complex', reasoning: 'ok' }));

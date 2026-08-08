@@ -47,6 +47,31 @@ export interface BatchRunOptions {
 }
 
 /**
+ * Rejects a malformed input row before it reaches `Object.keys`, which would
+ * otherwise throw a bare "Cannot convert undefined or null to object". Named
+ * separately because the likeliest cause is a hand-built row in the pre-family
+ * `{ text, grade }` shape, which is worth saying out loud.
+ */
+function assertHasColumns(input: BatchInput): void {
+  const { columns } = input;
+  // `typeof null === 'object'`, so the null check is load-bearing: without it a
+  // null map reaches Object.keys and throws the bare TypeError this replaces.
+  if (columns === null || typeof columns !== 'object' || Array.isArray(columns)) {
+    const received =
+      columns === null ? 'null' : Array.isArray(columns) ? 'an array' : typeof columns;
+    const legacy = 'text' in input || 'grade' in input;
+    throw new Error(
+      `Invalid batch input at row ${input.rowIndex}: expected a "columns" record of ` +
+        `column name to value, received ${received}.` +
+        (legacy
+          ? ' Rows carrying top-level "text"/"grade" predate family-aware input; pass' +
+            ' { columns: { text, grade } } instead.'
+          : ' Build rows with parseCSV() or supply columns explicitly.'),
+    );
+  }
+}
+
+/**
  * Batch evaluator: runs the selected members of one family over a set of input
  * rows. Owns orchestration — concurrency, cancellation, timing, error handling
  * — while each family owns how to invoke its evaluators and what columns/keys
@@ -219,6 +244,7 @@ export class BatchEvaluator {
     // Fail fast on a missing required column (header-level), then normalize
     // each row. A row that fails normalization becomes an error result rather
     // than aborting the whole run.
+    assertHasColumns(inputs[0]);
     validateRequiredColumns(family, Object.keys(inputs[0].columns));
     const members = resolveMembers(family, options.selectedMemberIds);
     const runner = family.createRunner(this.buildContext(), options.selectedMemberIds);
