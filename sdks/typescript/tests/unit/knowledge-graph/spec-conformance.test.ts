@@ -120,20 +120,43 @@ describe('Knowledge Graph spec conformance', () => {
     expect(standard.gradeLevel).toEqual([]);
   });
 
-  it('maps every jurisdiction in the enum onto the framework lookup query', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      okResponse({ data: [{ caseIdentifierUUID: 'fw-1' }] }),
+  it('sends every jurisdiction in the enum through to the framework lookup query', async () => {
+    // Multi-State short-circuits to a hardcoded framework UUID and issues no
+    // framework lookup at all, so it is covered separately below.
+    const jurisdictions = Object.values(Jurisdiction).filter(
+      (j) => j !== Jurisdiction.MultiState,
     );
+
+    const sent: (string | null)[] = [];
+    for (const jurisdiction of jurisdictions) {
+      const fetchMock = vi.fn().mockResolvedValue(
+        okResponse({ data: [{ caseIdentifierUUID: 'fw-1' }] }),
+      );
+      vi.stubGlobal('fetch', fetchMock);
+
+      await new KnowledgeGraphClient('k').getStandardsByGrade('3', { jurisdiction });
+
+      const url = new URL((fetchMock.mock.calls[0][0] as Request).url);
+      expect(url.pathname).toContain('/standards-frameworks');
+      sent.push(url.searchParams.get('jurisdiction'));
+    }
+
+    // Comparing the whole set proves the loop covered every enum member, and
+    // that values carrying spaces and punctuation ("Washington, D.C.",
+    // "New Hampshire") survive query encoding unaltered.
+    expect([...sent].sort()).toEqual([...jurisdictions].sort());
+  });
+
+  it('resolves Multi-State without a framework lookup request', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ data: [] }));
     vi.stubGlobal('fetch', fetchMock);
 
-    // Multi-State short-circuits to a hardcoded framework UUID, so exercise a
-    // jurisdiction that actually round-trips through /standards-frameworks.
     await new KnowledgeGraphClient('k').getStandardsByGrade('3', {
-      jurisdiction: Jurisdiction.California,
+      jurisdiction: Jurisdiction.MultiState,
     });
 
-    const frameworkRequest = fetchMock.mock.calls[0][0] as Request;
-    expect(frameworkRequest.url).toContain('/standards-frameworks');
-    expect(frameworkRequest.url).toContain('jurisdiction=California');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const url = new URL((fetchMock.mock.calls[0][0] as Request).url);
+    expect(url.pathname).toContain('/academic-standards');
   });
 });
