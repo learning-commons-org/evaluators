@@ -158,5 +158,9 @@ describe('Knowledge Graph spec conformance', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = new URL((fetchMock.mock.calls[0][0] as Request).url);
     expect(url.pathname).toContain('/academic-standards');
+    // Pins the hardcoded CCSS framework UUID the short-circuit substitutes.
+    expect(url.searchParams.get('standardsFrameworkCaseIdentifierUUID')).toBe(
+      'c6496676-d7cb-11e8-824f-0242ac160002',
+    );
   });
 });
