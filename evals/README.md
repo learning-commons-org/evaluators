@@ -5,7 +5,7 @@
 
   | Evaluator                   | Code                                                     | Prompts                                           |
   | --------------------------- | -------------------------------------------------------- | ------------------------------------------------- |
-  | Grade Level Appropriateness | [Jupyter Notebook](./prompts/grade-level-appropriateness/example_notebook.ipynb) | [Prompts](./prompts/grade-level-appropriateness/) |
+  | Grade Level Appropriateness | [Jupyter Notebook](./literacy/grade-level-appropriateness/example_notebook.ipynb) | [Prompts](./literacy/grade-level-appropriateness/) |
   | Sentence Structure          | [Jupyter Notebook](./sentence_structure_evaluator.ipynb) | [Prompts](./prompts/sentence-structure/)          |
   | Vocabulary                  | [Jupyter Notebook](./vocabulary_evaluator.ipynb)         | [Prompts](./prompts/vocabulary/)                  |
   | Subject Matter Knowledge    | [Jupyter Notebook](./smk_evaluator.ipynb)                | [Prompts](./prompts/subject-matter-knowledge/)    |

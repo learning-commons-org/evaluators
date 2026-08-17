@@ -25,7 +25,7 @@
           {
             "role": "user",
             "source_path": "user.txt",
-            "sha256": "12d5bb41ea5aec13cc92d4540c992b97916d8732f9bac071a73c9b54c3e8d83f"
+            "sha256": "bcd5d75e2e46b8e5037dbc8d097e11001c97fc318d16dfa532b5b9a9023ae33d"
           }
         ],
         "placeholders": {
