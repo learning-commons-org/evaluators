@@ -1,34 +1,35 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "output_schema.json",
+  "$comment": "JSON has no comment syntax, so this human-facing note uses JSON Schema's $comment. The notebook strips it before handing the schema to the model, so nothing here reaches the LLM.\n\nWorked example of a conforming output (a 75-word informational passage about trees):\n\n{\n  \"grade_band\": \"4-5\",\n  \"alternative_grade_band\": \"2-3\",\n  \"scaffolding_needed\": \"Pre-teach the term 'photosynthesis' with a simple diagram or analogy (e.g. leaves as tiny solar-powered kitchens) before students read independently.\",\n  \"reasoning\": \"1. Quantitative analysis: ~75 words across 7 sentences; FK = 0.39 * 10.7 + 11.8 * 1.4 - 15.59 = 5.1, suggesting grade 5.\\n2. Qualitative complexity: TEXT STRUCTURE - Slightly Complex. LANGUAGE FEATURES - Slightly to Moderately Complex: familiar vocabulary with one technical term ('photosynthesis'). PURPOSE - Slightly Complex. KNOWLEDGE DEMANDS - Slightly Complex.\\n3. Background knowledge: grade 2+ have enough knowledge of plants; 'photosynthesis' may need grade 4+ science exposure.\\n4. Synthesis: grade 4-5 for independent reading; 2-3 reachable with scaffolding on the science vocabulary.\"\n}\n\nNote both band fields carry a SPAN of grades ('4-5'), never a single grade. Source of the example: sdks/settings/grade-level-appropriateness/contracts.toml, cases.trees.",
   "title": "EvaluatorOutput",
   "description": "Final evaluator output for the Grade Level Appropriateness evaluator.",
   "type": "object",
-  "required": ["reasoning", "grade", "alternative_grade", "scaffolding_needed"],
+  "required": ["reasoning", "grade_band", "alternative_grade_band", "scaffolding_needed"],
   "additionalProperties": false,
   "properties": {
     "reasoning": {
       "type": "string",
       "description": "Numbered bullet points for each of the 3 analysis steps (quantitative, qualitative, background knowledge), followed by a 4th bullet point called 'synthesis'."
     },
-    "grade": {
+    "grade_band": {
       "$ref": "#/$defs/GradeBand",
-      "description": "The target grade band for the text aimed at independent reading."
+      "description": "Target grade band for the text at independent reading."
     },
-    "alternative_grade": {
+    "alternative_grade_band": {
       "$ref": "#/$defs/GradeBand",
-      "description": "A grade band that could also read and comprehend the text with scaffolding, or as a read-aloud."
+      "description": "A second grade band that could read and comprehend the text with the scaffolding named in scaffolding_needed, or as a read-aloud."
     },
     "scaffolding_needed": {
       "type": "string",
-      "description": "The types of scaffolding (e.g. picture, graph, additional context) that make the text accessible at alternative_grade."
+      "description": "The types of scaffolding (picture, graph, additional context, vocabulary pre-teaching, ...) that make the text accessible at alternative_grade_band."
     }
   },
   "$defs": {
     "GradeBand": {
       "type": "string",
       "enum": ["K-1", "2-3", "4-5", "6-8", "9-10", "11-CCR"],
-      "description": "A grade band on the Grade Level Appropriateness scale."
+      "description": "A band on the CCSS text-complexity scale — a span of grades, not a single grade. 'CCR' is College and Career Readiness, so '11-CCR' spans grades 11-12 and the college/career-readiness benchmark rather than terminating at grade 12."
     }
   }
 }
