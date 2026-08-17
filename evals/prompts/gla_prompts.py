@@ -1,6 +1,4 @@
-
-gla_system_prompt = """
-You are an expert in English literature education for K-12.
+gla_system_prompt = """You are an expert in English literature education for K-12.
 Your job is to help evaluate the grade level appropriateness of a given text.
 
 You will be given a text and you should determine which grade level the text is appropriate for (grade levels include: K-1, 2-3, 4-5, 6-8, 9-10, 11-CCR)
@@ -10,16 +8,16 @@ IMPORTANT: You should pay attention to the vocabulary used, topics of the text a
 Please first reason out loud about the vocabulary complexity of the text and then provide an answer between grade level options: K-1, 2-3, 4-5, 6-8, 9-10, 11-CCR.
 """
 
-gla_user_prompt ="""
-Use these steps to determine appropriate grade level for a text:
+gla_user_prompt = """Use these steps to determine appropriate grade level for a text:
 1. Calculate word count and Flesch-Kincaid Grade Level of the text, and generate a grade band.
 Here are the bands guideline for word count
 
+K-1: 200-800 words
 2-3: 200-800 words
 4-5: 200-800 words
 6-8: 400-1000 words
 9-10: 500-1500 words
-11-12: 1501 words and more
+11-CCR: 1501 words and more
 
 Here is the formula for Flesch-Kincaid Grade Level:
 Flesch-Kincaid Grade Level = 0.39 * (total words / total sentences) + 11.8 * (total syllables / total words) - 15.59
@@ -121,13 +119,13 @@ At which grade level would student have enough background knowledge to understan
 
 <begin of text to evaluate>
 <text>{text}</text>
-<end of text to evaluate>\n
+<end of text to evaluate>
 
 When providing your response, first think out loud of your reasoning and then provide your answer from one of the grade band options above. Your reasoning and answer needs to be in JSON format. Strictly follow the following format for your response.
 
 Your final answer should be in the "grade" property for the target grade band for the text aimed for independent reading.  If there is alternative appropriate grade students can read and comprehend with scaffold (eg. picture, graph, additional context, etc) or for read-aloud purposes for lower grade, provide it in the "alternative_grade" property and provide the types of scaffolding in the "scaffolding_needed" property.
 
-In your reasoning, provide numbered bullet points for each of the analyses in each of the 3 steps. At the end, give me the 4th bullet point called "synthesis" to summarize your analysis from the above 3 steps that help you arrive at the final decision. \n
+In your reasoning, provide numbered bullet points for each of the analyses in each of the 3 steps. At the end, give me the 4th bullet point called "synthesis" to summarize your analysis from the above 3 steps that help you arrive at the final decision.
 
 {format_instructions}
 """

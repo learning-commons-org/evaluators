@@ -1,13 +1,13 @@
-
 Use these steps to determine appropriate grade level for a text:
 1. Calculate word count and Flesch-Kincaid Grade Level of the text, and generate a grade band.
 Here are the bands guideline for word count
 
+K-1: 200-800 words
 2-3: 200-800 words
 4-5: 200-800 words
 6-8: 400-1000 words
 9-10: 500-1500 words
-11-12: 1501 words and more
+11-CCR: 1501 words and more
 
 Here is the formula for Flesch-Kincaid Grade Level:
 Flesch-Kincaid Grade Level = 0.39 * (total words / total sentences) + 11.8 * (total syllables / total words) - 15.59
