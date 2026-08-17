@@ -12,6 +12,12 @@
   | Conventionality             | [Jupyter Notebook](./conventionality_evaluator.ipynb)    | [Prompts](./prompts/conventionality/)             |
   | Purpose                     | [Jupyter Notebook](./purpose_evaluator.ipynb)            | [Prompts](./prompts/purpose/)                     |
 
+  Grade Level Appropriateness ships a full evaluator contract next to its prompts — a
+  `config.json` pinning the model, prompts (by `sha256`), schemas and fixtures, all
+  validated by [`scripts/check.py`](../scripts/README.md). Its notebook loads those assets
+  from disk rather than hardcoding them. The evaluators above it in the table are
+  prompt-only for now and are being migrated to the same contract.
+
 ## Requirements
 
 [Set up your environment](../README.md) and install your dependencies:
