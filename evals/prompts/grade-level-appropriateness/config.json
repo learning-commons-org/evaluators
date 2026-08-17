@@ -1,0 +1,56 @@
+{
+  "$schema": "../../_schemas/config.schema.json",
+  "evaluator": {
+    "id": "literacy.gla.grade_level_appropriateness",
+    "name": "Grade Level Appropriateness Evaluator",
+    "description": "Evaluates which grade band a text is appropriate for at independent reading, plus an alternative band reachable with scaffolding, using word count, Flesch-Kincaid, the qualitative text complexity rubric, and background knowledge demands.",
+    "supported_grades": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+  },
+  "input_schema": {
+    "$ref": "input_schema.json"
+  },
+  "preprocessing": [],
+  "steps": [
+    {
+      "id": "evaluate_grade_level_appropriateness",
+      "type": "llm",
+      "description": "Single-call LLM step that produces the EvaluatorOutput JSON. TODO: the Flesch-Kincaid Grade Level is still computed by the model from the formula embedded in system.txt. Every other evaluator precomputes FK deterministically as a `preprocessing` step (textstat / text-readability, rounded to 2dp) and injects it as {fk_score}. Migrate GLA to the same preprocessing contract so the quantitative signal stops varying run to run.",
+      "prompt": {
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "c4ba0e3a662f263b3e041630a3a274d6badc4eb3b0ba6cc4ecc0cc75885fc6d4"
+          },
+          {
+            "role": "user",
+            "source_path": "user.txt",
+            "sha256": "12d5bb41ea5aec13cc92d4540c992b97916d8732f9bac071a73c9b54c3e8d83f"
+          }
+        ],
+        "placeholders": {
+          "text": {
+            "required": true,
+            "source": "input"
+          }
+        }
+      },
+      "model": {
+        "provider": "google",
+        "name": "gemini-3.6-flash"
+      },
+      "generation": {
+        "temperature": 0
+      },
+      "parser": {
+        "kind": "structured_output"
+      }
+    }
+  ],
+  "output_schema": {
+    "$ref": "output_schema.json"
+  },
+  "fixtures": {
+    "path": "fixtures.json"
+  }
+}

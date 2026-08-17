@@ -5,7 +5,7 @@ In this folder, you will find prompt files designed for evaluating text complexi
 
 ### Grade Level Appropriateness
 
-In file `gla_prompts.py`, we provide system and user prompts used in the Grade Level Appropriateness evaluator's code. You can also use these prompts as a reference for creating your own prompts.
+In the `grade-level-appropriateness/` directory, we provide the system and user prompts (`system.txt` and `user.txt`) used in the Grade Level Appropriateness evaluator's code, alongside the `config.json` that pins the model, prompts and output schema. You can also use these prompts as a reference for creating your own prompts.
 
 ### Subject Matter Knowledge Evaluator
 

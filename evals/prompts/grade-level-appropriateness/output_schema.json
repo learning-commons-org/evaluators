@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "output_schema.json",
+  "title": "EvaluatorOutput",
+  "description": "Final evaluator output for the Grade Level Appropriateness evaluator.",
+  "type": "object",
+  "required": ["reasoning", "grade", "alternative_grade", "scaffolding_needed"],
+  "additionalProperties": false,
+  "properties": {
+    "reasoning": {
+      "type": "string",
+      "description": "Numbered bullet points for each of the 3 analysis steps (quantitative, qualitative, background knowledge), followed by a 4th bullet point called 'synthesis'."
+    },
+    "grade": {
+      "$ref": "#/$defs/GradeBand",
+      "description": "The target grade band for the text aimed at independent reading."
+    },
+    "alternative_grade": {
+      "$ref": "#/$defs/GradeBand",
+      "description": "A grade band that could also read and comprehend the text with scaffolding, or as a read-aloud."
+    },
+    "scaffolding_needed": {
+      "type": "string",
+      "description": "The types of scaffolding (e.g. picture, graph, additional context) that make the text accessible at alternative_grade."
+    }
+  },
+  "$defs": {
+    "GradeBand": {
+      "type": "string",
+      "enum": ["K-1", "2-3", "4-5", "6-8", "9-10", "11-CCR"],
+      "description": "A grade band on the Grade Level Appropriateness scale."
+    }
+  }
+}
