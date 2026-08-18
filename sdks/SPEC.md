@@ -93,15 +93,15 @@ Every evaluator accepts a config object at construction time.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `google_api_key` | string | none | Required by evaluators whose `default_providers` includes `google` |
-| `openai_api_key` | string | none | Required by evaluators whose `default_providers` includes `openai` |
-| `anthropic_api_key` | string | none | Required when `model_override.provider` is `anthropic` |
+| `google_api_key` | string | none | Required when `default_providers` includes `google` or `model_override.provider` is `google` |
+| `openai_api_key` | string | none | Required when `default_providers` includes `openai` or `model_override.provider` is `openai` |
+| `anthropic_api_key` | string | none | Required when `default_providers` includes `anthropic` or `model_override.provider` is `anthropic` |
 | `partner_api_key` | string | none | Learning Commons–issued partner key; forwarded as auth on telemetry requests, never in event bodies |
 | `model_override` | object | none | Override provider and model for all LLM calls (§3.2) |
 | `model_override.provider` | enum | — | A `Provider` value (§3.3) |
 | `model_override.model` | string | — | Pinned snapshot ID (§10.2) supported by that provider |
 | `max_retries` | int | `2` | Retry attempts on retryable errors (§6.3). Total attempts = 1 + `max_retries`; `0` disables |
-| `telemetry` | bool \| object | enabled | `true`/`false` shorthand, or an object for granular control |
+| `telemetry` | bool \| object | `true` | `true`/`false` shorthand, or an object for granular control |
 | `telemetry.enabled` | bool | `true` | Whether to emit telemetry events |
 | `telemetry.record_inputs` | bool | `false` | Include raw input text in telemetry (Principle 7) |
 | `telemetry.tracking_key` | string | none | Caller-supplied identifier attached to telemetry events, so a partner can segment usage by application or integration |
@@ -158,7 +158,7 @@ Messages MUST convey the same facts (which bound, what the bound is) and SHOULD 
 | Limit | Default |
 |---|---|
 | `min_text_length` | `10` |
-| `max_text_length` | `10,000` |
+| `max_text_length` | `10000` |
 
 An evaluator's registry definition (§10) MAY override these; overrides MUST NOT be silently ignored.
 
@@ -306,7 +306,7 @@ Logger:
 | `error_code` | Canonical error class name on failure; null on success |
 | `latency_ms` | Total wall-clock time |
 | `text_length_chars` | Trimmed input length |
-| `provider` | Model string(s) used (§3.4) |
+| `model` | Model string(s) used (§3.4) |
 | `model_override` | `true` if an override was set; omitted otherwise |
 | `token_usage` | `{ input_tokens, output_tokens }` aggregated across phases |
 | `phase_details` | Array of per-phase objects (§8.3) |
@@ -314,7 +314,7 @@ Logger:
 
 ### 8.3 Phase details
 
-Each entry: `phase` (name from the registry definition), `provider` (`"provider:model-id"`), `latency_ms`, `token_usage` (`{ input_tokens, output_tokens }`).
+Each entry: `phase` (name from the registry definition), `model` (`"provider:model-id"`), `latency_ms`, `token_usage` (`{ input_tokens, output_tokens }`).
 
 ---
 
@@ -453,6 +453,7 @@ Tracked deviations between this spec and the current SDKs — each a bug to fix 
 | 13 | §10.1 | Both | Evaluator IDs are flat (`vocabulary`), not namespaced | Adopt hierarchical IDs once the taxonomy is finalized (Q-7) |
 | 14 | §11.3 | Both | No shared fixture format or cross-SDK harness (Python has an early harness tied to a temporary layout) | Establish fixture format with the registry; build per-language harnesses |
 | 15 | §10.3 | Python | `{format_instructions}` LangChain placeholders remain in prompts | Remove; enforce structured output at the chain layer |
+| 16 | §8.2–8.3 | Both | Telemetry field `provider` carries model strings | Rename to `model` in events and phase details |
 
 ---
 
