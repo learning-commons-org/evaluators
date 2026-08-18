@@ -1,47 +1,128 @@
 # Evaluator SDK Specification
 
-This document is the source of truth for both the TypeScript and Python SDKs. It defines **what** each SDK must do — not how to do it. Implementation details (retry libraries, async patterns, type systems) are left to each language's idioms.
+**Spec version:** 0.1.0 · **Changelog:** [Appendix D](#appendix-d-spec-changelog)
 
-When the spec and an SDK diverge, the spec wins.
+This document is the normative blueprint for all Learning Commons Evaluator SDKs — current (TypeScript, Python) and future. It defines **what** every SDK must do, not how. Implementation details (retry libraries, async patterns, type systems) are left to each language's idioms.
+
+The spec is prescriptive, not descriptive: SDKs are brought into conformance with it, never the reverse. When the spec and an SDK diverge, the spec wins and the SDK carries the bug ([Appendix A](#appendix-a-known-conformance-gaps)).
+
+The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are to be interpreted as described in RFC 2119.
+
+### Stability levels
+
+Every section and evaluator definition carries a stability level; unlabeled content is **Stable**.
+
+| Level | Meaning |
+|---|---|
+| **Stable** | Contract-bound; changes follow the compatibility policy (§12.3) |
+| **Experimental** | May change or be removed without a deprecation window; users are warned in SDK docs |
+
+New surfaces enter as Experimental and are promoted by maintainer agreement (§12.1) once at least one SDK ships them and contract fixtures (§11.3) cover them. Speed lives in Experimental; stability lives in Stable.
 
 ---
 
-## 1. Config
+## 1. Design Principles
+
+Every rule in this spec derives from one of these. When the spec is silent, decide by principle, then codify the decision here.
+
+1. **One canonical name.** Every public identifier has exactly one canonical name, identical in every SDK and all documentation. Casing (§2.1) is the only permitted transformation; names are chosen to avoid known language builtins by construction (`RequestTimeoutError`, not `TimeoutError`).
+
+2. **Idiomatic at the surface, identical at the core.** Types, async model, and packaging follow each language's conventions; behavior, names, and contracts are identical everywhere. When idiom and contract conflict, the contract wins and the gap is raised as a spec issue (§12.1).
+
+3. **Universal envelope, evaluator-scoped payload.** Every result shares one envelope; the domain payload is defined per evaluator in the registry (§10), under shared invariants (§5.2).
+
+4. **Fail fast, fail loud, fail structured.** Configuration problems surface at construction. Evaluation failures are canonical errors (§6) carrying retryability as data. Every error MUST be diagnosable from the error alone — silent fallbacks, swallowed causes, and generic messages are defects.
+
+5. **Observability never affects results.** Telemetry and logging MUST NOT throw, block, delay, or change an evaluation's outcome.
+
+6. **No hidden state.** The full structured model output MUST be surfaced in every result — never empty, never omitted.
+
+7. **Sensitive data is opt-in.** Raw user-supplied input text, and raw provider error strings (which may echo inputs or key fragments), MUST NOT appear in telemetry, logs, or error messages unless the caller explicitly opts in. Model outputs, scores, and reasoning are product data and MAY be logged and reported.
+
+8. **Determinism is declared.** Models are pinned to dated snapshots and temperatures declared; behavior changes only through deliberate registry updates (§10).
+
+9. **Every unit is in the name.** Quantity fields carry a unit suffix (`_ms`, `_chars`, `_tokens`). The default unit for durations is milliseconds (`_ms`); any other unit is an explicit, documented exception.
+
+10. **Core is required; capabilities are contracts.** §§3–8 are required for conformance. Optional capabilities (§9) are built only where an SDK's users need them — but to the spec'd contract when built.
+
+11. **The spec is executable where possible.** Rules expressible as data or test vectors live in the shared fixtures (§11.3); prose states the principle, fixtures enforce it in CI.
+
+---
+
+## 2. Naming & Canonical Forms
+
+### 2.1 Casing
+
+The spec writes canonical names in `snake_case`. Each SDK maps them mechanically:
+
+| Language | Fields / parameters | Classes | Example |
+|---|---|---|---|
+| TypeScript | `camelCase` | `PascalCase` | `model_override` → `modelOverride` |
+| Python | `snake_case` | `PascalCase` | `model_override` → `model_override` |
+
+Casing conversion MUST be purely mechanical — no renames, abbreviations, or reorderings.
+
+### 2.2 Divergence convention
+
+A name divergence is permitted **only** when the canonical name collides with a builtin or standard-library name in a target language; stylistic preference is never grounds. The diverging SDK prefixes the most specific domain noun that resolves the collision, keeping the name guessable from the canonical one, and documents the mapping in its own reference docs.
+
+Divergences are expected to be rare to zero — canonical names are chosen to avoid known conflicts up front. The table below mirrors any that occur, updated in the normal course of spec maintenance (not as a release gate):
+
+**Registered divergences:** *none.*
+
+### 2.3 Canonical value forms
+
+Any **value** that crosses the SDK boundary into shared systems — results, telemetry — has exactly one canonical wire form, so data from different SDKs aggregates cleanly. SDKs MAY accept idiomatic conveniences on *input* (e.g. `int` grades in Python) when the mapping is unambiguous, but the canonical form is what appears in results and telemetry.
+
+| Value | Canonical form |
+|---|---|
+| Grade | String token: `"3"` … `"12"` (the set may grow, e.g. `"K"`) |
+| Timestamp | ISO 8601 UTC |
+| Model | Model string (§3.4) |
+| Error code | Canonical error class name (§6.1) |
+| Evaluator ID | Registry ID (§10.1) |
+| Durations / counts | Integer, unit-suffixed field name (Principle 9) |
+
+A new value type that crosses the boundary MUST register its canonical form here or in the section that introduces it.
+
+---
+
+## 3. Configuration
 
 Every evaluator accepts a config object at construction time.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `google_api_key` | string | none | Google API key — required by evaluators whose `default_providers` includes `google` |
-| `openai_api_key` | string | none | OpenAI API key — required by evaluators whose `default_providers` includes `openai` |
-| `anthropic_api_key` | string | none | Anthropic API key — required when `model_override.provider` is `anthropic` |
-| `model_override` | object | none | Override the provider and model for all LLM calls (see below) |
-| `partner_key` | string | none | Learning Commons partner key, forwarded as auth in telemetry requests |
-| `max_retries` | int | `2` | Max retry attempts on transient LLM failures. Total attempts = 1 + max_retries. Set to 0 to disable |
-| `telemetry.enabled` | bool | `true` | Whether to fire telemetry events |
-| `telemetry.record_inputs` | bool | `false` | Whether to include raw input text in telemetry. Off by default to avoid PII exposure |
-| `logger` | object | none | Custom logger conforming to the SDK's `Logger` interface (`debug`/`info`/`warn`/`error`, each accepting `(message, context?)`). When provided, replaces the default console logger. |
-| `log_level` | enum | `WARN` | Minimum log level for the default console logger: `DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT`. Ignored when a custom `logger` is provided. |
+| `google_api_key` | string | none | Required by evaluators whose `default_providers` includes `google` |
+| `openai_api_key` | string | none | Required by evaluators whose `default_providers` includes `openai` |
+| `anthropic_api_key` | string | none | Required when `model_override.provider` is `anthropic` |
+| `partner_api_key` | string | none | Learning Commons–issued partner key; forwarded as auth on telemetry requests, never in event bodies |
+| `model_override` | object | none | Override provider and model for all LLM calls (§3.2) |
+| `model_override.provider` | enum | — | A `Provider` value (§3.3) |
+| `model_override.model` | string | — | Pinned snapshot ID (§10.2) supported by that provider |
+| `max_retries` | int | `2` | Retry attempts on retryable errors (§6.3). Total attempts = 1 + `max_retries`; `0` disables |
+| `telemetry` | bool \| object | enabled | `true`/`false` shorthand, or an object for granular control |
+| `telemetry.enabled` | bool | `true` | Whether to emit telemetry events |
+| `telemetry.record_inputs` | bool | `false` | Include raw input text in telemetry (Principle 7) |
+| `telemetry.tracking_key` | string | none | Caller-supplied identifier attached to telemetry events, so a partner can segment usage by application or integration |
+| `logger` | object | none | Custom logger implementing `Logger` (§7): `debug`/`info`/`warn`/`error`, each `(message, context?)`. Replaces the default console logger |
+| `log_level` | enum | `WARN` | Minimum level for the **default** logger: `DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT`. Ignored when a custom `logger` is provided |
 
-> **Language naming:** TypeScript uses camelCase (`googleApiKey`, `openaiApiKey`, `anthropicApiKey`, `modelOverride`, `partnerKey`, `maxRetries`, `logLevel`). Python uses snake_case. The `telemetry` field may be `true`/`false` as a shorthand for fully enabled/disabled, or an object for granular control.
+### 3.1 Key validation
 
-### `model_override`
+- A key is *missing* if not provided or provided as the language's null/empty value.
+- If a required key (per the evaluator's `default_providers`, or the `model_override` provider) is missing, the constructor MUST raise `ConfigurationError` — before any I/O.
+- When `model_override` is set, **only** the override provider's key is required.
 
-Overrides the provider and model used for all LLM calls within the evaluator.
+### 3.2 `model_override`
 
-```
-model_override: { provider: Provider, model: string }
-```
+- The SDK MUST log a warning when an override is active — evaluators are validated against their default models only.
+- Telemetry MUST record `model_override: true` (§8.2).
+- A model-not-found rejection from the provider raises `ConfigurationError`, not a retryable API error.
 
-- `provider` must be one of the supported `Provider` values (see below)
-- `model` is any model ID supported by that provider — must be a pinned snapshot ID (see section 7)
-- When `model_override` is set, **only the API key for the override provider is required** — default provider key requirements are bypassed
-- A warning is logged when override is active, since evaluators are validated against their default models
-- Telemetry records `model_override: true` to flag override usage separately in analytics
+### 3.3 `Provider`
 
-### Provider
-
-The set of supported LLM providers. Used in `model_override.provider` and evaluator `default_providers` metadata.
+The closed set of supported LLM providers, used in `model_override.provider`, `default_providers`, and model strings (§3.4). Each SDK exposes it as its idiomatic closed enumeration.
 
 | Value | Description |
 |---|---|
@@ -49,282 +130,370 @@ The set of supported LLM providers. Used in `model_override.provider` and evalua
 | `google` | Google (Gemini models) |
 | `anthropic` | Anthropic (Claude models) |
 
-> **TS:** exported as a `Provider` enum. **Python:** a string literal type or equivalent enum.
+### 3.4 Model strings
+
+Wherever a result or event reports which model ran:
+
+- Single provider: `"provider:model-id"`
+- Multiple providers: `"provider1:model1+provider2:model2"` — no spaces around `+`, in phase execution order.
+
+Model strings MUST reflect the model **actually used**, including any override.
 
 ---
 
-## 2. Text Validation
+## 4. Input Validation
 
-Runs before every LLM call. Must run inside the error-handling boundary so validation failures are captured in telemetry.
+Validation runs before every LLM call, inside the error-handling boundary, so failures are captured in telemetry as `error` events.
 
-Strip leading/trailing whitespace before measuring length. Then validate in this order:
+### 4.1 Text
 
-- Whitespace-only input → `ValidationError("Text cannot be empty or contain only whitespace")`
-- Length < min chars (trimmed) → `ValidationError("Text is too short. Minimum length is X characters...")`
-- Length > max chars (trimmed) → `ValidationError("Text is too long. Maximum length is X characters...")`
+Trim leading/trailing Unicode whitespace, then validate in order:
 
-Default limits:
+1. Empty or whitespace-only → `InputValidationError("Text cannot be empty or contain only whitespace")`
+2. Trimmed length < min → `InputValidationError` stating the minimum
+3. Trimmed length > max → `InputValidationError` stating the maximum
+
+Messages MUST convey the same facts (which bound, what the bound is) and SHOULD match the canonical wording. `text_length_chars` in telemetry is the **trimmed** length.
 
 | Limit | Default |
 |---|---|
 | `min_text_length` | `10` |
 | `max_text_length` | `10,000` |
 
-Limits may be overridden per-evaluator. When overridden, the evaluator's values apply. Overrides must not be silently ignored.
+An evaluator's registry definition (§10) MAY override these; overrides MUST NOT be silently ignored.
+
+### 4.2 Grade
+
+- Grade MUST be within the evaluator's declared supported range (§10) → otherwise `InputValidationError`.
+- Grade-free evaluators (e.g. GLA) MUST NOT silently consume a supplied grade.
 
 ---
 
-## 3. Grade Validation
+## 5. Evaluation Results
 
-- Grade must be in the evaluator's declared supported range → otherwise `ValidationError`
-- Current evaluators all support grades **3–12**. No K, no 0–2.
-- Type representation is language-idiomatic: strings in TypeScript (`"3"`), integers in Python (`3`)
-- Early-fail: if the evaluator requires an API key that is absent, raise `ConfigurationError` at construction time, not at evaluation time
+### 5.1 The envelope
+
+Every `evaluate()` call resolves to:
+
+| Field | Type | Description |
+|---|---|---|
+| `evaluator` | string | Evaluator ID (§10.1), e.g. `"literacy.ela_reading.vocabulary"` |
+| `result` | object | Evaluator-scoped payload (§5.2) |
+| `metadata` | object | Operational metadata (below) |
+
+`metadata`:
+
+| Field | Type | Description |
+|---|---|---|
+| `model` | string | Model string(s) actually used (§3.4) |
+| `processing_time_ms` | int | Wall-clock time for the full evaluation |
+| `token_usage` | object | `{ input_tokens, output_tokens }` summed across all phases, without deduplication |
+
+The envelope is identical for every evaluator, in every SDK, forever. New universal facts go in `metadata`; domain facts go in `result`.
+
+### 5.2 Payload rules
+
+The shape of `result` is defined per evaluator in its registry definition (§10.1) and MUST be identical across SDKs. No cross-evaluator shape taxonomy is specified (Q-2). Every payload MUST satisfy:
+
+- The full structured model output is surfaced (Principle 6) — never an empty object, never omitted, on any grade path or code path.
+- Field names follow §2 (canonical, casing-mapped).
+- The shape is declared in the evaluator's registry definition and covered by its contract fixtures (§11.3).
+- Evaluators producing a single ordinal/categorical judgment SHOULD use the established conventions: `score`, `label`, `reasoning`, `details` — keeping the scored evaluators consistent without mandating the shape for evaluators it doesn't fit.
 
 ---
 
-## 4. Result Shape
+## 6. Errors
 
-Every `evaluate()` call returns a result with three top-level objects: `answer`, `explanation`, and `metadata`.
+### 6.1 Canonical taxonomy
 
-### `answer`
+Class names are canonical in every SDK (§2.2). An error pattern useful in one SDK MUST be added here and implemented in all.
+
+| Class | Extends | Trigger | Retryable |
+|---|---|---|---|
+| `EvaluatorError` | — | Base class for all SDK errors | — |
+| `ConfigurationError` | `EvaluatorError` | Missing/invalid key, unknown provider or model, malformed settings | No |
+| `InputValidationError` | `EvaluatorError` | Caller-supplied text or grade failed validation (§4) | No |
+| `APIError` | `EvaluatorError` | Base class for failures in the provider call | per instance |
+| `AuthenticationError` | `APIError` | 401 / 403 from provider | No |
+| `RateLimitError` | `APIError` | 429 from provider | Yes |
+| `NetworkError` | `APIError` | Connection failure (DNS, refused, TLS) | Yes |
+| `RequestTimeoutError` | `APIError` | Provider request exceeded its timeout | Yes |
+| `OutputValidationError` | `APIError` | Model response failed the expected output schema | Yes |
+
+- `InputValidationError` (caller's fault, never retryable) and `OutputValidationError` (model's fault, retryable — LLMs are nondeterministic) MUST NOT be merged.
+- `OutputValidationError` sits under `APIError` because the failure originated in a provider response, even though `status_code` is typically null.
+
+### 6.2 Fields
+
+`APIError` and all subclasses:
 
 | Field | Type | Description |
 |---|---|---|
-| `score` | any | Raw score value returned by the model (e.g. a string label or numeric value) |
-| `label` | string | Human-friendly display label (e.g. `"Moderately complex"`) |
+| `status_code` | int \| null | HTTP status from the provider, if available |
+| `retryable` | bool | Whether the caller may retry (§6.3) |
 
-### `explanation`
+`RateLimitError` additionally: `retry_after_ms` (int | null) — milliseconds to wait, converted from the provider's `Retry-After` seconds.
 
-| Field | Type | Description |
-|---|---|---|
-| `summary` | string | Model's reasoning — full explanation of how the score was determined |
-| `details` | object | Full structured LLM output — all fields returned by the model, for all grade paths. Must be populated for every evaluator and every grade path. Must never be an empty object or omitted. |
+`OutputValidationError` additionally: `validation_errors` (array | null) — sanitized per-field failures (§6.4): schema locations and error types only.
 
-### `metadata`
+### 6.3 Retryability is data
 
-| Field | Type | Description |
-|---|---|---|
-| `model` | string | Model(s) used. Single provider: `"provider:model-id"`. Multi-provider: `"provider1:model1+provider2:model2"` (no spaces around `+`). Reflects the actual model used, including any override. |
-| `processing_time_ms` / `processingTimeMs` | int | Wall-clock time for the full evaluation in milliseconds |
+- `retryable` on the instance is the single source of truth; callers never memorize the hierarchy.
+- Resolution order: explicit per-instance override → `true` for any 5xx → class default.
+- The SDK's retry loop (`max_retries`, §3) retries **only** retryable errors, with exponential backoff, honoring `retry_after_ms` when present.
 
-> **Language naming:** TypeScript uses camelCase (`processingTimeMs`). Python uses snake_case (`processing_time_ms`).
+### 6.4 Error message safety
 
-> **Migration note:** The TypeScript SDK currently returns `score`, `reasoning`, and `_internal` as top-level fields. It should be updated to match this shape.
+- Messages MUST be short and controlled. Raw provider error strings MUST NOT be echoed into the message — they may contain prompt content, user text, or key fragments.
+- The original provider exception MUST be preserved via the language's cause chain, with structured attributes (`status_code`, provider, model, request ID where available) exposed for introspection.
+- Validation details forwarded to telemetry or logs MUST be sanitized to schema-oriented facts (field paths, error types) — never raw user input.
 
-> **TS naming:** `processingTimeMs`, `_internal`
+### 6.5 Provider error mapping
+
+Classify by **structured signals first** (status code, typed exception); message-pattern matching only when no structured signal exists. Minimum mapping:
+
+| Signal | Maps to |
+|---|---|
+| 404, or 400 with model-not-found semantics | `ConfigurationError` |
+| 401 / 403 | `AuthenticationError` |
+| 429 | `RateLimitError` |
+| Connection-level failure | `NetworkError` |
+| Timeout | `RequestTimeoutError` |
+| Schema-invalid model output | `OutputValidationError` |
+| Anything else | `APIError` (retryable iff 5xx) |
 
 ---
 
-## 5. Telemetry
+## 7. Logging
 
-### Semantics
+The canonical `Logger` interface:
 
-- Must fire on every evaluation — both success and failure
-- Fire-and-forget: never raises, never delays the return value
-- When `telemetry.enabled = false`, no event is sent and no client is initialised
+```
+Logger:
+  debug(message: string, context?: LogContext): void
+  info(message: string, context?: LogContext): void
+  warn(message: string, context?: LogContext): void
+  error(message: string, context?: LogContext): void
+```
 
-### Event Fields
+`LogContext` is a string-keyed map. Reserved keys (always safe to emit): `evaluator`, `operation`, `error`. Model outputs and scores may be logged (Principle 7); raw user input text MUST NOT appear above `DEBUG`.
+
+- With a custom `logger`, the SDK routes all output through it and MUST NOT apply `log_level` filtering — level policy belongs to the custom logger.
+- A logger that throws MUST NOT fail the evaluation (Principle 5); the SDK swallows logger exceptions.
+- `log_level: SILENT` disables the default logger entirely.
+
+---
+
+## 8. Telemetry
+
+### 8.1 Semantics
+
+- One event per evaluation — on success **and** failure, including validation failures.
+- Fire-and-forget: emission MUST NOT throw or delay the return value, and is abandoned if the endpoint is unreachable. SDKs SHOULD bound in-flight telemetry with a timeout of a few seconds.
+- When disabled: no event constructed, no client initialized.
+- `partner_api_key` is an authentication header on the request — never in the event body. Telemetry auth failures are logged at `DEBUG` and otherwise ignored.
+
+### 8.2 Event fields
 
 | Field | Description |
 |---|---|
 | `timestamp` | ISO 8601 UTC |
 | `sdk_version` | Package version string |
-| `evaluator_type` | Evaluator ID (e.g. `"vocabulary"`) |
-| `grade` | Grade passed by the caller; null if evaluator takes no grade |
+| `evaluator_type` | Evaluator ID (§10.1) |
+| `tracking_key` | Caller-supplied `telemetry.tracking_key`; omitted when unset |
+| `grade` | Canonical grade token; null if the evaluator takes no grade |
 | `status` | `"success"` or `"error"` |
-| `error_code` | Error class name on failure; null on success |
-| `latency_ms` | Total wall-clock time in milliseconds |
-| `text_length_chars` | Character length of the input text |
-| `provider` | Provider string(s) used. Same format as `metadata.model`: `"provider:model-id"` or `"provider1:model1+provider2:model2"` (no spaces around `+`) |
-| `model_override` | `true` if `model_override` was set by the caller; omitted otherwise |
-| `token_usage` | `{ input_tokens, output_tokens }` aggregated across all phases |
-| `phase_details` | Array of per-phase objects (see below) |
-| `input_text` | Raw input text — only when `telemetry.record_inputs = true` |
+| `error_code` | Canonical error class name on failure; null on success |
+| `latency_ms` | Total wall-clock time |
+| `text_length_chars` | Trimmed input length |
+| `provider` | Model string(s) used (§3.4) |
+| `model_override` | `true` if an override was set; omitted otherwise |
+| `token_usage` | `{ input_tokens, output_tokens }` aggregated across phases |
+| `phase_details` | Array of per-phase objects (§8.3) |
+| `input_text` | Raw input — **only** when `telemetry.record_inputs = true` |
 
-`partner_key` is forwarded as an authentication header on the request, not included in the event body.
+### 8.3 Phase details
 
-### Phase Detail Fields
-
-Each object in `phase_details`:
-
-| Field | Description |
-|---|---|
-| `phase` | Phase name (e.g. `"background_knowledge"`, `"complexity_evaluation"`) |
-| `provider` | `"provider:model-id"` |
-| `latency_ms` | Wall-clock time for this phase |
-| `token_usage` | `{ input_tokens, output_tokens }` |
+Each entry: `phase` (name from the registry definition), `provider` (`"provider:model-id"`), `latency_ms`, `token_usage` (`{ input_tokens, output_tokens }`).
 
 ---
 
-## 6. Error Taxonomy
+## 9. Optional Capabilities
 
-### Naming principle
+No SDK is required to build these — they exist where that SDK's users need them. Any SDK that ships one MUST implement the contract below (Principle 10). New capabilities are added here before the first SDK ships them.
 
-Error class names must match across SDKs exactly as specified below. This ensures that documentation, error handling guides, and support answers are portable between languages without translation.
+### 9.1 Batch evaluation *(Experimental)*
 
-The only permitted divergence is a **builtin conflict** — when a name shadows a language builtin, prefix it with `Evaluator` (e.g. `TimeoutError` is a Python 3 builtin, so Python uses `EvaluatorTimeoutError`). Any such divergence must be documented in the permitted divergences table below.
+- **Never throws for item failures.** Per-item failures are returned as structured entries alongside successes.
+- **Order-aligned results.** Results align index-for-index with inputs; failed items occupy their slot with the canonical error information (§6).
+- **Fail-fast only for batch-level faults.** Configuration errors and invalid batch arguments raise before any item is evaluated.
+- **Summary stats:** `total`, `successful`, `failed`, `average_processing_time_ms`.
+- **Per-item telemetry.** Each item fires its own event exactly as a single evaluation (§8); no batch-level rollup event.
+- **Bounded concurrency.** MUST bound concurrent provider calls; SHOULD expose the bound as an option.
+- **Naming:** `evaluate_items` (TS: `evaluateItems`).
 
-If an error pattern is useful in one SDK, it must be implemented in both.
+---
 
-### Error classes
+## 10. Evaluator Registry
 
-| Class | Code | Trigger | Retryable |
-|---|---|---|---|
-| `EvaluatorError` | — | Base class for all SDK errors | — |
-| `ConfigurationError` | `CONFIGURATION_ERROR` | Missing required API key at construction | No |
-| `ValidationError` | `VALIDATION_ERROR` | Invalid text or unsupported grade | No |
-| `APIError` | — | Base class for all LLM provider errors | — |
-| `AuthenticationError` | `AUTHENTICATION_ERROR` | 401 / 403 from provider | No |
-| `RateLimitError` | `RATE_LIMIT_ERROR` | 429 from provider | Yes |
-| `NetworkError` | `NETWORK_ERROR` | Connection failure | Yes |
-| `TimeoutError` | `TIMEOUT_ERROR` | Request timeout | Yes |
+Evaluator definitions are shared, language-neutral data: one definition per evaluator, consumed by every SDK, so evaluation behavior cannot drift between languages. Registry home and format: Q-6.
 
-### Fields
+### 10.1 Definition schema
 
-`APIError` and all its subclasses expose:
+A definition MUST specify:
 
-| Field | Type | Description |
+| Field | Meaning |
+|---|---|
+| ID | Canonical evaluator ID — hierarchical, dot-namespaced, e.g. `literacy.ela_reading.vocabulary`. Appears in `evaluator` and `evaluator_type` |
+| Stability | Stable or Experimental |
+| Payload shape | The `result` shape (§5.2), field by field |
+| Supported grades | Range of canonical grade tokens, or none for grade-free evaluators |
+| Default providers | Drives key requirements (§3.1) |
+| Phases | Ordered phase names; per phase: pinned model ID (§10.2), prompt inputs, temperature |
+| Text limits | Only when overriding the §4.1 defaults |
+
+Grade-path variants (different model or prompt inputs per grade band) are expressed within the phase definitions.
+
+### 10.2 Model IDs are pinned snapshots
+
+No floating aliases (Principle 8): `gpt-4o-2024-11-20`, not `gpt-4o`. If no dated snapshot exists, use the most specific stable identifier and note it in the definition. If a provider deprecates a pinned model, the SDK MUST fail fast with `ConfigurationError` — never silently substitute. Model migrations are deliberate registry updates.
+
+### 10.3 Prompts and structured output
+
+Prompts MUST NOT contain LLM-framework artifacts (e.g. injected JSON-schema text). Structured output enforcement belongs at the provider/chain layer; a schema-invalid response raises `OutputValidationError`.
+
+### 10.4 Derived inputs
+
+Computed prompt inputs are part of the contract. Where FK score is used, it MUST be the Flesch-Kincaid Grade Level formula, rounded to 2 decimal places. New derived inputs MUST define their computation here or in the registry definition.
+
+---
+
+## 11. Process
+
+### 11.1 Adding a new evaluator
+
+Before implementation begins, the evaluator's registry definition (§10.1) MUST be written and approved by maintainers of every SDK — the definition PR is the agreement artifact.
+
+### 11.2 Adding a new SDK
+
+A new SDK claims conformance by satisfying the checklist and passing the shared contract fixtures (§11.3). Optional capabilities are conformant if absent or implemented per contract. Per-SDK status is tracked in [Appendix B](#appendix-b-conformance-matrix).
+
+| # | Criterion |
+|---|---|
+| C-1 | Config surface per §3, casing-mapped per §2.1; construction fails fast per §3.1 |
+| C-2 | Full canonical error taxonomy (§6.1) with fields (§6.2), data-driven retryability (§6.3), safe messages (§6.4), provider mapping (§6.5) |
+| C-3 | Input validation order, messages, and limits per §4 |
+| C-4 | Result envelope (§5.1) and payload invariants (§5.2) for every implemented evaluator |
+| C-5 | Logger interface and behavior per §7 |
+| C-6 | Telemetry semantics and event schema per §8 |
+| C-7 | Model pinning, prompt hygiene, and derived-input rules per §10.2–10.4 |
+| C-8 | Every implemented evaluator matches its registry definition (§10.1) and passes its contract fixtures (§11.3) |
+| C-9 | Any name divergence follows §2.2 (expected: none) |
+| C-10 | SDK declares the spec version it implements (§12.2) |
+
+### 11.3 Contract fixtures — the executable spec
+
+Cross-SDK behavior is verified by shared, language-neutral fixture files (per-evaluator cases plus spec-level fixtures for cross-cutting rules), executed by a per-language harness in each SDK's CI. The fixture format lives with the registry (Q-6).
+
+- Every SDK MUST run the fixtures for each evaluator and capability it implements; a fixture failure is a conformance failure.
+- A spec change that alters observable behavior MUST land with fixtures expressing it. Prose without fixtures is a **SHOULD**, not a MUST, until fixtures exist.
+- Minimum coverage: input-validation outcomes and messages (§4), error mapping (§6.5), model strings (§3.4), envelope and payload shapes (§5), telemetry event shape (§8.2).
+- Fixtures MUST NOT require live provider calls; they run against recorded/stubbed provider behavior.
+
+---
+
+## 12. Spec Lifecycle
+
+### 12.1 Governance
+
+- The spec changes by pull request, approved by at least one maintainer of **each** SDK; small clarifications need one maintainer.
+- Substantive proposals SHOULD start as a short design note in the PR: motivation, alternatives, migration impact per SDK.
+- Every normative change adds a changelog line ([Appendix D](#appendix-d-spec-changelog)).
+- Open design questions live in [Appendix C](#appendix-c-open-questions) — promoted into the spec or closed with a recorded rationale, never silently dropped.
+
+### 12.2 Versioning
+
+- The spec is SemVer-versioned, independent of SDK packages. Pre-1.0, minor bumps may break; post-1.0, breaking changes to Stable content require a major bump.
+- Each SDK release declares the spec version it implements (README and package metadata), so users reason about cross-SDK equivalence by spec version.
+
+### 12.3 Compatibility policy for Stable content
+
+Breaking is judged from the **user's** point of view:
+
+- **Non-breaking:** adding fields to results, events, or config; adding evaluators, error subclasses, or capabilities; widening accepted inputs; improving error messages within §4.1's same-facts rule.
+- **Breaking (major bump + deprecation):** removing or renaming any public name; changing a field's type, unit, or semantics; narrowing accepted inputs; changing a registry definition's models, phases, or temperature in a way that changes evaluation results.
+- Consumers of results, events, and registry data MUST treat unknown fields as forward-compatible (ignore, don't fail).
+
+**Deprecation:** a renamed or removed surface keeps a working, warning-emitting alias for at least one minor release of every affected SDK.
+
+**Evaluation-behavior changes** (model or prompt updates) are versioned in the registry and communicated in SDK changelogs even when the API is unchanged — users experience a score shift as a breaking change, whatever SemVer says.
+
+---
+
+## Appendix A: Known Conformance Gaps
+
+Tracked deviations between this spec and the current SDKs — each a bug to fix on the road to 1.0, not a precedent.
+
+> **Snapshot as of 2026-08-18.** Several SDK PRs are in flight; refresh this table (and Appendix B) as they land.
+
+| # | Spec section | SDK | Gap | Required change |
+|---|---|---|---|---|
+| 1 | §6.1 | TypeScript | `TimeoutError` instead of `RequestTimeoutError` | Rename |
+| 2 | §6.1 | TypeScript | Single `ValidationError`; no `OutputValidationError` | Split into `InputValidationError` / `OutputValidationError` |
+| 3 | §6.2 | TypeScript | `retryAfter` unsuffixed | Rename to `retryAfterMs` |
+| 4 | §6.2 | Python | `retry_after` in seconds | Rename to `retry_after_ms`, convert to milliseconds |
+| 5 | §5.1 | TypeScript | Flat `score`/`reasoning`/`metadata`/`_internal`; flat `inputTokens`/`outputTokens` | Migrate to envelope; nest `token_usage` |
+| 6 | §5.1 | Python | Bespoke Pydantic result shapes | Migrate to envelope |
+| 7 | §8.3 | Python | `step_details` / `step` naming | Rename to `phase_details` / `phase` |
+| 8 | §6.4 | TypeScript | `wrapProviderError` echoes raw provider messages | Controlled messages + cause preservation |
+| 9 | §6.1 | Python | Legacy `EvaluatorRetryableError` references | Remove aliases not in the taxonomy |
+| 10 | §9.1 | TypeScript | Math Standards Alignment batch unverified against contract | Audit per §9.1 |
+| 11 | §3 | Both | `partner_key` naming; no `telemetry.tracking_key` | Rename to `partner_api_key`; add `tracking_key` |
+| 12 | §10 | Both | No shared registry; evaluator definitions duplicated in each SDK's code | Establish the registry (Q-6) and migrate definitions |
+| 13 | §10.1 | Both | Evaluator IDs are flat (`vocabulary`), not namespaced | Adopt hierarchical IDs once the taxonomy is finalized (Q-7) |
+| 14 | §11.3 | Both | No shared fixture format or cross-SDK harness (Python has an early harness tied to a temporary layout) | Establish fixture format with the registry; build per-language harnesses |
+| 15 | §10.3 | Python | `{format_instructions}` LangChain placeholders remain in prompts | Remove; enforce structured output at the chain layer |
+
+---
+
+## Appendix B: Conformance Matrix
+
+Per-SDK status against §11.2, updated whenever a gap closes or a new SDK lands. ✓ conformant · ◐ partial · ✗ not yet.
+
+> **Snapshot as of 2026-08-18** — refresh alongside Appendix A.
+
+| Criterion | TypeScript | Python |
 |---|---|---|
-| `statusCode` / `status_code` | `int \| null` | HTTP status code from the provider, if available |
-| `retryable` | `bool` | Whether the caller may retry this error |
+| C-1 Config | ◐ (gap 11) | ◐ (gap 11) |
+| C-2 Errors | ✗ (gaps 1–3, 8) | ◐ (gaps 4, 9) |
+| C-3 Input validation | ◐ | ◐ |
+| C-4 Envelope & payload | ✗ (gap 5) | ✗ (gap 6) |
+| C-5 Logging | ✓ | ◐ |
+| C-6 Telemetry | ◐ | ✗ (gap 7) |
+| C-7 Registry rules | ◐ | ◐ |
+| C-8 Registry + fixtures | ✗ (gaps 12–14) | ✗ (gaps 12–14) |
+| C-9 Divergences | ✓ | ✓ |
+| C-10 Spec version declared | ✗ | ✗ |
 
-`RateLimitError` additionally exposes:
+---
 
-| Field | Type | Description |
+## Appendix C: Open Questions
+
+| # | Question | Notes |
 |---|---|---|
-| `retryAfter` / `retry_after` | `int \| null` | Milliseconds to wait before retrying, if the provider returned a value |
-
-### Permitted divergences
-
-| Spec class | TypeScript | Python | Reason |
-|---|---|---|---|
-| `TimeoutError` | `TimeoutError` | `EvaluatorTimeoutError` | `TimeoutError` is a Python 3 builtin |
-
-### Cross-language error name reference
-
-| Spec class | TypeScript | Python | Status |
-|---|---|---|---|
-| `EvaluatorError` | `EvaluatorError` | `EvaluatorError` | ✓ Both |
-| `RetryableError` | `RetryableError` | `RetryableError` | ⚠ Python: rename from `EvaluatorRetryableError`; TS: not yet implemented |
-| `ConfigurationError` | `ConfigurationError` | `ConfigurationError` | ✓ Both |
-| `ValidationError` | `ValidationError` | `ValidationError` | ✓ Both |
-| `APIError` | `APIError` | `APIError` | ✓ Both |
-| `AuthenticationError` | `AuthenticationError` | `AuthenticationError` | ✓ Both |
-| `RateLimitError` | `RateLimitError` | `RateLimitError` | ✓ Both |
-| `NetworkError` | `NetworkError` | `NetworkError` | ✓ Both |
-| `TimeoutError` | `TimeoutError` | `EvaluatorTimeoutError` | ✓ Both (permitted divergence) |
+| Q-1 | Should SDKs read API keys from environment variables as a fallback to explicit config? | UX win for scripts vs. surprise credential pickup in servers; precedence and naming must be canonical if adopted |
+| Q-2 | Payload shape taxonomy — should evaluator families (QTC, feedback, standards alignment, …) share declared payload profiles? | Deliberately deferred (§5.2); revisit once feedback and math evaluator classes mature |
+| Q-3 | Should registry definitions carry a version (prompt/model revision) surfaced in result `metadata`? | Would let users pin/detect evaluation-behavior changes (§12.3) programmatically |
+| Q-4 | Per-rule requirement IDs (OpenFeature-style `[ERR-3]`) | Adopt if fixtures and docs need finer-grained references than section numbers |
+| Q-5 | Timeout defaults and configurability (`timeout_ms` in config?) | `RequestTimeoutError` exists but no canonical timeout knob is specified |
+| Q-6 | Registry home and format: where do shared evaluator definitions and contract fixtures live, and how do SDKs consume them? | Early Python settings/contract-file work is the design input; its temporary layout is not the answer |
+| Q-7 | Evaluator ID taxonomy: finalize the hierarchical scheme (`literacy.ela_reading.vocabulary`) and its segment vocabulary | Blocks gap 13 |
+| Q-8 | `telemetry.tracking_key` semantics: confirm intent (partner-side app/integration segmentation), format, and any validation | Field added in §3 pending confirmation |
 
 ---
 
-## 7. Implementation Rules
+## Appendix D: Spec Changelog
 
-### Model IDs must be pinned to dated snapshots
-
-No floating aliases. If a dated snapshot is not available for a given model, use the most specific stable identifier available and document it.
-
-| Correct | Wrong |
-|---|---|
-| `gpt-4.1-2025-04-14` | `gpt-4.1` |
-| `gpt-4o-2024-11-20` | `gpt-4o` |
-
-### Structured output is the SDK's responsibility
-
-Prompts must not contain LLM framework artifacts (e.g. injected JSON schema descriptions from `JsonOutputParser.get_format_instructions()`). Structured output enforcement belongs at the provider/chain layer.
-
-> **Transitional note:** During the current Python SDK development phase, `{format_instructions}` may remain in prompts as a temporary LangChain compatibility measure. This will be removed when prompts are unified across SDKs and the Python SDK migrates to `.with_structured_output()`.
-
-### FK score
-Where FK score is used (see evaluator specs below), it must be computed using the Flesch-Kincaid Grade Level formula, rounded to 2 decimal places.
-
----
-
-## 8. Evaluator Catalog
-
-### Conventionality
-
-| Property | Value |
-|---|---|
-| ID | `conventionality` |
-| Supported grades | 3–12 |
-| Default providers | `google` |
-| Phases | 1 |
-| Temperature | 0 |
-
-| Phase | Model | Prompt inputs |
+| Version | Date | Changes |
 |---|---|---|
-| `conventionality_evaluation` | `gemini-3-flash-preview` | text, grade, FK score |
-
----
-
-### Vocabulary
-
-| Property | Value |
-|---|---|
-| ID | `vocabulary` |
-| Supported grades | 3–12 |
-| Default providers | `google`, `openai` |
-| Phases | 2 |
-| Temperature | 0 (both phases) |
-
-| Phase | Model | Prompt inputs |
-|---|---|---|
-| `background_knowledge` | `gpt-4o-2024-11-20` | text, grade |
-| `complexity_evaluation` (grades 3–4) | `gemini-2.5-pro` | text, grade, background knowledge, FK score |
-| `complexity_evaluation` (grades 5–12) | `gpt-4.1-2025-04-14` | text, grade, background knowledge |
-
-> FK score is passed to the grades 3–4 complexity prompt only. The grades 5–12 prompt template does not use it.
-
-**`internal` fields (all grades):** `complexity_score`, `reasoning`, `tier_2_words`, `tier_3_words`, `archaic_words`, `other_complex_words`
-
----
-
-### Subject Matter Knowledge (SMK)
-
-| Property | Value |
-|---|---|
-| ID | `subject-matter-knowledge` |
-| Supported grades | 3–12 |
-| Default providers | `google` |
-| Phases | 1 |
-| Temperature | 0 |
-
-| Phase | Model | Prompt inputs |
-|---|---|---|
-| `smk_evaluation` | `gemini-3-flash-preview` | text, grade, FK score |
-
----
-
-### Sentence Structure
-
-| Property | Value |
-|---|---|
-| ID | `sentence-structure` |
-| Supported grades | 3–12 |
-| Default providers | `openai` |
-| Phases | 2 |
-| Temperature | 0 |
-
-*(Full model and prompt details to be confirmed when Python implementation begins)*
-
----
-
-### Grade Level Appropriateness (GLA)
-
-| Property | Value |
-|---|---|
-| ID | `grade-level-appropriateness` |
-| Grade parameter | None — GLA determines grade appropriateness, it does not take a grade as input |
-| Default providers | `google` |
-| Phases | 1 |
-| Temperature | 0.25 |
-
-| Phase | Model | Prompt inputs |
-|---|---|---|
-| `grade_evaluation` | `gemini-2.5-pro` | text |
-
----
-
-## 9. Adding a New Evaluator
-
-Before any implementation begins, the evaluator's entry in section 8 must be written and agreed upon by both SDK authors. The entry must specify: ID, supported grades, required keys, phase names, model IDs (pinned snapshots), prompt inputs, temperature, and `internal` fields.
+| 0.1.0 | 2026-08-18 | Initial formalization: principles, naming + canonical value forms, envelope + payload invariants, canonical error taxonomy, telemetry/logging contracts, optional-capability tier, evaluator registry direction, contract-fixture mechanism, lifecycle & governance |
