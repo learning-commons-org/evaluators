@@ -1,0 +1,131 @@
+name: 📓 Evaluator Notebooks (live, advisory)
+
+# Executes evaluator notebooks affected by a PR against real LLM APIs.
+#
+# Advisory only, by design: this job ALWAYS exits 0, regardless of whether any
+# notebook failed to execute. It reports pass/fail per notebook in the job
+# summary so the PR author can review, but a flaky or failing model call must
+# never block a merge on its own. If you want this to gate merges, that is a
+# branch-protection decision to make deliberately, not a default here.
+#
+# "Affected" is computed from each evaluator's own config.json -- the prompt
+# files it declares (source_path), its input/output schema $refs, and its
+# fixtures path -- not a hand-maintained list. See
+# scripts/notebook_ci/find_affected.py.
+#
+# Scope: only evaluators with a config.json (the shared contract). Legacy
+# prompt-only evaluators (still at evals/prompts/**, no config.json) are not
+# covered -- consistent with every other repo check, which also only sees the
+# config-contract evaluators today.
+
+on:
+  pull_request:
+    paths:
+      - "evals/**"
+      - ".github/workflows/eval-notebooks.yml"
+      - "scripts/notebook_ci/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-affected-notebooks:
+    name: Run affected notebooks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install evaluator dependencies
+        run: pip install -r evals/requirements.txt
+
+      - name: Register Jupyter kernel
+        run: python -m ipykernel install --user --name python3 --display-name python3
+
+      - name: Find changed files
+        id: diff
+        run: |
+          git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}" > /tmp/changed-files.txt
+          echo "--- changed files ---"
+          cat /tmp/changed-files.txt
+
+      - name: Find affected notebooks
+        id: affected
+        run: |
+          AFFECTED=$(python3 scripts/notebook_ci/find_affected.py --changed-files-from /tmp/changed-files.txt)
+          echo "notebooks=$AFFECTED" >> "$GITHUB_OUTPUT"
+          echo "--- affected notebooks ---"
+          echo "$AFFECTED"
+
+      - name: Execute affected notebooks
+        if: steps.affected.outputs.notebooks != '[]'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set +e  # never let a single notebook's failure stop the loop or fail the job
+          echo "## 📓 Evaluator notebook execution (advisory)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Notebook | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+
+          mkdir -p /tmp/notebook-runs
+          FAIL_COUNT=0
+
+          python3 -c "import json; print('\n'.join(json.load(open('/dev/stdin'))))" <<< '${{ steps.affected.outputs.notebooks }}' > /tmp/affected-notebooks.txt
+
+          while IFS= read -r NB; do
+            [ -z "$NB" ] && continue
+            NB_DIR=$(dirname "$NB")
+            NB_FILE=$(basename "$NB")
+            OUT_NAME=$(echo "$NB" | tr '/' '_')
+
+            echo "::group::Executing $NB"
+            (cd "$NB_DIR" && jupyter nbconvert --to notebook --execute \
+              --ExecutePreprocessor.timeout=600 \
+              --ExecutePreprocessor.kernel_name=python3 \
+              --output "/tmp/notebook-runs/$OUT_NAME" "$NB_FILE")
+            STATUS=$?
+            echo "::endgroup::"
+
+            if [ $STATUS -eq 0 ]; then
+              echo "| \`$NB\` | ✅ pass |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "| \`$NB\` | ❌ fail (exit $STATUS) |" >> "$GITHUB_STEP_SUMMARY"
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+            fi
+          done < /tmp/affected-notebooks.txt
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$FAIL_COUNT" -gt 0 ]; then
+            echo "$FAIL_COUNT notebook(s) failed. This check is advisory and does not block the PR -- please review before merging." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "All affected notebooks executed successfully." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          exit 0  # advisory: never fail the job itself
+
+      - name: No affected notebooks
+        if: steps.affected.outputs.notebooks == '[]'
+        run: echo "No evaluator notebooks affected by this PR." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload executed notebooks
+        if: always() && steps.affected.outputs.notebooks != '[]'
+        uses: actions/upload-artifact@v4
+        with:
+          name: executed-notebooks
+          path: /tmp/notebook-runs/
+          if-no-files-found: ignore
+          retention-days: 14
