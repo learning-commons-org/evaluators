@@ -36,6 +36,7 @@ jobs:
   run-affected-notebooks:
     name: Run affected notebooks
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -66,10 +67,10 @@ jobs:
       - name: Find affected notebooks
         id: affected
         run: |
-          AFFECTED=$(python3 scripts/notebook_ci/find_affected.py --changed-files-from /tmp/changed-files.txt)
-          echo "notebooks=$AFFECTED" >> "$GITHUB_OUTPUT"
+          python3 scripts/notebook_ci/find_affected.py --changed-files-from /tmp/changed-files.txt > /tmp/affected-notebooks.json
+          echo "notebooks=$(cat /tmp/affected-notebooks.json)" >> "$GITHUB_OUTPUT"
           echo "--- affected notebooks ---"
-          echo "$AFFECTED"
+          cat /tmp/affected-notebooks.json
 
       - name: Execute affected notebooks
         if: steps.affected.outputs.notebooks != '[]'
@@ -87,7 +88,7 @@ jobs:
           mkdir -p /tmp/notebook-runs
           FAIL_COUNT=0
 
-          python3 -c "import json; print('\n'.join(json.load(open('/dev/stdin'))))" <<< '${{ steps.affected.outputs.notebooks }}' > /tmp/affected-notebooks.txt
+          python3 -c "import json; print('\n'.join(json.load(open('/tmp/affected-notebooks.json'))))" > /tmp/affected-notebooks.txt
 
           while IFS= read -r NB; do
             [ -z "$NB" ] && continue

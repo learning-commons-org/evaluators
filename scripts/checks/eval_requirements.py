@@ -59,14 +59,23 @@ TRANSITIVE_OR_LOCAL = {
 }
 
 
+_NAME_RE = re.compile(r"^[A-Za-z0-9._-]+")
+
+
 def _requirements() -> dict[str, str]:
-    """package name -> import name, skipping comments/blank lines."""
+    """package name -> import name, skipping comments/blank lines.
+
+    Strips version specifiers/extras/markers (e.g. `pydantic>=2.0` ->
+    `pydantic`) before mapping, so a pin doesn't produce a package name
+    that can never match an import.
+    """
     with open(REQUIREMENTS_PATH, encoding="utf-8") as f:
-        names = [
+        raw = [
             line.strip()
             for line in f
             if line.strip() and not line.strip().startswith("#")
         ]
+    names = [m.group(0) for line in raw if (m := _NAME_RE.match(line))]
     return {name: IMPORT_NAME.get(name, name.replace("-", "_")) for name in names}
 
 
@@ -84,14 +93,21 @@ def _top_level_imports(source: str) -> set[str]:
     return names
 
 
+def _tracked_evals_files(suffix: str) -> set[str]:
+    """`evals/**/*<suffix>` misses files directly in evals/ -- git's glob
+    pathspec requires `**` to span at least one directory. Union with the
+    top-level pattern so `evals/*.py` files aren't silently skipped."""
+    return set(tracked_files(f"evals/*{suffix}")) | set(tracked_files(f"evals/**/*{suffix}"))
+
+
 def _scan_evals_imports() -> set[str]:
     found = set()
 
-    for path in tracked_files("evals/**/*.py"):
+    for path in sorted(_tracked_evals_files(".py")):
         with open(path, encoding="utf-8") as f:
             found |= _top_level_imports(f.read())
 
-    for path in tracked_files("evals/**/*.ipynb"):
+    for path in sorted(_tracked_evals_files(".ipynb")):
         try:
             with open(path, encoding="utf-8") as f:
                 nb = json.load(f)
