@@ -11,10 +11,16 @@ each evaluator's own config.json (no hand-maintained map to drift):
   - input_schema / output_schema $ref targets
   - fixtures.path
 
-The notebook to run is whichever *.ipynb sits in the config's own directory;
-if none is found there, we look one directory up, for evaluators that share
-one notebook across sibling configs (e.g. Vocabulary's grades-3-4/ and
-other-grades/ both point at the shared example_notebook.ipynb one level up).
+The notebook to run is found in one of three places, checked in order:
+  1. Co-located with config.json.
+  2. One directory up, for evaluators that share one notebook across sibling
+     configs (e.g. Vocabulary's grades-3-4/ and other-grades/ both point at
+     the shared example_notebook.ipynb one level up).
+  3. Climbing all the way to evals/, matching by name: a legacy notebook like
+     evals/purpose_evaluator.ipynb for evals/prompts/purpose/config.json,
+     matched because "purpose" (the config's own directory name) appears in
+     the notebook's filename. Needed because not every evaluator has been
+     migrated onto the co-located-notebook convention yet.
 
 Usage:
     python3 scripts/notebook_ci/find_affected.py --changed-files-from FILE
@@ -28,6 +34,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -76,20 +83,49 @@ def config_closure(cfg_path: str) -> set[str]:
     return closure
 
 
+def _name_key(name: str) -> str:
+    """Normalize a directory or notebook stem for loose name matching:
+    lowercase, strip a trailing _evaluator/-evaluator suffix, drop
+    separators. "purpose" and "purpose_evaluator" both become "purpose"."""
+    stem = re.sub(r"\.ipynb$", "", name, flags=re.IGNORECASE)
+    stem = re.sub(r"[-_]?evaluator$", "", stem, flags=re.IGNORECASE)
+    return re.sub(r"[-_]", "", stem).lower()
+
+
 def notebook_for(cfg_path: str) -> str | None:
-    """The notebook that exercises this config: co-located, or one directory up
-    for a notebook shared across sibling configs."""
+    """The notebook that exercises this config, checked in three tiers (see
+    module docstring): co-located, one directory up, or name-matched while
+    climbing to evals/."""
     base = os.path.dirname(cfg_path)
+
     own = tracked_files(os.path.join(base, "*.ipynb"))
     if own:
         return own[0]
 
     parent = os.path.dirname(base)
     shared = tracked_files(os.path.join(parent, "*.ipynb"))
-    return shared[0] if shared else None
+    if shared:
+        return shared[0]
+
+    target_key = _name_key(os.path.basename(base))
+    climb = parent
+    while climb and climb.startswith("evals"):
+        for candidate in tracked_files(os.path.join(climb, "*.ipynb")):
+            if _name_key(os.path.basename(candidate)) == target_key:
+                return candidate
+        if climb == "evals":
+            break
+        climb = os.path.dirname(climb)
+
+    return None
 
 
 def find_affected(changed_files: set[str]) -> list[str]:
+    # Callers may pass paths with "./" or ".." segments (or, off of git,
+    # OS-specific separators); normalize so the intersection check below
+    # matches config_closure()'s already-normalized entries.
+    changed = {os.path.normpath(f) for f in changed_files}
+
     affected: dict[str, set[str]] = {}  # notebook path -> union of closures that hit it
 
     for cfg_path in evaluator_configs():
@@ -98,7 +134,7 @@ def find_affected(changed_files: set[str]) -> list[str]:
             continue  # config-only evaluator, nothing to execute
 
         closure = config_closure(cfg_path) | {notebook}
-        if closure & changed_files:
+        if closure & changed:
             affected.setdefault(notebook, set()).update(closure)
 
     return sorted(affected.keys())
