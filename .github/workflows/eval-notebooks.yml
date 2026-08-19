@@ -78,6 +78,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          KG_API_KEY: ${{ secrets.KG_API_KEY }}
         run: |
           set +e  # never let a single notebook's failure stop the loop or fail the job
           echo "## 📓 Evaluator notebook execution (advisory)" >> "$GITHUB_STEP_SUMMARY"
