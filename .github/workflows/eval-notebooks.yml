@@ -33,7 +33,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  run-affected-notebooks:
+  affected-notebooks-check:
     name: Affected notebooks check
     runs-on: ubuntu-latest
     timeout-minutes: 30
