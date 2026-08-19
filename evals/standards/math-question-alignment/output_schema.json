@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "math_standards_alignment_output_schema.json",
+  "title": "temp-smoke-test-remove-me",
   "type": "object",
   "required": ["statementCode", "learningComponents", "alignedCount", "totalCount"],
   "additionalProperties": false,
