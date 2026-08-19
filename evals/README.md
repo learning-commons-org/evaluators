@@ -11,7 +11,6 @@
   | Subject Matter Knowledge    | [Jupyter Notebook](./smk_evaluator.ipynb)                | [Prompts](./prompts/subject-matter-knowledge/)    |
   | Conventionality             | [Jupyter Notebook](./conventionality_evaluator.ipynb)    | [Prompts](./prompts/conventionality/)             |
   | Purpose                     | [Jupyter Notebook](./purpose_evaluator.ipynb)            | [Prompts](./prompts/purpose/)                     |
-  | Text complexity (combo)     | [Jupyter Notebook](./text_complexity_combo.ipynb)        |                                                   |
 
 ## Requirements
 
