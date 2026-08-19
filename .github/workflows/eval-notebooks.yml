@@ -50,6 +50,9 @@ jobs:
       - name: Install evaluator dependencies
         run: pip install -r evals/requirements.txt
 
+      - name: Verify installed dependencies are consistent
+        run: pip check
+
       - name: Register Jupyter kernel
         run: python -m ipykernel install --user --name python3 --display-name python3
 

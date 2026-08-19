@@ -1,16 +1,13 @@
 # requirements.txt
-langchain
 langchain-google-genai
 langchain-openai
 anthropic
+requests
 textstat
 python-dotenv
-numpy
-pandas
 pydantic
 # The following is for the jupyter notebook support:
 jupyter
 nbconvert
 ipykernel
-python-language-server
 python-lsp-server

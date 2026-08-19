@@ -40,6 +40,7 @@ fails the PR (it never auto-fixes) — so fixing locally saves a round-trip.
 | `eval-schemas` | Meta-validates each `input_schema.json` / `output_schema.json` is a well-formed JSON Schema document |
 | `eval-fixtures` | Validates `fixtures.json` against the shared `evals/_schemas/fixtures.schema.json`, and binds each case's `input`/`expected` to that evaluator's own input/output schema |
 | `eval-notebook` | Where an evaluator ships an example notebook, confirms it loads the config + prompt files from disk rather than hardcoding them |
+| `eval-requirements` | Cross-checks `evals/requirements.txt` against imports actually used in `evals/`, in both directions: something imported with no matching entry (a missing dependency), and something listed but never imported (a stale one) |
 
 ## Coming next
 
