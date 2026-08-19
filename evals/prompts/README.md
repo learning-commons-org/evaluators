@@ -5,7 +5,7 @@ In this folder, you will find prompt files designed for evaluating text complexi
 
 ### Grade Level Appropriateness
 
-Now lives at [`evals/literacy/grade-level-appropriateness/`](../literacy/grade-level-appropriateness/), alongside the `config.json` that pins its model, prompts, schemas and fixtures.
+Now lives at [`evals/literacy/ela-reading/grade-level-appropriateness/`](../literacy/ela-reading/grade-level-appropriateness/), alongside the `config.json` that pins its model, prompts, schemas and fixtures.
 
 ### Subject Matter Knowledge Evaluator
 

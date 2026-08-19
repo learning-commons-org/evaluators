@@ -1,5 +1,5 @@
-import SYSTEM_PROMPT_TEMPLATE from '../../../../../evals/literacy/grade-level-appropriateness/system.txt';
-import USER_PROMPT_TEMPLATE from '../../../../../evals/literacy/grade-level-appropriateness/user.txt';
+import SYSTEM_PROMPT_TEMPLATE from '../../../../../evals/literacy/ela-reading/grade-level-appropriateness/system.txt';
+import USER_PROMPT_TEMPLATE from '../../../../../evals/literacy/ela-reading/grade-level-appropriateness/user.txt';
 
 /**
  * Get the system prompt for grade level appropriateness evaluation
