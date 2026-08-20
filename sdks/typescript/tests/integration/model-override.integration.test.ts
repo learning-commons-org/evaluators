@@ -15,9 +15,13 @@ import { Provider } from '../../src/evaluators/base.js';
  * ```
  */
 
-// Both required: with `&&` this ran whenever RUN_INTEGRATION_TESTS was set and
-// failed on the missing key instead of skipping.
-const RUN_INTEGRATION = process.env.RUN_INTEGRATION_TESTS === 'true' && !!process.env.OPENAI_API_KEY;
+const RUN_INTEGRATION = process.env.RUN_INTEGRATION_TESTS === 'true';
+
+// A missing key when integration tests were explicitly requested is a
+// misconfiguration, not a reason to quietly pass — matches batch/anthropic-provider.
+if (RUN_INTEGRATION && !process.env.OPENAI_API_KEY) {
+  throw new Error('OPENAI_API_KEY is required when RUN_INTEGRATION_TESTS is set');
+}
 
 const describeIntegration = RUN_INTEGRATION ? describe : describe.skip;
 
