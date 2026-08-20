@@ -1,8 +1,10 @@
 {
   "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "literacy.gla.organizational_structure",
-    "name": "Organizational Structure Dimension Text Complexity Evaluator",
+    "id": "student_facing_text.ela_reading.organizational_structure",
+    "stable_id": "3f7baf20-fe3b-4508-9ea8-c75d49f1b8f5",
+    "id_history": ["literacy.gla.organizational_structure"],
+    "name": "Organizational Structure Evaluator",
     "description": "Evaluates the Organizational Structure dimension of qualitative text complexity for grades 3-12 reading assessment, producing a 4-level rubric rating with structured pedagogical detail.",
     "supported_grades": [
       "3",
