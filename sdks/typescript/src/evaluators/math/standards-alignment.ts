@@ -38,6 +38,23 @@ export interface StandardAlignmentResult {
   alignedCount: number;
   totalCount: number;
   coarseFiltered?: boolean;
+  /**
+   * Set when this pair could not be evaluated. Produced only by evaluateItems and
+   * evaluateByGrade; evaluate() throws instead.
+   *
+   * Not evidence of non-alignment: alignedCount is 0 because nothing was
+   * measured, not because nothing aligned.
+   *
+   * `code` and `name` are both carried because subclasses can share a code, and a
+   * report grouping failures by kind needs the narrower one.
+   */
+  error?: {
+    message: string;
+    code?: string;
+    name?: string;
+    statusCode?: number;
+    retryable?: boolean;
+  };
 }
 
 export interface QuestionItem {
@@ -45,11 +62,15 @@ export interface QuestionItem {
   statementCodes: string[];
 }
 
+/** One question's results. `error` is set when the question itself could not be used. */
+export interface QuestionResult {
+  question: string;
+  standards: StandardAlignmentResult[];
+  error?: StandardAlignmentResult['error'];
+}
+
 export interface QuestionBankResult {
-  byQuestion: Array<{
-    question: string;
-    standards: StandardAlignmentResult[];
-  }>;
+  byQuestion: QuestionResult[];
   byStandard: Array<{
     statementCode: string;
     coveredBy: Array<{
@@ -58,10 +79,25 @@ export interface QuestionBankResult {
       totalCount: number;
     }>;
     coverageCount: number;
+    /**
+     * Denominators for coverageCount. The four sum to the number of questions, so a
+     * zero coverageCount can be attributed: measured and unaligned (evaluatedCount),
+     * never measured (errorCount, filteredCount, noComponentsCount).
+     */
+    evaluatedCount: number;
+    errorCount: number;
+    filteredCount: number;
+    /** Standard exists but nothing is authored against it, so nothing was measurable. */
+    noComponentsCount: number;
   }>;
 }
 
 export interface QuestionBankOptions {
+  /**
+   * Max concurrent LLM calls for this call only. Omit to share the evaluator-wide
+   * limit (config.concurrency); supplying it lets N concurrent calls each run this
+   * many in flight.
+   */
   concurrency?: number;
   useCoarseFilter?: boolean;
   onProgress?: (completed: number, total: number) => void;
@@ -97,6 +133,19 @@ const KG_SUBJECT = 'Mathematics';
  */
 const BY_GRADE_WARN_PAIRS = 500;
 
+/** Flattens a thrown value into the reportable shape, keeping what a report can group on. */
+function describeFailure(err: unknown): NonNullable<StandardAlignmentResult['error']> {
+  if (!(err instanceof Error)) return { message: String(err) };
+  const api = err as Partial<APIError>;
+  return {
+    message: err.message,
+    name: err.name,
+    ...(err instanceof EvaluatorError && err.code ? { code: err.code } : {}),
+    ...(typeof api.statusCode === 'number' ? { statusCode: api.statusCode } : {}),
+    ...(typeof api.retryable === 'boolean' ? { retryable: api.retryable } : {}),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Evaluator
 // ---------------------------------------------------------------------------
@@ -113,7 +162,8 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
   private readonly kgClient: KnowledgeGraphClient;
   private readonly detailProvider: LLMProvider;
   private readonly coarseProvider: LLMProvider;
-  private readonly llmConcurrency: number;
+  // Instance-wide so concurrent evaluateItems calls share one budget.
+  private readonly llmLimit: ReturnType<typeof pLimit>;
 
   constructor(config: MathStandardsAlignmentEvaluatorConfig) {
     // If partnerKey isn't set, fall back to platformApiKey — same LC platform key,
@@ -127,7 +177,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     }
 
     this.kgClient = config._kgClient ?? new KnowledgeGraphClient(config.platformApiKey!, config.kgConcurrency ?? 20);
-    this.llmConcurrency = config.concurrency ?? 10;
+    this.llmLimit = pLimit(config.concurrency ?? 10);
 
     this.detailProvider = this.createConfiguredProvider(
       Provider.Anthropic,
@@ -169,17 +219,31 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     items: QuestionItem[],
     jurisdiction: Jurisdiction,
     options?: QuestionBankOptions,
-  ): Promise<Array<{ question: string; standards: StandardAlignmentResult[] }>> {
+  ): Promise<QuestionResult[]> {
     if (items.length === 0) return [];
-    items.forEach((item) => this.validateQuestion(item.question));
 
-    const dedupedItems = items.map((item) => ({
-      question: item.question,
-      statementCodes: [...new Set(item.statementCodes)],
-    }));
+    // Per item, not a precondition for the whole call — an invalid item's
+    // standards come back carrying the error.
+    const dedupedItems = items.map((item) => {
+      let validationError: EvaluatorError | undefined;
+      try {
+        this.validateQuestion(item.question);
+      } catch (err) {
+        // Only a domain error is a per-item validation failure. Anything else is a
+        // bug here, and turning it into a ValidationError would report it as bad
+        // user input.
+        if (!(err instanceof EvaluatorError)) throw err;
+        validationError = err;
+      }
+      return {
+        question: item.question,
+        statementCodes: [...new Set(item.statementCodes)],
+        validationError,
+      };
+    });
 
     const useCoarseFilter = options?.useCoarseFilter ?? false;
-    const bankLimit = pLimit(options?.concurrency ?? this.llmConcurrency);
+    const bankLimit = options?.concurrency != null ? pLimit(options.concurrency) : this.llmLimit;
 
     // Pre-fetch LC data for all unique codes — needed to report totalCount on coarse-filtered results.
     const allCodes = [...new Set(dedupedItems.flatMap((i) => i.statementCodes))];
@@ -196,13 +260,20 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       );
     }
 
-    // Coarse filter: per-item, against that item's own statementCodes.
+    // Coarse filter: per-item, against that item's own statementCodes. Invalid
+    // items get an empty set so they stay out of the progress denominator.
     let relevanceMaps: Map<number, Set<string>>;
     if (!useCoarseFilter) {
-      relevanceMaps = new Map(dedupedItems.map((item, i) => [i, new Set(item.statementCodes)]));
+      relevanceMaps = new Map(
+        dedupedItems.map((item, i) => [i, item.validationError ? new Set<string>() : new Set(item.statementCodes)]),
+      );
     } else {
       const filterResults = await Promise.all(
-        dedupedItems.map((item) => bankLimit(() => this.runCoarseFilter(item.question, item.statementCodes, jurisdiction))),
+        dedupedItems.map((item) =>
+          item.validationError
+            ? Promise.resolve(new Set<string>())
+            : bankLimit(() => this.runCoarseFilter(item.question, item.statementCodes, jurisdiction)),
+        ),
       );
       relevanceMaps = new Map(dedupedItems.map((_, i) => [i, filterResults[i]]));
     }
@@ -210,11 +281,29 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     const total = dedupedItems.reduce((sum, _, i) => sum + (relevanceMaps.get(i)?.size ?? 0), 0);
     let completed = 0;
 
-    const settled = await Promise.allSettled(
+    // Failures are isolated to the pair that caused them.
+    return Promise.all(
       dedupedItems.map(async (item, i) => {
+        if (item.validationError) {
+          const failure = describeFailure(item.validationError);
+          return {
+            question: item.question,
+            // Also at item level: an item with no statement codes has nowhere else to
+            // carry the failure, and the question itself is what failed.
+            error: failure,
+            standards: item.statementCodes.map((statementCode) => ({
+              statementCode,
+              learningComponents: [],
+              alignedCount: 0,
+              totalCount: 0,
+              error: failure,
+            })),
+          };
+        }
+
         const relevant = relevanceMaps.get(i) ?? new Set(item.statementCodes);
 
-        const standardSettled = await Promise.allSettled(
+        const standards = await Promise.all(
           item.statementCodes.map(async (code): Promise<StandardAlignmentResult> => {
             if (!relevant.has(code)) {
               const cached = lcCache.get(code);
@@ -226,33 +315,32 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
                 coarseFiltered: true,
               };
             }
-            const result = await bankLimit(() => this._evaluateCore(item.question, code, jurisdiction));
+            let result: StandardAlignmentResult;
+            try {
+              result = await bankLimit(() => this._evaluateCore(item.question, code, jurisdiction));
+            } catch (err) {
+              result = {
+                statementCode: code,
+                learningComponents: [],
+                alignedCount: 0,
+                // Report the real component count when the pre-fetch knows it, so an
+                // errored pair is not mistaken for a standard with no components.
+                totalCount: lcCache.get(code)?.components.length ?? 0,
+                error: describeFailure(err),
+              };
+            }
+
+            // Outside the try: counting inside it let a throwing callback discard a
+            // finished result, count the pair twice, and reject the whole call.
             completed++;
-            options?.onProgress?.(completed, total);
+            this.notifyProgress(options?.onProgress, completed, total);
             return result;
           }),
         );
 
-        const errors = standardSettled
-          .filter((s): s is PromiseRejectedResult => s.status === 'rejected')
-          .map((s) => s.reason instanceof Error ? s.reason : new Error(String(s.reason)));
-        if (errors.length > 0) throw errors[0];
-
-        return {
-          question: item.question,
-          standards: standardSettled.map((s) =>
-            s.status === 'fulfilled' ? s.value : { statementCode: '', learningComponents: [], alignedCount: 0, totalCount: 0 }
-          ),
-        };
+        return { question: item.question, standards };
       }),
     );
-
-    const errors = settled
-      .filter((s): s is PromiseRejectedResult => s.status === 'rejected')
-      .map((s) => s.reason instanceof Error ? s.reason : new Error(String(s.reason)));
-    if (errors.length > 0) throw errors[0];
-
-    return (settled as Array<PromiseFulfilledResult<{ question: string; standards: StandardAlignmentResult[] }>>).map((s) => s.value);
   }
 
   // -------------------------------------------------------------------------
@@ -308,12 +396,34 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     const byQuestion = await this.evaluateItems(items, jurisdiction, options);
 
     const byStandard = codes.map((code) => {
-      const coveredBy = byQuestion.flatMap(({ question, standards }) => {
-        const result = standards.find((s) => s.statementCode === code);
-        if (!result || result.alignedCount === 0) return [];
+      const results = byQuestion.map(({ question, standards }) => ({
+        question,
+        result: standards.find((s) => s.statementCode === code),
+      }));
+
+      const coveredBy = results.flatMap(({ question, result }) => {
+        // An errored pair measured nothing, so it is neither coverage nor
+        // evidence against it.
+        if (!result || result.error || result.alignedCount === 0) return [];
         return [{ question, alignedCount: result.alignedCount, totalCount: result.totalCount }];
       });
-      return { statementCode: code, coveredBy, coverageCount: coveredBy.length };
+
+      return {
+        statementCode: code,
+        coveredBy,
+        coverageCount: coveredBy.length,
+        // totalCount > 0 required: a standard with no learning components measured
+        // nothing, so counting it as evaluated would make "0 aligned of 1 evaluated"
+        // read as a judgement rather than an absence of data.
+        evaluatedCount: results.filter(
+          ({ result }) => result && !result.error && !result.coarseFiltered && result.totalCount > 0,
+        ).length,
+        errorCount: results.filter(({ result }) => result?.error).length,
+        filteredCount: results.filter(({ result }) => result?.coarseFiltered).length,
+        noComponentsCount: results.filter(
+          ({ result }) => result && !result.error && !result.coarseFiltered && result.totalCount === 0,
+        ).length,
+      };
     });
 
     return { byQuestion, byStandard };
@@ -515,6 +625,23 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         error: err instanceof Error ? err : new Error(String(err)),
       });
       return new Set(statementCodes);
+    }
+  }
+
+  /** A caller's progress callback must not be able to fail an evaluation. */
+  private notifyProgress(
+    onProgress: ((completed: number, total: number) => void) | undefined,
+    completed: number,
+    total: number,
+  ): void {
+    if (!onProgress) return;
+    try {
+      onProgress(completed, total);
+    } catch (err) {
+      this.logger.warn('onProgress callback threw; continuing', {
+        evaluator: EVALUATOR_ID,
+        error: err instanceof Error ? err : new Error(String(err)),
+      });
     }
   }
 

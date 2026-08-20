@@ -103,6 +103,7 @@ export {
   type StandardAlignmentResult,
   type QuestionItem,
   type QuestionBankResult,
+  type QuestionResult,
   type QuestionBankOptions,
   Provider,
   type BaseEvaluatorConfig,
