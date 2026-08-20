@@ -1,5 +1,5 @@
-import SYSTEM_PROMPT from '../../../../../evals/prompts/subject-matter-knowledge/system.txt';
-import USER_PROMPT_TEMPLATE from '../../../../../evals/prompts/subject-matter-knowledge/user.txt';
+import SYSTEM_PROMPT from '../../../../../evals/student-facing-text/ela-reading/background-knowledge-demands/system.txt';
+import USER_PROMPT_TEMPLATE from '../../../../../evals/student-facing-text/ela-reading/background-knowledge-demands/user.txt';
 
 /**
  * Get the SMK evaluator system prompt
@@ -17,6 +17,6 @@ export function getSystemPrompt(): string {
 export function getUserPrompt(text: string, grade: string, fkScore: number): string {
   return USER_PROMPT_TEMPLATE
     .replaceAll('{text}', text)
-    .replaceAll('{grade}', grade)
+    .replaceAll('{grade_level}', grade)
     .replaceAll('{fk_score}', fkScore.toString());
 }

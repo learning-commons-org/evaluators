@@ -1,0 +1,14 @@
+[
+  {
+    "id": "hydraulic_propulsion",
+    "description": "Grade 10 explanation of hydraulic propulsion via physical mechanism; one of the rubric's own calibration examples for Very Complex.",
+    "source": "Calibration example embedded in system.txt's own rubric (Section 3).",
+    "input": {
+      "text": "Hydraulic propulsion works by sucking water at the bow and forcing it sternward. The reaction from this forced water is what propels the vessel through the water at speed.",
+      "grade_level": "10"
+    },
+    "expected": {
+      "complexity_score": "very_complex"
+    }
+  }
+]
