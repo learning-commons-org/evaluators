@@ -12,6 +12,7 @@
   | Conventionality             | [Jupyter Notebook](./conventionality_evaluator.ipynb)    | [Prompts](./prompts/conventionality/)             |
   | Purpose                     | [Jupyter Notebook](./purpose_evaluator.ipynb)            | [Prompts](./prompts/purpose/)                     |
   | Organizational Structure    | [Jupyter Notebook](./student-facing-text/ela-reading/organizational-structure/example_notebook.ipynb) | [Prompts](./student-facing-text/ela-reading/organizational-structure/) |
+  | Reference Knowledge Demands | [Jupyter Notebook](./student-facing-text/ela-reading/reference-knowledge-demands/example_notebook.ipynb) | [Prompts](./student-facing-text/ela-reading/reference-knowledge-demands/) |
 
 ## Requirements
 
