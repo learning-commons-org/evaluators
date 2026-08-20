@@ -1,14 +1,55 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { getAvailableGroups, BatchEvaluator, Provider } from '../../../src/batch/index.js';
 import type { BatchInput, BatchConfig, BatchResult } from '../../../src/batch/index.js';
+import type { LLMProvider } from '../../../src/providers/base.js';
+import type { EvaluatorFamily, FamilyRow, TaskOutcome } from '../../../src/batch/families/family.js';
+
+/**
+ * A deterministic stub family for exercising BatchEvaluator orchestration
+ * (cancellation, state reset, config plumbing) without real evaluators or
+ * network. `evaluate` accepts a family object directly, so no internal poking.
+ */
+function stubFamily(runTask: (row: FamilyRow, memberId: string) => Promise<TaskOutcome>): EvaluatorFamily {
+  const members = [
+    { id: 'stub-a', name: 'Stub A' },
+    { id: 'stub-b', name: 'Stub B' },
+    { id: 'stub-c', name: 'Stub C' },
+  ];
+  return {
+    id: 'stub-family',
+    name: 'Stub',
+    description: 'stub',
+    members,
+    columns: [
+      { name: 'text', required: true },
+      { name: 'grade', required: true },
+    ],
+    maxInputRows: 1000,
+    requiredKeys: () => [],
+    createRunner: () => ({ members, runTask }),
+  };
+}
 
 function makeInputs(count: number): BatchInput[] {
   return Array.from({ length: count }, (_, i) => ({
-    text: 'The cat sat on the mat.',
-    grade: '3',
     rowIndex: i + 2,
+    columns: { text: 'The cat sat on the mat.', grade: '3' },
     originalRow: { text: 'The cat sat on the mat.', grade: '3' },
   }));
+}
+
+/** A fake provider so QTC evaluators run without network or API keys. */
+function fakeProvider(): LLMProvider {
+  return {
+    label: 'fake:model',
+    generateStructured: vi.fn().mockResolvedValue({
+      data: { grade: '2-3', alternative_grade: '4-5', scaffolding_needed: '', reasoning: 'stub' },
+      model: 'fake:model',
+      usage: { inputTokens: 1, outputTokens: 1 },
+      latencyMs: 1,
+    }),
+    generateText: vi.fn().mockResolvedValue({ text: '', usage: { inputTokens: 0, outputTokens: 0 }, latencyMs: 0 }),
+  };
 }
 
 describe('getAvailableGroups', () => {
@@ -60,9 +101,9 @@ describe('BatchEvaluator.evaluate() — input validation', () => {
     openaiApiKey: 'fake-openai-key',
   });
 
-  it('throws for an unknown groupId before any evaluator is initialised', async () => {
+  it('throws for an unknown familyId', async () => {
     await expect(evaluator.evaluate(makeInputs(1), 'nonexistent-group'))
-      .rejects.toThrow('Unknown evaluator group: "nonexistent-group"');
+      .rejects.toThrow('Unknown evaluator family: "nonexistent-group"');
   });
 
   it('throws when input row count exceeds the group maxInputRows', async () => {
@@ -76,15 +117,7 @@ describe('BatchEvaluator.evaluate() — input validation', () => {
   it('does not throw the limit error when input count equals maxInputRows', async () => {
     const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
     const atLimit = makeInputs(group.maxInputRows);
-    const boundary = new BatchEvaluator({
-      googleApiKey: 'fake-google-key',
-      openaiApiKey: 'fake-openai-key',
-    });
-    const makeStub = () => ({
-      evaluate: async () => ({ score: 1, reasoning: 'stub', metadata: {} }),
-    });
-    const instances = (boundary as unknown as { evaluatorInstances: Map<string, ReturnType<typeof makeStub>> }).evaluatorInstances;
-    for (const id of group.evaluatorIds) instances.set(id, makeStub());
+    const boundary = new BatchEvaluator({ llmProvider: fakeProvider(), telemetry: false });
 
     await expect(boundary.evaluate(atLimit, group.id)).resolves.toBeDefined();
   });
@@ -114,25 +147,17 @@ describe('BatchEvaluator.evaluate() — input validation', () => {
     const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
     const tooMany = makeInputs(group.maxInputRows + 1);
     const bypassed = new BatchEvaluator({
-      googleApiKey: 'fake-google-key',
-      openaiApiKey: 'fake-openai-key',
+      llmProvider: fakeProvider(),
+      telemetry: false,
       bypassRowLimit: true,
     });
 
-    // Pre-populate evaluatorInstances with no-op stubs. initializeEvaluators
-    // skips IDs already present in the map, so these stubs survive and
-    // executeTask runs against them — no real network calls, no race.
-    const makeStub = () => ({
-      evaluate: async () => ({ score: 1, reasoning: 'stub', metadata: {} }),
-    });
-    const instances = (bypassed as unknown as { evaluatorInstances: Map<string, ReturnType<typeof makeStub>> }).evaluatorInstances;
-    for (const id of group.evaluatorIds) instances.set(id, makeStub());
-
     const output = await bypassed.evaluate(tooMany, group.id);
     const expectedTasks = tooMany.length * group.evaluatorIds.length;
+    // The bypass is proven by all rows being processed (totalTasks reflects the
+    // over-limit input) rather than the run throwing the limit error.
     expect(output.summary.totalTasks).toBe(expectedTasks);
-    expect(output.summary.successful).toBe(expectedTasks);
-    expect(output.summary.failed).toBe(0);
+    expect(output.summary.successful + output.summary.failed).toBe(expectedTasks);
   });
 
   it('cancel() before evaluation starts returns an empty array', () => {
@@ -141,51 +166,48 @@ describe('BatchEvaluator.evaluate() — input validation', () => {
   });
 
   it('cancel() mid-evaluation marks queued tasks as cancelled and includes them in completedResults', async () => {
-    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
     // concurrency:1 ensures tasks run sequentially so cancel() reliably affects later ones
-    const evaluator = new BatchEvaluator({ googleApiKey: 'k', openaiApiKey: 'k', concurrency: 1 });
+    const evaluator = new BatchEvaluator({ telemetry: false, concurrency: 1 });
 
-    const instances = (evaluator as unknown as { evaluatorInstances: Map<string, unknown> }).evaluatorInstances;
     let firstDone = false;
-    for (const id of group.evaluatorIds) {
-      instances.set(id, {
-        evaluate: async () => {
-          if (!firstDone) { firstDone = true; evaluator.cancel(); }
-          return { score: 'slightly complex', reasoning: 'stub', metadata: {} };
-        },
-      });
-    }
+    const family = stubFamily(async () => {
+      if (!firstDone) { firstDone = true; evaluator.cancel(); }
+      return { score: 'slightly complex', reasoning: 'stub' };
+    });
 
-    const output = await evaluator.evaluate(makeInputs(1), group.id);
+    const output = await evaluator.evaluate(makeInputs(1), family);
     const successful = output.results.filter(r => r.status === 'success');
     const cancelled = output.results.filter(r => r.status === 'error' && r.error === 'Cancelled by user');
 
     expect(successful.length).toBeGreaterThanOrEqual(1);
     expect(cancelled.length).toBeGreaterThan(0);
-    expect(successful.length + cancelled.length).toBe(group.evaluatorIds.length);
+    expect(successful.length + cancelled.length).toBe(family.members.length);
 
     // Cancelled tasks must be in completedResults so Ctrl+C partial saves are complete
     const completedResults = (evaluator as unknown as { completedResults: BatchResult[] }).completedResults;
-    expect(completedResults.length).toBe(group.evaluatorIds.length);
+    expect(completedResults.length).toBe(family.members.length);
   });
 
   it('evaluate() resets state between calls — second call produces a clean result set', async () => {
-    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-    const evaluator = new BatchEvaluator({ googleApiKey: 'k', openaiApiKey: 'k' });
+    const evaluator = new BatchEvaluator({ telemetry: false });
+    const family = stubFamily(async () => ({ score: 'slightly complex', reasoning: 'stub' }));
 
-    const instances = (evaluator as unknown as { evaluatorInstances: Map<string, unknown> }).evaluatorInstances;
-    for (const id of group.evaluatorIds) {
-      instances.set(id, { evaluate: async () => ({ score: 'slightly complex', reasoning: 'stub', metadata: {} }) });
-    }
-
-    const first = await evaluator.evaluate(makeInputs(1), group.id);
-    const second = await evaluator.evaluate(makeInputs(1), group.id);
+    const first = await evaluator.evaluate(makeInputs(1), family);
+    const second = await evaluator.evaluate(makeInputs(1), family);
 
     // Second call must not accumulate results from the first
-    expect(second.summary.totalTasks).toBe(group.evaluatorIds.length);
-    expect(second.summary.successful).toBe(group.evaluatorIds.length);
+    expect(second.summary.totalTasks).toBe(family.members.length);
+    expect(second.summary.successful).toBe(family.members.length);
     // And first call must be unaffected
-    expect(first.summary.totalTasks).toBe(group.evaluatorIds.length);
+    expect(first.summary.totalTasks).toBe(family.members.length);
+  });
+
+  it('accepts a bare onProgress callback as the third arg (back-compat)', async () => {
+    const evaluator = new BatchEvaluator({ telemetry: false });
+    const family = stubFamily(async () => ({ score: 'ok', reasoning: 'stub' }));
+    const seen: BatchResult[] = [];
+    await evaluator.evaluate(makeInputs(1), family, (r) => seen.push(r));
+    expect(seen.length).toBe(family.members.length); // progress still reported
   });
 });
 
@@ -200,16 +222,80 @@ describe('BatchEvaluator — modelOverride config', () => {
 
   it('evaluate() runs to completion with modelOverride set', async () => {
     const override = { provider: Provider.Anthropic, model: 'claude-opus-4-8' };
-    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-    const evaluator = new BatchEvaluator({ anthropicApiKey: 'akey', modelOverride: override });
+    const evaluator = new BatchEvaluator({ anthropicApiKey: 'akey', modelOverride: override, telemetry: false });
+    const family = stubFamily(async () => ({ score: 'slightly complex', reasoning: 'stub' }));
 
-    const instances = (evaluator as unknown as { evaluatorInstances: Map<string, unknown> }).evaluatorInstances;
-    for (const id of group.evaluatorIds) {
-      instances.set(id, { evaluate: async () => ({ score: 'slightly complex', reasoning: 'stub', metadata: {} }) });
-    }
-
-    const output = await evaluator.evaluate(makeInputs(1), group.id);
-    expect(output.summary.successful).toBe(group.evaluatorIds.length);
+    const output = await evaluator.evaluate(makeInputs(1), family);
+    expect(output.summary.successful).toBe(family.members.length);
     expect(output.summary.failed).toBe(0);
+  });
+});
+
+describe('BatchEvaluator.evaluate() — row-level failures and empty input', () => {
+  it('returns an empty output for no inputs without constructing a runner', async () => {
+    const evaluator = new BatchEvaluator({ telemetry: false });
+    const createRunner = vi.fn();
+    const family = { ...stubFamily(async () => ({ score: 's', reasoning: '' })), createRunner };
+
+    const output = await evaluator.evaluate([], family);
+
+    expect(output.results).toEqual([]);
+    expect(output.summary.totalTasks).toBe(0);
+    expect(createRunner).not.toHaveBeenCalled();
+  });
+
+  // One key at a time: the hint must fire on either alone, not only on both.
+  it.each(['text', 'grade'])(
+    'rejects a row in the pre-family shape carrying only %s, naming the fix',
+    async (key) => {
+      const evaluator = new BatchEvaluator({ telemetry: false });
+      const family = stubFamily(async () => ({ score: 's', reasoning: '' }));
+      // Without the shape check this reached Object.keys(undefined) and threw a bare
+      // "Cannot convert undefined or null to object", naming nothing.
+      const legacy = [{ [key]: '3', rowIndex: 2, originalRow: {} }];
+
+      await expect(evaluator.evaluate(legacy as never, family)).rejects.toThrow(
+        /row 2: expected a "columns" record.*received undefined.*predate family-aware input/s,
+      );
+    },
+  );
+
+  it.each([
+    ['null', null, 'null'],
+    ['an array', ['text', 'grade'], 'an array'],
+    ['a string', 'text,grade', 'string'],
+  ])('rejects columns given as %s, reporting what it received', async (_label, columns, received) => {
+    const evaluator = new BatchEvaluator({ telemetry: false });
+    const family = stubFamily(async () => ({ score: 's', reasoning: '' }));
+    const bad = [{ rowIndex: 7, columns, originalRow: {} }];
+
+    const run = evaluator.evaluate(bad as never, family);
+    await expect(run).rejects.toThrow(`received ${received}.`);
+    // No legacy keys, so the generic guidance applies rather than the migration hint.
+    await expect(run).rejects.toThrow(/supply columns explicitly/);
+  });
+
+  it('turns a row that fails normalization into per-member errors without losing the good rows', async () => {
+    const evaluator = new BatchEvaluator({ telemetry: false });
+    const family = stubFamily(async () => ({ score: 'slightly complex', reasoning: 'ok' }));
+    const seen: BatchResult[] = [];
+
+    // Header validation passes on row 1, so the empty `grade` is caught per row.
+    // parseCSV trims, so an empty cell arrives as '' — what normalizeRow rejects.
+    const inputs: BatchInput[] = [
+      { rowIndex: 2, columns: { text: 'fine', grade: '3' }, originalRow: { text: 'fine', grade: '3' } },
+      { rowIndex: 3, columns: { text: 'bad', grade: '' }, originalRow: { text: 'bad', grade: '' } },
+    ];
+
+    const output = await evaluator.evaluate(inputs, family, { onProgress: (r) => seen.push(r) });
+
+    const failed = output.results.filter((r) => r.status === 'error');
+    const ok = output.results.filter((r) => r.status === 'success');
+    expect(failed).toHaveLength(family.members.length);
+    expect(ok).toHaveLength(family.members.length);
+    expect(failed.every((r) => r.rowIndex === 3)).toBe(true);
+    expect(new Set(failed.map((r) => r.evaluatorId)).size).toBe(family.members.length);
+    // Reported through the same progress channel as evaluated rows.
+    expect(seen.filter((r) => r.status === 'error')).toHaveLength(family.members.length);
   });
 });

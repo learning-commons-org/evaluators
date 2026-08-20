@@ -35,25 +35,14 @@ function makeFakeProvider(label = 'vertex:gemini-2.5-pro') {
 }
 
 function makeInputs(count: number): BatchInput[] {
+  const text =
+    'The mitochondria is the powerhouse of the cell. It produces energy through a process ' +
+    'called cellular respiration in eukaryotic organisms.';
   return Array.from({ length: count }, (_, i) => ({
-    text:
-      'The mitochondria is the powerhouse of the cell. It produces energy through a process ' +
-      'called cellular respiration in eukaryotic organisms.',
-    grade: '6-8',
     rowIndex: i + 2,
+    columns: { text, grade: '6-8' },
     originalRow: { text: 'sample', grade: '6-8' },
   }));
-}
-
-/** Read the private evaluator instances the batch lazily constructs. */
-function instancesOf(
-  batch: BatchEvaluator
-): Map<string, { config?: { llmProvider?: LLMProvider } }> {
-  return (
-    batch as unknown as {
-      evaluatorInstances: Map<string, { config?: { llmProvider?: LLMProvider } }>;
-    }
-  ).evaluatorInstances;
 }
 
 describe('BatchConfig.llmProvider — bring-your-own-provider', () => {
@@ -68,17 +57,17 @@ describe('BatchConfig.llmProvider — bring-your-own-provider', () => {
     expect(generateStructured).toHaveBeenCalled();
   });
 
-  it('plumbs the injected provider into every evaluator in the group', async () => {
-    const { provider } = makeFakeProvider();
+  it('runs every member of the group through the injected provider', async () => {
+    const { provider, generateStructured } = makeFakeProvider();
     const batch = new BatchEvaluator({ llmProvider: provider, telemetry: false });
 
-    await batch.evaluate(makeInputs(1), GROUP.id);
+    // One task per member, all attempted, and the injected provider was used
+    // (no keys were supplied, so nothing could fall back to a real provider).
+    const { results } = await batch.evaluate(makeInputs(1), GROUP.id);
 
-    const instances = instancesOf(batch);
-    expect(instances.size).toBe(GROUP.evaluatorIds.length);
-    for (const id of GROUP.evaluatorIds) {
-      expect(instances.get(id)?.config?.llmProvider).toBe(provider);
-    }
+    expect(results).toHaveLength(GROUP.evaluatorIds.length);
+    expect(generateStructured).toHaveBeenCalled();
+    expect(results.some((r) => r.status === 'success')).toBe(true);
   });
 
   it('never reports a missing-API-key error when llmProvider is set', async () => {

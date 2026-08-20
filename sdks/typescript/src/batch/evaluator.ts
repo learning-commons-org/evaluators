@@ -1,14 +1,5 @@
 import pLimit from 'p-limit';
-import {
-  VocabularyEvaluator,
-  SentenceStructureEvaluator,
-  GradeLevelAppropriatenessEvaluator,
-  SmkEvaluator,
-  ConventionalityEvaluator,
-  PurposeEvaluator,
-} from '../evaluators/index.js';
-import type { BaseEvaluatorConfig } from '../evaluators/base.js';
-import type { EvaluationResult } from '../schemas/index.js';
+import { Provider } from '../evaluators/base.js';
 import type {
   BatchInput,
   BatchTask,
@@ -18,64 +9,77 @@ import type {
   BatchSummary,
   EvaluatorGroup,
 } from './types.js';
+import {
+  type EvaluatorFamily,
+  type FamilyRow,
+  type FamilyRunContext,
+  type FamilyRunner,
+  normalizeRow,
+  resolveMembers,
+  validateRequiredColumns,
+} from './families/family.js';
+import { getFamilies, getFamily } from './families/registry.js';
 
-interface SimpleEvaluator {
-  evaluate(text: string, grade: string): Promise<EvaluationResult<string, unknown>>;
-}
-
-type EvaluatorConstructor = new (config: BaseEvaluatorConfig) => SimpleEvaluator;
-
-/**
- * Map of evaluator IDs to their constructors — internal to this module.
- */
-const EVALUATOR_MAP = new Map<string, EvaluatorConstructor>([
-  [GradeLevelAppropriatenessEvaluator.metadata.id, GradeLevelAppropriatenessEvaluator],
-  [SmkEvaluator.metadata.id, SmkEvaluator],
-  [VocabularyEvaluator.metadata.id, VocabularyEvaluator],
-  [SentenceStructureEvaluator.metadata.id, SentenceStructureEvaluator],
-  [ConventionalityEvaluator.metadata.id, ConventionalityEvaluator],
-  [PurposeEvaluator.metadata.id, PurposeEvaluator],
-]);
+export { getFamilies, getFamily } from './families/registry.js';
 
 /**
- * Evaluator groups available for batch processing.
- * Each group runs a fixed set of evaluators and maps to a specific HTML report format.
+ * Backward-compatible view of families as the older "evaluator group" shape.
+ * @deprecated Use {@link getFamilies} — retained for the current CLI wiring.
  */
-// Note: this batch group is a superset of TextComplexityEvaluator — it also includes
-// GradeLevelAppropriateness and Purpose (early access), which the programmatic evaluator
-// does not expose. This is intentional: the batch surface evolves independently.
-const EVALUATOR_GROUPS: EvaluatorGroup[] = [
-  {
-    id: 'text-complexity',
-    name: 'Text Complexity Analysis',
-    description: 'Evaluates all dimensions of the Qualitative Text Complexity rubric',
-    evaluatorIds: [
-      GradeLevelAppropriatenessEvaluator.metadata.id,
-      SmkEvaluator.metadata.id,
-      VocabularyEvaluator.metadata.id,
-      SentenceStructureEvaluator.metadata.id,
-      ConventionalityEvaluator.metadata.id,
-      PurposeEvaluator.metadata.id,
-    ],
-    requiresGoogleKey: true,
-    requiresOpenAIKey: true,
-    maxInputRows: 50,
-  },
-];
-
 export function getAvailableGroups(): EvaluatorGroup[] {
-  return [...EVALUATOR_GROUPS];
+  return getFamilies().map((family) => {
+    const keys = family.requiredKeys(family.members.map((m) => m.id));
+    return {
+      id: family.id,
+      name: family.name,
+      description: family.description,
+      evaluatorIds: family.members.map((m) => m.id),
+      requiresGoogleKey: keys.includes(Provider.Google),
+      requiresOpenAIKey: keys.includes(Provider.OpenAI),
+      maxInputRows: family.maxInputRows,
+    };
+  });
+}
+
+export interface BatchRunOptions {
+  selectedMemberIds?: string[];
+  onProgress?: (result: BatchResult) => void;
 }
 
 /**
- * Batch evaluator class
- *
- * Processes multiple texts in parallel using all evaluators in a group.
+ * Rejects a malformed input row before it reaches `Object.keys`, which would
+ * otherwise throw a bare "Cannot convert undefined or null to object". Named
+ * separately because the likeliest cause is a hand-built row in the pre-family
+ * `{ text, grade }` shape, which is worth saying out loud.
+ */
+function assertHasColumns(input: BatchInput): void {
+  const { columns } = input;
+  // `typeof null === 'object'`, so the null check is load-bearing: without it a
+  // null map reaches Object.keys and throws the bare TypeError this replaces.
+  if (columns === null || typeof columns !== 'object' || Array.isArray(columns)) {
+    const received =
+      columns === null ? 'null' : Array.isArray(columns) ? 'an array' : typeof columns;
+    const legacy = 'text' in input || 'grade' in input;
+    throw new Error(
+      `Invalid batch input at row ${input.rowIndex}: expected a "columns" record of ` +
+        `column name to value, received ${received}.` +
+        (legacy
+          ? ' Rows carrying top-level "text"/"grade" predate family-aware input; pass' +
+            ' { columns: { text, grade } } instead.'
+          : ' Build rows with parseCSV() or supply columns explicitly.'),
+    );
+  }
+}
+
+/**
+ * Batch evaluator: runs the selected members of one family over a set of input
+ * rows. Owns orchestration — concurrency, cancellation, timing, error handling
+ * — while each family owns how to invoke its evaluators and what columns/keys
+ * it needs.
  */
 export class BatchEvaluator {
   private config: BatchConfig;
   private limit: ReturnType<typeof pLimit>;
-  private evaluatorInstances = new Map<string, SimpleEvaluator>();
   private isCancelled = false;
   private completedResults: BatchResult[] = [];
 
@@ -87,144 +91,90 @@ export class BatchEvaluator {
       bypassRowLimit: false,
       ...config,
     };
-
     this.limit = pLimit(this.config.concurrency ?? 3);
   }
 
-  /**
-   * Cancel ongoing evaluation.
-   * Returns partial results collected so far.
-   */
+  /** Cancel ongoing evaluation. Returns partial results collected so far. */
   cancel(): BatchResult[] {
     this.isCancelled = true;
     return [...this.completedResults];
   }
 
-  private initializeEvaluators(evaluatorIds: readonly string[]): void {
-    for (const id of evaluatorIds) {
-      if (this.evaluatorInstances.has(id)) continue;
-
-      const EvaluatorClass = EVALUATOR_MAP.get(id);
-      if (!EvaluatorClass) {
-        throw new Error(`Unknown evaluator: ${id}`);
-      }
-
-      const evaluator = new EvaluatorClass({
-        googleApiKey: this.config.googleApiKey,
-        openaiApiKey: this.config.openaiApiKey,
-        anthropicApiKey: this.config.anthropicApiKey,
-        maxRetries: this.config.maxRetries,
-        telemetry: this.config.telemetry,
-        modelOverride: this.config.modelOverride,
-        llmProvider: this.config.llmProvider,
-      });
-
-      this.evaluatorInstances.set(id, evaluator);
-    }
+  private buildContext(): FamilyRunContext {
+    return {
+      googleApiKey: this.config.googleApiKey,
+      openaiApiKey: this.config.openaiApiKey,
+      anthropicApiKey: this.config.anthropicApiKey,
+      platformApiKey: this.config.platformApiKey,
+      maxRetries: this.config.maxRetries,
+      telemetry: this.config.telemetry,
+      modelOverride: this.config.modelOverride,
+      llmProvider: this.config.llmProvider,
+      concurrency: this.config.concurrency,
+      kgConcurrency: this.config.kgConcurrency,
+    };
   }
 
-  /**
-   * Create tasks from inputs and evaluator IDs
-   */
-  private createTasks(inputs: BatchInput[], evaluatorIds: readonly string[]): BatchTask[] {
-    const tasks: BatchTask[] = [];
-
-    for (const input of inputs) {
-      for (const evaluatorId of evaluatorIds) {
-        tasks.push({
-          text: input.text,
-          grade: input.grade,
-          evaluatorId,
-          rowIndex: input.rowIndex,
-          originalRow: input.originalRow,
-        });
-      }
-    }
-
-    return tasks;
+  private errorResult(
+    row: FamilyRow,
+    memberId: string,
+    error: string,
+    processingTimeMs = 0,
+  ): BatchResult {
+    return {
+      rowIndex: row.rowIndex,
+      text: row.columns.text ?? row.columns.question ?? '',
+      grade: row.columns.grade ?? '',
+      evaluatorId: memberId,
+      status: 'error',
+      error,
+      processingTimeMs,
+      originalRow: row.originalRow,
+    };
   }
 
   private async executeTask(
+    runner: FamilyRunner,
     task: BatchTask,
-    onProgress?: (result: BatchResult) => void
+    onProgress?: (result: BatchResult) => void,
   ): Promise<BatchResult> {
-    // Check if cancelled before starting
+    const row = task.row;
+
     if (this.isCancelled) {
-      const batchResult: BatchResult = {
-        rowIndex: task.rowIndex,
-        text: task.text,
-        grade: task.grade,
-        evaluatorId: task.evaluatorId,
-        status: 'error',
-        error: 'Cancelled by user',
-        processingTimeMs: 0,
-        originalRow: task.originalRow,
-      };
-      this.completedResults.push(batchResult);
-      if (onProgress) onProgress(batchResult);
-      return batchResult;
+      const cancelled = this.errorResult(row, task.memberId, 'Cancelled by user');
+      this.completedResults.push(cancelled);
+      onProgress?.(cancelled);
+      return cancelled;
     }
 
     const startTime = Date.now();
-    const evaluator = this.evaluatorInstances.get(task.evaluatorId);
-
-    if (!evaluator) {
-      const batchResult: BatchResult = {
-        rowIndex: task.rowIndex,
-        text: task.text,
-        grade: task.grade,
-        evaluatorId: task.evaluatorId,
-        status: 'error',
-        error: `Evaluator not initialized: ${task.evaluatorId}`,
-        processingTimeMs: 0,
-        originalRow: task.originalRow,
-      };
-      this.completedResults.push(batchResult);
-      if (onProgress) onProgress(batchResult);
-      return batchResult;
-    }
-
     try {
-      const result = await evaluator.evaluate(task.text, task.grade);
-
-      const batchResult: BatchResult = {
-        rowIndex: task.rowIndex,
-        text: task.text,
-        grade: task.grade,
-        evaluatorId: task.evaluatorId,
+      const outcome = await runner.runTask(row, task.memberId);
+      const result: BatchResult = {
+        rowIndex: row.rowIndex,
+        text: row.columns.text ?? row.columns.question ?? '',
+        grade: row.columns.grade ?? '',
+        evaluatorId: task.memberId,
         status: 'success',
-        score: result.score,
-        reasoning: result.reasoning,
+        score: outcome.score,
+        reasoning: outcome.reasoning,
+        payload: outcome.payload,
         processingTimeMs: Date.now() - startTime,
-        originalRow: task.originalRow,
+        originalRow: row.originalRow,
       };
-
-      // Store completed result
-      this.completedResults.push(batchResult);
-
-      // Report progress
-      if (onProgress) onProgress(batchResult);
-
-      return batchResult;
+      this.completedResults.push(result);
+      onProgress?.(result);
+      return result;
     } catch (error) {
-      const batchResult: BatchResult = {
-        rowIndex: task.rowIndex,
-        text: task.text,
-        grade: task.grade,
-        evaluatorId: task.evaluatorId,
-        status: 'error',
-        error: error instanceof Error ? error.message : String(error),
-        processingTimeMs: Date.now() - startTime,
-        originalRow: task.originalRow,
-      };
-
-      // Store completed result (even errors)
-      this.completedResults.push(batchResult);
-
-      // Report progress
-      if (onProgress) onProgress(batchResult);
-
-      return batchResult;
+      const result = this.errorResult(
+        row,
+        task.memberId,
+        error instanceof Error ? error.message : String(error),
+        Date.now() - startTime,
+      );
+      this.completedResults.push(result);
+      onProgress?.(result);
+      return result;
     }
   }
 
@@ -237,7 +187,6 @@ export class BatchEvaluator {
       resultsPerEvaluator: {},
     };
 
-    // Calculate per-evaluator stats
     const evaluatorIds = Array.from(new Set(results.map((r) => r.evaluatorId)));
     for (const id of evaluatorIds) {
       const evalResults = results.filter((r) => r.evaluatorId === id);
@@ -246,39 +195,41 @@ export class BatchEvaluator {
         failed: evalResults.filter((r) => r.status === 'error').length,
       };
     }
-
     return summary;
   }
 
   /**
-   * Run batch evaluation for an evaluator group.
+   * Run batch evaluation for a family.
    *
-   * @param inputs - Array of input rows
-   * @param groupId - The evaluator group to run (see getAvailableGroups())
-   * @param onProgress - Optional callback invoked after each task completes
-   * @returns Batch evaluation results and summary
+   * @param inputs - Raw input rows (columns keyed by CSV header)
+   * @param family - The family to run: an id (see getFamilies()) or a family object
+   * @param options - Member selection and progress callback. For backward
+   *   compatibility a bare `onProgress` callback is also accepted here.
    */
   async evaluate(
     inputs: BatchInput[],
-    groupId: string,
-    onProgress?: (result: BatchResult) => void
+    family: string | EvaluatorFamily,
+    options: BatchRunOptions | BatchRunOptions['onProgress'] = {},
   ): Promise<BatchOutput> {
     const startTime = Date.now();
+    // Back-compat: the previous signature took an onProgress callback as the
+    // third argument; treat a function here as `{ onProgress }`.
+    const opts: BatchRunOptions = typeof options === 'function' ? { onProgress: options } : options;
+    const resolvedFamily: EvaluatorFamily = typeof family === 'string' ? getFamily(family) : family;
+    return this.run(inputs, resolvedFamily, opts, startTime);
+  }
 
-    // Resolve group
-    const group = EVALUATOR_GROUPS.find((g) => g.id === groupId);
-    if (!group) {
-      throw new Error(
-        `Unknown evaluator group: "${groupId}". Available: ${EVALUATOR_GROUPS.map((g) => g.id).join(', ')}`
-      );
-    }
+  private async run(
+    inputs: BatchInput[],
+    family: EvaluatorFamily,
+    options: BatchRunOptions,
+    startTime: number,
+  ): Promise<BatchOutput> {
 
-    // Enforce per-group row limit (unless bypass is opted in)
-    // TODO(telemetry): record when bypassRowLimit is used
-    if (!this.config.bypassRowLimit && inputs.length > group.maxInputRows) {
+    if (!this.config.bypassRowLimit && inputs.length > family.maxInputRows) {
       throw new Error(
-        `Input exceeds limit for "${group.id}": ${inputs.length} rows (max ${group.maxInputRows}). ` +
-          `Split into smaller batches, or pass { bypassRowLimit: true } in BatchConfig to bypass (use --bypass-row-limit on the CLI).`
+        `Input exceeds limit for "${family.id}": ${inputs.length} rows (max ${family.maxInputRows}). ` +
+          `Split into smaller batches, or pass { bypassRowLimit: true } in BatchConfig (use --bypass-row-limit on the CLI).`,
       );
     }
 
@@ -286,27 +237,53 @@ export class BatchEvaluator {
     this.isCancelled = false;
     this.completedResults = [];
 
-    // Initialize evaluator instances
-    this.initializeEvaluators(group.evaluatorIds);
+    if (inputs.length === 0) {
+      return { results: [], summary: this.calculateSummary([], Date.now() - startTime) };
+    }
 
-    // Create all tasks (flattened: inputs × evaluators)
-    const tasks = this.createTasks(inputs, group.evaluatorIds);
+    // Fail fast on a missing required column (header-level), then normalize
+    // each row. A row that fails normalization becomes an error result rather
+    // than aborting the whole run.
+    assertHasColumns(inputs[0]);
+    validateRequiredColumns(family, Object.keys(inputs[0].columns));
+    const members = resolveMembers(family, options.selectedMemberIds);
+    const runner = family.createRunner(this.buildContext(), options.selectedMemberIds);
 
-    // Execute all tasks with concurrency control
-    // Use allSettled to get partial results even if cancelled
-    const settledResults = await Promise.allSettled(
-      tasks.map((task) => this.limit(() => this.executeTask(task, onProgress)))
+    const rows: FamilyRow[] = [];
+    const preFailed: BatchResult[] = [];
+    for (const input of inputs) {
+      try {
+        rows.push(normalizeRow(input, family));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const badRow: FamilyRow = { rowIndex: input.rowIndex, columns: {}, originalRow: input.originalRow };
+        for (const member of members) {
+          const failed = this.errorResult(badRow, member.id, message);
+          preFailed.push(failed);
+          this.completedResults.push(failed);
+          options.onProgress?.(failed);
+        }
+      }
+    }
+
+    const tasks: BatchTask[] = [];
+    for (const row of rows) {
+      for (const member of members) {
+        tasks.push({ row, memberId: member.id });
+      }
+    }
+
+    const settled = await Promise.allSettled(
+      tasks.map((task) => this.limit(() => this.executeTask(runner, task, options.onProgress))),
     );
+    const results = [
+      ...preFailed,
+      ...settled
+        .filter((r): r is PromiseFulfilledResult<BatchResult> => r.status === 'fulfilled')
+        .map((r) => r.value),
+    ];
 
-    // Extract fulfilled results (skip rejected)
-    const results = settledResults
-      .filter((r): r is PromiseFulfilledResult<BatchResult> => r.status === 'fulfilled')
-      .map((r) => r.value);
-
-    // Calculate summary
     const durationMs = Date.now() - startTime;
-    const summary = this.calculateSummary(results, durationMs);
-
-    return { results, summary };
+    return { results, summary: this.calculateSummary(results, durationMs) };
   }
 }

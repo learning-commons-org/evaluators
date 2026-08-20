@@ -3,30 +3,32 @@
  */
 import type { TelemetryOptions, ModelOverride } from '../evaluators/base.js';
 import type { LLMProvider } from '../providers/index.js';
+import type { FamilyRow } from './families/family.js';
 
 /**
- * Input row from CSV
+ * Input row from CSV: canonical columns (validated + defaults applied by the
+ * selected family) plus the untouched original row for passthrough into outputs.
  */
 export interface BatchInput {
-  text: string;
-  grade: string;
   rowIndex: number;
+  columns: Record<string, string>;
   originalRow: Record<string, unknown>; // Preserve all original CSV columns
 }
 
 /**
- * Individual evaluation task
+ * Individual evaluation task: one family member run against one input row.
  */
 export interface BatchTask {
-  text: string;
-  grade: string;
-  evaluatorId: string;
-  rowIndex: number;
-  originalRow: Record<string, unknown>;
+  row: FamilyRow;
+  memberId: string;
 }
 
 /**
- * Result from a single evaluation
+ * Result from a single evaluation.
+ *
+ * `text`/`grade` are convenience projections of the corresponding columns when
+ * present (used by the text-complexity report); `payload` carries the full
+ * structured verdict for families whose output isn't a scalar score.
  */
 export interface BatchResult {
   rowIndex: number;
@@ -37,6 +39,7 @@ export interface BatchResult {
   score?: string;
   reasoning?: string;
   error?: string;
+  payload?: unknown;
   processingTimeMs: number;
   originalRow: Record<string, unknown>; // Preserve all original CSV columns
 }
@@ -83,8 +86,12 @@ export interface BatchConfig {
   googleApiKey?: string;
   openaiApiKey?: string;
   anthropicApiKey?: string;
+  /** Learning Commons platform key — required for families that hit the Knowledge Graph. */
+  platformApiKey?: string;
   concurrency?: number;
   maxRetries?: number;
+  /** Max concurrent Knowledge Graph HTTP calls, for families that use it. */
+  kgConcurrency?: number;
   telemetry?: boolean | TelemetryOptions;
   bypassRowLimit?: boolean;
   modelOverride?: ModelOverride;
