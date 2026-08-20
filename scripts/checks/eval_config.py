@@ -69,8 +69,13 @@ class EvalConfig(Check):
 
         self._check_schema(config, base, fail)
         self._check_referenced_files(config, base, fail)
-        template_vars = self._check_prompts(config, base, fail)
-        self._check_placeholders(config, template_vars, fail)
+        for step in config.get("steps", []):
+            prompt = step.get("prompt")
+            if not prompt:
+                continue
+            step_id = step.get("id", "?")
+            template_vars = self._check_prompts(prompt, base, fail, step_id)
+            self._check_placeholders(prompt, template_vars, fail, step_id)
         self._check_fixtures_path(config, base, fail)
 
     # --- Layer 1: schema -----------------------------------------------------
@@ -105,38 +110,39 @@ class EvalConfig(Check):
                 if not os.path.exists(os.path.join(base, ref["$ref"])):
                     fail(f"{key} $ref not found: {ref['$ref']}")
 
-    def _check_prompts(self, config: dict, base: str, fail) -> set[str]:
-        """Validate each prompt file; return the set of {vars} used across them.
+    def _check_prompts(self, prompt: dict, base: str, fail, step_id: str) -> set[str]:
+        """Validate each prompt file for one step; return the set of {vars} used
+        across its own messages.
 
         Per message: the file exists, its sha256 matches, system prompts hold no
         placeholders, and no obsolete placeholders appear.
         """
         template_vars: set[str] = set()
-        for msg in self._messages(config):
+        for msg in prompt.get("messages", []):
             src = msg.get("source_path")
             if not src:
                 continue
             path = os.path.join(base, src)
             if not os.path.exists(path):
-                fail(f"prompt file not found: {src}")
+                fail(f"{step_id}: prompt file not found: {src}")
                 continue
 
             try:
                 with open(path, "rb") as f:
                     raw = f.read()
             except OSError as e:
-                fail(f"prompt file unreadable: {src}: {e}")
+                fail(f"{step_id}: prompt file unreadable: {src}: {e}")
                 continue
 
             used = set(_PLACEHOLDER.findall(raw.decode("utf-8", "replace")))
             template_vars |= used
 
-            self._check_sha(msg, src, raw, fail)
-            self._check_role_placeholders(msg, src, used, fail)
+            self._check_sha(msg, src, raw, fail, step_id)
+            self._check_role_placeholders(msg, src, used, fail, step_id)
         return template_vars
 
     @staticmethod
-    def _check_sha(msg: dict, src: str, raw: bytes, fail) -> None:
+    def _check_sha(msg: dict, src: str, raw: bytes, fail, step_id: str) -> None:
         """Declared sha256 must match the file — guards against silent drift.
 
         Hash the raw bytes (not decoded text) so the result is identical across
@@ -147,27 +153,27 @@ class EvalConfig(Check):
             return
         actual = hashlib.sha256(raw).hexdigest()
         if actual != declared:
-            fail(f"sha256 drift for {src}: declared {declared[:12]}…, actual {actual[:12]}…")
+            fail(f"{step_id}: sha256 drift for {src}: declared {declared[:12]}…, actual {actual[:12]}…")
 
     @staticmethod
-    def _check_role_placeholders(msg: dict, src: str, used: set[str], fail) -> None:
+    def _check_role_placeholders(msg: dict, src: str, used: set[str], fail, step_id: str) -> None:
         """System prompts take no inputs; no prompt may inject format instructions."""
         # All runtime inputs belong in user-role prompts, never the system prompt.
         if msg.get("role") == "system" and used:
-            fail(f"system prompt {src} contains placeholders {sorted(used)}; "
+            fail(f"{step_id}: system prompt {src} contains placeholders {sorted(used)}; "
                  "user inputs belong only in user-role prompts")
         for var in sorted(used):
             if any(token in var for token in _OBSOLETE_PLACEHOLDERS):
-                fail(f'{src} references "{{{var}}}"; structured_output makes '
+                fail(f'{step_id}: {src} references "{{{var}}}"; structured_output makes '
                      "format-instruction placeholders obsolete")
 
-    def _check_placeholders(self, config: dict, template_vars: set[str], fail) -> None:
-        """Declared placeholders and template {vars} must be exactly in sync."""
-        declared = set(self._prompt(config).get("placeholders", {}).keys())
+    def _check_placeholders(self, prompt: dict, template_vars: set[str], fail, step_id: str) -> None:
+        """Declared placeholders and template {vars} must be exactly in sync, for one step."""
+        declared = set(prompt.get("placeholders", {}).keys())
         for ph in sorted(declared - template_vars):
-            fail(f'placeholder "{ph}" declared but not used in any prompt template')
+            fail(f'{step_id}: placeholder "{ph}" declared but not used in any prompt template')
         for var in sorted(template_vars - declared):
-            fail(f'template variable "{{{var}}}" used but not declared in placeholders')
+            fail(f'{step_id}: template variable "{{{var}}}" used but not declared in placeholders')
 
     def _check_fixtures_path(self, config: dict, base: str, fail) -> None:
         """Fixtures file must exist (its contents are validated by eval-fixtures)."""
@@ -219,11 +225,3 @@ class EvalConfig(Check):
                     f"{', '.join(paths)} -- a retired id must never be reused for a different evaluator",
                 ))
 
-    # --- helpers -------------------------------------------------------------
-
-    @staticmethod
-    def _prompt(config: dict) -> dict:
-        return (config.get("steps") or [{}])[0].get("prompt", {})
-
-    def _messages(self, config: dict) -> list[dict]:
-        return self._prompt(config).get("messages", [])
