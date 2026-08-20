@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Math Standards Alignment — Verdicts</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1a2e; --muted: #6b7280; --line: #e5e7eb;
+    --card: #f9fafb; --accent: #4338ca;
+    --ok-bg: #dcfce7; --ok-fg: #166534; --partial-bg: #fef9c3; --partial-fg: #854d0e;
+    --none-bg: #fee2e2; --none-fg: #991b1b; --err-bg: #f3f4f6; --err-fg: #6b7280;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1117; --fg: #e5e7eb; --muted: #9ca3af; --line: #2a2f3a;
+      --card: #161a22; --accent: #a5b4fc;
+      --ok-bg: #14331f; --ok-fg: #86efac; --partial-bg: #3a2e0a; --partial-fg: #fde68a;
+      --none-bg: #3a1414; --none-fg: #fca5a5; --err-bg: #1f232b; --err-fg: #9ca3af;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header { padding: 24px 28px; border-bottom: 1px solid var(--line); }
+  h1 { margin: 0 0 4px; font-size: 20px; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .meta b { color: var(--fg); font-weight: 600; }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; padding: 16px 28px; border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  select, input[type=search] { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--card); color: var(--fg); font-size: 14px; }
+  input[type=search] { flex: 1; min-width: 200px; }
+  .count { color: var(--muted); font-size: 13px; align-self: center; margin-left: auto; }
+  main { padding: 16px 28px 60px; }
+  .item { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 12px; background: var(--card); overflow: hidden; }
+  .item summary { list-style: none; cursor: pointer; padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start; }
+  .item summary::-webkit-details-marker { display: none; }
+  .badge { flex: none; font-weight: 700; font-size: 13px; padding: 4px 9px; border-radius: 999px; white-space: nowrap; }
+  .b-ok { background: var(--ok-bg); color: var(--ok-fg); }
+  .b-partial { background: var(--partial-bg); color: var(--partial-fg); }
+  .b-none { background: var(--none-bg); color: var(--none-fg); }
+  .b-err { background: var(--err-bg); color: var(--err-fg); }
+  .stem { flex: 1; }
+  .stem .q { font-weight: 500; }
+  .tags { margin-top: 4px; color: var(--muted); font-size: 12.5px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .tags code { color: var(--accent); font-weight: 600; }
+  .lcs { border-top: 1px solid var(--line); padding: 4px 16px 12px; }
+  .lc { padding: 10px 0; border-bottom: 1px dashed var(--line); }
+  .lc:last-child { border-bottom: none; }
+  .lc-head { display: flex; gap: 8px; align-items: baseline; }
+  .yn { font-weight: 700; font-size: 12px; padding: 1px 7px; border-radius: 6px; }
+  .yn-yes { background: var(--ok-bg); color: var(--ok-fg); }
+  .yn-no { background: var(--none-bg); color: var(--none-fg); }
+  .lc-desc { font-weight: 500; }
+  .lc-field { margin-top: 5px; font-size: 13.5px; }
+  .lc-field .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  .err-msg { padding: 0 16px 14px; color: var(--none-fg); font-size: 13.5px; }
+  .empty { color: var(--muted); text-align: center; padding: 48px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Math Standards Alignment — Verdicts</h1>
+  <div class="meta" id="meta"></div>
+</header>
+<div class="controls">
+  <select id="f-standard"><option value="">All standards</option></select>
+  <select id="f-grade"><option value="">All grades</option></select>
+  <select id="f-status">
+    <option value="">All results</option>
+    <option value="none">No components aligned (0)</option>
+    <option value="partial">Partial</option>
+    <option value="full">All components aligned</option>
+    <option value="error">Errors</option>
+  </select>
+  <input type="search" id="f-search" placeholder="Search question or component text…" />
+  <span class="count" id="count"></span>
+</div>
+<main id="list"></main>
+
+<script>
+var REPORT_DATA = null; // __REPLACED_BY_FORMATTER__
+
+(function () {
+  var data = REPORT_DATA || { meta: {}, items: [] };
+  var items = data.items || [];
+  var m = data.meta || {};
+
+  document.getElementById('meta').innerHTML =
+    '<b>' + escapeHtml(m.reportId || '') + '</b> · generated ' + escapeHtml(m.generatedAt || '') +
+    ' · <b>' + (m.totalInputRows || 0) + '</b> items · ' +
+    '<b>' + (m.successful || 0) + '</b> evaluated · <b>' + (m.failed || 0) + '</b> errored' +
+    (m.sourcePath ? ' · ' + escapeHtml(m.sourcePath) : '');
+
+  var standards = Array.from(new Set(items.map(function (i) { return i.statementCode; }).filter(Boolean))).sort();
+  var grades = Array.from(new Set(items.map(function (i) { return i.grade; }).filter(Boolean))).sort();
+  fill('f-standard', standards);
+  fill('f-grade', grades);
+
+  var controls = ['f-standard', 'f-grade', 'f-status', 'f-search'];
+  controls.forEach(function (id) {
+    document.getElementById(id).addEventListener('input', render);
+  });
+  render();
+
+  function fill(id, values) {
+    var sel = document.getElementById(id);
+    values.forEach(function (v) {
+      var o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o);
+    });
+  }
+
+  function classify(it) {
+    if (it.status === 'error') return 'error';
+    if (it.totalCount === 0 || it.totalCount === null) return 'none';
+    if (it.alignedCount === 0) return 'none';
+    if (it.alignedCount === it.totalCount) return 'full';
+    return 'partial';
+  }
+
+  function render() {
+    var fS = val('f-standard'), fG = val('f-grade'), fSt = val('f-status'), q = val('f-search').toLowerCase();
+    var list = document.getElementById('list');
+    list.innerHTML = '';
+    var shown = 0;
+
+    items.forEach(function (it) {
+      if (fS && it.statementCode !== fS) return;
+      if (fG && it.grade !== fG) return;
+      var cls = classify(it);
+      if (fSt) {
+        if (fSt === 'error' && cls !== 'error') return;
+        if (fSt === 'none' && cls !== 'none') return;
+        if (fSt === 'partial' && cls !== 'partial') return;
+        if (fSt === 'full' && cls !== 'full') return;
+      }
+      if (q) {
+        var hay = (it.question || '') + ' ' + (it.learningComponents || []).map(function (lc) {
+          return (lc.description || '') + ' ' + (lc.reasoning || '') + ' ' + (lc.feedback || '');
+        }).join(' ');
+        if (hay.toLowerCase().indexOf(q) === -1) return;
+      }
+      list.appendChild(renderItem(it, cls));
+      shown++;
+    });
+
+    if (shown === 0) list.innerHTML = '<div class="empty">No items match the current filters.</div>';
+    document.getElementById('count').textContent = shown + ' of ' + items.length + ' shown';
+  }
+
+  function renderItem(it, cls) {
+    var el = document.createElement('details');
+    el.className = 'item';
+    var badgeText, badgeClass;
+    if (cls === 'error') { badgeText = 'error'; badgeClass = 'b-err'; }
+    else {
+      badgeText = (it.alignedCount === null ? '?' : it.alignedCount) + '/' + (it.totalCount === null ? '?' : it.totalCount);
+      badgeClass = cls === 'full' ? 'b-ok' : (cls === 'none' ? 'b-none' : 'b-partial');
+    }
+
+    var summary = document.createElement('summary');
+    summary.innerHTML =
+      '<span class="badge ' + badgeClass + '">' + badgeText + '</span>' +
+      '<span class="stem"><span class="q">' + escapeHtml(it.question || '(no question text)') + '</span>' +
+      '<span class="tags"><code>' + escapeHtml(it.statementCode || '') + '</code>' +
+      (it.grade ? '<span>grade ' + escapeHtml(it.grade) + '</span>' : '') +
+      (it.id ? '<span>id ' + escapeHtml(it.id) + '</span>' : '') + '</span></span>';
+    el.appendChild(summary);
+
+    if (it.status === 'error') {
+      var e = document.createElement('div'); e.className = 'err-msg';
+      e.textContent = 'Evaluation error: ' + (it.error || 'unknown');
+      el.appendChild(e);
+      return el;
+    }
+
+    var lcs = document.createElement('div'); lcs.className = 'lcs';
+    (it.learningComponents || []).forEach(function (lc) {
+      var d = document.createElement('div'); d.className = 'lc';
+      var yn = lc.aligned ? '<span class="yn yn-yes">YES</span>' : '<span class="yn yn-no">NO</span>';
+      var html = '<div class="lc-head">' + yn + '<span class="lc-desc">' + escapeHtml(lc.description || '') + '</span></div>';
+      if (lc.reasoning) html += '<div class="lc-field"><span class="k">Reasoning</span><br>' + escapeHtml(lc.reasoning) + '</div>';
+      if (lc.feedback) html += '<div class="lc-field"><span class="k">Feedback</span><br>' + escapeHtml(lc.feedback) + '</div>';
+      d.innerHTML = html;
+      lcs.appendChild(d);
+    });
+    el.appendChild(lcs);
+    return el;
+  }
+
+  function val(id) { return document.getElementById(id).value; }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+})();
+</script>
+</body>
+</html>

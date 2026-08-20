@@ -22,12 +22,12 @@ const MEMBERS = [{ id: EVALUATOR_ID, name: MathStandardsAlignmentEvaluator.metad
 
 // question + statementCode are load-bearing; jurisdiction defaults to CCSS
 // (Multi-State); grade + id are passthrough metadata (report slicing / joining).
-const COLUMNS: ColumnSpec[] = [
+export const STANDARDS_COLUMNS: ColumnSpec[] = [
   { name: 'question', aliases: ['text'], required: true },
   { name: 'statementCode', aliases: ['statement_code', 'ccss_standard', 'standard'], required: true },
   { name: 'jurisdiction', required: false, default: Jurisdiction.MultiState },
   { name: 'grade', required: false },
-  { name: 'id', required: false },
+  { name: 'id', aliases: ['item_id'], required: false },
 ];
 
 const VALID_JURISDICTIONS = new Set<string>(Object.values(Jurisdiction));
@@ -92,7 +92,7 @@ export const STANDARDS_FAMILY: EvaluatorFamily = {
   description:
     'Evaluates whether each item aligns to its tagged math standard, component by component',
   members: MEMBERS,
-  columns: COLUMNS,
+  columns: STANDARDS_COLUMNS,
   maxInputRows: 5000,
   requiredKeys(_selectedMemberIds: string[], modelOverride?: ModelOverride): KeyKind[] {
     // The platform key (Knowledge Graph) is always required; the LLM provider

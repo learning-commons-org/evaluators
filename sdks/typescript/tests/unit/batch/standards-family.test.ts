@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { STANDARDS_FAMILY } from '../../../src/batch/families/standards.js';
+import { QTC_FAMILY } from '../../../src/batch/families/qtc.js';
 import { Provider } from '../../../src/batch/index.js';
 import { Jurisdiction } from '../../../src/knowledge-graph/index.js';
 import type { FamilyRow } from '../../../src/batch/families/family.js';
@@ -15,6 +16,33 @@ describe('STANDARDS_FAMILY.requiredKeys', () => {
     expect(
       STANDARDS_FAMILY.requiredKeys([MEMBER], { provider: Provider.Google, model: 'gemini-x' }),
     ).toEqual([Provider.Google, 'platform']);
+  });
+});
+
+describe('QTC_FAMILY.requiredKeys — member selection', () => {
+  it('demands both keys when every member runs', () => {
+    expect(new Set(QTC_FAMILY.requiredKeys([]))).toEqual(new Set([Provider.Google, Provider.OpenAI]));
+  });
+
+  // Demanding a key the run never uses blocks an otherwise valid non-interactive run.
+  it.each([
+    ['grade-level-appropriateness', [Provider.Google]],
+    ['sentence-structure', [Provider.OpenAI]],
+    ['vocabulary', [Provider.Google, Provider.OpenAI]],
+  ])('asks only for the keys %s actually uses', (memberId, expected) => {
+    expect(new Set(QTC_FAMILY.requiredKeys([memberId]))).toEqual(new Set(expected));
+  });
+
+  it('unions the keys across a mixed selection', () => {
+    expect(new Set(QTC_FAMILY.requiredKeys(['grade-level-appropriateness', 'sentence-structure']))).toEqual(
+      new Set([Provider.Google, Provider.OpenAI]),
+    );
+  });
+
+  it('still collapses to the override provider alone', () => {
+    expect(
+      QTC_FAMILY.requiredKeys(['vocabulary'], { provider: Provider.Anthropic, model: 'claude-x' }),
+    ).toEqual([Provider.Anthropic]);
   });
 });
 

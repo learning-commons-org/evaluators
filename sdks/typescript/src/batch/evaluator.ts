@@ -129,6 +129,7 @@ export class BatchEvaluator {
       status: 'error',
       error,
       processingTimeMs,
+      columns: row.columns,
       originalRow: row.originalRow,
     };
   }
@@ -160,7 +161,8 @@ export class BatchEvaluator {
         reasoning: outcome.reasoning,
         payload: outcome.payload,
         processingTimeMs: Date.now() - startTime,
-        originalRow: row.originalRow,
+        columns: row.columns,
+      originalRow: row.originalRow,
       };
       this.completedResults.push(result);
       onProgress?.(result);
