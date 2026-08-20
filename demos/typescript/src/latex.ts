@@ -55,7 +55,7 @@ const LONE_BRACE_GROUP_RE = /\{([^{}\s,;]+)\}/g;
 // unicodeit treats every "-" as math-mode minus (−); restore the hyphen when
 // it sits between letters ("unknown-factor"). Digit contexts (32 − 8) keep
 // the minus sign.
-const PROSE_HYPHEN_RE = /(?<=[a-zA-Z])−(?=[a-zA-Z])/g;
+const PROSE_HYPHEN_RE = /(?<=[a-zA-Z])−(?=[a-zA-Z0-9])|(?<=[0-9])−(?=[a-zA-Z])/g;
 
 /**
  * Converts LaTeX markup in mixed text to plain Unicode for display:
@@ -64,7 +64,14 @@ const PROSE_HYPHEN_RE = /(?<=[a-zA-Z])−(?=[a-zA-Z])/g;
 export function latexToUnicode(text: string): string {
   let result = text
     .replace(EMPHASIS_RE, (_match, inner: string) => inner)
-    .replace(DELIMITED_MATH_RE, (_match, inner: string) => inner)
+    .replace(
+      DELIMITED_MATH_RE,
+      (match, inner: string) =>
+        (match.startsWith('\\(') && match.endsWith('\\)')) ||
+        (match.startsWith('\\[') && match.endsWith('\\]'))
+          ? inner
+          : match,
+    )
     .replace(DOLLAR_SPAN_RE, (match, inner: string) => {
       const isMath =
         LATEX_TOKEN_RE.test(inner) ||
