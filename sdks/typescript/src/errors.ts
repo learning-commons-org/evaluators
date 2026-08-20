@@ -164,9 +164,21 @@ export class NetworkError extends APIError {
  * Knowledge Graph error - thrown when KG API calls fail
  */
 export class KnowledgeGraphError extends EvaluatorError {
-  constructor(message: string, public readonly statusCode?: number) {
-    super(message, 'KNOWLEDGE_GRAPH_ERROR');
+  constructor(message: string, public readonly statusCode?: number, code = 'KNOWLEDGE_GRAPH_ERROR') {
+    super(message, code);
     this.name = 'KnowledgeGraphError';
+  }
+}
+
+/**
+ * Thrown when a statement code does not exist in the requested jurisdiction.
+ * Distinct from other KG failures because it reflects the caller's input rather
+ * than the service.
+ */
+export class StandardNotFoundError extends KnowledgeGraphError {
+  constructor(message: string, public readonly statementCode: string) {
+    super(message, undefined, 'STANDARD_NOT_FOUND');
+    this.name = 'StandardNotFoundError';
   }
 }
 

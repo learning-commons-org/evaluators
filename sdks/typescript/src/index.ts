@@ -18,10 +18,20 @@ export {
   NetworkError,
   TimeoutError,
   KnowledgeGraphError,
+  StandardNotFoundError,
 } from './errors.js';
 
 // Knowledge Graph
-export { Jurisdiction } from './knowledge-graph/index.js';
+export { Jurisdiction, StandardsCatalog, normalizeStatementCode } from './knowledge-graph/index.js';
+export type {
+  StandardsCatalogConfig,
+  StandardsLookupOptions,
+  CodeValidation,
+  CodeResolutionStatus,
+  StandardCandidate,
+  AcademicStandard,
+  StandardInfo,
+} from './knowledge-graph/index.js';
 
 // Logger
 export type { Logger, LogContext } from './logger.js';
