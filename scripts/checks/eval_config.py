@@ -176,33 +176,47 @@ class EvalConfig(Check):
             fail(f"fixtures file not found: {path}")
 
     def _check_stable_ids(self, configs: list[tuple[str, dict]], result: Result) -> None:
-        """stable_id is a permanent identity anchor -- it (and every id it has ever
-        had) must be globally unique across evaluators. Evaluators without a
-        stable_id yet are skipped (it's optional while being backfilled)."""
-        stable_id_owners: dict[str, list[str]] = {}
-        id_owners: dict[str, list[str]] = {}
+        """stable_id is a permanent identity anchor -- it must be globally unique
+        across evaluators (skipped for evaluators that don't have one yet, since
+        it's optional while being backfilled). id/id_history reuse is checked
+        regardless of whether stable_id is present.
+
+        Defensive against structurally invalid configs (already reported by
+        _check_schema) -- a non-dict `evaluator` or non-list `id_history` must
+        not crash this check and hide every other config's violations."""
+        stable_id_owners: dict[str, set[str]] = {}
+        id_owners: dict[str, set[str]] = {}
 
         for cfg_path, config in configs:
-            evaluator = config.get("evaluator", {})
+            evaluator = config.get("evaluator")
+            if not isinstance(evaluator, dict):
+                continue
+
             stable_id = evaluator.get("stable_id")
-            if stable_id:
-                stable_id_owners.setdefault(stable_id, []).append(cfg_path)
-            for id_value in [evaluator.get("id"), *evaluator.get("id_history", [])]:
-                if id_value:
-                    id_owners.setdefault(id_value, []).append(cfg_path)
+            if isinstance(stable_id, str) and stable_id:
+                stable_id_owners.setdefault(stable_id, set()).add(cfg_path)
+
+            id_history = evaluator.get("id_history")
+            if not isinstance(id_history, list):
+                id_history = []
+            for id_value in [evaluator.get("id"), *id_history]:
+                if isinstance(id_value, str) and id_value:
+                    id_owners.setdefault(id_value, set()).add(cfg_path)
 
         for stable_id, owners in sorted(stable_id_owners.items()):
             if len(owners) > 1:
+                paths = sorted(owners)
                 result.violations.append(Violation(
-                    owners[0],
-                    f"stable_id {stable_id!r} is used by more than one evaluator: {', '.join(owners)}",
+                    paths[0],
+                    f"stable_id {stable_id!r} is used by more than one evaluator: {', '.join(paths)}",
                 ))
         for id_value, owners in sorted(id_owners.items()):
             if len(owners) > 1:
+                paths = sorted(owners)
                 result.violations.append(Violation(
-                    owners[0],
+                    paths[0],
                     f"id {id_value!r} appears (as id or id_history) on more than one evaluator: "
-                    f"{', '.join(owners)} -- a retired id must never be reused for a different evaluator",
+                    f"{', '.join(paths)} -- a retired id must never be reused for a different evaluator",
                 ))
 
     # --- helpers -------------------------------------------------------------
