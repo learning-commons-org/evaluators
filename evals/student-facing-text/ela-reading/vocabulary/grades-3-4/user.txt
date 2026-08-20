@@ -1,5 +1,0 @@
-Analyze:
-Text: {text}
-Grade: {grade_level}
-FK Score: {fk_score}
-Student Background Knowledge: {student_background_knowledge}

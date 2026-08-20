@@ -1,4 +1,0 @@
-Analyze:
-Text: {text}
-Grade: {grade_level}
-Student Background Knowledge: {student_background_knowledge}
