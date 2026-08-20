@@ -18,16 +18,13 @@ import { VocabularyEvaluator } from '../../src/evaluators/vocabulary.js';
 
 const RUN_INTEGRATION = process.env.RUN_INTEGRATION_TESTS === 'true';
 
-// A missing key when integration tests were explicitly requested is a
-// misconfiguration, not a reason to quietly pass.
-if (RUN_INTEGRATION && !process.env.ANTHROPIC_API_KEY) {
-  throw new Error(
-    'ANTHROPIC_API_KEY is required when RUN_INTEGRATION_TESTS=true. ' +
-    'Set it, or unset RUN_INTEGRATION_TESTS to skip integration tests.',
-  );
-}
-
-const describeIntegration = RUN_INTEGRATION ? describe : describe.skip;
+// Anthropic is an *optional* provider: no evaluator defaults to it, and CI
+// supplies only OPENAI/GOOGLE. So a missing key skips this suite rather than
+// failing a run that has keys for every other one — unlike the suites whose
+// provider key is required, which throw. Same policy as the optional keys in
+// math-standards-alignment.integration.test.ts.
+const describeIntegration =
+  RUN_INTEGRATION && process.env.ANTHROPIC_API_KEY ? describe : describe.skip;
 
 const TEST_TIMEOUT_MS = 3 * 60 * 1000;
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_TEST_MODEL ?? 'claude-haiku-4-5-20251001';

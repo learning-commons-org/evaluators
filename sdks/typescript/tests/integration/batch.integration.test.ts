@@ -20,8 +20,8 @@ import type { BatchInput } from '../../src/batch/index.js';
 const RUN_INTEGRATION = process.env.RUN_INTEGRATION_TESTS === 'true';
 
 if (RUN_INTEGRATION) {
-  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is required when RUN_INTEGRATION_TESTS is set');
-  if (!process.env.GOOGLE_API_KEY) throw new Error('GOOGLE_API_KEY is required when RUN_INTEGRATION_TESTS is set');
+  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is required when RUN_INTEGRATION_TESTS=true');
+  if (!process.env.GOOGLE_API_KEY) throw new Error('GOOGLE_API_KEY is required when RUN_INTEGRATION_TESTS=true');
 }
 
 const SKIP_INTEGRATION = !RUN_INTEGRATION;
