@@ -90,18 +90,3 @@ export function latexToUnicode(text: string): string {
     .replace(LONE_BRACE_GROUP_RE, (_match, inner: string) => inner)
     .replace(PROSE_HYPHEN_RE, '-');
 }
-
-/**
- * Returns a copy of a JSON-compatible value with latexToUnicode applied to
- * every string. Display-only — don't feed the result back to an evaluator.
- */
-export function latexToUnicodeDeep<T>(value: T): T {
-  if (typeof value === 'string') return latexToUnicode(value) as T;
-  if (Array.isArray(value)) return value.map(latexToUnicodeDeep) as T;
-  if (value !== null && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, inner]) => [key, latexToUnicodeDeep(inner)]),
-    ) as T;
-  }
-  return value;
-}

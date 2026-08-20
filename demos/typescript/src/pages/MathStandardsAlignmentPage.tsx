@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Select from 'react-select';
 import { fetchJson } from '../api';
-import { latexToUnicode, latexToUnicodeDeep } from '../latex';
+import { latexToUnicode } from '../latex';
 
 const GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
@@ -78,7 +78,7 @@ export default function MathStandardsAlignmentPage() {
           jurisdiction,
         }),
       });
-      setOutput(JSON.stringify(latexToUnicodeDeep(results), null, 2));
+      setOutput(JSON.stringify(results, null, 2));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
