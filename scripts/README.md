@@ -82,3 +82,40 @@ evaluators with a `config.json` are covered, same as every check above.
 ```bash
 python3 scripts/notebook_ci/find_affected.py --changed-files-from <(git diff --name-only main)
 ```
+
+## `scripts/prompt_diff.py` — review what actually changed in a prompt
+
+A plain `git diff` is a poor review tool for prompt changes, for two reasons:
+files move (so everything reads as delete + add), and content moves *between*
+files (rubric text relocated from a user prompt to a system prompt reads as a
+large deletion plus a large addition, when nothing the model sees changed).
+
+This renders each side into one normalized blob — every message concatenated in
+the order `config.json` declares — and word-diffs that. A pure restructure
+produces an empty diff; only real wording changes surface. Word granularity
+matters for prose: a reflowed paragraph is a whole-line change to a line
+differ but a no-op to a word differ.
+
+```bash
+python3 scripts/prompt_diff.py --list          # evaluators it knows about
+python3 scripts/prompt_diff.py --all           # verdict table, every evaluator
+python3 scripts/prompt_diff.py purpose-clarity # word-level diff for one
+```
+
+| Flag | Purpose |
+|------|---------|
+| `--mode content` | *(default)* Ignore role and file boundaries. Answers "did the instruction set change at all?" |
+| `--mode roles` | Keep `===== SYSTEM =====` markers. Answers "what moved between the system and user prompts?" |
+| `--mode files` | File inventory per side, no diff. Answers "which files went where?" |
+| `--normalize` | Canonicalize already-agreed renames (`{grade}`→`{grade_level}`, drop `{format_instructions}`) so only *unexpected* changes remain. Reports which substitutions fired, so nothing hides silently. |
+| `--base` / `--head` | Diff any two refs. Defaults: `origin/main` → the evaluator's PR branch. |
+
+Both sides are read with `git show`, so no checkout or worktree is needed —
+just `git fetch origin` first. Once a PR branch merges and is deleted, that
+evaluator automatically falls back to `--fallback-head` (default `origin/main`),
+so the tool keeps working without edits.
+
+`EVALUATORS` in the script maps each evaluator to where its prompts lived
+before the `evals/prompts/` → `evals/student-facing-text/ela-reading/`
+migration. That mapping is inherently historical — `git` can't infer it once
+files move and merge — so it's maintained by hand as new evaluators land.
