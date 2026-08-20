@@ -5,8 +5,6 @@ anthropic
 requests
 textstat
 python-dotenv
-numpy
-pandas
 pydantic
 # The following is for the jupyter notebook support:
 jupyter

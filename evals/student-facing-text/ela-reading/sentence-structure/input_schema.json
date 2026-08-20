@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "input_schema.json",
+  "title": "EvaluatorInput",
+  "description": "Runtime inputs for the Sentence Structure evaluator.",
+  "type": "object",
+  "required": ["text", "grade_level"],
+  "additionalProperties": false,
+  "properties": {
+    "text": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 10000,
+      "description": "The passage to evaluate."
+    },
+    "grade_level": {
+      "type": "string",
+      "enum": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
+      "description": "Target student grade level. Selects which of the three rubric_grade_* preprocessing entries supplies {rubric}. String, matching evaluator.supported_grades' own convention in config.schema.json (which must be strings to allow 'K')."
+    }
+  }
+}

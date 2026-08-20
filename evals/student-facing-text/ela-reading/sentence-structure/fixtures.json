@@ -1,0 +1,14 @@
+[
+  {
+    "id": "cat_on_mat",
+    "description": "Grade 3 text of exclusively short simple sentences; drawn from the TS SDK's own usage example for this evaluator.",
+    "source": "sdks/typescript/src/evaluators/sentence-structure.ts functional-API docstring example.",
+    "input": {
+      "text": "The cat sat on the mat. It was sleeping peacefully. The sun was warm. Soon it began to dream.",
+      "grade_level": "3"
+    },
+    "expected": {
+      "complexity_score": "slightly_complex"
+    }
+  }
+]

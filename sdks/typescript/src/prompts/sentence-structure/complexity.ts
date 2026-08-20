@@ -1,8 +1,8 @@
-import SYSTEM_PROMPT_COMPLEXITY_TEMPLATE from '../../../../../evals/prompts/sentence-structure/complexity-system.txt';
-import USER_PROMPT_COMPLEXITY_TEMPLATE from '../../../../../evals/prompts/sentence-structure/complexity-user.txt';
-import RUBRIC_GRADE_3 from '../../../../../evals/prompts/sentence-structure/rubric-grade-3.txt';
-import RUBRIC_GRADE_4 from '../../../../../evals/prompts/sentence-structure/rubric-grade-4.txt';
-import RUBRIC_GRADES_5_12 from '../../../../../evals/prompts/sentence-structure/rubric-grades-5-12.txt';
+import SYSTEM_PROMPT_COMPLEXITY_TEMPLATE from '../../../../../evals/student-facing-text/ela-reading/sentence-structure/complexity-system.txt';
+import USER_PROMPT_COMPLEXITY_TEMPLATE from '../../../../../evals/student-facing-text/ela-reading/sentence-structure/complexity-user.txt';
+import RUBRIC_GRADE_3 from '../../../../../evals/student-facing-text/ela-reading/sentence-structure/rubric-grade-3.txt';
+import RUBRIC_GRADE_4 from '../../../../../evals/student-facing-text/ela-reading/sentence-structure/rubric-grade-4.txt';
+import RUBRIC_GRADES_5_12 from '../../../../../evals/student-facing-text/ela-reading/sentence-structure/rubric-grades-5-12.txt';
 
 /**
  * Get the system prompt for sentence structure complexity evaluation
@@ -42,9 +42,8 @@ export function getUserPromptComplexity(
   const rubric = getRubricForGrade(grade);
 
   return USER_PROMPT_COMPLEXITY_TEMPLATE
-    .replace('{sentence_features}', sentenceFeatures)
-    .replace('{grade}', grade)
-    .replace('{rubric}', rubric)
-    .replace('{excerpt}', excerpt)
-    .replace('{format_instructions}', '');
+    .replaceAll('{sentence_features}', sentenceFeatures)
+    .replaceAll('{grade_level}', grade)
+    .replaceAll('{rubric}', rubric)
+    .replaceAll('{excerpt}', excerpt);
 }

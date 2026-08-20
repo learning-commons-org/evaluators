@@ -1,0 +1,207 @@
+{
+  "$schema": "../../../_schemas/config.schema.json",
+  "evaluator": {
+    "id": "student_facing_text.ela_reading.sentence_structure",
+    "stable_id": "f2fb2548-fdd2-4fad-a642-a996ba01d5ac",
+    "id_history": ["sentence-structure"],
+    "name": "Sentence Structure Evaluator",
+    "description": "Evaluates sentence structure complexity of a text relative to its target grade, via a 2-stage pipeline: an LLM grammatical analysis (sentence types, clauses, phrases, transitions), then engineered feature ratios fed into a grade-specific rubric for a final complexity classification.",
+    "supported_grades": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+  },
+  "input_schema": {
+    "$ref": "input_schema.json"
+  },
+  "preprocessing": [
+    {
+      "id": "ground_truth_counts",
+      "type": "computation",
+      "kind": "sentence_ground_truth_counts",
+      "description": "Computes deterministic ground-truth counts (sentence/word/char/syllable counts and Flesch-Kincaid grade) for the input text and formats them into the {ground_truth_counts} block referenced by the sentence_analysis step. The LLM is instructed to use these as a reference, not a hard constraint.",
+      "input": "text",
+      "output": "ground_truth_counts",
+      "implementation": {
+        "python": {
+          "library": "textstat",
+          "function": "compute_ground_truth_counts"
+        },
+        "typescript": {
+          "library": "compromise+syllable",
+          "function": "calculateReadabilityMetrics"
+        }
+      }
+    },
+    {
+      "id": "rubric_grade_3",
+      "type": "computation",
+      "kind": "load_rubric_text",
+      "description": "Selects the Grade 3 rubric text and binds it to {rubric} in the classify_complexity step.",
+      "input": "grade_level",
+      "output": "rubric",
+      "condition": { "input": "grade_level", "in": ["3"] },
+      "implementation": {
+        "python": {
+          "library": "pathlib",
+          "function": "load_rubric_grade_3"
+        },
+        "typescript": {
+          "library": "raw-loader",
+          "function": "getRubricForGrade"
+        }
+      }
+    },
+    {
+      "id": "rubric_grade_4",
+      "type": "computation",
+      "kind": "load_rubric_text",
+      "description": "Selects the Grade 4 rubric text and binds it to {rubric} in the classify_complexity step.",
+      "input": "grade_level",
+      "output": "rubric",
+      "condition": { "input": "grade_level", "in": ["4"] },
+      "implementation": {
+        "python": {
+          "library": "pathlib",
+          "function": "load_rubric_grade_4"
+        },
+        "typescript": {
+          "library": "raw-loader",
+          "function": "getRubricForGrade"
+        }
+      }
+    },
+    {
+      "id": "rubric_grades_5_12",
+      "type": "computation",
+      "kind": "load_rubric_text",
+      "description": "Selects the shared Grades 5-12 rubric text and binds it to {rubric} in the classify_complexity step.",
+      "input": "grade_level",
+      "output": "rubric",
+      "condition": { "input": "grade_level", "in": ["5", "6", "7", "8", "9", "10", "11", "12"] },
+      "implementation": {
+        "python": {
+          "library": "pathlib",
+          "function": "load_rubric_grades_5_12"
+        },
+        "typescript": {
+          "library": "raw-loader",
+          "function": "getRubricForGrade"
+        }
+      }
+    },
+    {
+      "id": "sentence_features",
+      "type": "computation",
+      "kind": "engineered_sentence_features",
+      "description": "Derives ~30 percentage/ratio features (sentence-type distribution, subordination density, phrase density, transitions, sentence-length buckets) from the sentence_analysis step's raw counts, then binds the resulting JSON blob to {sentence_features} in the classify_complexity step.",
+      "input": "steps.sentence_analysis.output",
+      "output": "sentence_features",
+      "implementation": {
+        "python": {
+          "library": "pandas+numpy",
+          "function": "add_engineered_features"
+        },
+        "typescript": {
+          "library": "custom",
+          "function": "addEngineeredFeatures"
+        }
+      }
+    }
+  ],
+  "steps": [
+    {
+      "id": "sentence_analysis",
+      "type": "llm",
+      "description": "Stage 1: LLM performs a sentence-by-sentence grammatical analysis (sentence types, clauses, phrases, transitions) of the input text, using ground_truth_counts as a computational reference.",
+      "prompt": {
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "analysis-system.txt",
+            "sha256": "186e7325d1c142945af99038013b96627e243d405b532d6f52f836a3b205a934"
+          },
+          {
+            "role": "user",
+            "source_path": "analysis-user.txt",
+            "sha256": "bbff16a6bb5f4d5112c026db1b324b2716468961f1de4ec967039f9ad3dee3af"
+          }
+        ],
+        "placeholders": {
+          "text": {
+            "required": true,
+            "source": "input"
+          },
+          "ground_truth_counts": {
+            "required": true,
+            "source": "preprocessing.ground_truth_counts"
+          }
+        }
+      },
+      "model": {
+        "provider": "openai",
+        "name": "gpt-4o"
+      },
+      "generation": {
+        "temperature": 0
+      },
+      "parser": {
+        "kind": "structured_output"
+      }
+    },
+    {
+      "id": "classify_complexity",
+      "type": "llm",
+      "description": "Stage 2: LLM classifies overall sentence-structure complexity using the grade-specific rubric and the engineered features derived from stage 1.",
+      "prompt": {
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "complexity-system.txt",
+            "sha256": "bd70b58127295fd7f316bd26b901ce9d5bac0785d6c0c8842787b150764028ea"
+          },
+          {
+            "role": "user",
+            "source_path": "complexity-user.txt",
+            "sha256": "13d565bbe6a6049d247cb656fce8b75c0fa35f58dda0d25bf656e0660589e819"
+          }
+        ],
+        "placeholders": {
+          "grade_level": {
+            "required": true,
+            "source": "input"
+          },
+          "rubric": {
+            "required": true,
+            "source": "preprocessing.rubric"
+          },
+          "excerpt": {
+            "required": true,
+            "source": "input.text"
+          },
+          "sentence_features": {
+            "required": true,
+            "source": "preprocessing.sentence_features"
+          }
+        }
+      },
+      "model": {
+        "provider": "openai",
+        "name": "gpt-4o"
+      },
+      "generation": {
+        "temperature": 0
+      },
+      "parser": {
+        "kind": "structured_output"
+      }
+    }
+  ],
+  "output_schema": {
+    "$ref": "output_schema.json"
+  },
+  "fixtures": {
+    "path": "fixtures.json",
+    "tolerance": {
+      "allow_adjacent_levels": true,
+      "notes": "If allow_adjacent_levels is true, predictions within one rubric step of the expected label count as a pass."
+    }
+  }
+}

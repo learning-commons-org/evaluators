@@ -32,7 +32,3 @@ Use these as reference, your internal heuristics can be more reliable.
 [BEGIN TEXT]
 {text}
 [END TEXT]
-
-IMPORTANT: Your response should be a single JSON object with the following structure. Do not produce anything outside of the JSON object.
-
-{format_instructions}
