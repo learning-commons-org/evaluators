@@ -20,10 +20,14 @@ import {
  * ```
  */
 
-const SKIP_INTEGRATION = !process.env.RUN_INTEGRATION_TESTS &&
-                         (!process.env.OPENAI_API_KEY || !process.env.GOOGLE_API_KEY);
-
-const describeIntegration = SKIP_INTEGRATION ? describe.skip : describe;
+const RUN_INTEGRATION = process.env.RUN_INTEGRATION_TESTS === 'true';
+// A missing key when integration tests were explicitly requested is a
+// misconfiguration, not a reason to quietly pass (matches batch/anthropic-provider).
+if (RUN_INTEGRATION) {
+  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is required when RUN_INTEGRATION_TESTS=true');
+  if (!process.env.GOOGLE_API_KEY) throw new Error('GOOGLE_API_KEY is required when RUN_INTEGRATION_TESTS=true');
+}
+const describeIntegration = RUN_INTEGRATION ? describe : describe.skip;
 
 // Test timeout: 2 minutes per test case (allows for 3 attempts with API latency)
 const TEST_TIMEOUT_MS = 2 * 60 * 1000;
@@ -85,11 +89,6 @@ describeIntegration.concurrent('Vocabulary Evaluator - Comprehensive Test Suite'
   let evaluator: VocabularyEvaluator;
 
   beforeAll(() => {
-    if (SKIP_INTEGRATION) {
-      console.log('⏭️  Skipping integration tests (no API keys or RUN_INTEGRATION_TESTS not set)');
-      return;
-    }
-
     evaluator = new VocabularyEvaluator({
       googleApiKey: process.env.GOOGLE_API_KEY!,
       openaiApiKey: process.env.OPENAI_API_KEY!,
