@@ -97,16 +97,20 @@ matters for prose: a reflowed paragraph is a whole-line change to a line
 differ but a no-op to a word differ.
 
 ```bash
-python3 scripts/prompt_diff.py --list          # evaluators it knows about
-python3 scripts/prompt_diff.py --all           # verdict table, every evaluator
-python3 scripts/prompt_diff.py purpose-clarity # word-level diff for one
+python3 scripts/prompt_diff.py --list                        # evaluators + calls
+python3 scripts/prompt_diff.py --all                         # verdict per LLM call
+python3 scripts/prompt_diff.py purpose-clarity               # diff one evaluator
+python3 scripts/prompt_diff.py vocabulary-complexity --per-call   # one diff per LLM call
+python3 scripts/prompt_diff.py --all --emit /tmp/pd          # dump every pair to disk
 ```
 
 | Flag | Purpose |
 |------|---------|
+| `--per-call` | One diff per LLM call (config step) rather than per evaluator. The right unit when an evaluator makes several calls — Vocabulary Complexity makes 3, Sentence Structure 2. |
+| `--emit DIR` | Write each rendered `BEFORE`/`AFTER` pair to `DIR` and print a `code --diff` line for each, instead of printing the diff inline. Use this to review in VS Code, Meld, Beyond Compare, or any visual difftool. |
 | `--mode content` | *(default)* Ignore role and file boundaries. Answers "did the instruction set change at all?" |
 | `--mode roles` | Keep `===== SYSTEM =====` markers. Answers "what moved between the system and user prompts?" |
-| `--mode files` | File inventory per side, no diff. Answers "which files went where?" |
+| `--mode files` | File inventory per call, no diff. Answers "which files went where?" |
 | `--normalize` | Canonicalize already-agreed renames (`{grade}`→`{grade_level}`, drop `{format_instructions}`) so only *unexpected* changes remain. Reports which substitutions fired, so nothing hides silently. |
 | `--base` / `--head` | Diff any two refs. Defaults: `origin/main` → the evaluator's PR branch. |
 
@@ -115,7 +119,15 @@ just `git fetch origin` first. Once a PR branch merges and is deleted, that
 evaluator automatically falls back to `--fallback-head` (default `origin/main`),
 so the tool keeps working without edits.
 
-`EVALUATORS` in the script maps each evaluator to where its prompts lived
-before the `evals/prompts/` → `evals/student-facing-text/ela-reading/`
-migration. That mapping is inherently historical — `git` can't infer it once
-files move and merge — so it's maintained by hand as new evaluators land.
+`EVALUATORS` in the script maps each LLM call (a `steps[]` entry in
+`config.json`) to the base-side files it came from, before the
+`evals/prompts/` → `evals/student-facing-text/ela-reading/` migration. That
+mapping is inherently historical — `git` can't infer it once files move and
+merge — so it's maintained by hand as new evaluators land.
+
+A step's `head_extra` lists files that call depends on but `config.json`
+cannot name: Sentence Structure's grade-band rubrics are `preprocessing`
+entries interpolated into `{rubric}`, and `config.schema.json` has no
+`source_path` field for preprocessing entries. Worth fixing at the schema
+level — `notebook_ci/find_affected.py` derives its dependency closure from
+the same data, so those rubrics are currently outside it too.

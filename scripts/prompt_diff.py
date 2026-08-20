@@ -58,81 +58,132 @@ EVALUATORS: dict[str, dict] = {
         "old_name": "Grade Level Appropriateness",
         "pr": 159,
         "head_ref": "origin/worktree-ga-gla-prompt-fixes",
-        "old_paths": [
-            "evals/prompts/grade-level-appropriateness/system.txt",
-            "evals/prompts/grade-level-appropriateness/user.txt",
-        ],
+        "steps": {
+            "evaluate_grade_level_appropriateness": {
+                "old": [
+                    "evals/prompts/grade-level-appropriateness/system.txt",
+                    "evals/prompts/grade-level-appropriateness/user.txt",
+                ],
+            },
+        },
     },
     "meaning-directness": {
         "old_name": "Conventionality",
         "pr": 161,
         "head_ref": "origin/worktree-ga-conventionality-fixes",
-        "old_paths": [
-            "evals/prompts/conventionality/system.txt",
-            "evals/prompts/conventionality/user.txt",
-        ],
+        "steps": {
+            "evaluate_conventionality": {
+                "old": [
+                    "evals/prompts/conventionality/system.txt",
+                    "evals/prompts/conventionality/user.txt",
+                ],
+            },
+        },
     },
     "vocabulary-complexity": {
         "old_name": "Vocabulary",
         "pr": 163,
         "head_ref": "origin/worktree-ga-vocabulary-fixes",
-        "old_paths": [
-            "evals/prompts/vocabulary/background-knowledge.txt",
-            "evals/prompts/vocabulary/grades-3-4-system.txt",
-            "evals/prompts/vocabulary/grades-3-4-user.txt",
-            "evals/prompts/vocabulary/other-grades-system.txt",
-            "evals/prompts/vocabulary/other-grades-user.txt",
-        ],
+        "steps": {
+            "background_knowledge": {
+                "old": ["evals/prompts/vocabulary/background-knowledge.txt"],
+            },
+            "vocab_complexity_grades_3_4": {
+                "old": [
+                    "evals/prompts/vocabulary/grades-3-4-system.txt",
+                    "evals/prompts/vocabulary/grades-3-4-user.txt",
+                ],
+            },
+            "vocab_complexity_other_grades": {
+                "old": [
+                    "evals/prompts/vocabulary/other-grades-system.txt",
+                    "evals/prompts/vocabulary/other-grades-user.txt",
+                ],
+            },
+        },
     },
     "background-knowledge-demands": {
         "old_name": "Subject Matter Knowledge",
         "pr": 173,
         "head_ref": "origin/worktree-background-knowledge-demands",
-        "old_paths": [
-            "evals/prompts/subject-matter-knowledge/system.txt",
-            "evals/prompts/subject-matter-knowledge/user.txt",
-        ],
+        "steps": {
+            "evaluate_background_knowledge_demands": {
+                "old": [
+                    "evals/prompts/subject-matter-knowledge/system.txt",
+                    "evals/prompts/subject-matter-knowledge/user.txt",
+                ],
+            },
+        },
     },
     "sentence-structure": {
         "old_name": "Sentence Structure",
         "pr": 174,
         "head_ref": "origin/worktree-sentence-structure",
-        "old_paths": [
-            "evals/prompts/sentence-structure/analysis-system.txt",
-            "evals/prompts/sentence-structure/analysis-user.txt",
-            "evals/prompts/sentence-structure/complexity-system.txt",
-            "evals/prompts/sentence-structure/complexity-user.txt",
-            "evals/prompts/sentence-structure/rubric-grade-3.txt",
-            "evals/prompts/sentence-structure/rubric-grade-4.txt",
-            "evals/prompts/sentence-structure/rubric-grades-5-12.txt",
-        ],
+        "steps": {
+            "sentence_analysis": {
+                "old": [
+                    "evals/prompts/sentence-structure/analysis-system.txt",
+                    "evals/prompts/sentence-structure/analysis-user.txt",
+                ],
+            },
+            "classify_complexity": {
+                "old": [
+                    "evals/prompts/sentence-structure/complexity-system.txt",
+                    "evals/prompts/sentence-structure/complexity-user.txt",
+                    "evals/prompts/sentence-structure/rubric-grade-3.txt",
+                    "evals/prompts/sentence-structure/rubric-grade-4.txt",
+                    "evals/prompts/sentence-structure/rubric-grades-5-12.txt",
+                ],
+                # Interpolated into this step's {rubric}. They're `preprocessing`
+                # entries, and the schema has no source_path for those, so the
+                # config can't tell us they belong to this call -- hence listing
+                # them here. See the note in head_step_messages().
+                "head_extra": [
+                    "rubric-grade-3.txt",
+                    "rubric-grade-4.txt",
+                    "rubric-grades-5-12.txt",
+                ],
+            },
+        },
     },
     "purpose-clarity": {
         "old_name": "Purpose",
         "pr": 175,
         "head_ref": "origin/worktree-purpose-clarity",
-        "old_paths": [
-            "evals/prompts/purpose/system.txt",
-            "evals/prompts/purpose/user.txt",
-        ],
+        "steps": {
+            "evaluate_purpose_clarity": {
+                "old": [
+                    "evals/prompts/purpose/system.txt",
+                    "evals/prompts/purpose/user.txt",
+                ],
+            },
+        },
     },
     "organizational-structure": {
         "old_name": "Organizational Structure",
         "pr": 176,
         "head_ref": "origin/worktree-organizational-structure",
-        "old_paths": [
-            "evals/literacy/qualitative-text-complexity/organizational-structure/system.txt",
-            "evals/literacy/qualitative-text-complexity/organizational-structure/user.txt",
-        ],
+        "steps": {
+            "evaluate_organizational_structure": {
+                "old": [
+                    "evals/literacy/qualitative-text-complexity/organizational-structure/system.txt",
+                    "evals/literacy/qualitative-text-complexity/organizational-structure/user.txt",
+                ],
+            },
+        },
     },
     "reference-knowledge-demands": {
         "old_name": "Intertextuality",
         "pr": 177,
         "head_ref": "origin/worktree-reference-knowledge-demands",
-        "old_paths": [
-            "evals/literacy/qualitative-text-complexity/intertextuality/system.txt",
-            "evals/literacy/qualitative-text-complexity/intertextuality/user.txt",
-        ],
+        "steps": {
+            "evaluate_intertextuality": {
+                "old": [
+                    "evals/literacy/qualitative-text-complexity/intertextuality/system.txt",
+                    "evals/literacy/qualitative-text-complexity/intertextuality/user.txt",
+                ],
+            },
+        },
     },
 }
 
@@ -187,35 +238,47 @@ def ls_tree(ref: str, directory: str) -> list[str]:
     return [Path(line).name for line in result.stdout.splitlines() if line.strip()]
 
 
-def head_messages(ref: str, slug: str) -> list[tuple[str, str, str]]:
-    """Read the head side's prompt files: config-declared messages first, then
-    any remaining .txt files in the directory.
+def head_step_messages(ref: str, slug: str, step_id: str,
+                       extra: list[str]) -> list[tuple[str, str, str]]:
+    """Read one LLM call's prompt files from the head side.
 
-    Driving the ordered part off config.json keeps the tool correct as steps
-    are added or reordered. The trailing sweep exists because not every prompt
-    file is declared as a `messages` entry -- Sentence Structure's grade-band
-    rubrics are `preprocessing` entries interpolated into `{rubric}`, and the
-    schema has no `source_path` for those. Without the sweep they'd read as
-    deletions, which is exactly the false alarm this tool exists to prevent.
+    The declared messages come from config.json, so the tool stays correct as
+    steps are reordered. `extra` covers files the config depends on but cannot
+    name: Sentence Structure's grade-band rubrics are `preprocessing` entries
+    interpolated into `{rubric}`, and config.schema.json has no `source_path`
+    field for preprocessing. Without them the rubrics would read as deletions
+    -- exactly the false alarm this tool exists to prevent.
     """
     base_dir = f"{NEW_DIR}/{slug}"
     config = json.loads(git_show(ref, f"{base_dir}/config.json"))
 
-    messages: list[tuple[str, str, str]] = []
-    declared: set[str] = set()
-    for step in config.get("steps", []):
-        for msg in step.get("prompt", {}).get("messages", []):
-            source = msg["source_path"]
-            declared.add(source)
-            messages.append(
-                (msg.get("role", "user"), source, git_show(ref, f"{base_dir}/{source}"))
-            )
+    step = next((s for s in config.get("steps", []) if s.get("id") == step_id), None)
+    if step is None:
+        known = ", ".join(s.get("id", "?") for s in config.get("steps", []))
+        raise GitError(f"step {step_id!r} not in {ref}:{base_dir}/config.json (has: {known})")
 
-    for name in sorted(ls_tree(ref, base_dir)):
-        if name.endswith(".txt") and name not in declared:
-            messages.append(("undeclared", name, git_show(ref, f"{base_dir}/{name}")))
-
+    messages = [
+        (msg.get("role", "user"), msg["source_path"],
+         git_show(ref, f"{base_dir}/{msg['source_path']}"))
+        for msg in step.get("prompt", {}).get("messages", [])
+    ]
+    messages += [
+        ("interpolated", name, git_show(ref, f"{base_dir}/{name}")) for name in extra
+    ]
     return messages
+
+
+def head_messages(ref: str, slug: str) -> list[tuple[str, str, str]]:
+    """Every prompt file on the head side, all steps concatenated in order."""
+    out: list[tuple[str, str, str]] = []
+    for step_id, step_meta in EVALUATORS[slug]["steps"].items():
+        out += head_step_messages(ref, slug, step_id, step_meta.get("head_extra", []))
+    return out
+
+
+def old_paths_for(slug: str) -> list[str]:
+    """Every base-side path for an evaluator, all steps in order."""
+    return [p for s in EVALUATORS[slug]["steps"].values() for p in s["old"]]
 
 
 def base_messages(ref: str, old_paths: list[str]) -> list[tuple[str, str, str]]:
@@ -325,82 +388,129 @@ def resolve(slug: str, args) -> tuple[str, str]:
     return args.base, head
 
 
-def diff_one(slug: str, args) -> bool:
-    """Diff one evaluator. Returns True if the rendered prompt changed."""
-    meta = EVALUATORS[slug]
-    base_ref, head_ref = resolve(slug, args)
-
-    base_msgs = base_messages(base_ref, meta["old_paths"])
-    head_msgs = head_messages(head_ref, slug)
-
-    if args.mode == "files":
-        print(f"\n\033[1m{meta['old_name']} -> {slug}\033[0m  (PR #{meta['pr']})")
-        print(f"  base  {base_ref}")
-        for role, source, text in base_msgs:
-            print(f"    {role:>6}  {source:<28} {len(text):>6} chars")
-        print(f"  head  {head_ref}")
-        for role, source, text in head_msgs:
-            print(f"    {role:>6}  {source:<28} {len(text):>6} chars")
-        return False
-
+def prepare(base_msgs, head_msgs, args) -> tuple[str, str, list[str]]:
+    """Render both sides and apply optional normalization."""
     base_text = render(base_msgs, args.mode)
     head_text = render(head_msgs, args.mode)
-
     notes: list[str] = []
     if args.normalize:
-        base_text, applied = apply_known_renames(base_text)
-        notes = applied
+        base_text, notes = apply_known_renames(base_text)
         head_text, _ = apply_known_renames(head_text)
         base_text, head_text = normalize(base_text), normalize(head_text)
+    return base_text, head_text, notes
 
-    output, changed = word_diff(
-        base_text, head_text, meta["old_name"].replace(" ", "-"), slug,
-        color=args.color,
-    )
 
-    header = f"\n\033[1m{meta['old_name']} -> {slug}\033[0m  (PR #{meta['pr']}, mode={args.mode})"
-    print(header)
-    print(f"  {base_ref}  ->  {head_ref}")
+def emit_pair(out_dir: Path, name: str, base_text: str, head_text: str) -> tuple[Path, Path]:
+    """Write a rendered pair to disk for use with any external diff tool."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    base_file = out_dir / f"{name}.BEFORE.txt"
+    head_file = out_dir / f"{name}.AFTER.txt"
+    base_file.write_text(base_text)
+    head_file.write_text(head_text)
+    return base_file, head_file
+
+
+def report(label: str, subtitle: str, base_text: str, head_text: str,
+           notes: list[str], args) -> bool:
+    """Diff one rendered pair and print the result. Returns True if changed."""
+    output, changed = word_diff(base_text, head_text, "before", "after", color=args.color)
+
+    print(f"\n\033[1m{label}\033[0m")
+    print(f"  {subtitle}")
     if notes:
         print(f"  normalized: {', '.join(notes)}")
 
+    if args.emit:
+        base_file, head_file = emit_pair(Path(args.emit), label.split()[0], base_text, head_text)
+        print(f"  wrote {base_file}")
+        print(f"  wrote {head_file}")
+        print(f"  \033[36mvisual:\033[0m code --diff {base_file} {head_file}")
+
     if not changed:
         print("  \033[32mIDENTICAL\033[0m -- restructured only, the model sees the same bytes")
-    else:
+    elif not args.emit:
         print()
         print(output)
+    else:
+        print("  \033[33mCHANGED\033[0m -- open the pair above in your diff tool")
     return changed
 
 
+def diff_one(slug: str, args) -> bool:
+    """Diff one evaluator. Returns True if anything changed."""
+    meta = EVALUATORS[slug]
+    base_ref, head_ref = resolve(slug, args)
+    refs = f"{base_ref}  ->  {head_ref}"
+
+    if args.mode == "files":
+        print(f"\n\033[1m{meta['old_name']} -> {slug}\033[0m  (PR #{meta['pr']})")
+        for step_id, step_meta in meta["steps"].items():
+            print(f"\n  \033[1mcall: {step_id}\033[0m")
+            print(f"    base  {base_ref}")
+            for role, source, text in base_messages(base_ref, step_meta["old"]):
+                print(f"      {role:>13}  {source:<28} {len(text):>6} chars")
+            print(f"    head  {head_ref}")
+            for role, source, text in head_step_messages(
+                head_ref, slug, step_id, step_meta.get("head_extra", [])
+            ):
+                print(f"      {role:>13}  {source:<28} {len(text):>6} chars")
+        return False
+
+    # Per-LLM-call: one diff per step, the unit that maps to an actual API call.
+    if args.per_call:
+        changed_any = False
+        for step_id, step_meta in meta["steps"].items():
+            base_msgs = base_messages(base_ref, step_meta["old"])
+            head_msgs = head_step_messages(
+                head_ref, slug, step_id, step_meta.get("head_extra", [])
+            )
+            base_text, head_text, notes = prepare(base_msgs, head_msgs, args)
+            changed_any |= report(
+                f"{slug}.{step_id}",
+                f"{meta['old_name']} -> {slug}  (PR #{meta['pr']}, call {step_id}, mode={args.mode})\n  {refs}",
+                base_text, head_text, notes, args,
+            )
+        return changed_any
+
+    base_text, head_text, notes = prepare(
+        base_messages(base_ref, old_paths_for(slug)), head_messages(head_ref, slug), args
+    )
+    return report(
+        slug,
+        f"{meta['old_name']} -> {slug}  (PR #{meta['pr']}, all calls, mode={args.mode})\n  {refs}",
+        base_text, head_text, notes, args,
+    )
+
+
 def summary(args) -> int:
-    """Verdict table across every evaluator."""
-    print(f"\n{'EVALUATOR':<30}  {'PR':>5}  {'VERDICT':<12}  BASE -> HEAD")
-    print("=" * 100)
+    """Verdict table across every evaluator, one row per LLM call."""
+    print(f"\n{'EVALUATOR':<30} {'CALL':<38} {'PR':>4}  VERDICT")
+    print("=" * 96)
 
     changed_any = False
     for slug, meta in EVALUATORS.items():
         base_ref, head_ref = resolve(slug, args)
-        try:
-            base_text = render(base_messages(base_ref, meta["old_paths"]), args.mode)
-            head_text = render(head_messages(head_ref, slug), args.mode)
-            if args.normalize:
-                base_text, _ = apply_known_renames(base_text)
-                head_text, _ = apply_known_renames(head_text)
-                base_text, head_text = normalize(base_text), normalize(head_text)
-            _, changed = word_diff(base_text, head_text, "a", "b", color=False)
-        except GitError as e:
-            print(f"{slug:<30}  {meta['pr']:>5}  \033[31mERROR\033[0m         {e}")
-            changed_any = True
-            continue
+        for step_id, step_meta in meta["steps"].items():
+            try:
+                base_msgs = base_messages(base_ref, step_meta["old"])
+                head_msgs = head_step_messages(
+                    head_ref, slug, step_id, step_meta.get("head_extra", [])
+                )
+                base_text, head_text, _ = prepare(base_msgs, head_msgs, args)
+                _, changed = word_diff(base_text, head_text, "a", "b", color=False)
+            except GitError as e:
+                print(f"{slug:<30} {step_id:<38} {meta['pr']:>4}  \033[31mERROR\033[0m  {e}")
+                changed_any = True
+                continue
 
-        verdict = "\033[33mCHANGED\033[0m     " if changed else "\033[32mIDENTICAL\033[0m   "
-        changed_any = changed_any or changed
-        print(f"{slug:<30}  {meta['pr']:>5}  {verdict}  {base_ref} -> {head_ref.replace('origin/', '')}")
+            verdict = "\033[33mCHANGED\033[0m" if changed else "\033[32mIDENTICAL\033[0m"
+            changed_any = changed_any or changed
+            print(f"{slug:<30} {step_id:<38} {meta['pr']:>4}  {verdict}")
 
-    print("=" * 100)
+    print("=" * 96)
     print(f"mode={args.mode}" + (", normalized" if args.normalize else ""))
-    print("IDENTICAL = prompt text is byte-identical after restructuring; only file layout changed.")
-    print("Run without --all on a CHANGED evaluator to see the word-level diff.\n")
+    print("IDENTICAL = this LLM call's prompt is byte-identical after restructuring.")
+    print("Drill in:  scripts/prompt_diff.py <evaluator> --per-call\n")
     return 1 if changed_any else 0
 
 
@@ -430,6 +540,16 @@ def main() -> int:
         help="canonicalize known placeholder renames ({grade}->{grade_level}, "
              "drop {format_instructions}) so only unexpected changes surface",
     )
+    parser.add_argument(
+        "--per-call", action="store_true",
+        help="one diff per LLM call (config step) instead of one per evaluator",
+    )
+    parser.add_argument(
+        "--emit", metavar="DIR",
+        help="write each rendered BEFORE/AFTER pair to DIR instead of printing the "
+             "diff inline, and print a `code --diff` command for each -- use this "
+             "to review in VS Code, Meld, Beyond Compare, or any visual difftool",
+    )
     parser.add_argument("--no-color", dest="color", action="store_false", help="disable color")
     args = parser.parse_args()
 
@@ -442,6 +562,18 @@ def main() -> int:
         return 0
 
     if args.all:
+        # --emit wants files for every pair, not a verdict table.
+        if args.emit:
+            args.per_call = True
+            changed = False
+            for slug in EVALUATORS:
+                try:
+                    changed |= diff_one(slug, args)
+                except GitError as e:
+                    print(f"error ({slug}): {e}", file=sys.stderr)
+                    changed = True
+            print(f"\nAll pairs written to {args.emit}/")
+            return 1 if changed else 0
         return summary(args)
 
     if not args.evaluator:
