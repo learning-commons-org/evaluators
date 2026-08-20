@@ -178,14 +178,24 @@ class EvalConfig(Check):
     def _check_stable_ids(self, configs: list[tuple[str, dict]], result: Result) -> None:
         """stable_id is a permanent identity anchor -- it must be globally unique
         across evaluators (skipped for evaluators that don't have one yet, since
-        it's optional while being backfilled). id/id_history reuse is checked
-        regardless of whether stable_id is present.
+        it's optional while being backfilled).
+
+        The *current* `id` must also be globally unique -- two evaluators can
+        never simultaneously claim the same live identifier. `id_history`
+        entries, however, are allowed to repeat across evaluators: a single
+        historical id can legitimately fan out to several successors (e.g. one
+        evaluator splitting into two), so shared ancestry in id_history is
+        expected, not a bug. What's never allowed is a *retired* id (in
+        id_history) colliding with some other evaluator's *current, live* id --
+        that would mean an old name silently became a completely different
+        evaluator's active identity.
 
         Defensive against structurally invalid configs (already reported by
         _check_schema) -- a non-dict `evaluator` or non-list `id_history` must
         not crash this check and hide every other config's violations."""
         stable_id_owners: dict[str, set[str]] = {}
-        id_owners: dict[str, set[str]] = {}
+        current_id_owners: dict[str, set[str]] = {}
+        entries: list[tuple[str, str | None, list[str]]] = []  # (cfg_path, id, id_history)
 
         for cfg_path, config in configs:
             evaluator = config.get("evaluator")
@@ -196,12 +206,14 @@ class EvalConfig(Check):
             if isinstance(stable_id, str) and stable_id:
                 stable_id_owners.setdefault(stable_id, set()).add(cfg_path)
 
+            current_id = evaluator.get("id")
+            if isinstance(current_id, str) and current_id:
+                current_id_owners.setdefault(current_id, set()).add(cfg_path)
+
             id_history = evaluator.get("id_history")
             if not isinstance(id_history, list):
                 id_history = []
-            for id_value in [evaluator.get("id"), *id_history]:
-                if isinstance(id_value, str) and id_value:
-                    id_owners.setdefault(id_value, set()).add(cfg_path)
+            entries.append((cfg_path, current_id if isinstance(current_id, str) else None, id_history))
 
         for stable_id, owners in sorted(stable_id_owners.items()):
             if len(owners) > 1:
@@ -210,14 +222,26 @@ class EvalConfig(Check):
                     paths[0],
                     f"stable_id {stable_id!r} is used by more than one evaluator: {', '.join(paths)}",
                 ))
-        for id_value, owners in sorted(id_owners.items()):
+        for current_id, owners in sorted(current_id_owners.items()):
             if len(owners) > 1:
                 paths = sorted(owners)
                 result.violations.append(Violation(
                     paths[0],
-                    f"id {id_value!r} appears (as id or id_history) on more than one evaluator: "
-                    f"{', '.join(paths)} -- a retired id must never be reused for a different evaluator",
+                    f"id {current_id!r} is the current id of more than one evaluator: {', '.join(paths)}",
                 ))
+
+        for cfg_path, _current_id, id_history in entries:
+            for old_id in id_history:
+                if not isinstance(old_id, str) or not old_id:
+                    continue
+                owners = current_id_owners.get(old_id, set()) - {cfg_path}
+                if owners:
+                    result.violations.append(Violation(
+                        cfg_path,
+                        f"id_history entry {old_id!r} is the *current* id of another evaluator "
+                        f"({', '.join(sorted(owners))}) -- a retired id must never become a "
+                        "different evaluator's live id",
+                    ))
 
     # --- helpers -------------------------------------------------------------
 
