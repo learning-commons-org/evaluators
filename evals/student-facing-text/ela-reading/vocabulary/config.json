@@ -1,0 +1,171 @@
+{
+  "$schema": "../../../_schemas/config.schema.json",
+  "evaluator": {
+    "id": "student_facing_text.ela_reading.vocabulary",
+    "stable_id": "d6f8e6d1-3d0d-4b6c-9a3a-2b7c9e6f1a4d",
+    "id_history": ["vocabulary"],
+    "name": "Vocabulary Evaluator",
+    "description": "Evaluates the complexity of a text's vocabulary relative to its target grade. Grades 3-4 and grades 5-12 use genuinely different prompts, models, and preprocessing, so the vocab_complexity step has two variants selected by the grade_level input via each variant's condition -- see vocab_complexity_grades_3_4 and vocab_complexity_other_grades below.",
+    "supported_grades": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+  },
+  "input_schema": {
+    "$ref": "input_schema.json"
+  },
+  "preprocessing": [
+    {
+      "id": "fk_score",
+      "type": "computation",
+      "kind": "flesch_kincaid_grade",
+      "description": "Compute the Flesch-Kincaid Grade Level for the input text and bind it to {fk_score} in the prompt. Only the grades-3-4 branch uses it.",
+      "input": "text",
+      "output": "fk_score",
+      "condition": { "input": "grade_level", "in": ["3", "4"] },
+      "implementation": {
+        "python": {
+          "library": "textstat",
+          "function": "flesch_kincaid_grade",
+          "post_transform": { "type": "round", "precision": 2 }
+        },
+        "typescript": {
+          "library": "text-readability",
+          "function": "fleschKincaidGrade",
+          "post_transform": { "type": "round", "precision": 2 }
+        }
+      }
+    }
+  ],
+  "steps": [
+    {
+      "id": "background_knowledge",
+      "type": "llm",
+      "description": "Generates a short assumption about what students at the target grade already know about the text's topic. Runs before vocab_complexity and feeds it {student_background_knowledge}. Shared by both grade-band branches -- no condition, always runs.",
+      "prompt": {
+        "messages": [
+          {
+            "role": "user",
+            "source_path": "background-knowledge.txt",
+            "sha256": "0128ab093be45401655231a1a9f27a4b1dc1142d2422a71976da3eee65ee8a18"
+          }
+        ],
+        "placeholders": {
+          "text": {
+            "required": true,
+            "source": "input"
+          },
+          "grade_level": {
+            "required": true,
+            "source": "input"
+          }
+        }
+      },
+      "model": {
+        "provider": "openai",
+        "name": "gpt-4o-2024-11-20"
+      },
+      "generation": {
+        "temperature": 0
+      },
+      "parser": {
+        "kind": "structured_output"
+      }
+    },
+    {
+      "id": "vocab_complexity_grades_3_4",
+      "type": "llm",
+      "description": "Grades 3-4 vocabulary complexity rating, using a rubric-based prompt validated specifically for this grade band.",
+      "condition": { "input": "grade_level", "in": ["3", "4"] },
+      "prompt": {
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "grades-3-4-system.txt",
+            "sha256": "eb875340fca957bfcbbd2d088ce9362cf87771b6f97297df40741fb329f6d8c0"
+          },
+          {
+            "role": "user",
+            "source_path": "grades-3-4-user.txt",
+            "sha256": "b930b7ea238719a7fbd57dfabefd355724528445bbeb244f39c8418c3c2a301b"
+          }
+        ],
+        "placeholders": {
+          "text": {
+            "required": true,
+            "source": "input"
+          },
+          "grade_level": {
+            "required": true,
+            "source": "input.grade_level"
+          },
+          "student_background_knowledge": {
+            "required": true,
+            "source": "steps.background_knowledge.output"
+          },
+          "fk_score": {
+            "required": true,
+            "source": "preprocessing.fk_score"
+          }
+        }
+      },
+      "model": {
+        "provider": "google",
+        "name": "gemini-2.5-pro"
+      },
+      "generation": {
+        "temperature": 0
+      },
+      "parser": {
+        "kind": "structured_output"
+      }
+    },
+    {
+      "id": "vocab_complexity_other_grades",
+      "type": "llm",
+      "description": "Grades 5-12 vocabulary complexity rating, using an annotation-guide-and-rubric prompt with worked exemplars. NOTE: this step's own system.txt final line instructs the model to 'use only a single integer... don't include any other text' -- a real, verified contradiction with this contract's required JSON object (confirmed against a captured real GPT-4.1 response, sdks/settings/vocabulary/contracts.toml cases.hurricanes_grade7, which returned the full object and ignored the integer instruction). Left unedited per maintainer direction; structured output enforces this step's actual contract regardless of that prose.",
+      "condition": { "input": "grade_level", "in": ["5", "6", "7", "8", "9", "10", "11", "12"] },
+      "prompt": {
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "other-grades-system.txt",
+            "sha256": "632025189d29343860ba8299e79906a7fd8afc651f5e40282d9c5eb356f9ed1c"
+          },
+          {
+            "role": "user",
+            "source_path": "other-grades-user.txt",
+            "sha256": "b383d7a77a3640326cee4d58a248118e62af0aca39990d31546db07c12986708"
+          }
+        ],
+        "placeholders": {
+          "text": {
+            "required": true,
+            "source": "input"
+          },
+          "grade_level": {
+            "required": true,
+            "source": "input.grade_level"
+          },
+          "student_background_knowledge": {
+            "required": true,
+            "source": "steps.background_knowledge.output"
+          }
+        }
+      },
+      "model": {
+        "provider": "openai",
+        "name": "gpt-4.1"
+      },
+      "generation": {
+        "temperature": 0
+      },
+      "parser": {
+        "kind": "structured_output"
+      }
+    }
+  ],
+  "output_schema": {
+    "$ref": "output_schema.json"
+  },
+  "fixtures": {
+    "path": "fixtures.json"
+  }
+}

@@ -7,7 +7,7 @@
   | --------------------------- | -------------------------------------------------------- | ------------------------------------------------- |
   | Grade Level Appropriateness | [Jupyter Notebook](./grade_level_evaluator.ipynb)        | [Prompts](./prompts/grade-level-appropriateness/) |
   | Sentence Structure          | [Jupyter Notebook](./sentence_structure_evaluator.ipynb) | [Prompts](./prompts/sentence-structure/)          |
-  | Vocabulary                  | [Jupyter Notebook](./vocabulary_evaluator.ipynb)         | [Prompts](./prompts/vocabulary/)                  |
+  | Vocabulary                  | [Jupyter Notebook](./student-facing-text/ela-reading/vocabulary/example_notebook.ipynb) | [Prompts](./student-facing-text/ela-reading/vocabulary/)          |
   | Subject Matter Knowledge    | [Jupyter Notebook](./smk_evaluator.ipynb)                | [Prompts](./prompts/subject-matter-knowledge/)    |
   | Conventionality             | [Jupyter Notebook](./conventionality_evaluator.ipynb)    | [Prompts](./prompts/conventionality/)             |
   | Purpose                     | [Jupyter Notebook](./purpose_evaluator.ipynb)            | [Prompts](./prompts/purpose/)                     |
