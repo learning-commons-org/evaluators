@@ -44,8 +44,14 @@ class EvalConfig(Check):
 
     def run(self, fix: bool) -> Result:
         result = Result(self.name)
+        configs: list[tuple[str, dict]] = []
         for cfg_path in evaluator_configs():
             self._check_config(cfg_path, result)
+            try:
+                configs.append((cfg_path, load_json(cfg_path)))
+            except (OSError, json.JSONDecodeError):
+                continue
+        self._check_stable_ids(configs, result)
         return result
 
     def _check_config(self, cfg_path: str, result: Result) -> None:
@@ -168,6 +174,36 @@ class EvalConfig(Check):
         path = config.get("fixtures", {}).get("path")
         if path and not os.path.exists(os.path.join(base, path)):
             fail(f"fixtures file not found: {path}")
+
+    def _check_stable_ids(self, configs: list[tuple[str, dict]], result: Result) -> None:
+        """stable_id is a permanent identity anchor -- it (and every id it has ever
+        had) must be globally unique across evaluators. Evaluators without a
+        stable_id yet are skipped (it's optional while being backfilled)."""
+        stable_id_owners: dict[str, list[str]] = {}
+        id_owners: dict[str, list[str]] = {}
+
+        for cfg_path, config in configs:
+            evaluator = config.get("evaluator", {})
+            stable_id = evaluator.get("stable_id")
+            if stable_id:
+                stable_id_owners.setdefault(stable_id, []).append(cfg_path)
+            for id_value in [evaluator.get("id"), *evaluator.get("id_history", [])]:
+                if id_value:
+                    id_owners.setdefault(id_value, []).append(cfg_path)
+
+        for stable_id, owners in sorted(stable_id_owners.items()):
+            if len(owners) > 1:
+                result.violations.append(Violation(
+                    owners[0],
+                    f"stable_id {stable_id!r} is used by more than one evaluator: {', '.join(owners)}",
+                ))
+        for id_value, owners in sorted(id_owners.items()):
+            if len(owners) > 1:
+                result.violations.append(Violation(
+                    owners[0],
+                    f"id {id_value!r} appears (as id or id_history) on more than one evaluator: "
+                    f"{', '.join(owners)} -- a retired id must never be reused for a different evaluator",
+                ))
 
     # --- helpers -------------------------------------------------------------
 
