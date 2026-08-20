@@ -1,4 +1,0 @@
-Analyze:
-<begin of text to evaluate>
-<text>{text}</text>
-<end of text to evaluate>

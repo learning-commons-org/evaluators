@@ -27,8 +27,8 @@
   "$defs": {
     "GradeBand": {
       "type": "string",
-      "enum": ["K-1", "2-3", "4-5", "6-8", "9-10", "11-CCR"],
-      "description": "A band on the CCSS text-complexity scale — a span of grades, not a single grade. 'CCR' is College and Career Readiness, so '11-CCR' spans grades 11-12 and the college/career-readiness benchmark rather than terminating at grade 12."
+      "enum": ["K-1", "2-3", "4-5", "6-8", "9-10", "11-12"],
+      "description": "A band on the CCSS text-complexity scale — a span of grades, not a single grade."
     }
   }
 }

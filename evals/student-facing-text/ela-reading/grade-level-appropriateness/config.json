@@ -1,7 +1,9 @@
 {
   "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "literacy.ela_reading.grade_level_appropriateness",
+    "id": "student_facing_text.ela_reading.grade_level_appropriateness",
+    "stable_id": "770e6381-e6d7-4f1f-a70b-13add43899a7",
+    "id_history": ["literacy.ela_reading.grade_level_appropriateness"],
     "name": "Grade Level Appropriateness Evaluator",
     "description": "Evaluates which grade band a text is appropriate for at independent reading, plus an alternative band reachable with scaffolding, using word count, Flesch-Kincaid, the qualitative text complexity rubric, and background knowledge demands. Unlike the other literacy evaluators this one takes no grade input, so supported_grades records the grades spanned by the bands it can return rather than constraining an input.",
     "supported_grades": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
@@ -20,12 +22,12 @@
           {
             "role": "system",
             "source_path": "system.txt",
-            "sha256": "4327ead63a8c80e14a8992410bb2f051dac711fb92b7015d92ce684126284fde"
+            "sha256": "07ea5d5a1727926e765fa449dc1b414669d85756ff7b73ca9c9838bf98a13e78"
           },
           {
             "role": "user",
             "source_path": "user.txt",
-            "sha256": "bcd5d75e2e46b8e5037dbc8d097e11001c97fc318d16dfa532b5b9a9023ae33d"
+            "sha256": "12d5bb41ea5aec13cc92d4540c992b97916d8732f9bac071a73c9b54c3e8d83f"
           }
         ],
         "placeholders": {

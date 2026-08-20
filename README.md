@@ -44,7 +44,8 @@ To use the evaluators, clone the repository and follow the instructions below.
 If you’d like to download or access our evaluators and datasets directly, follow the links below.
 
 - Evaluators literacy package
-  - [Prompts and notebooks](./evals) — grouped by domain (`evals/literacy/`, `evals/prompts/`)
+  - [Prompts](./evals/prompts)
+  - [Notebooks](./evals)
 - Datasets
   - [Learning Commons annotations of CLEAR for qualitative text complexity v1.0 2025-09-02.csv](https://aidt-evaluators-files-public-prod.s3.us-west-2.amazonaws.com/Learning+Commons+annotations+of+CLEAR+for+qualitative+text+complexity+v1.0+2025-09-02.csv)
 

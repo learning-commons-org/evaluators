@@ -5,18 +5,12 @@
 
   | Evaluator                   | Code                                                     | Prompts                                           |
   | --------------------------- | -------------------------------------------------------- | ------------------------------------------------- |
-  | Grade Level Appropriateness | [Jupyter Notebook](./literacy/ela-reading/grade-level-appropriateness/example_notebook.ipynb) | [Prompts](./literacy/ela-reading/grade-level-appropriateness/) |
+  | Grade Level Appropriateness | [Jupyter Notebook](./student-facing-text/ela-reading/grade-level-appropriateness/example_notebook.ipynb) | [Prompts](./student-facing-text/ela-reading/grade-level-appropriateness/) |
   | Sentence Structure          | [Jupyter Notebook](./sentence_structure_evaluator.ipynb) | [Prompts](./prompts/sentence-structure/)          |
   | Vocabulary                  | [Jupyter Notebook](./vocabulary_evaluator.ipynb)         | [Prompts](./prompts/vocabulary/)                  |
   | Subject Matter Knowledge    | [Jupyter Notebook](./smk_evaluator.ipynb)                | [Prompts](./prompts/subject-matter-knowledge/)    |
   | Conventionality             | [Jupyter Notebook](./conventionality_evaluator.ipynb)    | [Prompts](./prompts/conventionality/)             |
   | Purpose                     | [Jupyter Notebook](./purpose_evaluator.ipynb)            | [Prompts](./prompts/purpose/)                     |
-
-  Grade Level Appropriateness ships a full evaluator contract next to its prompts — a
-  `config.json` pinning the model, prompts (by `sha256`), schemas and fixtures, all
-  validated by [`scripts/check.py`](../scripts/README.md). Its notebook loads those assets
-  from disk rather than hardcoding them. The evaluators above it in the table are
-  prompt-only for now and are being migrated to the same contract.
 
 ## Requirements
 

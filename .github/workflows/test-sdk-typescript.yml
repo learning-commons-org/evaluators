@@ -7,13 +7,13 @@ on:
     paths:
       - 'sdks/typescript/**'
       - 'evals/prompts/**'
-      - 'evals/literacy/**'
+      - 'evals/student-facing-text/**'
       - '.github/workflows/test-sdk-typescript.yml'
   pull_request:
     paths:
       - 'sdks/typescript/**'
       - 'evals/prompts/**'
-      - 'evals/literacy/**'
+      - 'evals/student-facing-text/**'
       - '.github/workflows/test-sdk-typescript.yml'
 
 permissions:
