@@ -76,7 +76,8 @@
           "endpoint": { "type": "string" },
           "params": { "type": "object" },
           "auth": { "type": "string" },
-          "pagination": { "type": "string" }
+          "pagination": { "type": "string" },
+          "condition": { "$ref": "#/$defs/Condition" }
         },
         "allOf": [
           {
@@ -159,7 +160,8 @@
             "properties": {
               "kind": { "const": "structured_output" }
             }
-          }
+          },
+          "condition": { "$ref": "#/$defs/Condition" }
         },
         "allOf": [
           {
@@ -175,6 +177,26 @@
       "properties": {
         "path": { "type": "string" },
         "tolerance": { "type": "object" }
+      }
+    }
+  },
+  "$defs": {
+    "Condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input", "in"],
+      "properties": {
+        "input": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Name of a runtime input field (as declared in input_schema.json) this condition tests."
+        },
+        "in": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": ["string", "number"] },
+          "description": "This step/preprocessing entry only applies when the named input's value is one of these."
+        }
       }
     }
   }
