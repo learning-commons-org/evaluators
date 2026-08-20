@@ -38,8 +38,10 @@ const DELIMITED_MATH_RE = /\\[([]\s*([\s\S]*?)\s*\\[)\]]/g;
 
 // A $...$ span is unwrapped when its contents look like math: either a LaTeX
 // token, or operators with no prose words. Dollar amounts in word problems
-// ("$5 and $3 of apples") survive untouched.
-const DOLLAR_SPAN_RE = /\$([^$\n]+)\$/g;
+// survive untouched via pandoc's convention: a span is not math when its
+// content starts or ends with whitespace ("$5 and $3", "$5 + $3") or when
+// the closing $ is immediately followed by a digit ("$5+$3").
+const DOLLAR_SPAN_RE = /\$(\S(?:[^$\n]*\S)?)\$(?!\d)/g;
 const LATEX_TOKEN_RE = /[\\^_]/;
 const PROSE_WORD_RE = /[a-zA-Z]{2,}/;
 const MATH_OPERATOR_RE = /[+\-*/=<>×÷()?]/;
