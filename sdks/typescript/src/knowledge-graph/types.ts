@@ -86,8 +86,26 @@ export interface LearningComponent {
   description: string;
 }
 
+/**
+ * A standard's learning components, split by usability. The KG documents
+ * `description` as optional (`LearningComponent` in kg-api.d.ts), and alignment
+ * is judged from that text, so an undescribed component cannot be evaluated.
+ * `undescribedCount` keeps the two cases distinguishable: a standard with
+ * nothing authored against it, versus one whose components lack descriptions.
+ */
+export interface LearningComponentSet {
+  components: LearningComponent[];
+  undescribedCount: number;
+}
+
 /** Resolved info from a standard code lookup. */
 export interface StandardInfo {
   uuid: string;
   description?: string;
+  /** The KG's spelling — use for display and joins. CCSS sub-standards are lowercase. */
+  statementCode: string;
+  /** Canonical lookup key (see normalizeStatementCode) — dedupe on this. */
+  normalizedCode: string;
+  /** Code matched multiple standards; uuid/description are the first match. */
+  ambiguous?: boolean;
 }

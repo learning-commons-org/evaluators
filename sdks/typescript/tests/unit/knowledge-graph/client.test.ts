@@ -50,10 +50,170 @@ describe('KnowledgeGraphClient - getStandardInfo', () => {
     await expect(new KnowledgeGraphClient(API_KEY).getStandardInfo('X.YZ.A.1')).rejects.toThrow(KnowledgeGraphError);
   });
 
-  it('returns first result when multiple results returned (caller uses limit=1 to avoid this)', async () => {
+  it('returns the first match and flags ambiguity when a code matches multiple standards', async () => {
     mockFetch(200, [{ caseIdentifierUUID: 'a' }, { caseIdentifierUUID: 'b' }]);
-    const info = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD');
+    const info = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d');
     expect(info.uuid).toBe('a');
+    expect(info.ambiguous).toBe(true);
+  });
+
+  it('does not flag ambiguity for a single match', async () => {
+    mockFetch(200, [{ caseIdentifierUUID: 'a' }]);
+    const info = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d');
+    expect(info.ambiguous).toBeUndefined();
+  });
+
+  it('requests the search endpoint maximum, since its default of 5 would truncate', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse([{ caseIdentifierUUID: 'u1' }]));
+    vi.stubGlobal('fetch', fetchMock);
+    await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d');
+    expect((fetchMock.mock.calls[0][0] as Request).url).toContain('limit=50');
+  });
+
+  it('normalizes the code for lookup: uppercases, trims, collapses interior whitespace', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse([{ caseIdentifierUUID: 'u1' }]));
+    vi.stubGlobal('fetch', fetchMock);
+    const info = await new KnowledgeGraphClient(API_KEY).getStandardInfo('  3.md.c\t7.d  ');
+    expect(info.normalizedCode).toBe('3.MD.C 7.D');
+    expect((fetchMock.mock.calls[0][0] as Request).url).toContain('statementCode=3.MD.C%207.D');
+  });
+
+  it('collapses a run of interior whitespace to a single space', async () => {
+    mockFetch(200, [{ caseIdentifierUUID: 'u1' }]);
+    const info = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C \t 7.D');
+    expect(info.normalizedCode).toBe('3.MD.C 7.D');
+  });
+
+  it('defaults the jurisdiction to Multi-State', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse([{ caseIdentifierUUID: 'u1' }]));
+    vi.stubGlobal('fetch', fetchMock);
+    await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d');
+    expect((fetchMock.mock.calls[0][0] as Request).url).toContain('jurisdiction=Multi-State');
+  });
+
+  it('exposes every candidate, not just the chosen one', async () => {
+    mockFetch(200, [
+      { caseIdentifierUUID: 'a', statementCode: 'F.IF.7.b', description: 'Graph exponential functions' },
+      { caseIdentifierUUID: 'b', statementCode: 'F.IF.7.b', description: 'Graph piecewise-defined functions' },
+      { caseIdentifierUUID: 'c', statementCode: 'F.IF.7.b', description: 'Define a curve parametrically' },
+    ]);
+    const candidates = await new KnowledgeGraphClient(API_KEY).getStandardCandidates('F.IF.7.b');
+    expect(candidates).toHaveLength(3);
+    expect(candidates.map((c) => c.uuid)).toEqual(['a', 'b', 'c']);
+    expect(candidates[1].description).toBe('Graph piecewise-defined functions');
+    expect(candidates.every((c) => c.normalizedCode === 'F.IF.7.B')).toBe(true);
+  });
+
+  it('serves getStandardInfo and getStandardCandidates from one request', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      okResponse([{ caseIdentifierUUID: 'a' }, { caseIdentifierUUID: 'b' }]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const client = new KnowledgeGraphClient(API_KEY);
+    const info = await client.getStandardInfo('3.MD.C.7.d');
+    const candidates = await client.getStandardCandidates('3.MD.C.7.d');
+    expect(info.ambiguous).toBe(true);
+    expect(candidates).toHaveLength(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  
+  it('survives a caller mutating the returned candidate list', async () => {
+    mockFetch(200, [
+      { caseIdentifierUUID: 'a', description: 'first' },
+      { caseIdentifierUUID: 'b', description: 'second' },
+    ]);
+    const client = new KnowledgeGraphClient(API_KEY);
+
+    const first = await client.getStandardCandidates('3.MD.C.7.d');
+    first.reverse();
+    first[0].description = 'mutated';
+
+    const second = await client.getStandardCandidates('3.MD.C.7.d');
+    expect(second.map((c) => c.uuid)).toEqual(['a', 'b']);
+    expect(second[0].description).toBe('first');
+    expect((await client.getStandardInfo('3.MD.C.7.d')).uuid).toBe('a');
+  });
+
+  it('reports not-found using the code as the caller spelled it', async () => {
+    mockFetch(200, []);
+    const err = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.md.c.7.d').catch((e) => e);
+    expect(err.message).toContain('"3.md.c.7.d"');
+  });
+
+  it('re-queries after an empty result rather than caching not-found', async () => {
+    // An empty search response fulfils, so it bypasses the rejection-eviction path.
+    // A transient empty (index warm-up, replica lag) must not poison the code.
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(okResponse([]))
+      .mockResolvedValue(okResponse([{ caseIdentifierUUID: 'appeared-later' }]));
+    vi.stubGlobal('fetch', fetchMock);
+    const client = new KnowledgeGraphClient(API_KEY);
+
+    await expect(client.getStandardInfo('3.MD.C.7.d')).rejects.toThrow(/Standard not found/);
+    const info = await client.getStandardInfo('3.MD.C.7.d');
+
+    expect(info.uuid).toBe('appeared-later');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives concurrent callers their own spelling in the not-found error', async () => {
+    // Both share one in-flight request, so the message cannot be built inside it.
+    const fetchMock = vi.fn().mockResolvedValue(okResponse([]));
+    vi.stubGlobal('fetch', fetchMock);
+    const client = new KnowledgeGraphClient(API_KEY);
+
+    const [lower, upper] = await Promise.all([
+      client.getStandardInfo('3.md.c.7.d').catch((e) => e),
+      client.getStandardInfo('3.MD.C.7.D').catch((e) => e),
+    ]);
+
+    expect(lower.message).toContain('"3.md.c.7.d"');
+    expect(upper.message).toContain('"3.MD.C.7.D"');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('caches an omitted jurisdiction and an explicit Multi-State as one entry', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse([{ caseIdentifierUUID: 'u1' }]));
+    vi.stubGlobal('fetch', fetchMock);
+    const client = new KnowledgeGraphClient(API_KEY);
+    await client.getStandardInfo('3.MD.C.7.d');
+    await client.getStandardInfo('3.MD.C.7.d', { jurisdiction: 'Multi-State' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports the KG canonical code, preserving lowercase sub-standard letters', async () => {
+    mockFetch(200, [{ caseIdentifierUUID: 'u1', statementCode: '3.MD.C.7.d' }]);
+    const info = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.md.c.7.D');
+    expect(info.statementCode).toBe('3.MD.C.7.d');
+    expect(info.normalizedCode).toBe('3.MD.C.7.D');
+  });
+
+  it('falls back to the normalized code when the KG omits statementCode', async () => {
+    mockFetch(200, [{ caseIdentifierUUID: 'u1' }]);
+    const info = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.md.c.7.d');
+    expect(info.statementCode).toBe('3.MD.C.7.D');
+  });
+
+  it('collapses case and whitespace variants onto one cached request', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse([{ caseIdentifierUUID: 'u1' }]));
+    vi.stubGlobal('fetch', fetchMock);
+    const client = new KnowledgeGraphClient(API_KEY);
+    await Promise.all([
+      client.getStandardInfo('3.MD.C.7.d'),
+      client.getStandardInfo('3.md.c.7.D'),
+      client.getStandardInfo('  3.MD.C.7.D  '),
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not collide cache entries across academicSubject', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse([{ caseIdentifierUUID: 'u1' }]));
+    vi.stubGlobal('fetch', fetchMock);
+    const client = new KnowledgeGraphClient(API_KEY);
+    await client.getStandardInfo('3.MD.C.7.d', { academicSubject: 'Mathematics' });
+    await client.getStandardInfo('3.MD.C.7.d', { academicSubject: 'English Language Arts' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('throws AuthenticationError on 401', async () => {
@@ -114,22 +274,50 @@ describe('KnowledgeGraphClient - getLearningComponents', () => {
     expect(lcs[0].description).toBe('Recognize area as additive');
   });
 
-  it('filters out null descriptions', async () => {
+  it('filters out null descriptions but reports how many were dropped', async () => {
     mockFetch(200, { data: [{ description: 'Valid' }, { description: null }, { description: 'Also valid' }], pagination: { hasMore: false, nextCursor: null } });
-    const lcs = await new KnowledgeGraphClient(API_KEY).getLearningComponents('uuid-abc');
-    expect(lcs).toHaveLength(2);
+    // The count is what lets a caller say "components exist but are undescribed"
+    // instead of "nothing is authored against this standard".
+    const set = await new KnowledgeGraphClient(API_KEY).getLearningComponentSet('uuid-abc');
+    expect(set.components).toHaveLength(2);
+    expect(set.undescribedCount).toBe(1);
   });
 
-  it('follows cursor pagination across pages', async () => {
+  it('reports undescribedCount with no evaluable components at all', async () => {
+    mockFetch(200, { data: [{ description: null }, { description: null }], pagination: { hasMore: false, nextCursor: null } });
+    const set = await new KnowledgeGraphClient(API_KEY).getLearningComponentSet('uuid-abc');
+    expect(set.components).toEqual([]);
+    expect(set.undescribedCount).toBe(2);
+  });
+
+  it('follows cursor pagination across pages, sending the cursor and the uuid', async () => {
     let call = 0;
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => {
+    const fetchMock = vi.fn().mockImplementation(() => {
       call++;
-      const body = { data: [{ description: `LC ${call}` }], pagination: { hasMore: call === 1, nextCursor: call === 1 ? 'page-2' : null } };
+      const body = { data: [{ description: `LC ${call}` }, { description: null }], pagination: { hasMore: call === 1, nextCursor: call === 1 ? 'page-2' : null } };
       return Promise.resolve(okResponse(body));
-    }));
-    const lcs = await new KnowledgeGraphClient(API_KEY).getLearningComponents('uuid-abc');
-    expect(lcs).toHaveLength(2);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const set = await new KnowledgeGraphClient(API_KEY).getLearningComponentSet('uuid-abc');
+    expect(set.components).toHaveLength(2);
+    // Accumulated across pages, not reset per page.
+    expect(set.undescribedCount).toBe(2);
     expect(call).toBe(2);
+    expect((fetchMock.mock.calls[0][0] as Request).url).toContain('uuid-abc');
+    expect((fetchMock.mock.calls[0][0] as Request).url).not.toContain('cursor=');
+    expect((fetchMock.mock.calls[1][0] as Request).url).toContain('cursor=page-2');
+  });
+
+  it('serves a repeated uuid from cache', async () => {
+    const body = { data: [{ description: 'LC one' }], pagination: { hasMore: false, nextCursor: null } };
+    const fetchMock = vi.fn().mockResolvedValue(okResponse(body));
+    vi.stubGlobal('fetch', fetchMock);
+    const client = new KnowledgeGraphClient(API_KEY);
+    await Promise.all([client.getLearningComponents('uuid-abc'), client.getLearningComponents('uuid-abc')]);
+    await client.getLearningComponents('uuid-abc');
+    // Both accessors share one cache entry, so asking for the count is free.
+    await client.getLearningComponentSet('uuid-abc');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('throws KnowledgeGraphError if hasMore=true but nextCursor is null', async () => {
@@ -163,10 +351,45 @@ describe('KnowledgeGraphClient - getStandardsByGrade', () => {
     expect(results[0].statementCode).toBe('3.MD.C.7.d');
   });
 
-  it('throws KnowledgeGraphError if hasMore=true (pagination not implemented for standards)', async () => {
-    mockFetch(200, { data: [], pagination: { hasMore: true, nextCursor: 'page-2' } });
+  it('resolves Multi-State to the CCSS framework without a lookup request', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ data: [], pagination: { hasMore: false } }));
+    vi.stubGlobal('fetch', fetchMock);
+    await new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const url = (fetchMock.mock.calls[0][0] as Request).url;
+    expect(url).toContain('/academic-standards?');
+    expect(url).toContain('standardsFrameworkCaseIdentifierUUID=c6496676-d7cb-11e8-824f-0242ac160002');
+  });
+
+  it('follows cursor pagination across pages and accumulates all standards', async () => {
+    let call = 0;
+    const fetchMock = vi.fn().mockImplementation(() => {
+      call++;
+      return Promise.resolve(okResponse({
+        data: [{ caseIdentifierUUID: `u${call}`, statementCode: `3.MD.C.7.${call}`, gradeLevel: ['3'] }],
+        pagination: { hasMore: call < 3, nextCursor: call < 3 ? `page-${call + 1}` : null },
+      }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const results = await new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3');
+    expect(results).toHaveLength(3);
+    expect(results.map((r) => r.statementCode)).toEqual(['3.MD.C.7.1', '3.MD.C.7.2', '3.MD.C.7.3']);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect((fetchMock.mock.calls[1][0] as Request).url).toContain('cursor=page-2');
+    expect((fetchMock.mock.calls[0][0] as Request).url).not.toContain('cursor=');
+  });
+
+  it('throws KnowledgeGraphError if hasMore=true but nextCursor is null', async () => {
+    mockFetch(200, { data: [], pagination: { hasMore: true, nextCursor: null } });
     await expect(new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3'))
       .rejects.toThrow(KnowledgeGraphError);
+  });
+
+  it('throws KnowledgeGraphError if the API repeats a cursor', async () => {
+    mockFetch(200, { data: [], pagination: { hasMore: true, nextCursor: 'same-page' } });
+    const err = await new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3').catch((e) => e);
+    expect(err).toBeInstanceOf(KnowledgeGraphError);
+    expect(err.message).toContain('repeated');
   });
 });
 
@@ -182,4 +405,5 @@ describe('KnowledgeGraphClient - getLearningComponentsByCode', () => {
     expect(result.components[0].description).toBe('LC one');
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
-});
+
+  });

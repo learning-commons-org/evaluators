@@ -90,6 +90,12 @@ export interface MathStandardsAlignmentEvaluatorConfig extends BaseEvaluatorConf
 const DETAIL_MODEL: string = STEP.model.name;
 const TEMPERATURE: number = STEP.generation.temperature;
 const KG_SUBJECT = 'Mathematics';
+/**
+ * Above this many question/standard pairs, evaluateByGrade warns. A grade can carry
+ * over a thousand standards in some jurisdictions, so a handful of questions is
+ * enough to run into five figures of LLM calls.
+ */
+const BY_GRADE_WARN_PAIRS = 500;
 
 // ---------------------------------------------------------------------------
 // Evaluator
@@ -183,7 +189,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     if (useCoarseFilter) {
       await Promise.all(
         allCodes.map((code) =>
-          this.kgClient.getLearningComponentsByCode(code, { jurisdiction, academicSubject: KG_SUBJECT, limit: 1 })
+          this.kgClient.getLearningComponentsByCode(code, { jurisdiction, academicSubject: KG_SUBJECT })
             .then((result) => lcCache.set(code, result))
             .catch(() => undefined),
         ),
@@ -270,10 +276,26 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       jurisdiction,
       academicSubject: KG_SUBJECT,
     });
-    // statementCode is nullable in the spec — skip standards without one
-    const codes = academicStandards
-      .map((s) => s.statementCode)
-      .filter((c): c is string => c != null);
+    // statementCode is nullable in the spec — skip standards without one. Deduped
+    // because a jurisdiction reusing a code across courses returns one item per
+    // course, which would otherwise repeat that code in byStandard.
+    const codes = [...new Set(
+      academicStandards
+        .map((s) => s.statementCode)
+        .filter((c): c is string => c != null),
+    )];
+
+    const pairs = questions.length * codes.length;
+    if (pairs > BY_GRADE_WARN_PAIRS) {
+      this.logger.warn('Large grade-wide evaluation; each pair costs an LLM call', {
+        evaluator: EVALUATOR_ID,
+        grade,
+        jurisdiction,
+        questions: questions.length,
+        standards: codes.length,
+        pairs,
+      });
+    }
 
     if (codes.length === 0) {
       return {
@@ -313,11 +335,22 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     const stageDetails: StageDetail[] = [];
 
     try {
-      const { components } = await this.kgClient.getLearningComponentsByCode(statementCode, {
-        jurisdiction,
-        academicSubject: KG_SUBJECT,
-        limit: 1,
-      });
+      const { components, ambiguous, uuid, description } = await this.kgClient.getLearningComponentsByCode(
+        statementCode,
+        { jurisdiction, academicSubject: KG_SUBJECT },
+      );
+
+      // Interim: first match wins until candidate resolution lands. Warn so the
+      // choice, not the model, is the suspect when a result looks wrong.
+      if (ambiguous) {
+        this.logger.warn('Statement code matched multiple standards; evaluating the first', {
+          evaluator: EVALUATOR_ID,
+          statementCode,
+          jurisdiction,
+          chosenUuid: uuid,
+          chosenDescription: description,
+        });
+      }
 
       if (components.length === 0) {
         return { statementCode, learningComponents: [], alignedCount: 0, totalCount: 0 };
@@ -441,13 +474,13 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       // reason about rather than opaque codes like "3.MD.C.7.d".
       const infos = await Promise.all(
         statementCodes.map((code) =>
-          this.kgClient.getStandardInfo(code, { jurisdiction, academicSubject: KG_SUBJECT, limit: 1 })
-            .catch(() => ({ uuid: '', description: undefined }))
+          this.kgClient.getStandardInfo(code, { jurisdiction, academicSubject: KG_SUBJECT })
+            .catch(() => null)
         ),
       );
       const standardList = statementCodes
         .map((code, i) => {
-          const desc = infos[i].description;
+          const desc = infos[i]?.description;
           return desc ? `${code}: ${desc}` : code;
         })
         .join('\n');
@@ -468,6 +501,12 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       for (const code of statementCodes) {
         if (!returnedCodes.has(code)) relevant.add(code);
       }
+      // An ambiguous code was described by one arbitrary candidate, so filtering on
+      // that description could drop a code a sibling candidate makes relevant. Fail
+      // open and let detail evaluation decide, which also surfaces the warning.
+      statementCodes.forEach((code, i) => {
+        if (infos[i]?.ambiguous) relevant.add(code);
+      });
       return relevant;
     } catch (err) {
       this.logger.warn('Coarse filter failed, passing all standards to detail eval', {

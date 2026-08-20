@@ -6,12 +6,27 @@ import {
   RateLimitError,
   NetworkError,
 } from '../errors.js';
-import type { AcademicStandard, LearningComponent, StandardInfo } from './types.js';
+import type { AcademicStandard, LearningComponent, LearningComponentSet, StandardInfo } from './types.js';
 import type { paths, components } from './kg-api.js';
 
 const KG_BASE_URL = 'https://api.learningcommons.org/knowledge-graph/v0';
 const CCSS_FRAMEWORK_UUID = 'c6496676-d7cb-11e8-824f-0242ac160002';
 const KG_TIMEOUT_MS = 30_000;
+const STANDARDS_PAGE_SIZE = 500;
+const LC_PAGE_SIZE = 100;
+/** The search endpoint's maximum. Explicit because its default is 5, not the cap. */
+export const STANDARD_SEARCH_LIMIT = 50;
+/** Generous: the largest grade needs 3 pages of 500. */
+const MAX_PAGES = 200;
+
+/**
+ * Canonical lookup form: trimmed, interior whitespace collapsed, uppercased.
+ * Safe because the KG documents statementCode search as "case-insensitive exact
+ * match only" (`searchAcademicStandards` in kg-api.d.ts).
+ */
+export function normalizeStatementCode(statementCode: string): string {
+  return statementCode.trim().replace(/\s+/g, ' ').toUpperCase();
+}
 
 // Adds per-request timeout and maps network/timeout errors to domain types.
 async function kgFetchFn(input: Request, init?: Parameters<typeof fetch>[1]): Promise<Response> {
@@ -51,7 +66,6 @@ const httpErrorMiddleware: Middleware = {
 export interface StandardInfoOptions {
   jurisdiction?: string;
   academicSubject?: string;
-  limit?: number;
 }
 
 export interface StandardsByGradeOptions {
@@ -70,9 +84,10 @@ export class KnowledgeGraphClient {
   private readonly limit: ReturnType<typeof pLimit>;
   private readonly http: ReturnType<typeof createClient<paths>>;
 
-  // Cache key: `${statementCode}:${jurisdiction}`
-  private readonly standardInfoCache = new Map<string, Promise<StandardInfo>>();
-  private readonly lcCache = new Map<string, Promise<LearningComponent[]>>();
+  // Cache key: `${normalizedCode}:${jurisdiction}:${academicSubject}`
+  // Holds every candidate, so resolving an ambiguous code costs no extra request.
+  private readonly standardInfoCache = new Map<string, Promise<StandardInfo[]>>();
+  private readonly lcCache = new Map<string, Promise<LearningComponentSet>>();
   // Cache key: `${jurisdiction}:${academicSubject}`
   private readonly frameworkUuidCache = new Map<string, Promise<string>>();
 
@@ -86,19 +101,49 @@ export class KnowledgeGraphClient {
     this.http.use(httpErrorMiddleware);
   }
 
-  getStandardInfo(statementCode: string, opts?: StandardInfoOptions): Promise<StandardInfo> {
+  /** The first matching standard. Sets `ambiguous` when the code matched more than one. */
+  async getStandardInfo(statementCode: string, opts?: StandardInfoOptions): Promise<StandardInfo> {
+    const candidates = await this.getStandardCandidates(statementCode, opts);
+    return { ...candidates[0], ...(candidates.length > 1 ? { ambiguous: true } : {}) };
+  }
+
+  /**
+   * Every standard matching the code, in Knowledge Graph order. More than one means
+   * the code is reused (typically across courses) and the caller must choose. A
+   * length of {@link STANDARD_SEARCH_LIMIT} may be truncated — search takes no cursor.
+   */
+  async getStandardCandidates(statementCode: string, opts?: StandardInfoOptions): Promise<StandardInfo[]> {
+    const normalized = normalizeStatementCode(statementCode);
     const jurisdiction = opts?.jurisdiction ?? 'Multi-State';
-    const cacheKey = `${statementCode}:${jurisdiction}`;
+    const cacheKey = `${normalized}:${jurisdiction}:${opts?.academicSubject ?? ''}`;
     let p = this.standardInfoCache.get(cacheKey);
     if (!p) {
-      p = this.limit(() => this._fetchStandardInfo(statementCode, opts));
+      p = this.limit(() => this._fetchStandardCandidates(normalized, opts));
       p = p.catch((err) => { this.standardInfoCache.delete(cacheKey); throw err; });
       this.standardInfoCache.set(cacheKey, p);
     }
-    return p;
+
+    const candidates = await p;
+    if (candidates.length === 0) {
+      // Evict: an empty result fulfils rather than rejects, so the eviction above
+      // never fires and a transient empty response would be cached for the life of
+      // the client. Guarded on identity so a concurrent retry is not discarded.
+      if (this.standardInfoCache.get(cacheKey) === p) this.standardInfoCache.delete(cacheKey);
+      // Thrown per caller, not inside the shared request, so concurrent callers with
+      // different spellings each see their own in the message.
+      throw new KnowledgeGraphError(`Standard not found: "${statementCode}"`);
+    }
+    // Copies: a caller sorting these to choose would otherwise reorder the cache.
+    return candidates.map((c) => ({ ...c }));
   }
 
-  getLearningComponents(caseIdentifierUUID: string): Promise<LearningComponent[]> {
+  /** Evaluable components only. See {@link getLearningComponentSet} to tell an
+   * empty standard apart from one whose components have no descriptions. */
+  async getLearningComponents(caseIdentifierUUID: string): Promise<LearningComponent[]> {
+    return (await this.getLearningComponentSet(caseIdentifierUUID)).components;
+  }
+
+  getLearningComponentSet(caseIdentifierUUID: string): Promise<LearningComponentSet> {
     let p = this.lcCache.get(caseIdentifierUUID);
     if (!p) {
       p = this.limit(() => this._fetchLearningComponents(caseIdentifierUUID));
@@ -114,48 +159,99 @@ export class KnowledgeGraphClient {
       opts?.academicSubject,
     );
 
-    const { data } = await this.http.GET('/academic-standards', {
-      params: {
-        query: {
-          limit: 500,
-          standardsFrameworkCaseIdentifierUUID: frameworkUuid,
-          gradeLevel: [grade] as components['parameters']['GradeLevelParam'],
-          normalizedStatementType: 'Standard' as components['schemas']['NormalizedStatementTypeENUM'],
-          ...(opts?.academicSubject
-            ? { academicSubject: opts.academicSubject as components['schemas']['AcademicSubjectENUM'] }
-            : {}),
-        },
-      },
-    }).catch(wrapJsonError);
-    if (data === undefined) throw new KnowledgeGraphError('Unexpected empty response from Knowledge Graph');
+    type StandardsQuery = NonNullable<
+      paths['/academic-standards']['get']['parameters']['query']
+    >;
 
-    if (data.pagination?.hasMore) {
-      throw new KnowledgeGraphError(
-        `getStandardsByGrade returned a paginated result for grade "${grade}" — ` +
-        `increase limit or implement cursor pagination to retrieve all standards.`,
-      );
-    }
+    return this._paginate(`grade "${grade}"`, async (cursor) => {
+      const query: StandardsQuery = {
+        limit: STANDARDS_PAGE_SIZE,
+        standardsFrameworkCaseIdentifierUUID: frameworkUuid,
+        gradeLevel: [grade] as components['parameters']['GradeLevelParam'],
+        normalizedStatementType: 'Standard' as components['schemas']['NormalizedStatementTypeENUM'],
+        ...(opts?.academicSubject
+          ? { academicSubject: opts.academicSubject as components['schemas']['AcademicSubjectENUM'] }
+          : {}),
+        ...(cursor ? { cursor } : {}),
+      };
 
-    return (data.data ?? []).map((item) => ({
-      caseIdentifierUUID: item.caseIdentifierUUID,
-      statementCode: item.statementCode ?? null,
-      description: item.description ?? null,
-      statementType: item.statementType ?? null,
-      normalizedStatementType: item.normalizedStatementType ?? null,
-      gradeLevel: item.gradeLevel ?? [],
-    }));
+      const { data } = await this.http.GET('/academic-standards', {
+        params: { query },
+      }).catch(wrapJsonError);
+      if (data === undefined) throw new KnowledgeGraphError('Unexpected empty response from Knowledge Graph');
+
+      return {
+        items: (data.data ?? []).map((item) => ({
+          caseIdentifierUUID: item.caseIdentifierUUID,
+          statementCode: item.statementCode ?? null,
+          description: item.description ?? null,
+          statementType: item.statementType ?? null,
+          normalizedStatementType: item.normalizedStatementType ?? null,
+          gradeLevel: item.gradeLevel ?? [],
+        })),
+        hasMore: data.pagination?.hasMore,
+        nextCursor: data.pagination?.nextCursor,
+      };
+    });
   }
 
   async getLearningComponentsByCode(
     statementCode: string,
     opts?: StandardInfoOptions,
-  ): Promise<{ uuid: string; description?: string; components: LearningComponent[] }> {
-    const { uuid, description } = await this.getStandardInfo(statementCode, opts);
-    const components = await this.getLearningComponents(uuid);
-    return { uuid, description, components };
+  ): Promise<StandardInfo & { components: LearningComponent[] }> {
+    const info = await this.getStandardInfo(statementCode, opts);
+    const components = await this.getLearningComponents(info.uuid);
+    return { ...info, components };
   }
 
   // ---------------------------------------------------------------------------
+
+  /**
+   * Walks cursor-paginated KG endpoints until exhausted. `context` labels the
+   * error thrown when a page's pagination fields are self-contradictory, which
+   * would otherwise loop forever or truncate silently.
+   */
+  private async _paginate<T>(
+    context: string,
+    fetchPage: (cursor: string | null) => Promise<{
+      items: T[];
+      hasMore?: boolean;
+      nextCursor?: string | null;
+    }>,
+  ): Promise<T[]> {
+    const results: T[] = [];
+    const seenCursors = new Set<string>();
+    let cursor: string | null = null;
+
+    do {
+      const { items, hasMore, nextCursor } = await fetchPage(cursor);
+      results.push(...items);
+
+      if (hasMore && !nextCursor) {
+        throw new KnowledgeGraphError(
+          `Knowledge Graph pagination error: hasMore=true but nextCursor is null for ${context}`,
+        );
+      }
+      cursor = hasMore ? (nextCursor ?? null) : null;
+
+      if (cursor !== null) {
+        if (seenCursors.has(cursor)) {
+          throw new KnowledgeGraphError(
+            `Knowledge Graph pagination error: cursor "${cursor}" repeated for ${context}`,
+          );
+        }
+        seenCursors.add(cursor);
+        // The repeat check above misses a server minting a fresh cursor per page.
+        if (seenCursors.size > MAX_PAGES) {
+          throw new KnowledgeGraphError(
+            `Knowledge Graph pagination error: exceeded ${MAX_PAGES} pages for ${context}`,
+          );
+        }
+      }
+    } while (cursor !== null);
+
+    return results;
+  }
 
   private _getFrameworkUuid(jurisdiction: string, academicSubject?: string): Promise<string> {
     if (jurisdiction === 'Multi-State') return Promise.resolve(CCSS_FRAMEWORK_UUID);
@@ -194,13 +290,17 @@ export class KnowledgeGraphClient {
     return frameworks[0].caseIdentifierUUID;
   }
 
-  private async _fetchStandardInfo(statementCode: string, opts?: StandardInfoOptions): Promise<StandardInfo> {
+  /** Empty when the code does not exist; the caller raises the not-found error. */
+  private async _fetchStandardCandidates(
+    normalizedCode: string,
+    opts?: StandardInfoOptions,
+  ): Promise<StandardInfo[]> {
     const { data } = await this.http.GET('/academic-standards/search', {
       params: {
         query: {
-          statementCode,
+          statementCode: normalizedCode,
           jurisdiction: (opts?.jurisdiction ?? 'Multi-State') as components['schemas']['JurisdictionENUM'],
-          limit: opts?.limit ?? 1,
+          limit: STANDARD_SEARCH_LIMIT,
           ...(opts?.academicSubject
             ? { academicSubject: opts.academicSubject as components['schemas']['AcademicSubjectENUM'] }
             : {}),
@@ -209,18 +309,20 @@ export class KnowledgeGraphClient {
     }).catch(wrapJsonError);
     if (data === undefined) throw new KnowledgeGraphError('Unexpected empty response from Knowledge Graph');
 
-    if (data.length === 0) {
-      throw new KnowledgeGraphError(`Standard not found: "${statementCode}"`);
-    }
-    return { uuid: data[0].caseIdentifierUUID, description: data[0].description ?? undefined };
+    return data.map((item) => ({
+      uuid: item.caseIdentifierUUID,
+      description: item.description ?? undefined,
+      // The KG's spelling: CCSS sub-standards are lowercase (3.MD.C.7.d), so the
+      // uppercased lookup key is not a valid code. Fallback is defensive only.
+      statementCode: item.statementCode ?? normalizedCode,
+      normalizedCode,
+    }));
   }
 
-  private async _fetchLearningComponents(caseIdentifierUUID: string): Promise<LearningComponent[]> {
-    const results: LearningComponent[] = [];
-    let cursor: string | null = null;
-
-    do {
-      const query: { limit: number; cursor?: string } = { limit: 100 };
+  private async _fetchLearningComponents(caseIdentifierUUID: string): Promise<LearningComponentSet> {
+    let undescribedCount = 0;
+    const components = await this._paginate(`UUID ${caseIdentifierUUID}`, async (cursor) => {
+      const query: { limit: number; cursor?: string } = { limit: LC_PAGE_SIZE };
       if (cursor) query.cursor = cursor;
 
       const { data } = await this.http.GET('/academic-standards/{caseIdentifierUUID}/learning-components', {
@@ -228,21 +330,18 @@ export class KnowledgeGraphClient {
       }).catch(wrapJsonError);
       if (data === undefined) throw new KnowledgeGraphError('Unexpected empty response from Knowledge Graph');
 
+      const items: LearningComponent[] = [];
       for (const item of data.data ?? []) {
         if (item.description != null) {
-          results.push({ identifier: item.identifier, description: item.description });
+          items.push({ identifier: item.identifier, description: item.description });
+        } else {
+          undescribedCount++;
         }
       }
 
-      const { hasMore, nextCursor } = data.pagination ?? {};
-      if (hasMore && !nextCursor) {
-        throw new KnowledgeGraphError(
-          `Knowledge Graph pagination error: hasMore=true but nextCursor is null for UUID ${caseIdentifierUUID}`,
-        );
-      }
-      cursor = hasMore ? (nextCursor ?? null) : null;
-    } while (cursor !== null);
+      return { items, hasMore: data.pagination?.hasMore, nextCursor: data.pagination?.nextCursor };
+    });
 
-    return results;
+    return { components, undescribedCount };
   }
 }
