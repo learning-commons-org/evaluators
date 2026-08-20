@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "input_schema.json",
+  "title": "EvaluatorInput",
+  "description": "Runtime inputs for the Vocabulary evaluator (grades 5-12 path).",
+  "type": "object",
+  "required": ["text", "grade_level"],
+  "additionalProperties": false,
+  "properties": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The passage to evaluate for vocabulary complexity."
+    },
+    "grade_level": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 12,
+      "description": "Target student grade. This directory only handles grades 5-12; grades 3-4 are evals/literacy/ela-reading/vocabulary/grades-3-4/."
+    }
+  }
+}
