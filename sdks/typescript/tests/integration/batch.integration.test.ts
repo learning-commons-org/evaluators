@@ -24,8 +24,7 @@ if (RUN_INTEGRATION) {
   if (!process.env.GOOGLE_API_KEY) throw new Error('GOOGLE_API_KEY is required when RUN_INTEGRATION_TESTS=true');
 }
 
-const SKIP_INTEGRATION = !RUN_INTEGRATION;
-const describeIntegration = SKIP_INTEGRATION ? describe.skip : describe;
+const describeIntegration = RUN_INTEGRATION ? describe : describe.skip;
 
 // Test timeout: 2 minutes (generous for API calls)
 const TEST_TIMEOUT_MS = 2 * 60 * 1000;

@@ -34,9 +34,7 @@ const RUN_INTEGRATION = process.env.RUN_INTEGRATION_TESTS === 'true';
 if (RUN_INTEGRATION && !process.env.GOOGLE_API_KEY) {
   throw new Error('GOOGLE_API_KEY is required when RUN_INTEGRATION_TESTS=true');
 }
-const SKIP_INTEGRATION = !RUN_INTEGRATION;
-
-const describeIntegration = SKIP_INTEGRATION ? describe.skip : describe;
+const describeIntegration = RUN_INTEGRATION ? describe : describe.skip;
 
 // Test timeout: 2 minutes per test case (allows for 3 attempts with API latency)
 const TEST_TIMEOUT_MS = 2 * 60 * 1000;
@@ -141,11 +139,6 @@ describeIntegration.concurrent('Conventionality Evaluator - Comprehensive Test S
   let evaluator: ConventionalityEvaluator;
 
   beforeAll(() => {
-    if (SKIP_INTEGRATION) {
-      console.log('⏭️  Skipping integration tests (no API keys or RUN_INTEGRATION_TESTS not set)');
-      return;
-    }
-
     evaluator = new ConventionalityEvaluator({
       googleApiKey: process.env.GOOGLE_API_KEY!,
     });
