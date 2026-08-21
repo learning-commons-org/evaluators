@@ -22,7 +22,7 @@
           {
             "role": "system",
             "source_path": "system.txt",
-            "sha256": "07ea5d5a1727926e765fa449dc1b414669d85756ff7b73ca9c9838bf98a13e78"
+            "sha256": "9253690863f8e7605eda4dcb7f906d4384e5b407d8237298362c9f8585bffc8a"
           },
           {
             "role": "user",
