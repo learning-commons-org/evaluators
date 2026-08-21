@@ -149,8 +149,14 @@
           "generation": {
             "type": "object",
             "additionalProperties": false,
+            "required": ["temperature"],
             "properties": {
-              "temperature": { "type": "number", "minimum": 0, "maximum": 1 }
+              "temperature": {
+                "type": ["number", "null"],
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Sampling temperature to send, or null to send nothing so the model uses its own default. Use null for models that require it: Gemini 3 (Google recommends removing the parameter; below 1.0 risks looping and degraded reasoning), GPT-5 (rejects any value but 1 with a 400), and Claude Opus 5 / Opus 4.8 / Opus 4.7 / Sonnet 5 / Fable 5 (sampling parameters removed, 400). Models that still accept one -- Gemini 2.x, GPT-4.x, Claude 4.6 and below -- should carry an explicit number. Required rather than optional so every step records a deliberate choice; an absent key reads as 'nobody considered it'."
+              }
             }
           },
           "parser": {
@@ -166,7 +172,7 @@
         "allOf": [
           {
             "if": { "properties": { "type": { "const": "llm" } } },
-            "then": { "required": ["prompt", "model", "parser"] }
+            "then": { "required": ["prompt", "model", "parser", "generation"] }
           }
         ]
       }
