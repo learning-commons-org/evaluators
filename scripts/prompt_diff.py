@@ -256,15 +256,35 @@ def ref_with_path(ref: str, path: str) -> str:
     return f"{sha}^"
 
 
-def fetch(remote: str = "origin") -> None:
-    """Refresh remote-tracking refs.
+# Where PR refs get cached locally. GitHub publishes every PR head at
+# refs/pull/<N>/head, which beats a branch name on all three counts that
+# matter here: it exists on any clone without the contributor having set up
+# branches, it survives the branch being deleted after merge, and it can't be
+# invalidated by a rename.
+PR_REF_NS = "refs/prompt-diff"
 
-    The tool reads `origin/<branch>`, which is a local cache. Without this, a
-    prompt pushed to a PR five minutes ago is invisible and the tool would
-    happily report a stale verdict -- worse than an error, because it looks
-    like a real answer.
+
+def pr_ref(pr: int) -> str:
+    return f"{PR_REF_NS}/pr-{pr}"
+
+
+def fetch(remote: str = "origin") -> None:
+    """Refresh remote-tracking refs and cache every PR head locally.
+
+    Both sides are read from refs, not the working tree, so a stale ref means
+    a confident verdict on old content -- worse than an error, because it
+    looks like a real answer. Fetching the PR heads in the same round trip is
+    what lets this work on a clone that has never seen the PR branches.
     """
     subprocess.run(["git", "fetch", remote, "--quiet"], capture_output=True)
+
+    refspecs = [
+        f"+refs/pull/{meta['pr']}/head:{pr_ref(meta['pr'])}"
+        for meta in EVALUATORS.values()
+    ]
+    subprocess.run(
+        ["git", "fetch", remote, "--quiet", *refspecs], capture_output=True
+    )
 
 
 def role_from_filename(path: str) -> str:
@@ -432,17 +452,24 @@ def ref_exists(ref: str) -> bool:
 def resolve(slug: str, args) -> tuple[str, str]:
     """Resolve the base and head refs for one evaluator.
 
-    Falls back to the default branch once a PR branch is gone, so this keeps
-    working unchanged after the migration PRs merge and their branches are
-    deleted.
+    Head is tried in descending order of robustness: the cached PR ref (works
+    on any clone, outlives the branch), then the branch itself (covers a
+    local-only branch that was never pushed, and the offline case), then the
+    default branch once the work has merged.
     """
     if args.head:
         return args.base, args.head
 
-    head = EVALUATORS[slug]["head_ref"]
-    if not ref_exists(head):
-        head = args.fallback_head
-    return args.base, head
+    meta = EVALUATORS[slug]
+    for candidate in (pr_ref(meta["pr"]), meta["head_ref"], args.fallback_head):
+        if ref_exists(candidate):
+            return args.base, candidate
+
+    raise GitError(
+        f"no usable head ref for {slug}: tried {pr_ref(meta['pr'])}, "
+        f"{meta['head_ref']}, {args.fallback_head}. "
+        f"Run with network access so PR #{meta['pr']} can be fetched."
+    )
 
 
 def prepare(base_msgs, head_msgs, args) -> tuple[str, str, list[str]]:
@@ -568,7 +595,12 @@ def summary(args) -> int:
     changed_any = False
     all_notes: set[str] = set()
     for slug, meta in EVALUATORS.items():
-        base_ref, head_ref = resolve(slug, args)
+        try:
+            base_ref, head_ref = resolve(slug, args)
+        except GitError as e:
+            print(f"{slug:<30} {'-':<38} {meta['pr']:>4}  {c('ERROR', 'red')}  {e}")
+            changed_any = True
+            continue
         for step_id, step_meta in meta["steps"].items():
             try:
                 base_msgs = base_messages(base_ref, step_meta["old"])

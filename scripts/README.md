@@ -106,10 +106,17 @@ python3 scripts/prompt_diff.py vocabulary-complexity    # one diff per call
 python3 scripts/prompt_diff.py --all --emit /tmp/pd     # dump every pair to disk
 ```
 
-It runs `git fetch origin` first, because both sides are read from
-remote-tracking refs. Skipping that would mean a prompt you just pushed to a
+It runs `git fetch origin` first, because both sides are read from refs rather
+than the working tree. Skipping that would mean a prompt you just pushed to a
 PR is invisible, and the tool would report a confident verdict on stale
 content. Pass `--no-fetch` when offline.
+
+That same fetch also pulls each PR head from `refs/pull/<N>/head` into
+`refs/prompt-diff/pr-<N>`, so **the tool works on any clone** — the person
+running it needs no local branches, no worktrees, and no knowledge of branch
+names. It's been verified against a `--single-branch` clone that only knew
+`origin/main`. GitHub keeps those refs after a PR merges and its branch is
+deleted, so old comparisons stay reproducible.
 
 | Flag | Purpose |
 |------|---------|
@@ -123,12 +130,17 @@ content. Pass `--no-fetch` when offline.
 | `--base` / `--head` | Diff any two refs. Defaults: `origin/main` → the evaluator's PR branch. |
 
 Both sides are read with `git show`, so no checkout or worktree is needed. You
-can even run it without checking this branch out at all:
+can run it without checking out the branch it lives on:
 
 ```bash
-git show <ref>:scripts/prompt_diff.py > /tmp/prompt_diff.py
+git fetch origin worktree-prompt-diff-tool
+git show FETCH_HEAD:scripts/prompt_diff.py > /tmp/prompt_diff.py
 python3 /tmp/prompt_diff.py --all      # from anywhere in the repo, any branch
 ```
+
+To hand it to someone else while it's still unmerged, that snippet is the
+whole handoff — it needs only clone access, and bootstraps every ref it
+compares.
 
 It survives the migration merging. When a PR branch is deleted the head falls
 back to `--fallback-head` (default `origin/main`); and because the base-side
