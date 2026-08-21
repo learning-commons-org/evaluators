@@ -12,7 +12,7 @@ Core question:
 Does the feedback identify something useful, promising, or well-done in the student’s response, either explicitly through praise or implicitly by naming a specific part of the student’s response as worth developing?
 
 Definition:
-Feedback meets this criterion when it appropriately acknowledges a strength or promising element in the student’s work. The acknowledgment must be tied to the specific student response and should not be merely generic praise.
+Feedback meets this criterion when it appropriately acknowledges a strength or promising element in the student’s work. The acknowledgement must be tied to the specific student response and should not be merely generic praise.
 
 Important calibration:
 - Explicit praise is not strictly required if the feedback identifies a specific part of the student’s response and treats it as a meaningful starting point for improvement.
@@ -23,12 +23,12 @@ Important calibration:
 Meets criterion when:
 - The feedback specifically identifies what the student did well, such as a clear claim, relevant reason, useful evidence, or promising idea.
 - The feedback highlights a particular part of the student’s response as worth expanding, clarifying, or developing.
-- The acknowledgment is specific to this student’s text, not something that could apply to any response.
-- The feedback may combine acknowledgment with a revision suggestion.
+- The acknowledgement is specific to this student’s text, not something that could apply to any response.
+- The feedback may combine acknowledgement with a revision suggestion.
 - The student response contains no meaningful strength to acknowledge, such as “IDK,” and the feedback appropriately focuses on next steps without false praise.
 
 Does NOT meet criterion when:
-- The feedback contains no acknowledgment of a strength or promising element despite the student having one.
+- The feedback contains no acknowledgement of a strength or promising element despite the student having one.
 - The feedback only says things like “Good job,” “Nice work,” or “Great” without specifying what was good.
 - The feedback only asks for clarification, examples, or correction in a generic way.
 - The feedback only points out errors, possible misrepresentation, or missing reasoning.
@@ -37,19 +37,19 @@ Does NOT meet criterion when:
 Key features to assess independently:
 1. presence_of_praise
    - Met = 1 if the feedback includes specific, authentic praise or positively treats a specific student idea as worth developing.
-   - Met = 0 if there is no positive acknowledgment or only generic praise.
+   - Met = 0 if there is no positive acknowledgement or only generic praise.
 
 2. specificity
-   - Met = 1 if the acknowledgment identifies a particular strength, idea, phrase, claim, reason, or feature of the student’s response.
-   - Met = 0 if the acknowledgment is vague or absent.
+   - Met = 1 if the acknowledgement identifies a particular strength, idea, phrase, claim, reason, or feature of the student’s response.
+   - Met = 0 if the acknowledgement is vague or absent.
 
 3. anchoring_to_evidence
-   - Met = 1 if the acknowledgment is grounded in something actually present in the student_text.
+   - Met = 1 if the acknowledgement is grounded in something actually present in the student_text.
    - Met = 0 if it is not tied to the student’s writing, is generic, or refers only to a weakness without treating it as a developable idea.
 
 4. process_vs_trait_framing
    - Met = 1 if the feedback frames the strength in terms of the student’s writing move, thinking process, strategy, effort, or revision path.
-   - Met = 0 if it focuses on fixed traits, gives no process framing, or contains no acknowledgment.
+   - Met = 0 if it focuses on fixed traits, gives no process framing, or contains no acknowledgement.
 
 Calibration examples:
 - Student: “Some people think AI-powered pets are a good alternative to real pets because they can be a cheaper alternative to real pets.”
@@ -71,7 +71,7 @@ Evaluation procedure:
 1. Read student_text and feedback_text carefully.
 2. Identify any strengths or promising elements in the student_text.
 3. Determine whether feedback_text explicitly or implicitly acknowledges one of those elements.
-4. Check whether the acknowledgment is specific and grounded in the student’s actual response.
+4. Check whether the acknowledgement is specific and grounded in the student’s actual response.
 5. Score each key feature independently as 1 or 0.
 6. Provide an overall answer:
    - answer = 1 if the feedback meets the criterion.

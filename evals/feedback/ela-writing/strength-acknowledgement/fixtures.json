@@ -8,7 +8,7 @@
       "feedback_text": "You're right, the AI pets could help around the house. Can you find some other details from the article that you could add to make your claim stronger?"
     },
     "expected": {
-      "acknowledges_strength_score": 1
+      "quality_score": 1
     }
   },
   {
@@ -20,7 +20,7 @@
       "feedback_text": "How so? Can you give an example? Check your spelling of helpful."
     },
     "expected": {
-      "acknowledges_strength_score": 0
+      "quality_score": 0
     }
   }
 ]
