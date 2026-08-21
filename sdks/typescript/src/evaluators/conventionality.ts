@@ -194,7 +194,9 @@ export class ConventionalityEvaluator extends BaseEvaluator {
         { role: 'user', content: getUserPrompt(text, grade, fkScore) },
       ],
       schema: ConventionalityOutputSchema,
-      temperature: 0,
+      // No temperature: this evaluator runs on Gemini 3, where Google recommends
+      // leaving the parameter off entirely — below 1.0 risks looping and degraded
+      // reasoning. See evals/_schemas/model_constraints.json.
     });
 
     return {

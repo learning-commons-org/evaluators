@@ -40,7 +40,10 @@ export class PurposeEvaluator extends BaseEvaluator {
     defaultProviders: [Provider.Google] as const,
   };
 
-  private static readonly TEMPERATURE = STEP.generation.temperature;
+  // null in config means "send no temperature; the model uses its own default"
+  // (see evals/_schemas/model_constraints.json). Normalise to undefined so the
+  // provider omits the field rather than forwarding a literal null.
+  private static readonly TEMPERATURE = STEP.generation.temperature ?? undefined;
 
   private static computeFkScore(text: string): number {
     const fkStep = CONFIG.preprocessing.find(p => p.id === 'fk_score');

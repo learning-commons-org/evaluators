@@ -45,7 +45,12 @@ export class VercelAIProvider implements LLMProvider {
       ...(systemMsg ? { system: systemMsg.content } : {}),
       messages: nonSystemMessages,
       output: Output.object({ schema: request.schema }),
-      temperature: request.temperature ?? 0,
+      // Omit temperature entirely when the caller didn't supply one, rather than
+      // defaulting to 0. Newer reasoning models (Gemini 3, GPT-5, Claude Opus 5 /
+      // Sonnet 5) either reject a temperature or reason worse when given one, so
+      // "unspecified" has to mean "let the model use its own default" — see
+      // evals/_schemas/model_constraints.json.
+      ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
       maxRetries: this.config.maxRetries ?? 0,
       ...(request.maxTokens !== undefined ? { maxTokens: request.maxTokens } : {}),
     });
@@ -70,12 +75,14 @@ export class VercelAIProvider implements LLMProvider {
 
     const systemMsg = messages.find((m) => m.role === 'system');
     const nonSystemMessages = messages.filter((m) => m.role !== 'system');
+    const resolvedTemperature = temperature ?? this.config.temperature;
 
     const { text, usage } = await aiGenerateText({
       model,
       ...(systemMsg ? { system: systemMsg.content } : {}),
       messages: nonSystemMessages,
-      temperature: temperature ?? this.config.temperature ?? 0,
+      // Same rationale as generateStructured: unspecified means "omit", not 0.
+      ...(resolvedTemperature !== undefined ? { temperature: resolvedTemperature } : {}),
       maxRetries: this.config.maxRetries ?? 0,
     });
 

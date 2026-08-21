@@ -144,14 +144,16 @@ describe('PurposeEvaluator - LLM call contract', () => {
     expect(mockProvider.generateStructured).toHaveBeenCalledTimes(1);
   });
 
-  it('passes temperature from config.json', async () => {
+  it('passes temperature from config.json, omitting it when config says null', async () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
 
     await evaluator.evaluate('When going to the beach, find out which ones have lifeguards.', '3');
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
-    expect(call.temperature).toBe(STEP.generation.temperature);
-    expect(call.temperature).toBe(0);
+    // config.json carries null for Gemini 3 (see evals/_schemas/model_constraints.json);
+    // that must reach the provider as undefined so the field is omitted, not as a
+    // literal null. This assertion tracks the config rather than hardcoding a value.
+    expect(call.temperature).toBe(STEP.generation.temperature ?? undefined);
   });
 
   it('includes text in user prompt', async () => {

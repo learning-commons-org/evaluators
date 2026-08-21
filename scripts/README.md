@@ -41,6 +41,7 @@ fails the PR (it never auto-fixes) — so fixing locally saves a round-trip.
 | `eval-fixtures` | Validates `fixtures.json` against the shared `evals/_schemas/fixtures.schema.json`, and binds each case's `input`/`expected` to that evaluator's own input/output schema |
 | `eval-notebook` | Where an evaluator ships an example notebook, confirms it loads the config + prompt files from disk rather than hardcoding them |
 | `eval-requirements` | Cross-checks `evals/requirements.txt` against imports actually used in `evals/`, in both directions: something imported with no matching entry (a missing dependency), and something listed but never imported (a stale one) |
+| `eval-model-constraints` | Checks each step's `generation.temperature` against its model's documented policy, from the registry in [`evals/_schemas/model_constraints.json`](../evals/_schemas/model_constraints.json). A `default_only` model (Gemini 3, GPT-5, Claude Opus 5/Sonnet 5 …) must have `"temperature": null`; a `tunable` model must have a number. **A model matching no registry entry is an error**, so adopting a new model forces someone to look up its policy once and record it with a source, rather than copy-pasting a temperature the model will reject or degrade on |
 
 ## Coming next
 

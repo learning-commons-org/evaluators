@@ -75,7 +75,7 @@
         "name": "gemini-3-flash-preview"
       },
       "generation": {
-        "temperature": 0
+        "temperature": null
       },
       "parser": {
         "kind": "structured_output"

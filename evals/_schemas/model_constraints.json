@@ -1,0 +1,56 @@
+{
+  "$comment": "Which model families accept a temperature, and which require it be omitted. Read by scripts/checks/eval_model_constraints.py. This is DATA, deliberately not code: every entry carries a source and a verified date so a reviewer can re-check the claim, and adding a model is a one-entry change rather than a harness edit. There is no API that reports 'this model rejects temperature', so this list is maintained by hand -- the check treats an UNLISTED model as an error, not a pass, so adopting a new model forces someone to look up its guidance once and record it here instead of silently copy-pasting a temperature that the model will reject or that will degrade its reasoning.",
+
+  "constraints": {
+    "default_only": "Model uses its own default; config must set \"temperature\": null so nothing is sent.",
+    "tunable": "Model accepts a caller-supplied temperature; config must set a number."
+  },
+
+  "families": [
+    {
+      "pattern": "^gemini-3($|[.-])",
+      "constraint": "default_only",
+      "provider_default": 1.0,
+      "reason": "Google strongly recommends keeping temperature at its default of 1.0 and explicitly recommends removing the parameter when migrating. Setting it below 1.0 may cause looping or degraded performance on complex reasoning tasks.",
+      "source": "https://ai.google.dev/gemini-api/docs/gemini-3",
+      "verified": "2026-08-21"
+    },
+    {
+      "pattern": "^gpt-5($|[.-])",
+      "constraint": "default_only",
+      "provider_default": 1.0,
+      "reason": "The API rejects any temperature other than 1 with a 400: \"Unsupported value: 'temperature' does not support 0.2 with this model. Only the default (1) value is supported.\" Applies to the whole GPT-5 reasoning family.",
+      "source": "https://community.openai.com/t/temperature-in-gpt-5-models/1337133",
+      "verified": "2026-08-21"
+    },
+    {
+      "pattern": "^claude-(fable-5|mythos-5|opus-5|opus-4-8|opus-4-7|sonnet-5)($|[.-])",
+      "constraint": "default_only",
+      "provider_default": 1.0,
+      "reason": "Sampling parameters (temperature/top_p/top_k) were removed on these models and return a 400. Claude models at 4.6 and below still accept them.",
+      "source": "Anthropic API reference, Thinking & Effort model table (claude-api skill, shared/model-migration.md)",
+      "verified": "2026-08-21"
+    },
+    {
+      "pattern": "^gemini-2($|[.-])",
+      "constraint": "tunable",
+      "reason": "Gemini 2.x accepts a caller-supplied temperature; the Gemini 3 default-only guidance does not apply.",
+      "source": "https://ai.google.dev/gemini-api/docs/gemini-3",
+      "verified": "2026-08-21"
+    },
+    {
+      "pattern": "^claude-(haiku-4-5|sonnet-4-5|opus-4-6|sonnet-4-6)($|[.-])",
+      "constraint": "tunable",
+      "reason": "Sampling parameters are still allowed on Claude 4.6 and below.",
+      "source": "Anthropic API reference, Thinking & Effort model table (claude-api skill, shared/model-migration.md)",
+      "verified": "2026-08-21"
+    },
+    {
+      "pattern": "^gpt-4($|[.-])",
+      "constraint": "tunable",
+      "reason": "GPT-4 family accepts a caller-supplied temperature; the GPT-5 restriction does not apply.",
+      "source": "https://community.openai.com/t/temperature-in-gpt-5-models/1337133",
+      "verified": "2026-08-21"
+    }
+  ]
+}

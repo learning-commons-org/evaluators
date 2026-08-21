@@ -149,8 +149,14 @@
           "generation": {
             "type": "object",
             "additionalProperties": false,
+            "required": ["temperature"],
             "properties": {
-              "temperature": { "type": "number", "minimum": 0, "maximum": 1 }
+              "temperature": {
+                "type": ["number", "null"],
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Sampling temperature to send, or null to send nothing and let the model use its own default. null is required for models whose family is marked default_only in evals/_schemas/model_constraints.json (newer reasoning models either reject a temperature outright or degrade when given one). Required rather than optional so every step records an explicit decision -- an omitted key reads as 'nobody considered it', which is how several evaluators ended up silently sending a temperature their model rejects."
+              }
             }
           },
           "parser": {
@@ -166,7 +172,7 @@
         "allOf": [
           {
             "if": { "properties": { "type": { "const": "llm" } } },
-            "then": { "required": ["prompt", "model", "parser"] }
+            "then": { "required": ["prompt", "model", "parser", "generation"] }
           }
         ]
       }

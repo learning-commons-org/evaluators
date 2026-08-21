@@ -85,7 +85,7 @@
         "alias": "organizational-structure-evaluator-default"
       },
       "generation": {
-        "temperature": 1
+        "temperature": null
       },
       "parser": {
         "kind": "structured_output"

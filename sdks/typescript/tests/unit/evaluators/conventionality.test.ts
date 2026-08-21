@@ -58,7 +58,7 @@ describe('ConventionalityEvaluator - Evaluation Flow', () => {
     vi.restoreAllMocks();
   });
 
-  it('should map LLM response to result, call provider once, include text+grade in prompt, use temperature 0', async () => {
+  it('should map LLM response to result, call provider once, include text+grade in prompt, omit temperature', async () => {
     const testText = 'The author uses sustained irony throughout to critique the hypocrisy of civilized society by comparing it to so-called primitive customs.';
     const testGrade = '10';
 
@@ -92,7 +92,9 @@ describe('ConventionalityEvaluator - Evaluation Flow', () => {
     expect(call[0].messages[1].content).toContain(testText);
     expect(call[0].messages[1].content).toContain(testGrade);
     expect(call[0].schema).toBeDefined();
-    expect(call[0].temperature).toBe(0);
+    // Gemini 3: temperature must not be sent at all (see
+    // evals/_schemas/model_constraints.json), so the provider receives undefined.
+    expect(call[0].temperature).toBeUndefined();
   });
 
   it('should propagate LLM API errors', async () => {

@@ -59,7 +59,7 @@ describe('SmkEvaluator - Evaluation Flow', () => {
     vi.restoreAllMocks();
   });
 
-  it('should map LLM response to result, call provider once, include text+grade in prompt, use temperature 0', async () => {
+  it('should map LLM response to result, call provider once, include text+grade in prompt, omit temperature', async () => {
     const testText = 'Hydraulic propulsion works by sucking water at the bow and forcing it sternward.';
     const testGrade = '10';
 
@@ -91,7 +91,9 @@ describe('SmkEvaluator - Evaluation Flow', () => {
     expect(call[0].messages[1].content).toContain(testText);
     expect(call[0].messages[1].content).toContain(testGrade);
     expect(call[0].schema).toBeDefined();
-    expect(call[0].temperature).toBe(0);
+    // Gemini 3: temperature must not be sent at all (see
+    // evals/_schemas/model_constraints.json), so the provider receives undefined.
+    expect(call[0].temperature).toBeUndefined();
   });
 
   it('should reflect modelOverride in metadata.model', async () => {

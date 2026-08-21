@@ -44,7 +44,7 @@
         "name": "gpt-5.4-2026-03-05"
       },
       "generation": {
-        "temperature": 1
+        "temperature": null
       },
       "parser": {
         "kind": "structured_output"
