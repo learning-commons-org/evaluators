@@ -24,6 +24,7 @@ classifiers = [
 ]
 dependencies = [
     # LLM access is via LangChain; the langchain-* packages pull in provider SDKs as needed.
+    "httpx>=0.27.0",
     "pydantic>=2.0.0",
     "textstat>=0.7.0",
     "langchain-anthropic>=0.2.0",
