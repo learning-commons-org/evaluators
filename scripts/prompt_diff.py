@@ -537,7 +537,10 @@ def report(label: str, subtitle: str, base_text: str, head_text: str,
         if args.emit:
             print(f"  wrote {base_file}")
             print(f"  wrote {head_file}")
-        print(f"  {c('visual:', 'cyan')} git difftool --no-index {base_file} {head_file}")
+        # `git diff` rather than `git difftool`: it works everywhere, and picks
+        # up delta (or any configured pager) automatically. --difftool covers
+        # the GUI case.
+        print(f"  {c('visual:', 'cyan')} git diff --no-index {base_file} {head_file}")
         if args.difftool and changed:
             tool = None if args.difftool == "auto" else args.difftool
             open_in_difftool(base_file, head_file, tool)

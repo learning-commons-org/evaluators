@@ -137,8 +137,32 @@ the comparison yourself:
 
 ```bash
 python3 scripts/prompt_diff.py --all --changed-only --emit /tmp/pd
-git difftool --no-index /tmp/pd/<call>.BEFORE.txt /tmp/pd/<call>.AFTER.txt
+git diff --no-index /tmp/pd/<call>.BEFORE.txt /tmp/pd/<call>.AFTER.txt
 ```
+
+### Recommended: delta
+
+Prompts are prose, and stock `git diff` is weak on prose — it marks a whole
+line as changed when one word moved.
+[delta](https://github.com/dandavison/delta) fixes that with side-by-side
+panes and word-level highlighting *within* a line, so a one-word edit inside a
+200-word paragraph shows as exactly that one word.
+
+```bash
+brew install git-delta
+
+git config --global core.pager delta
+git config --global interactive.diffFilter 'delta --color-only'
+git config --global delta.side-by-side true
+git config --global delta.navigate true      # n / N to jump between hunks
+```
+
+That's it — delta is a pager, so every `git diff` in every repo improves,
+including the `git diff --no-index` line this tool prints. Nothing here
+depends on it.
+
+For a GUI instead, set `diff.tool` (`opendiff` ships with Xcode CLT on macOS)
+and use `--difftool`.
 
 | Flag | Purpose |
 |------|---------|
