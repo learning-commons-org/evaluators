@@ -599,6 +599,17 @@ def diff_one(slug: str, args) -> bool:
     )
 
 
+def exit_code(changed: bool, args) -> int:
+    """Finding changes is the expected outcome here, not a failure.
+
+    Exiting non-zero for it would make every normal run look like an error --
+    shells paint it red, `&&` chains break. Follows `git diff`, which is 0 by
+    default and only reports differences through the exit status when you ask
+    with --exit-code.
+    """
+    return 1 if (changed and args.exit_code) else 0
+
+
 def summary(args) -> int:
     """Verdict table across every evaluator, one row per LLM call."""
     # `files` is an inventory view, not a diff -- there's no verdict to report,
@@ -650,7 +661,7 @@ def summary(args) -> int:
         print(f"normalized away: {', '.join(sorted(all_notes))}")
     print("IDENTICAL = this LLM call's prompt is byte-identical after restructuring.")
     print("Drill in:  scripts/prompt_diff.py <evaluator>\n")
-    return 1 if changed_any else 0
+    return exit_code(changed_any, args)
 
 
 def main() -> int:
@@ -710,6 +721,12 @@ def main() -> int:
         "--changed-only", action="store_true",
         help="skip calls whose prompt is unchanged",
     )
+    parser.add_argument(
+        "--exit-code", action="store_true",
+        help="exit 1 when any prompt changed, like `git diff --exit-code`. Off "
+             "by default: finding changes is the point, not a failure, and a "
+             "non-zero exit makes every normal run look like an error",
+    )
     parser.add_argument("--no-color", dest="color", action="store_false", help="disable color")
     args = parser.parse_args()
 
@@ -731,15 +748,17 @@ def main() -> int:
         # --emit / --difftool want a pair per call, not a verdict table.
         if args.emit or args.difftool:
             args.combined = False
-            changed = False
+            changed = failed = False
             for slug in EVALUATORS:
                 try:
                     changed |= diff_one(slug, args)
                 except GitError as e:
                     print(f"error ({slug}): {e}", file=sys.stderr)
-                    changed = True
-            print(f"\nAll pairs written to {args.emit}/")
-            return 1 if changed else 0
+                    failed = True
+            if args.emit:
+                print(f"\nAll pairs written to {args.emit}/")
+            # A failure is a real error; a change is just the answer.
+            return 1 if failed else exit_code(changed, args)
         return summary(args)
 
     if not args.evaluator:
@@ -752,12 +771,12 @@ def main() -> int:
         return 2
 
     try:
-        diff_one(args.evaluator, args)
+        changed = diff_one(args.evaluator, args)
     except GitError as e:
         print(f"error: {e}", file=sys.stderr)
         print("hint: run `git fetch origin` if a PR branch is missing", file=sys.stderr)
         return 1
-    return 0
+    return exit_code(changed, args)
 
 
 if __name__ == "__main__":
