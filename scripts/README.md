@@ -133,12 +133,25 @@ installed. No bespoke launcher and no extra config of its own. Only calls that
 actually changed are opened.
 
 `--emit DIR` writes the pairs without opening anything, if you'd rather drive
-the comparison yourself:
+the comparison yourself. It finishes by printing ready-to-run commands for
+exactly what it just wrote — a one-liner for all of them, then one per call —
+so there's nothing to remember or retype:
 
 ```bash
-python3 scripts/prompt_diff.py --all --changed-only --emit /tmp/pd
-git diff --no-index /tmp/pd/<call>.BEFORE.txt /tmp/pd/<call>.AFTER.txt
+$ python3 scripts/prompt_diff.py --all --changed-only --emit /tmp/pd
+...
+All pairs written to /tmp/pd/
+
+Review all 8 in one go:
+  for f in /tmp/pd/*.BEFORE.txt; do git diff --no-index "$f" "${f%.BEFORE.txt}.AFTER.txt"; done
+
+Or one at a time:
+  git diff --no-index /tmp/pd/background-knowledge-demands....BEFORE.txt /tmp/pd/...AFTER.txt
+  ...
 ```
+
+With delta configured as your pager, each of those opens side-by-side; `q`
+moves to the next.
 
 ### Recommended: delta
 
@@ -163,6 +176,14 @@ depends on it.
 
 For a GUI instead, set `diff.tool` (`opendiff` ships with Xcode CLT on macOS)
 and use `--difftool`.
+
+delta has no HTML export of its own. If you ever need a diff as a file to send
+someone, pipe its ANSI output through [`aha`](https://github.com/theZiz/aha)
+(`brew install aha`) rather than reaching for a bespoke generator:
+
+```bash
+git diff --no-index BEFORE.txt AFTER.txt | delta --side-by-side | aha > diff.html
+```
 
 | Flag | Purpose |
 |------|---------|

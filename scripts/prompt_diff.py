@@ -504,6 +504,26 @@ def emit_pair(out_dir: Path, name: str, base_text: str, head_text: str) -> tuple
     return base_file, head_file
 
 
+def print_review_commands(out_dir: Path) -> None:
+    """Print ready-to-run commands for the pairs just written.
+
+    The per-call `visual:` lines are already above, but they're scattered
+    through the output. One loop over the directory beats hunting for them or
+    retyping paths, and the naming convention makes it a one-liner.
+    """
+    pairs = sorted(out_dir.glob("*.BEFORE.txt"))
+    if not pairs:
+        return
+
+    print(f"\n{c('Review all ' + str(len(pairs)) + ' in one go:', 'bold')}")
+    print(f'  for f in {out_dir}/*.BEFORE.txt; do '
+          f'git diff --no-index "$f" "${{f%.BEFORE.txt}}.AFTER.txt"; done')
+    print(f"\n{c('Or one at a time:', 'bold')}")
+    for base_file in pairs:
+        head_file = base_file.with_name(base_file.name.replace(".BEFORE.", ".AFTER."))
+        print(f"  git diff --no-index {base_file} {head_file}")
+
+
 def open_in_difftool(base_file: Path, head_file: Path, tool: str | None) -> None:
     """Hand the pair to `git difftool`.
 
@@ -760,6 +780,7 @@ def main() -> int:
                     failed = True
             if args.emit:
                 print(f"\nAll pairs written to {args.emit}/")
+                print_review_commands(Path(args.emit))
             # A failure is a real error; a change is just the answer.
             return 1 if failed else exit_code(changed, args)
         return summary(args)
