@@ -8,7 +8,7 @@
       "feedback_text": "You used specific evidence from the text.  Challenge yourself to use varied vocabulary.  What could you say instead of \"additional?\""
     },
     "expected": {
-      "withholding_answers_score": 1
+      "quality_score": 1
     }
   },
   {
@@ -20,7 +20,7 @@
       "feedback_text": "Great response. You could add that AI-powered pets are also helpful because they do not trigger allergies and do not require the physical care that real pets need, which supports your claim. Include that idea from the reading in your answer."
     },
     "expected": {
-      "withholding_answers_score": 0
+      "quality_score": 0
     }
   },
   {
@@ -32,7 +32,7 @@
       "feedback_text": "While this might be true, I'm not sure that this is supported by the text. You could revise it to: \"Some people think AI-powered pets are a good alternative to real pets because they do not die and do not need medicine, which the article explains as benefits over real pets.\""
     },
     "expected": {
-      "withholding_answers_score": 0
+      "quality_score": 0
     }
   },
   {
@@ -44,7 +44,7 @@
       "feedback_text": "Thank you for your response, you stated \" With live animals you must buy food for them, bills for the vet, possibly litter every month,\" this is a great response however these are counter arguments. reasons why AI-powered pets are not a good choice. Perhaps yo can elaborate a little more on why AI-powered pets are a good choice."
     },
     "expected": {
-      "withholding_answers_score": 1
+      "quality_score": 1
     }
   },
   {
@@ -56,7 +56,7 @@
       "feedback_text": "Good work! Don't forget that while AI pets have fewer longterm costs, the intial price tag may be high."
     },
     "expected": {
-      "withholding_answers_score": 0
+      "quality_score": 0
     }
   },
   {
@@ -68,7 +68,7 @@
       "feedback_text": "This is a good start for your response, Will there be no costs with an AI pet? You need to seperate the phrases in your sentences with commas."
     },
     "expected": {
-      "withholding_answers_score": 1
+      "quality_score": 1
     }
   },
   {
@@ -80,7 +80,7 @@
       "feedback_text": "You have some great ideas here, but you need to combine these three sentences to make one powerful sentence. What are the most important ideas to include, and what information would be better in later sentences?"
     },
     "expected": {
-      "withholding_answers_score": 1
+      "quality_score": 1
     }
   },
   {
@@ -92,7 +92,7 @@
       "feedback_text": "Good work! You could revise it to: “Some people think AI-powered pets are a good alternative to real pets because they can be cheaper over time, even though the initial price may be high.”"
     },
     "expected": {
-      "withholding_answers_score": 0
+      "quality_score": 0
     }
   },
   {
@@ -104,7 +104,7 @@
       "feedback_text": "This is a great response, you are correct. To make it stronger, you can say that AI-powered pets are a great investment because they cost less than real pets, they do not need food or vet visits, and they are easier to take care of. You could also add that the part about the cost not being nearly as much supports your argument."
     },
     "expected": {
-      "withholding_answers_score": 0
+      "quality_score": 0
     }
   },
   {
@@ -116,7 +116,7 @@
       "feedback_text": "Great job citing specific evidence from the text to support your claim. You argument is clear with more than 1 detail. The only thing I would suggest is citing the paragraph where your examples are mentioned."
     },
     "expected": {
-      "withholding_answers_score": 1
+      "quality_score": 1
     }
   },
   {
@@ -128,7 +128,7 @@
       "feedback_text": "That's true—AI pets are less of a responsibility than real pets. You could say they do not need feeding, walking, grooming, or vet visits, which makes them easier to care for than real pets."
     },
     "expected": {
-      "withholding_answers_score": 0
+      "quality_score": 0
     }
   },
   {
@@ -140,7 +140,7 @@
       "feedback_text": "I hadn't thought of that!  Are there maintenance costs at all? Check your spelling on \"medicine.\""
     },
     "expected": {
-      "withholding_answers_score": 1
+      "quality_score": 1
     }
   },
   {
@@ -152,7 +152,7 @@
       "feedback_text": "That's true—AI pets are more affordable than real pets because they do not need food, vet visits, or grooming, so you could revise your sentence to say that AI-powered pets are a good alternative because they cost less to take care of than real pets."
     },
     "expected": {
-      "withholding_answers_score": 0
+      "quality_score": 0
     }
   },
   {
@@ -164,7 +164,7 @@
       "feedback_text": "Good work! Cost is a factor. Don't forget that while AI pets have fewer longterm costs, the intial price tag may be high."
     },
     "expected": {
-      "withholding_answers_score": 0
+      "quality_score": 0
     }
   },
   {
@@ -176,7 +176,7 @@
       "feedback_text": "That's true—AI pets are better for some people! Now be more specific. Who might benefit from AI pets as an alternative to real pets?"
     },
     "expected": {
-      "withholding_answers_score": 1
+      "quality_score": 1
     }
   }
 ]
