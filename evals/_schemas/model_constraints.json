@@ -46,9 +46,9 @@
       "verified": "2026-08-21"
     },
     {
-      "pattern": "^gpt-4($|[.-])",
+      "pattern": "^gpt-4(o)?($|[.-])",
       "constraint": "tunable",
-      "reason": "GPT-4 family accepts a caller-supplied temperature; the GPT-5 restriction does not apply.",
+      "reason": "GPT-4 family, including GPT-4o, accepts a caller-supplied temperature; the GPT-5 reasoning-model restriction does not apply. The optional 'o' is why this isn't just ^gpt-4[.-] -- gpt-4o has no separator before the 'o'.",
       "source": "https://community.openai.com/t/temperature-in-gpt-5-models/1337133",
       "verified": "2026-08-21"
     }
