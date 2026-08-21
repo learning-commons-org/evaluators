@@ -96,7 +96,7 @@
       "output": "sentence_features",
       "implementation": {
         "python": {
-          "library": "pandas+numpy",
+          "library": "statistics",
           "function": "add_engineered_features"
         },
         "typescript": {
