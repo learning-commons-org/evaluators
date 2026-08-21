@@ -121,25 +121,29 @@ deleted, so old comparisons stay reproducible.
 ### Seeing what changed
 
 ```bash
-python3 scripts/prompt_diff.py --all --changed-only          # terminal, skip the identical ones
-python3 scripts/prompt_diff.py <evaluator> --open            # side-by-side in VS Code
-python3 scripts/prompt_diff.py --all --html /tmp/report.html # one shareable HTML report
+python3 scripts/prompt_diff.py --all --changed-only     # terminal, only what moved
+python3 scripts/prompt_diff.py <evaluator> --difftool   # your configured diff tool
+python3 scripts/prompt_diff.py <evaluator> --difftool=opendiff   # pick one explicitly
 ```
 
-`--html` writes a single self-contained page: a clickable index of every call
-with its status, then a side-by-side table per changed call with intraline
-highlighting. It needs no repo, checkout, or difftool to read, so it's the
-format to send someone reviewing the prompt wording rather than the code.
+`--difftool` renders each side to a file and hands the pair to
+`git difftool --no-index`, so it uses whatever you've set as `diff.tool` and
+supports everything git does — `git difftool --tool-help` lists what's
+installed. No bespoke launcher and no extra config of its own. Only calls that
+actually changed are opened.
 
-`--open` uses `$PROMPT_DIFF_TOOL` (default `code --diff`), so
-`PROMPT_DIFF_TOOL=opendiff` or `PROMPT_DIFF_TOOL=meld` works too. It only
-opens calls that actually changed.
+`--emit DIR` writes the pairs without opening anything, if you'd rather drive
+the comparison yourself:
+
+```bash
+python3 scripts/prompt_diff.py --all --changed-only --emit /tmp/pd
+git difftool --no-index /tmp/pd/<call>.BEFORE.txt /tmp/pd/<call>.AFTER.txt
+```
 
 | Flag | Purpose |
 |------|---------|
 | `--changed-only` | Skip calls whose prompt is unchanged. |
-| `--open` | Launch a side-by-side view per changed call, via `$PROMPT_DIFF_TOOL`. |
-| `--html FILE` | Write and open one self-contained side-by-side HTML report. |
+| `--difftool [TOOL]` | Open each changed call via `git difftool --no-index`, using your configured `diff.tool` unless you name one. |
 | `--combined` | Concatenate all of an evaluator's calls into one diff. Off by default: condition-gated branches (Vocabulary Complexity's grade bands) can cancel out when flattened, so a real change to one branch could read as `IDENTICAL`. |
 | `--no-fetch` | Skip the automatic `git fetch origin`. |
 | `--emit DIR` | Write each rendered `BEFORE`/`AFTER` pair to `DIR` and print a `code --diff` line for each, instead of printing the diff inline. Use this to review in VS Code, Meld, Beyond Compare, or any visual difftool. |

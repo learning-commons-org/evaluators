@@ -38,7 +38,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
@@ -505,69 +504,17 @@ def emit_pair(out_dir: Path, name: str, base_text: str, head_text: str) -> tuple
     return base_file, head_file
 
 
-def open_in_difftool(base_file: Path, head_file: Path) -> None:
-    """Launch a side-by-side view. Honours $PROMPT_DIFF_TOOL, else VS Code."""
-    tool = os.environ.get("PROMPT_DIFF_TOOL", "code --diff")
-    subprocess.run([*tool.split(), str(base_file), str(head_file)], capture_output=True)
+def open_in_difftool(base_file: Path, head_file: Path, tool: str | None) -> None:
+    """Hand the pair to `git difftool`.
 
-
-HTML_CSS = """
-body { font: 14px -apple-system, BlinkMacSystemFont, sans-serif; margin: 2rem; color: #1f2328; }
-h1 { font-size: 1.4rem; } h2 { font-size: 1rem; margin-top: 2.5rem; }
-table.diff { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-             font-size: 12px; border-collapse: collapse; width: 100%;
-             table-layout: fixed; border: 1px solid #d0d7de; }
-table.diff td { padding: 2px 6px; vertical-align: top;
-                white-space: pre-wrap; word-break: break-word; }
-table.diff td.diff_header { background: #f6f8fa; color: #656d76;
-                            text-align: right; width: 3.5rem; user-select: none; }
-.diff_next { display: none; }
-.diff_add { background: #d1f8d4; } .diff_sub { background: #ffd7d5; }
-.diff_chg { background: #fff3c9; }
-.idx a { text-decoration: none; } .idx li { margin: .2rem 0; }
-.ok { color: #1a7f37; } .chg { color: #9a6700; }
-"""
-
-
-def html_report(entries: list[tuple[str, str, str, bool]], out_path: Path,
-                base_ref: str, changed_only: bool) -> Path:
-    """One self-contained side-by-side report for every call.
-
-    Self-contained so it can be handed to someone who doesn't have the repo,
-    a checkout, or a difftool -- they just open it in a browser.
+    Deliberately not a bespoke launcher: git already knows how to drive 25+
+    diff tools and honours whatever the user configured in `diff.tool`, so
+    reinventing that would just be a worse version with its own config.
     """
-    import difflib
-
-    differ = difflib.HtmlDiff(wrapcolumn=80)
-    index, bodies = [], []
-
-    for name, base_text, head_text, changed in entries:
-        if changed_only and not changed:
-            continue
-        status = "chg" if changed else "ok"
-        label = "CHANGED" if changed else "IDENTICAL"
-        index.append(f'<li class="idx"><a href="#{name}">{name}</a> '
-                     f'<span class="{status}">[{label}]</span></li>')
-        bodies.append(f'<h2 id="{name}">{name} <span class="{status}">[{label}]</span></h2>')
-        if changed:
-            bodies.append(differ.make_table(
-                base_text.splitlines(), head_text.splitlines(),
-                fromdesc="BEFORE", todesc="AFTER", context=True, numlines=3,
-            ))
-        else:
-            bodies.append("<p>Byte-identical after restructuring.</p>")
-
-    html = (
-        f"<!doctype html><meta charset=utf-8><title>Prompt diff</title>"
-        f"<style>{HTML_CSS}</style>"
-        f"<h1>Prompt diff &mdash; rendered per LLM call</h1>"
-        f"<p>base <code>{base_ref}</code>. Each section is one LLM call's full "
-        f"rendered prompt, before and after.</p>"
-        f"<ul>{''.join(index)}</ul>{''.join(bodies)}"
-    )
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(html)
-    return out_path
+    cmd = ["git", "difftool", "--no-index", "--no-prompt"]
+    if tool:
+        cmd.append(f"--tool={tool}")
+    subprocess.run([*cmd, str(base_file), str(head_file)])
 
 
 def report(label: str, subtitle: str, base_text: str, head_text: str,
@@ -584,49 +531,25 @@ def report(label: str, subtitle: str, base_text: str, head_text: str,
     if notes:
         print(f"  normalized: {', '.join(notes)}")
 
-    if args.emit or args.open:
+    if args.emit or args.difftool:
         out_dir = Path(args.emit) if args.emit else Path(tempfile.gettempdir()) / "prompt-diff"
         base_file, head_file = emit_pair(out_dir, label.split()[0], base_text, head_text)
         if args.emit:
             print(f"  wrote {base_file}")
             print(f"  wrote {head_file}")
-        tool = os.environ.get("PROMPT_DIFF_TOOL", "code --diff")
-        print(f"  {c('visual:', 'cyan')} {tool} {base_file} {head_file}")
-        if args.open and changed:
-            open_in_difftool(base_file, head_file)
+        print(f"  {c('visual:', 'cyan')} git difftool --no-index {base_file} {head_file}")
+        if args.difftool and changed:
+            tool = None if args.difftool == "auto" else args.difftool
+            open_in_difftool(base_file, head_file, tool)
 
     if not changed:
         print(f"  {c('IDENTICAL', 'green')} -- restructured only, the model sees the same bytes")
-    elif args.emit or args.open:
+    elif args.emit or args.difftool:
         print(f"  {c('CHANGED', 'yellow')} -- open the pair above in your diff tool")
     else:
         print()
         print(output)
     return changed
-
-
-def collect_entries(slugs: list[str], args) -> list[tuple[str, str, str, bool]]:
-    """Render every LLM call for the given evaluators, for the HTML report."""
-    entries: list[tuple[str, str, str, bool]] = []
-    for slug in slugs:
-        meta = EVALUATORS[slug]
-        try:
-            base_ref, head_ref = resolve(slug, args)
-        except GitError as e:
-            print(f"error ({slug}): {e}", file=sys.stderr)
-            continue
-        for step_id, step_meta in meta["steps"].items():
-            try:
-                base_msgs = base_messages(base_ref, step_meta["old"])
-                head_msgs = head_step_messages(
-                    head_ref, slug, step_id, step_meta.get("head_extra", [])
-                )
-                base_text, head_text, _ = prepare(base_msgs, head_msgs, args)
-                _, changed = word_diff(base_text, head_text, "a", "b", color=False)
-                entries.append((f"{slug}.{step_id}", base_text, head_text, changed))
-            except GitError as e:
-                print(f"error ({slug}.{step_id}): {e}", file=sys.stderr)
-    return entries
 
 
 def diff_one(slug: str, args) -> bool:
@@ -714,8 +637,10 @@ def summary(args) -> int:
                 changed_any = True
                 continue
 
-            verdict = c("CHANGED", "yellow") if changed else c("IDENTICAL", "green")
             changed_any = changed_any or changed
+            if args.changed_only and not changed:
+                continue
+            verdict = c("CHANGED", "yellow") if changed else c("IDENTICAL", "green")
             print(f"{slug:<30} {step_id:<38} {meta['pr']:>4}  {verdict}")
 
     print("=" * 96)
@@ -775,15 +700,11 @@ def main() -> int:
              "reports a confident verdict on stale content",
     )
     parser.add_argument(
-        "--open", action="store_true",
-        help="launch a side-by-side view for each CHANGED call. Uses "
-             "$PROMPT_DIFF_TOOL, defaulting to `code --diff`",
-    )
-    parser.add_argument(
-        "--html", metavar="FILE",
-        help="write one self-contained side-by-side HTML report covering every "
-             "call, and open it. Needs no repo, checkout, or difftool to read, "
-             "so it's the format to hand to a reviewer",
+        "--difftool", nargs="?", const="auto", metavar="TOOL",
+        help="open each CHANGED call in `git difftool --no-index`. Uses your "
+             "configured diff.tool by default; pass a name (opendiff, vimdiff, "
+             "meld, bc, kdiff3, ...) to override. `git difftool --tool-help` "
+             "lists what's available",
     )
     parser.add_argument(
         "--changed-only", action="store_true",
@@ -806,23 +727,9 @@ def main() -> int:
         print()
         return 0
 
-    # --html covers one evaluator or all of them, so handle it before the split.
-    if args.html:
-        slugs = list(EVALUATORS) if args.all else [args.evaluator]
-        if not slugs or slugs == [None]:
-            print("--html needs an evaluator or --all", file=sys.stderr)
-            return 2
-        entries = collect_entries(slugs, args)
-        base_ref = resolve(slugs[0], args)[0]
-        out = html_report(entries, Path(args.html), base_ref, args.changed_only)
-        n_changed = sum(1 for _, _, _, ch in entries if ch)
-        print(f"\nwrote {out}  ({n_changed} of {len(entries)} calls changed)")
-        subprocess.run(["open", str(out)], capture_output=True)
-        return 1 if n_changed else 0
-
     if args.all:
-        # --emit wants files for every pair, not a verdict table.
-        if args.emit or args.open:
+        # --emit / --difftool want a pair per call, not a verdict table.
+        if args.emit or args.difftool:
             args.combined = False
             changed = False
             for slug in EVALUATORS:
