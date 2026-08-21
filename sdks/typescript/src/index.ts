@@ -79,6 +79,9 @@ export { GradeLevelAppropriatenessSchema } from './schemas/grade-level-appropria
 // Purpose exports
 export type { PurposeInternal } from './schemas/purpose.js';
 
+// Intertextuality exports
+export type { IntertextualityInternal } from './schemas/intertextuality.js';
+
 export {
   VocabularyEvaluator,
   evaluateVocabulary,
@@ -96,6 +99,8 @@ export {
   PurposeEvaluator,
   evaluatePurpose,
   type PurposeComplexityLevel,
+  IntertextualityEvaluator,
+  evaluateIntertextuality,
   MathStandardsAlignmentEvaluator,
   evaluateMathStandardsAlignment,
   type MathStandardsAlignmentEvaluatorConfig,
