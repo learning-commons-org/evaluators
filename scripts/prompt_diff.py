@@ -17,6 +17,10 @@ model change?" -- by rendering each side into one normalized blob, in the
 order the config declares, and diffing that. A pure restructure produces an
 empty diff. Only real wording changes show up.
 
+Diffs are per LLM call (one `steps[]` entry) by default -- the unit that maps
+to an actual API request. `git fetch origin` runs first, so a prompt you just
+pushed to a PR is never reviewed from a stale ref.
+
 Three modes, for three different questions:
 
   content  (default)  Concatenate every message, drop role boundaries.
@@ -27,10 +31,19 @@ Three modes, for three different questions:
                       "Which files went where?"
 
 Usage:
-  scripts/prompt_diff.py --list
-  scripts/prompt_diff.py vocabulary-complexity
-  scripts/prompt_diff.py vocabulary-complexity --mode roles
-  scripts/prompt_diff.py --all
+  scripts/prompt_diff.py --list                      # evaluators + calls, by family
+  scripts/prompt_diff.py --all                       # verdict per LLM call
+  scripts/prompt_diff.py --all --family feedback     # scope to one family
+  scripts/prompt_diff.py --all --changed-only        # only what moved
+  scripts/prompt_diff.py vocabulary-complexity       # drill into one evaluator
+  scripts/prompt_diff.py sentence-structure --mode roles
+  scripts/prompt_diff.py --all --normalize           # hide already-agreed renames
+
+Reviewing visually:
+  scripts/prompt_diff.py <evaluator> --difftool      # via your configured diff.tool
+  scripts/prompt_diff.py --all --emit /tmp/pd        # write pairs + print commands
+
+Any two refs:
   scripts/prompt_diff.py purpose-clarity --base origin/main --head my-branch
 """
 
@@ -852,9 +865,10 @@ def main() -> int:
     )
     parser.add_argument(
         "--emit", metavar="DIR",
-        help="write each rendered BEFORE/AFTER pair to DIR instead of printing the "
-             "diff inline, and print a `code --diff` command for each -- use this "
-             "to review in VS Code, Meld, Beyond Compare, or any visual difftool",
+        help="write each rendered BEFORE/AFTER pair to DIR instead of printing "
+             "the diff inline, then print ready-to-run `git diff --no-index` "
+             "commands for them -- one loop covering every pair, and one per "
+             "call. Use with --difftool, or drive the comparison yourself",
     )
     parser.add_argument(
         "--no-fetch", dest="fetch", action="store_false",
