@@ -1,10 +1,17 @@
 {
   "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "feedback.productive_coaching_writing_feedback.is_anchored_in_student_response",
-    "name": "Anchored In Student Response Feedback-Quality Evaluator",
+    "id": "feedback.ela_writing.student_response_specificity",
+    "stable_id": "f81efc65-bbac-49a5-8f03-2440d4a4b5c8",
+    "id_history": [
+      "feedback.productive_coaching_writing_feedback.is_anchored_in_student_response"
+    ],
+    "name": "Student Response Specificity Evaluator",
     "description": "Is the feedback clearly based on the student's specific response? (Key features generated from rubric text; concept paper did not list explicit key feature items.)",
-    "supported_grades": ["8", "9"]
+    "supported_grades": [
+      "8",
+      "9"
+    ]
   },
   "input_schema": {
     "$ref": "input_schema.json"
@@ -12,7 +19,7 @@
   "preprocessing": [],
   "steps": [
     {
-      "id": "evaluate_is_anchored_in_student_response",
+      "id": "evaluate_student_response_specificity",
       "type": "llm",
       "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
       "prompt": {
