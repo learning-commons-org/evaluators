@@ -96,17 +96,25 @@ produces an empty diff; only real wording changes surface. Word granularity
 matters for prose: a reflowed paragraph is a whole-line change to a line
 differ but a no-op to a word differ.
 
+Diffs are **per LLM call** (one `steps[]` entry in `config.json`) by default —
+the unit that maps to an actual API request.
+
 ```bash
-python3 scripts/prompt_diff.py --list                        # evaluators + calls
-python3 scripts/prompt_diff.py --all                         # verdict per LLM call
-python3 scripts/prompt_diff.py purpose-clarity               # diff one evaluator
-python3 scripts/prompt_diff.py vocabulary-complexity --per-call   # one diff per LLM call
-python3 scripts/prompt_diff.py --all --emit /tmp/pd          # dump every pair to disk
+python3 scripts/prompt_diff.py --list                   # evaluators + calls
+python3 scripts/prompt_diff.py --all                    # verdict per LLM call
+python3 scripts/prompt_diff.py vocabulary-complexity    # one diff per call
+python3 scripts/prompt_diff.py --all --emit /tmp/pd     # dump every pair to disk
 ```
+
+It runs `git fetch origin` first, because both sides are read from
+remote-tracking refs. Skipping that would mean a prompt you just pushed to a
+PR is invisible, and the tool would report a confident verdict on stale
+content. Pass `--no-fetch` when offline.
 
 | Flag | Purpose |
 |------|---------|
-| `--per-call` | One diff per LLM call (config step) rather than per evaluator. The right unit when an evaluator makes several calls — Vocabulary Complexity makes 3, Sentence Structure 2. |
+| `--combined` | Concatenate all of an evaluator's calls into one diff. Off by default: condition-gated branches (Vocabulary Complexity's grade bands) can cancel out when flattened, so a real change to one branch could read as `IDENTICAL`. |
+| `--no-fetch` | Skip the automatic `git fetch origin`. |
 | `--emit DIR` | Write each rendered `BEFORE`/`AFTER` pair to `DIR` and print a `code --diff` line for each, instead of printing the diff inline. Use this to review in VS Code, Meld, Beyond Compare, or any visual difftool. |
 | `--mode content` | *(default)* Ignore role and file boundaries. Answers "did the instruction set change at all?" |
 | `--mode roles` | Keep `===== SYSTEM =====` markers. Answers "what moved between the system and user prompts?" |
@@ -114,10 +122,19 @@ python3 scripts/prompt_diff.py --all --emit /tmp/pd          # dump every pair t
 | `--normalize` | Canonicalize already-agreed renames (`{grade}`→`{grade_level}`, drop `{format_instructions}`) so only *unexpected* changes remain. Reports which substitutions fired, so nothing hides silently. |
 | `--base` / `--head` | Diff any two refs. Defaults: `origin/main` → the evaluator's PR branch. |
 
-Both sides are read with `git show`, so no checkout or worktree is needed —
-just `git fetch origin` first. Once a PR branch merges and is deleted, that
-evaluator automatically falls back to `--fallback-head` (default `origin/main`),
-so the tool keeps working without edits.
+Both sides are read with `git show`, so no checkout or worktree is needed. You
+can even run it without checking this branch out at all:
+
+```bash
+git show <ref>:scripts/prompt_diff.py > /tmp/prompt_diff.py
+python3 /tmp/prompt_diff.py --all      # from anywhere in the repo, any branch
+```
+
+It survives the migration merging. When a PR branch is deleted the head falls
+back to `--fallback-head` (default `origin/main`); and because the base-side
+files are *also* gone from `main` by then — they were `git mv`d away — each
+base path is resolved back to the last commit where it still existed, rather
+than erroring out.
 
 `EVALUATORS` in the script maps each LLM call (a `steps[]` entry in
 `config.json`) to the base-side files it came from, before the

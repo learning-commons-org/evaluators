@@ -203,6 +203,20 @@ class GitError(RuntimeError):
     pass
 
 
+# Set once from --no-color, so every styled string honours it -- not just the
+# diff body.
+_USE_COLOR = True
+
+_STYLES = {"bold": "1", "red": "31", "green": "32", "yellow": "33", "cyan": "36"}
+
+
+def c(text: str, style: str) -> str:
+    """Style text, or return it untouched when colour is off."""
+    if not _USE_COLOR:
+        return text
+    return f"\033[{_STYLES[style]}m{text}\033[0m"
+
+
 def git_show(ref: str, path: str) -> str:
     """Read one file at one ref. Raises GitError if it isn't there."""
     result = subprocess.run(
@@ -213,6 +227,44 @@ def git_show(ref: str, path: str) -> str:
     if result.returncode != 0:
         raise GitError(f"{ref}:{path} -- {result.stderr.strip()}")
     return result.stdout
+
+
+def path_exists(ref: str, path: str) -> bool:
+    return subprocess.run(
+        ["git", "cat-file", "-e", f"{ref}:{path}"], capture_output=True
+    ).returncode == 0
+
+
+def ref_with_path(ref: str, path: str) -> str:
+    """Return a ref where `path` exists, starting from `ref`.
+
+    Once a migration PR merges, the base-side files are gone from the default
+    branch -- they were `git mv`d away. Reading them at `origin/main` then
+    fails, which would make the whole post-merge fallback useless. So when the
+    path is missing we walk back to the commit that removed it and read from
+    its first parent, i.e. the last state where the file still existed.
+    """
+    if path_exists(ref, path):
+        return ref
+
+    result = subprocess.run(
+        ["git", "rev-list", "-1", ref, "--", path], capture_output=True, text=True
+    )
+    sha = result.stdout.strip()
+    if not sha:
+        raise GitError(f"{path} never existed in the history of {ref}")
+    return f"{sha}^"
+
+
+def fetch(remote: str = "origin") -> None:
+    """Refresh remote-tracking refs.
+
+    The tool reads `origin/<branch>`, which is a local cache. Without this, a
+    prompt pushed to a PR five minutes ago is invisible and the tool would
+    happily report a stale verdict -- worse than an error, because it looks
+    like a real answer.
+    """
+    subprocess.run(["git", "fetch", remote, "--quiet"], capture_output=True)
 
 
 def role_from_filename(path: str) -> str:
@@ -282,9 +334,14 @@ def old_paths_for(slug: str) -> list[str]:
 
 
 def base_messages(ref: str, old_paths: list[str]) -> list[tuple[str, str, str]]:
-    """Read the base side's messages from the manifest's ordered path list."""
+    """Read the base side's messages from the manifest's ordered path list.
+
+    Each path is resolved independently via ref_with_path, so this keeps
+    working after the migration PRs merge and delete the originals.
+    """
     return [
-        (role_from_filename(path), Path(path).name, git_show(ref, path))
+        (role_from_filename(path), Path(path).name,
+         git_show(ref_with_path(ref, path), path))
         for path in old_paths
     ]
 
@@ -389,13 +446,23 @@ def resolve(slug: str, args) -> tuple[str, str]:
 
 
 def prepare(base_msgs, head_msgs, args) -> tuple[str, str, list[str]]:
-    """Render both sides and apply optional normalization."""
+    """Render both sides and apply optional normalization.
+
+    Substitutions from *both* sides are reported. Collecting only the base
+    side's would silently hide a head-only substitution, breaking the
+    guarantee that normalization never conceals a change without saying so.
+    """
     base_text = render(base_msgs, args.mode)
     head_text = render(head_msgs, args.mode)
     notes: list[str] = []
     if args.normalize:
-        base_text, notes = apply_known_renames(base_text)
-        head_text, _ = apply_known_renames(head_text)
+        base_text, base_applied = apply_known_renames(base_text)
+        head_text, head_applied = apply_known_renames(head_text)
+        seen: set[str] = set()
+        for note in base_applied + head_applied:
+            if note not in seen:
+                seen.add(note)
+                notes.append(note)
         base_text, head_text = normalize(base_text), normalize(head_text)
     return base_text, head_text, notes
 
@@ -415,7 +482,7 @@ def report(label: str, subtitle: str, base_text: str, head_text: str,
     """Diff one rendered pair and print the result. Returns True if changed."""
     output, changed = word_diff(base_text, head_text, "before", "after", color=args.color)
 
-    print(f"\n\033[1m{label}\033[0m")
+    print(f"\n{c(label, 'bold')}")
     print(f"  {subtitle}")
     if notes:
         print(f"  normalized: {', '.join(notes)}")
@@ -424,15 +491,15 @@ def report(label: str, subtitle: str, base_text: str, head_text: str,
         base_file, head_file = emit_pair(Path(args.emit), label.split()[0], base_text, head_text)
         print(f"  wrote {base_file}")
         print(f"  wrote {head_file}")
-        print(f"  \033[36mvisual:\033[0m code --diff {base_file} {head_file}")
+        print(f"  {c('visual:', 'cyan')} code --diff {base_file} {head_file}")
 
     if not changed:
-        print("  \033[32mIDENTICAL\033[0m -- restructured only, the model sees the same bytes")
+        print(f"  {c('IDENTICAL', 'green')} -- restructured only, the model sees the same bytes")
     elif not args.emit:
         print()
         print(output)
     else:
-        print("  \033[33mCHANGED\033[0m -- open the pair above in your diff tool")
+        print(f"  {c('CHANGED', 'yellow')} -- open the pair above in your diff tool")
     return changed
 
 
@@ -443,9 +510,10 @@ def diff_one(slug: str, args) -> bool:
     refs = f"{base_ref}  ->  {head_ref}"
 
     if args.mode == "files":
-        print(f"\n\033[1m{meta['old_name']} -> {slug}\033[0m  (PR #{meta['pr']})")
+        title = f"{meta['old_name']} -> {slug}"
+        print(f"\n{c(title, 'bold')}  (PR #{meta['pr']})")
         for step_id, step_meta in meta["steps"].items():
-            print(f"\n  \033[1mcall: {step_id}\033[0m")
+            print(f"\n  {c(f'call: {step_id}', 'bold')}")
             print(f"    base  {base_ref}")
             for role, source, text in base_messages(base_ref, step_meta["old"]):
                 print(f"      {role:>13}  {source:<28} {len(text):>6} chars")
@@ -457,7 +525,7 @@ def diff_one(slug: str, args) -> bool:
         return False
 
     # Per-LLM-call: one diff per step, the unit that maps to an actual API call.
-    if args.per_call:
+    if not args.combined:
         changed_any = False
         for step_id, step_meta in meta["steps"].items():
             base_msgs = base_messages(base_ref, step_meta["old"])
@@ -484,10 +552,21 @@ def diff_one(slug: str, args) -> bool:
 
 def summary(args) -> int:
     """Verdict table across every evaluator, one row per LLM call."""
+    # `files` is an inventory view, not a diff -- there's no verdict to report,
+    # so hand each evaluator to diff_one rather than producing bogus rows.
+    if args.mode == "files":
+        for slug in EVALUATORS:
+            try:
+                diff_one(slug, args)
+            except GitError as e:
+                print(f"error ({slug}): {e}", file=sys.stderr)
+        return 0
+
     print(f"\n{'EVALUATOR':<30} {'CALL':<38} {'PR':>4}  VERDICT")
     print("=" * 96)
 
     changed_any = False
+    all_notes: set[str] = set()
     for slug, meta in EVALUATORS.items():
         base_ref, head_ref = resolve(slug, args)
         for step_id, step_meta in meta["steps"].items():
@@ -496,21 +575,25 @@ def summary(args) -> int:
                 head_msgs = head_step_messages(
                     head_ref, slug, step_id, step_meta.get("head_extra", [])
                 )
-                base_text, head_text, _ = prepare(base_msgs, head_msgs, args)
+                base_text, head_text, notes = prepare(base_msgs, head_msgs, args)
+                all_notes.update(notes)
                 _, changed = word_diff(base_text, head_text, "a", "b", color=False)
             except GitError as e:
-                print(f"{slug:<30} {step_id:<38} {meta['pr']:>4}  \033[31mERROR\033[0m  {e}")
+                print(f"{slug:<30} {step_id:<38} {meta['pr']:>4}  {c('ERROR', 'red')}  {e}")
                 changed_any = True
                 continue
 
-            verdict = "\033[33mCHANGED\033[0m" if changed else "\033[32mIDENTICAL\033[0m"
+            verdict = c("CHANGED", "yellow") if changed else c("IDENTICAL", "green")
             changed_any = changed_any or changed
             print(f"{slug:<30} {step_id:<38} {meta['pr']:>4}  {verdict}")
 
     print("=" * 96)
     print(f"mode={args.mode}" + (", normalized" if args.normalize else ""))
+    if all_notes:
+        # Never let normalization hide a substitution without naming it.
+        print(f"normalized away: {', '.join(sorted(all_notes))}")
     print("IDENTICAL = this LLM call's prompt is byte-identical after restructuring.")
-    print("Drill in:  scripts/prompt_diff.py <evaluator> --per-call\n")
+    print("Drill in:  scripts/prompt_diff.py <evaluator>\n")
     return 1 if changed_any else 0
 
 
@@ -541,8 +624,11 @@ def main() -> int:
              "drop {format_instructions}) so only unexpected changes surface",
     )
     parser.add_argument(
-        "--per-call", action="store_true",
-        help="one diff per LLM call (config step) instead of one per evaluator",
+        "--combined", action="store_true",
+        help="concatenate all of an evaluator's LLM calls into one diff. Off by "
+             "default: condition-gated branches (Vocabulary Complexity's grade "
+             "bands, for instance) can cancel out when flattened, so a real "
+             "change to one branch could read as IDENTICAL",
     )
     parser.add_argument(
         "--emit", metavar="DIR",
@@ -550,8 +636,21 @@ def main() -> int:
              "diff inline, and print a `code --diff` command for each -- use this "
              "to review in VS Code, Meld, Beyond Compare, or any visual difftool",
     )
+    parser.add_argument(
+        "--no-fetch", dest="fetch", action="store_false",
+        help="skip the `git fetch origin` this runs first. Fetching is the "
+             "default because both sides are read from remote-tracking refs: "
+             "without it, a prompt you just pushed is invisible and the tool "
+             "reports a confident verdict on stale content",
+    )
     parser.add_argument("--no-color", dest="color", action="store_false", help="disable color")
     args = parser.parse_args()
+
+    global _USE_COLOR
+    _USE_COLOR = args.color and sys.stdout.isatty()
+
+    if args.fetch and not args.list:
+        fetch()
 
     if args.list:
         print(f"\n{'SLUG':<30}  {'PR':>5}  WAS")
@@ -564,7 +663,7 @@ def main() -> int:
     if args.all:
         # --emit wants files for every pair, not a verdict table.
         if args.emit:
-            args.per_call = True
+            args.combined = False
             changed = False
             for slug in EVALUATORS:
                 try:
