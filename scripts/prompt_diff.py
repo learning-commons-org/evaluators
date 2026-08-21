@@ -46,15 +46,23 @@ from pathlib import Path
 
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
+# Destination root per family. Each evaluator names its family rather than
+# repeating the path.
+FAMILIES = {
+    "student-facing-text": "evals/student-facing-text/ela-reading",
+    "feedback": "evals/feedback/ela-writing",
+}
+
 # Where each evaluator's prompts lived before the migration, and which branch
-# carries the migrated version. `old_paths` is ordered -- it defines the
-# concatenation order for the base side, mirroring the order the config
+# carries the migrated version. Each step's `old` list is ordered -- it defines
+# the concatenation order for the base side, mirroring the order the config
 # declares on the head side.
 #
 # Once these branches merge, `head_ref` entries can drop to "origin/main" and
 # this manifest becomes a historical record of where things used to live.
 EVALUATORS: dict[str, dict] = {
     "grade-level-appropriateness": {
+        "family": "student-facing-text",
         "old_name": "Grade Level Appropriateness",
         "pr": 159,
         "head_ref": "origin/worktree-ga-gla-prompt-fixes",
@@ -68,6 +76,7 @@ EVALUATORS: dict[str, dict] = {
         },
     },
     "meaning-directness": {
+        "family": "student-facing-text",
         "old_name": "Conventionality",
         "pr": 161,
         "head_ref": "origin/worktree-ga-conventionality-fixes",
@@ -81,6 +90,7 @@ EVALUATORS: dict[str, dict] = {
         },
     },
     "vocabulary-complexity": {
+        "family": "student-facing-text",
         "old_name": "Vocabulary",
         "pr": 163,
         "head_ref": "origin/worktree-ga-vocabulary-fixes",
@@ -103,6 +113,7 @@ EVALUATORS: dict[str, dict] = {
         },
     },
     "background-knowledge-demands": {
+        "family": "student-facing-text",
         "old_name": "Subject Matter Knowledge",
         "pr": 173,
         "head_ref": "origin/worktree-background-knowledge-demands",
@@ -116,6 +127,7 @@ EVALUATORS: dict[str, dict] = {
         },
     },
     "sentence-structure": {
+        "family": "student-facing-text",
         "old_name": "Sentence Structure",
         "pr": 174,
         "head_ref": "origin/worktree-sentence-structure",
@@ -147,6 +159,7 @@ EVALUATORS: dict[str, dict] = {
         },
     },
     "purpose-clarity": {
+        "family": "student-facing-text",
         "old_name": "Purpose",
         "pr": 175,
         "head_ref": "origin/worktree-purpose-clarity",
@@ -160,6 +173,7 @@ EVALUATORS: dict[str, dict] = {
         },
     },
     "organizational-structure": {
+        "family": "student-facing-text",
         "old_name": "Organizational Structure",
         "pr": 176,
         "head_ref": "origin/worktree-organizational-structure",
@@ -173,6 +187,7 @@ EVALUATORS: dict[str, dict] = {
         },
     },
     "reference-knowledge-demands": {
+        "family": "student-facing-text",
         "old_name": "Intertextuality",
         "pr": 177,
         "head_ref": "origin/worktree-reference-knowledge-demands",
@@ -185,9 +200,113 @@ EVALUATORS: dict[str, dict] = {
             },
         },
     },
+
+    # --- feedback family -------------------------------------------------
+    # All seven moved from evals/feedback/productive-coaching-writing-feedback/
+    # to evals/feedback/ela-writing/. Single LLM step each, system + user.
+    "strength-acknowledgement": {
+        "family": "feedback",
+        "old_name": "Acknowledges Strength",
+        "pr": 185,
+        "head_ref": "origin/feedback-strength-acknowledgement",
+        "steps": {
+            "evaluate_strength_acknowledgement": {
+                "old": [
+                    "evals/feedback/productive-coaching-writing-feedback/acknowledges-strength/system.txt",
+                    "evals/feedback/productive-coaching-writing-feedback/acknowledges-strength/user.txt",
+                ],
+            },
+        },
+    },
+    "revision-actionability": {
+        "family": "feedback",
+        "old_name": "Actionable Revision",
+        "pr": 180,
+        "head_ref": "origin/feedback-revision-actionability",
+        "steps": {
+            "evaluate_revision_actionability": {
+                "old": [
+                    "evals/feedback/productive-coaching-writing-feedback/actionable-revision/system.txt",
+                    "evals/feedback/productive-coaching-writing-feedback/actionable-revision/user.txt",
+                ],
+            },
+        },
+    },
+    "student-response-specificity": {
+        "family": "feedback",
+        "old_name": "Anchored In Student Response",
+        "pr": 181,
+        "head_ref": "origin/feedback-student-response-specificity",
+        "steps": {
+            "evaluate_student_response_specificity": {
+                "old": [
+                    "evals/feedback/productive-coaching-writing-feedback/anchored-in-student-response/system.txt",
+                    "evals/feedback/productive-coaching-writing-feedback/anchored-in-student-response/user.txt",
+                ],
+            },
+        },
+    },
+    "revision-accuracy": {
+        "family": "feedback",
+        "old_name": "Appropriate Feedback",
+        "pr": 182,
+        "head_ref": "origin/feedback-revision-accuracy",
+        "steps": {
+            "evaluate_revision_accuracy": {
+                "old": [
+                    "evals/feedback/productive-coaching-writing-feedback/appropriate-feedback/system.txt",
+                    "evals/feedback/productive-coaching-writing-feedback/appropriate-feedback/user.txt",
+                ],
+            },
+        },
+    },
+    "revision-manageability": {
+        "family": "feedback",
+        "old_name": "Manageable",
+        "pr": 179,
+        "head_ref": "origin/feedback-revision-manageability",
+        "steps": {
+            "evaluate_revision_manageability": {
+                "old": [
+                    "evals/feedback/productive-coaching-writing-feedback/manageable/system.txt",
+                    "evals/feedback/productive-coaching-writing-feedback/manageable/user.txt",
+                ],
+            },
+        },
+    },
+    "tone-appropriateness": {
+        "family": "feedback",
+        "old_name": "Tone Appropriateness",
+        "pr": 183,
+        "head_ref": "origin/feedback-tone-appropriateness",
+        "steps": {
+            "evaluate_tone_appropriateness": {
+                "old": [
+                    "evals/feedback/productive-coaching-writing-feedback/tone-appropriateness/system.txt",
+                    "evals/feedback/productive-coaching-writing-feedback/tone-appropriateness/user.txt",
+                ],
+            },
+        },
+    },
+    "withholding-answers": {
+        "family": "feedback",
+        "old_name": "Withholding Answers",
+        "pr": 184,
+        "head_ref": "origin/feedback-withholding-answers",
+        "steps": {
+            "evaluate_withholding_answers": {
+                "old": [
+                    "evals/feedback/productive-coaching-writing-feedback/withholding-answers/system.txt",
+                    "evals/feedback/productive-coaching-writing-feedback/withholding-answers/user.txt",
+                ],
+            },
+        },
+    },
 }
 
-NEW_DIR = "evals/student-facing-text/ela-reading"
+def new_dir(slug: str) -> str:
+    """Destination directory for an evaluator, from its family."""
+    return f"{FAMILIES[EVALUATORS[slug]['family']]}/{slug}"
 
 # Substitutions applied under --normalize, to answer "ignoring the renames we
 # already know about, is anything else different?" Reported when applied, so a
@@ -321,7 +440,7 @@ def head_step_messages(ref: str, slug: str, step_id: str,
     field for preprocessing. Without them the rubrics would read as deletions
     -- exactly the false alarm this tool exists to prevent.
     """
-    base_dir = f"{NEW_DIR}/{slug}"
+    base_dir = new_dir(slug)
     config = json.loads(git_show(ref, f"{base_dir}/config.json"))
 
     step = next((s for s in config.get("steps", []) if s.get("id") == step_id), None)
@@ -622,6 +741,12 @@ def diff_one(slug: str, args) -> bool:
     )
 
 
+def selected(args) -> list[str]:
+    """Evaluator slugs in scope, honouring --family."""
+    return [s for s, m in EVALUATORS.items()
+            if not args.family or m["family"] == args.family]
+
+
 def exit_code(changed: bool, args) -> int:
     """Finding changes is the expected outcome here, not a failure.
 
@@ -638,7 +763,7 @@ def summary(args) -> int:
     # `files` is an inventory view, not a diff -- there's no verdict to report,
     # so hand each evaluator to diff_one rather than producing bogus rows.
     if args.mode == "files":
-        for slug in EVALUATORS:
+        for slug in selected(args):
             try:
                 diff_one(slug, args)
             except GitError as e:
@@ -650,7 +775,8 @@ def summary(args) -> int:
 
     changed_any = False
     all_notes: set[str] = set()
-    for slug, meta in EVALUATORS.items():
+    for slug in selected(args):
+        meta = EVALUATORS[slug]
         try:
             base_ref, head_ref = resolve(slug, args)
         except GitError as e:
@@ -696,6 +822,10 @@ def main() -> int:
     parser.add_argument("evaluator", nargs="?", help="evaluator slug (see --list)")
     parser.add_argument("--list", action="store_true", help="list known evaluators")
     parser.add_argument("--all", action="store_true", help="verdict table for every evaluator")
+    parser.add_argument(
+        "--family", choices=sorted(FAMILIES), metavar="NAME",
+        help=f"restrict --all to one family ({', '.join(sorted(FAMILIES))})",
+    )
     parser.add_argument(
         "--mode", choices=["content", "roles", "files"], default="content",
         help="content: ignore role/file boundaries (default). "
@@ -760,10 +890,14 @@ def main() -> int:
         fetch()
 
     if args.list:
-        print(f"\n{'SLUG':<30}  {'PR':>5}  WAS")
-        print("-" * 70)
-        for slug, meta in EVALUATORS.items():
-            print(f"{slug:<30}  {meta['pr']:>5}  {meta['old_name']}")
+        for family, root in FAMILIES.items():
+            print(f"\n{c(family, 'bold')}  ({root}/)")
+            print(f"  {'SLUG':<30}  {'PR':>5}  {'CALLS':>5}  WAS")
+            print("  " + "-" * 74)
+            for slug, meta in EVALUATORS.items():
+                if meta["family"] != family:
+                    continue
+                print(f"  {slug:<30}  {meta['pr']:>5}  {len(meta['steps']):>5}  {meta['old_name']}")
         print()
         return 0
 
@@ -772,7 +906,7 @@ def main() -> int:
         if args.emit or args.difftool:
             args.combined = False
             changed = failed = False
-            for slug in EVALUATORS:
+            for slug in selected(args):
                 try:
                     changed |= diff_one(slug, args)
                 except GitError as e:

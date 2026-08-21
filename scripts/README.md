@@ -100,11 +100,19 @@ Diffs are **per LLM call** (one `steps[]` entry in `config.json`) by default —
 the unit that maps to an actual API request.
 
 ```bash
-python3 scripts/prompt_diff.py --list                   # evaluators + calls
+python3 scripts/prompt_diff.py --list                   # evaluators + calls, by family
 python3 scripts/prompt_diff.py --all                    # verdict per LLM call
+python3 scripts/prompt_diff.py --all --family feedback  # just one family
 python3 scripts/prompt_diff.py vocabulary-complexity    # one diff per call
 python3 scripts/prompt_diff.py --all --emit /tmp/pd     # dump every pair to disk
 ```
+
+Two families are registered, each with its own destination root:
+
+| Family | Destination | Evaluators |
+|---|---|---|
+| `student-facing-text` | `evals/student-facing-text/ela-reading/` | 8 (11 LLM calls) |
+| `feedback` | `evals/feedback/ela-writing/` | 7 (7 LLM calls) |
 
 It runs `git fetch origin` first, because both sides are read from refs rather
 than the working tree. Skipping that would mean a prompt you just pushed to a
@@ -187,6 +195,7 @@ git diff --no-index BEFORE.txt AFTER.txt | delta --side-by-side | aha > diff.htm
 
 | Flag | Purpose |
 |------|---------|
+| `--family NAME` | Restrict `--all` to one family (`student-facing-text`, `feedback`). |
 | `--changed-only` | Skip calls whose prompt is unchanged. |
 | `--difftool [TOOL]` | Open each changed call via `git difftool --no-index`, using your configured `diff.tool` unless you name one. |
 | `--combined` | Concatenate all of an evaluator's calls into one diff. Off by default: condition-gated branches (Vocabulary Complexity's grade bands) can cancel out when flattened, so a real change to one branch could read as `IDENTICAL`. |
@@ -218,10 +227,11 @@ base path is resolved back to the last commit where it still existed, rather
 than erroring out.
 
 `EVALUATORS` in the script maps each LLM call (a `steps[]` entry in
-`config.json`) to the base-side files it came from, before the
-`evals/prompts/` → `evals/student-facing-text/ela-reading/` migration. That
-mapping is inherently historical — `git` can't infer it once files move and
-merge — so it's maintained by hand as new evaluators land.
+`config.json`) to the base-side files it came from, before the migration that
+moved it. That mapping is inherently historical — `git` can't infer it once
+files move and merge — so it's maintained by hand as new evaluators land. Add
+an entry with its `family`, `pr`, `head_ref`, and per-step `old` paths;
+`FAMILIES` supplies the destination root.
 
 A step's `head_extra` lists files that call depends on but `config.json`
 cannot name: Sentence Structure's grade-band rubrics are `preprocessing`
