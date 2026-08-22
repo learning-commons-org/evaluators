@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "output_schema.json",
   "title": "EvaluatorOutput",
-  "description": "Final evaluator output for the Strength Acknowledgement evaluator.",
+  "description": "Final evaluator output for the Strength Acknowledgment evaluator.",
   "type": "object",
   "required": [
     "reasoning",
@@ -73,7 +73,7 @@
         },
         "specificity": {
           "$ref": "#/$defs/KeyFeatureAssessment",
-          "description": "Specificity of the acknowledgement rather than generic praise"
+          "description": "Specificity of the acknowledgment rather than generic praise"
         },
         "anchoring_to_evidence": {
           "$ref": "#/$defs/KeyFeatureAssessment",

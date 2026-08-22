@@ -1,16 +1,21 @@
 {
   "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "feedback.ela_writing.strength_acknowledgement",
+    "id": "feedback.ela_writing.strength_acknowledgment",
     "stable_id": "99370b62-6791-4535-a77e-dda6806c635c",
     "id_history": [
       "feedback.productive_coaching_writing_feedback.is_acknowledges_strength"
     ],
-    "name": "Strength Acknowledgement Evaluator",
+    "name": "Strength Acknowledgment Evaluator",
     "description": "Does the feedback identify what the student did well?",
     "supported_grades": [
+      "6",
+      "7",
       "8",
-      "9"
+      "9",
+      "10",
+      "11",
+      "12"
     ]
   },
   "input_schema": {
@@ -19,7 +24,7 @@
   "preprocessing": [],
   "steps": [
     {
-      "id": "evaluate_strength_acknowledgement",
+      "id": "evaluate_strength_acknowledgment",
       "type": "llm",
       "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
       "prompt": {
