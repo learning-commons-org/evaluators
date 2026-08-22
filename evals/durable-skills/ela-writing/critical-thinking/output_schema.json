@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "output_schema.json",
+  "title": "EvaluatorOutput",
+  "description": "Critical Thinking ratings for a student argumentative essay. Property order is intentional: each indicator's evidence and rationale are produced before its rating, and all indicators are produced before the Overall rating, so reasoning conditions the ratings.",
+  "type": "object",
+  "required": [
+    "indicators",
+    "overall"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "indicators": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One entry per rated indicator. Indicator 2.1 (synthesizing_sources) is rated only when source_count > 1; when source_count is 1 it is omitted from this array entirely.",
+      "items": {
+        "$ref": "#/$defs/Indicator"
+      }
+    },
+    "overall": {
+      "$ref": "#/$defs/Overall",
+      "description": "The headline Critical Thinking rating, formed last as the median of the indicator ratings."
+    }
+  },
+  "$defs": {
+    "Level": {
+      "type": "string",
+      "enum": [
+        "Not Evident",
+        "Exploring",
+        "Analyzing",
+        "Integrating",
+        "Extending"
+      ],
+      "description": "Ordered rating level, lowest to highest."
+    },
+    "Evidence": {
+      "type": "object",
+      "required": [
+        "quote",
+        "comment"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "quote": {
+          "type": "string",
+          "description": "A verbatim substring of the essay text, including any original spelling/grammar errors."
+        },
+        "comment": {
+          "type": "string",
+          "description": "Why this excerpt matters for this indicator."
+        }
+      }
+    },
+    "Indicator": {
+      "type": "object",
+      "required": [
+        "id",
+        "evidence",
+        "rationale",
+        "rating"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": [
+            "synthesizing_sources",
+            "evidence_strength",
+            "counterarguments",
+            "facts_over_opinions",
+            "drawing_conclusions"
+          ],
+          "description": "The indicator being rated. synthesizing_sources = 2.1, evidence_strength = 2.2, counterarguments = 3.1, facts_over_opinions = 3.2, drawing_conclusions = 4.1."
+        },
+        "evidence": {
+          "type": "array",
+          "description": "Verbatim quote/comment pairs supporting the rating. At least one for any indicator rated above Not Evident; may be empty for Not Evident.",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        },
+        "rationale": {
+          "type": "string",
+          "description": "2–5 sentences explaining the rating against the rubric cells and decision rules. Produced before the rating."
+        },
+        "rating": {
+          "$ref": "#/$defs/Level"
+        }
+      }
+    },
+    "Overall": {
+      "type": "object",
+      "required": [
+        "rationale",
+        "rating"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "rationale": {
+          "type": "string",
+          "description": "How the median was formed over the indicator ratings, and any tie handling."
+        },
+        "rating": {
+          "$ref": "#/$defs/Level"
+        }
+      }
+    }
+  }
+}

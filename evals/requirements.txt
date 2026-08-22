@@ -1,6 +1,7 @@
 # requirements.txt
 langchain-google-genai
 langchain-openai
+langchain-anthropic
 anthropic
 requests
 textstat

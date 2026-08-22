@@ -1,0 +1,81 @@
+{
+  "$schema": "../../../_schemas/config.schema.json",
+  "evaluator": {
+    "id": "durable_skills.ela_writing.critical_thinking",
+    "stable_id": "114fb24f-65d8-4736-bb23-300b0470fc4d",
+    "name": "Critical Thinking Evaluator",
+    "description": "Rates grade 6-12 student argumentative essays for Critical Thinking across five indicators (synthesizing sources, evidence strength, counterarguments, facts over opinions, drawing conclusions) plus an Overall rating, on a five-level scale (Not Evident to Extending).",
+    "supported_grades": [
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "input_schema": {
+    "$ref": "input_schema.json"
+  },
+  "preprocessing": [],
+  "steps": [
+    {
+      "id": "evaluate_critical_thinking",
+      "type": "llm",
+      "description": "Single-call LLM step producing per-indicator ratings (evidence + rationale before each rating) and the Overall rating last.",
+      "prompt": {
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "fb7d7a3b78edb01fcfef6dcf8beeef6d10e1875d209ba0731284efd16a449d7f"
+          },
+          {
+            "role": "user",
+            "source_path": "user.txt",
+            "sha256": "0803f5b11a28d431c8c7071534523a022b48e325e37f5956ffd00278137a5ade"
+          }
+        ],
+        "placeholders": {
+          "source_count": {
+            "required": true,
+            "source": "input"
+          },
+          "assignment_text": {
+            "required": true,
+            "source": "input"
+          },
+          "sources": {
+            "required": true,
+            "source": "input"
+          },
+          "essay_text": {
+            "required": true,
+            "source": "input"
+          }
+        }
+      },
+      "model": {
+        "provider": "anthropic",
+        "name": "claude-opus-5"
+      },
+      "generation": {
+        "temperature": null
+      },
+      "parser": {
+        "kind": "structured_output"
+      }
+    }
+  ],
+  "output_schema": {
+    "$ref": "output_schema.json"
+  },
+  "fixtures": {
+    "path": "fixtures.json",
+    "tolerance": {
+      "allow_adjacent_levels": true,
+      "notes": "If allow_adjacent_levels is true, predictions within one rubric step of the expected label count as a pass. Not Evident < Exploring < Analyzing < Integrating < Extending."
+    }
+  }
+}
