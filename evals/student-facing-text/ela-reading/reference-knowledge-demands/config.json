@@ -72,7 +72,7 @@
         "alias": "intertextuality-evaluator-default"
       },
       "generation": {
-        "temperature": 0.0
+        "temperature": 1
       },
       "parser": {
         "kind": "structured_output"
