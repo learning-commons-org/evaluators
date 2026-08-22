@@ -9,8 +9,13 @@
     "name": "Revision Manageability Evaluator",
     "description": "Is the amount of feedback manageable for the student?",
     "supported_grades": [
+      "6",
+      "7",
       "8",
-      "9"
+      "9",
+      "10",
+      "11",
+      "12"
     ]
   },
   "input_schema": {
