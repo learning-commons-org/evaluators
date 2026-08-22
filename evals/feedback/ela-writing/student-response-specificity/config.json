@@ -9,8 +9,13 @@
     "name": "Student Response Specificity Evaluator",
     "description": "Is the feedback clearly based on the student's specific response? (Key features generated from rubric text; concept paper did not list explicit key feature items.)",
     "supported_grades": [
+      "6",
+      "7",
       "8",
-      "9"
+      "9",
+      "10",
+      "11",
+      "12"
     ]
   },
   "input_schema": {
