@@ -128,7 +128,7 @@ jobs:
 
       - name: Upload executed notebooks
         if: always() && steps.affected.outputs.notebooks != '[]'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: executed-notebooks
           path: /tmp/notebook-runs/
