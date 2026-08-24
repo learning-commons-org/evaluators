@@ -50,6 +50,11 @@ export {
 } from './intertextuality.js';
 
 export {
+  OrganizationalStructureEvaluator,
+  evaluateOrganizationalStructure,
+} from './organizational-structure.js';
+
+export {
   MathStandardsAlignmentEvaluator,
   evaluateMathStandardsAlignment,
   type MathStandardsAlignmentEvaluatorConfig,

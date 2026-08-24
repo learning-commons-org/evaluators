@@ -28,9 +28,9 @@
     "src/batch/README.md"
   ],
   "scripts": {
-    "generate:schemas": "tsx scripts/generate-schema.ts ../../evals/prompts/purpose/config.json ../../evals/literacy/qualitative-text-complexity/intertextuality/config.json",
+    "generate:schemas": "tsx scripts/generate-schema.ts ../../evals/prompts/purpose/config.json ../../evals/literacy/qualitative-text-complexity/intertextuality/config.json ../../evals/literacy/qualitative-text-complexity/organizational-structure/config.json",
     "generate:kg-types": "openapi-typescript https://docs.learningcommons.org/api-reference/knowledge-graph-api/openapi.yaml -o src/knowledge-graph/kg-api.d.ts",
-    "generate:schemas:check": "tsx scripts/generate-schema.ts --check ../../evals/prompts/purpose/config.json ../../evals/literacy/qualitative-text-complexity/intertextuality/config.json",
+    "generate:schemas:check": "tsx scripts/generate-schema.ts --check ../../evals/prompts/purpose/config.json ../../evals/literacy/qualitative-text-complexity/intertextuality/config.json ../../evals/literacy/qualitative-text-complexity/organizational-structure/config.json",
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
