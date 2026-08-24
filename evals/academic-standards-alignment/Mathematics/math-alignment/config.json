@@ -1,8 +1,10 @@
 {
-  "$schema": "../../_schemas/config.schema.json",
+  "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "math.standards-alignment",
-    "name": "Math Standards Alignment",
+    "id": "academic_standards_alignment.mathematics.math_alignment",
+    "stable_id": "0b839a2d-39f0-40e6-bd37-77b94fea65c1",
+    "id_history": ["math.standards-alignment"],
+    "name": "Math Alignment Evaluator",
     "description": "Evaluates whether an assessment question aligns to a math standard by checking alignment against each of the standard's learning components from the Learning Commons Knowledge Graph.",
     "supported_grades": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
   },
