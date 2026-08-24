@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'node:crypto';
-import { IntertextualityEvaluator } from '../../../src/evaluators/intertextuality.js';
+import { IntertextualityEvaluator, evaluateIntertextuality } from '../../../src/evaluators/intertextuality.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import CONFIG from '../../../../../evals/literacy/qualitative-text-complexity/intertextuality/config.json';
@@ -229,6 +229,19 @@ describe('IntertextualityEvaluator - LLM call contract', () => {
     );
 
     expect(result.metadata.model).toBe('anthropic:claude-haiku-4-5-20251001');
+  });
+
+  it('evaluateIntertextuality convenience function returns the same result shape', async () => {
+    const injectedProvider = createMockProvider();
+    vi.mocked(injectedProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
+
+    const result = await evaluateIntertextuality(
+      'When going to the beach, find out which ones have lifeguards.', '3',
+      { llmProvider: injectedProvider, telemetry: false },
+    );
+
+    expect(result.score).toBe('Slightly complex');
+    expect(injectedProvider.generateStructured).toHaveBeenCalledTimes(1);
   });
 
   it('accepts string grade (consistent with all other evaluators)', async () => {
