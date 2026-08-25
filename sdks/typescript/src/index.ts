@@ -82,6 +82,9 @@ export type { PurposeInternal } from './schemas/purpose.js';
 // Intertextuality exports
 export type { IntertextualityInternal } from './schemas/intertextuality.js';
 
+// Organizational Structure exports
+export type { OrganizationalStructureInternal } from './schemas/organizational_structure.js';
+
 export {
   VocabularyEvaluator,
   evaluateVocabulary,
@@ -101,6 +104,8 @@ export {
   type PurposeComplexityLevel,
   IntertextualityEvaluator,
   evaluateIntertextuality,
+  OrganizationalStructureEvaluator,
+  evaluateOrganizationalStructure,
   MathStandardsAlignmentEvaluator,
   evaluateMathStandardsAlignment,
   type MathStandardsAlignmentEvaluatorConfig,
