@@ -37,6 +37,18 @@ _PLACEHOLDER = re.compile(r"\{([a-zA-Z0-9_]+)\}")
 # variants ("format_instructions", "json_format_instructions", …) are caught.
 _OBSOLETE_PLACEHOLDERS = ("format_instructions",)
 
+# Google: "For all Gemini 3 models, we strongly recommend keeping the temperature
+# parameter at its default value of 1.0" -- below 1.0 risks looping and degraded
+# reasoning. Source: https://ai.google.dev/gemini-api/docs/gemini-3
+# We require the 1 to be written out rather than accepting null,
+# because "omit the parameter" is only as safe as the weakest client: our TS
+# provider's `request.temperature ?? 0` turns both null and undefined into 0,
+# the exact value the guidance warns against. Substring match on "gemini-3"
+# mirrors langchain_google_genai._is_gemini_3_or_later; like that function it
+# will need widening when a Gemini 4 lands.
+_GEMINI_3 = "gemini-3"
+_GEMINI_3_TEMPERATURE = 1
+
 
 class EvalConfig(Check):
     name = "eval-config"
@@ -77,6 +89,7 @@ class EvalConfig(Check):
             template_vars = self._check_prompts(prompt, base, fail, step_id)
             self._check_placeholders(prompt, template_vars, fail, step_id)
         self._check_fixtures_path(config, base, fail)
+        self._check_generation(config, fail)
 
     # --- Layer 1: schema -----------------------------------------------------
 
@@ -180,6 +193,21 @@ class EvalConfig(Check):
         path = config.get("fixtures", {}).get("path")
         if path and not os.path.exists(os.path.join(base, path)):
             fail(f"fixtures file not found: {path}")
+
+    @staticmethod
+    def _check_generation(config: dict, fail) -> None:
+        """Gemini 3 steps must pin temperature to an explicit 1 -- see _GEMINI_3."""
+        for step in config.get("steps") or []:
+            if step.get("type") != "llm":
+                continue
+            model = step.get("model", {}).get("name", "")
+            if _GEMINI_3 not in model.lower().replace("models/", ""):
+                continue
+            temperature = step.get("generation", {}).get("temperature")
+            if temperature != _GEMINI_3_TEMPERATURE:
+                fail(f"{step.get('id', '?')}: model {model} is Gemini 3, so "
+                     f"generation.temperature must be an explicit "
+                     f"{_GEMINI_3_TEMPERATURE} (found {temperature!r})")
 
     def _check_stable_ids(self, configs: list[tuple[str, dict]], result: Result) -> None:
         """stable_id is a permanent identity anchor -- it must be globally unique

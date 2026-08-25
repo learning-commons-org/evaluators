@@ -155,7 +155,7 @@
                 "type": ["number", "null"],
                 "minimum": 0,
                 "maximum": 1,
-                "description": "Sampling temperature to send, or null to send nothing so the model uses its own default. Use null for models that require it: Gemini 3 (Google recommends removing the parameter; below 1.0 risks looping and degraded reasoning), GPT-5 (rejects any value but 1 with a 400), and Claude Opus 5 / Opus 4.8 / Opus 4.7 / Sonnet 5 / Fable 5 (sampling parameters removed, 400). Models that still accept one -- Gemini 2.x, GPT-4.x, Claude 4.6 and below -- should carry an explicit number. Required rather than optional so every step records a deliberate choice; an absent key reads as 'nobody considered it'."
+                "description": "Sampling temperature to send, or null to omit the parameter entirely. Prefer an explicit number: null obliges every client to implement 'omit' correctly, and one that coerces it to 0 silently picks the worst value. Use null only when the model rejects a temperature outright -- Claude Opus 4.7 and later 400 on any non-default value, and the documented guidance there is to omit it. Required so every step records a deliberate choice."
               }
             }
           },
