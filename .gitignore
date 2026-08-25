@@ -11,3 +11,6 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# Batch CLI output (evaluators-batch default --output-dir)
+batch-results-*/

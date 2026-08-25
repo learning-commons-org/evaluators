@@ -5,6 +5,8 @@ import {
   SmkEvaluator,
   ConventionalityEvaluator,
   PurposeEvaluator,
+  OrganizationalStructureEvaluator,
+  IntertextualityEvaluator,
 } from '../../evaluators/index.js';
 import type { BaseEvaluatorConfig, ModelOverride } from '../../evaluators/base.js';
 import { Provider } from '../../evaluators/base.js';
@@ -32,6 +34,8 @@ const EVALUATOR_MAP = new Map<string, EvaluatorConstructor>([
   [SentenceStructureEvaluator.metadata.id, SentenceStructureEvaluator],
   [ConventionalityEvaluator.metadata.id, ConventionalityEvaluator],
   [PurposeEvaluator.metadata.id, PurposeEvaluator],
+  [OrganizationalStructureEvaluator.metadata.id, OrganizationalStructureEvaluator],
+  [IntertextualityEvaluator.metadata.id, IntertextualityEvaluator],
 ]);
 
 const MEMBERS = [
@@ -41,6 +45,8 @@ const MEMBERS = [
   { id: SentenceStructureEvaluator.metadata.id, name: SentenceStructureEvaluator.metadata.name },
   { id: ConventionalityEvaluator.metadata.id, name: ConventionalityEvaluator.metadata.name },
   { id: PurposeEvaluator.metadata.id, name: PurposeEvaluator.metadata.name },
+  { id: OrganizationalStructureEvaluator.metadata.id, name: OrganizationalStructureEvaluator.metadata.name },
+  { id: IntertextualityEvaluator.metadata.id, name: IntertextualityEvaluator.metadata.name },
 ];
 
 const COLUMNS: ColumnSpec[] = [
@@ -59,6 +65,8 @@ const PROVIDERS_BY_MEMBER = new Map<string, readonly Provider[]>([
   [SentenceStructureEvaluator.metadata.id, SentenceStructureEvaluator.metadata.defaultProviders],
   [ConventionalityEvaluator.metadata.id, ConventionalityEvaluator.metadata.defaultProviders],
   [PurposeEvaluator.metadata.id, PurposeEvaluator.metadata.defaultProviders],
+  [OrganizationalStructureEvaluator.metadata.id, OrganizationalStructureEvaluator.metadata.defaultProviders],
+  [IntertextualityEvaluator.metadata.id, IntertextualityEvaluator.metadata.defaultProviders],
 ]);
 
 class QtcRunner implements FamilyRunner {
