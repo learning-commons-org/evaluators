@@ -45,6 +45,11 @@ export {
 } from './purpose.js';
 
 export {
+  IntertextualityEvaluator,
+  evaluateIntertextuality,
+} from './intertextuality.js';
+
+export {
   MathStandardsAlignmentEvaluator,
   evaluateMathStandardsAlignment,
   type MathStandardsAlignmentEvaluatorConfig,

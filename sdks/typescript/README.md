@@ -43,6 +43,7 @@ console.log(result.score); // 4-5
 | Sentence Structure          | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/sentence-structure-evaluator/about-this-evaluator)          |
 | Conventionality             | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/conventionality/about-this-evaluator)                       |
 | Purpose                     | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/purpose/about-this-evaluator)                               |
+| Intertextuality             | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/intertextuality)                                            |
 
 For more implementation details, visit [our docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview).
 
