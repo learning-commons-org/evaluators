@@ -204,3 +204,160 @@ describe('VercelAIProvider - maxTokens', () => {
     expect(generateText.mock.calls[0][0]).not.toHaveProperty('maxOutputTokens');
   });
 });
+
+describe('VercelAIProvider - temperature', () => {
+  const CONFIG: ProviderConfig = { type: 'openai', model: 'gpt-4o-mini', apiKey: 'k' };
+  const schema = z.object({ ok: z.boolean() });
+  const messages = [{ role: 'user' as const, content: 'hi' }];
+
+  it('omits temperature from generateStructured when null', async () => {
+    const { mod, generateText } = await loadProvider();
+    await new mod.VercelAIProvider(CONFIG).generateStructured({ messages, schema, temperature: null });
+
+    expect(generateText.mock.calls[0][0]).not.toHaveProperty('temperature');
+  });
+
+  it('omits temperature from generateStructured when undefined', async () => {
+    const { mod, generateText } = await loadProvider();
+    await new mod.VercelAIProvider(CONFIG).generateStructured({ messages, schema });
+
+    expect(generateText.mock.calls[0][0]).not.toHaveProperty('temperature');
+  });
+
+  it('forwards an explicit temperature, including 0', async () => {
+    const { mod, generateText } = await loadProvider();
+    const provider = new mod.VercelAIProvider(CONFIG);
+
+    await provider.generateStructured({ messages, schema, temperature: 0 });
+    expect(generateText.mock.calls[0][0].temperature).toBe(0);
+
+    await provider.generateStructured({ messages, schema, temperature: 1 });
+    expect(generateText.mock.calls[1][0].temperature).toBe(1);
+  });
+
+  it('omits temperature from generateText when neither argument nor config supplies one', async () => {
+    const { mod, generateText } = await loadProvider();
+    await new mod.VercelAIProvider(CONFIG).generateText(messages);
+
+    expect(generateText.mock.calls[0][0]).not.toHaveProperty('temperature');
+  });
+
+  it('falls back to the provider config temperature in generateText', async () => {
+    const { mod, generateText } = await loadProvider();
+    await new mod.VercelAIProvider({ ...CONFIG, temperature: 0.5 }).generateText(messages);
+
+    expect(generateText.mock.calls[0][0].temperature).toBe(0.5);
+  });
+  it('lets an explicit null override a config temperature', async () => {
+    const { mod, generateText } = await loadProvider();
+    await new mod.VercelAIProvider({ ...CONFIG, temperature: 0.5 }).generateText(messages, null);
+
+    expect(generateText.mock.calls[0][0]).not.toHaveProperty('temperature');
+  });
+
+  it('lets an explicit 0 override a config temperature', async () => {
+    const { mod, generateText } = await loadProvider();
+    await new mod.VercelAIProvider({ ...CONFIG, temperature: 0.5 }).generateText(messages, 0);
+
+    expect(generateText.mock.calls[0][0].temperature).toBe(0);
+  });
+
+  it('omits temperature when config sets it to null', async () => {
+    const { mod, generateText } = await loadProvider();
+    await new mod.VercelAIProvider({ ...CONFIG, temperature: null }).generateText(messages);
+
+    expect(generateText.mock.calls[0][0]).not.toHaveProperty('temperature');
+  });
+  // generateStructured deliberately ignores ProviderConfig.temperature: the
+  // registry value travels per request, so a config default would silently
+  // override what an evaluator asked for.
+  it('does not consult the config temperature in generateStructured', async () => {
+    const { mod, generateText } = await loadProvider();
+    const provider = new mod.VercelAIProvider({ ...CONFIG, temperature: 0.5 });
+
+    await provider.generateStructured({ messages, schema });
+    expect(generateText.mock.calls[0][0]).not.toHaveProperty('temperature');
+
+    await provider.generateStructured({ messages, schema, temperature: null });
+    expect(generateText.mock.calls[1][0]).not.toHaveProperty('temperature');
+
+    await provider.generateStructured({ messages, schema, temperature: 0 });
+    expect(generateText.mock.calls[2][0].temperature).toBe(0);
+  });
+});
+
+describe('VercelAIProvider - request assembly', () => {
+  const CONFIG: ProviderConfig = { type: 'openai', model: 'gpt-4o-mini', apiKey: 'k' };
+  const schema = z.object({ ok: z.boolean() });
+
+  const CONVERSATION = [
+    { role: 'system' as const, content: 'you are a rater' },
+    { role: 'user' as const, content: 'rate this' },
+    { role: 'assistant' as const, content: 'ok' },
+  ];
+
+  it('hoists the system message and excludes it from messages', async () => {
+    const { mod, generateText } = await loadProvider();
+    await new mod.VercelAIProvider(CONFIG).generateStructured({ messages: CONVERSATION, schema });
+
+    const call = generateText.mock.calls[0][0];
+    expect(call.system).toBe('you are a rater');
+    expect(call.messages).toEqual([
+      { role: 'user', content: 'rate this' },
+      { role: 'assistant', content: 'ok' },
+    ]);
+  });
+
+  it('omits system entirely when no system message is present', async () => {
+    const { mod, generateText } = await loadProvider();
+    const messages = [{ role: 'user' as const, content: 'rate this' }];
+    await new mod.VercelAIProvider(CONFIG).generateStructured({ messages, schema });
+
+    const call = generateText.mock.calls[0][0];
+    expect(call).not.toHaveProperty('system');
+    expect(call.messages).toEqual(messages);
+  });
+
+  it('hoists the system message in generateText too', async () => {
+    const { mod, generateText } = await loadProvider();
+    await new mod.VercelAIProvider(CONFIG).generateText(CONVERSATION);
+
+    const call = generateText.mock.calls[0][0];
+    expect(call.system).toBe('you are a rater');
+    expect(call.messages.map((m: { role: string }) => m.role)).toEqual(['user', 'assistant']);
+  });
+
+  it('defaults maxRetries to 0 so the SDK owns retry policy, and honours an explicit value', async () => {
+    const { mod, generateText } = await loadProvider();
+    const messages = [{ role: 'user' as const, content: 'hi' }];
+
+    await new mod.VercelAIProvider(CONFIG).generateStructured({ messages, schema });
+    expect(generateText.mock.calls[0][0].maxRetries).toBe(0);
+
+    await new mod.VercelAIProvider({ ...CONFIG, maxRetries: 3 }).generateStructured({ messages, schema });
+    expect(generateText.mock.calls[1][0].maxRetries).toBe(3);
+  });
+});
+
+describe('createProvider - custom provider dispatch', () => {
+  const custom = () => ({
+    label: 'custom:thing',
+    generateStructured: vi.fn(),
+    generateText: vi.fn(),
+  });
+
+  it('ignores a stray customProvider on a vendor type', async () => {
+    const { mod } = await loadProvider();
+    const vendor = mod.createProvider({ type: 'openai', model: 'gpt-4o-mini', customProvider: custom() });
+
+    expect(vendor).toBeInstanceOf(mod.VercelAIProvider);
+  });
+
+  it('rejects the custom type with no instance rather than falling through', async () => {
+    const { mod } = await loadProvider();
+
+    expect(() => mod.createProvider({ type: 'custom' })).toThrow(
+      'VercelAIProvider does not support custom type',
+    );
+  });
+});

@@ -45,7 +45,9 @@ export class VercelAIProvider implements LLMProvider {
       ...(systemMsg ? { system: systemMsg.content } : {}),
       messages: nonSystemMessages,
       output: Output.object({ schema: request.schema }),
-      temperature: request.temperature ?? 0,
+      // A null temperature means "send nothing" — see config.schema.json for
+      // which models require that.
+      ...(request.temperature != null ? { temperature: request.temperature } : {}),
       maxRetries: this.config.maxRetries ?? 0,
       // maxOutputTokens is the vendor option; `maxTokens` is silently discarded.
       ...(request.maxTokens !== undefined ? { maxOutputTokens: request.maxTokens } : {}),
@@ -65,18 +67,25 @@ export class VercelAIProvider implements LLMProvider {
   /**
    * Generate plain text using Vercel AI SDK's generateText
    */
-  async generateText(messages: Message[], temperature?: number): Promise<import('./base.js').TextGenerationResponse> {
+  async generateText(
+    messages: Message[],
+    temperature?: number | null
+  ): Promise<import('./base.js').TextGenerationResponse> {
     const model = await this.getModel();
     const startTime = Date.now();
 
     const systemMsg = messages.find((m) => m.role === 'system');
     const nonSystemMessages = messages.filter((m) => m.role !== 'system');
+    // Only an absent argument falls back to config; an explicit null means
+    // "send nothing" and must not be overridden by it.
+    const effectiveTemperature =
+      temperature === undefined ? this.config.temperature : temperature;
 
     const { text, usage } = await aiGenerateText({
       model,
       ...(systemMsg ? { system: systemMsg.content } : {}),
       messages: nonSystemMessages,
-      temperature: temperature ?? this.config.temperature ?? 0,
+      ...(effectiveTemperature != null ? { temperature: effectiveTemperature } : {}),
       maxRetries: this.config.maxRetries ?? 0,
     });
 
