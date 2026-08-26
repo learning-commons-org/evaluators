@@ -53,21 +53,21 @@ export class SmkEvaluator extends BaseEvaluator {
    * Evaluate subject matter knowledge complexity for a given text and grade level
    *
    * @param text - The text to evaluate
-   * @param grade - The target grade level (3-12)
+   * @param gradeLevel - The target grade level (3-12)
    * @returns Evaluation result with complexity score and detailed analysis
-   * @throws {InputValidationError} If text is empty, too short/long, or grade is invalid
+   * @throws {InputValidationError} If text is empty, too short/long, or gradeLevel is invalid
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(
     text: string,
-    grade: string
+    gradeLevel: string
   ): Promise<EvaluationResult<TextComplexityLevel, SmkInternal>> {
     this.logger.info('Starting SMK evaluation', {
       evaluator: 'subject-matter-knowledge',
       operation: 'evaluate',
-      grade,
+      gradeLevel,
       textLength: text.length,
     });
 
@@ -77,7 +77,7 @@ export class SmkEvaluator extends BaseEvaluator {
     try {
       // Validate inputs — inside try so validation errors are telemetered.
       this.validateText(text);
-      this.validateGrade(grade, new Set(SmkEvaluator.metadata.supportedGrades));
+      this.validateGradeLevel(gradeLevel, new Set(SmkEvaluator.metadata.supportedGrades));
 
       this.logger.debug('Evaluating subject matter knowledge complexity', {
         evaluator: 'subject-matter-knowledge',
@@ -85,7 +85,7 @@ export class SmkEvaluator extends BaseEvaluator {
       });
 
       const fkScore = calculateFleschKincaidGrade(text);
-      const response = await this.evaluateSmk(text, grade, fkScore);
+      const response = await this.evaluateSmk(text, gradeLevel, fkScore);
 
       stageDetails.push({
         stage: 'smk_evaluation',
@@ -122,7 +122,7 @@ export class SmkEvaluator extends BaseEvaluator {
         status: 'success',
         latencyMs,
         textLength: text.length,
-        grade,
+        gradeLevel,
         provider: this.provider.label,
         tokenUsage: totalTokenUsage,
         metadata: {
@@ -136,7 +136,7 @@ export class SmkEvaluator extends BaseEvaluator {
       this.logger.info('SMK evaluation completed successfully', {
         evaluator: 'subject-matter-knowledge',
         operation: 'evaluate',
-        grade,
+        gradeLevel,
         score: result.score,
         processingTimeMs: latencyMs,
       });
@@ -148,7 +148,7 @@ export class SmkEvaluator extends BaseEvaluator {
       this.logger.error('SMK evaluation failed', {
         evaluator: 'subject-matter-knowledge',
         operation: 'evaluate',
-        grade,
+        gradeLevel,
         error: error instanceof Error ? error : undefined,
         processingTimeMs: latencyMs,
         completedStages: stageDetails.length,
@@ -163,7 +163,7 @@ export class SmkEvaluator extends BaseEvaluator {
         status: 'error',
         latencyMs,
         textLength: text.length,
-        grade,
+        gradeLevel,
         provider: this.provider.label,
         tokenUsage: totalTokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
@@ -186,13 +186,13 @@ export class SmkEvaluator extends BaseEvaluator {
    */
   private async evaluateSmk(
     text: string,
-    grade: string,
+    gradeLevel: string,
     fkScore: number
   ): Promise<{ data: SmkInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const response = await this.provider.generateStructured({
       messages: [
         { role: 'system', content: getSystemPrompt() },
-        { role: 'user', content: getUserPrompt(text, grade, fkScore) },
+        { role: 'user', content: getUserPrompt(text, gradeLevel, fkScore) },
       ],
       schema: SmkOutputSchema,
       temperature: 0,
@@ -220,9 +220,9 @@ export class SmkEvaluator extends BaseEvaluator {
  */
 export async function evaluateSmk(
   text: string,
-  grade: string,
+  gradeLevel: string,
   config: BaseEvaluatorConfig
 ): Promise<EvaluationResult<TextComplexityLevel, SmkInternal>> {
   const evaluator = new SmkEvaluator(config);
-  return evaluator.evaluate(text, grade);
+  return evaluator.evaluate(text, gradeLevel);
 }

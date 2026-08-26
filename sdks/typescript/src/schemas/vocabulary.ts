@@ -23,5 +23,5 @@ export type VocabularyInternal = z.infer<typeof VocabularyComplexitySchema>;
  */
 export interface BackgroundKnowledge {
   assumption: string;
-  grade: string;
+  gradeLevel: string;
 }

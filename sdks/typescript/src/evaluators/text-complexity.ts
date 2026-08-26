@@ -83,23 +83,23 @@ export class TextComplexityEvaluator extends BaseEvaluator {
    * failed sub-evaluators are represented as `{ error: Error }`.
    *
    * @param text - The text to evaluate
-   * @param grade - The target grade level (3-12)
+   * @param gradeLevel - The target grade level (3-12)
    * @returns Map of sub-evaluator results
-   * @throws {InputValidationError} If text is empty, too short/long, or grade is invalid
+   * @throws {InputValidationError} If text is empty, too short/long, or gradeLevel is invalid
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {Error} If all sub-evaluators fail
    */
-  async evaluate(text: string, grade: string): Promise<TextComplexityResult> {
+  async evaluate(text: string, gradeLevel: string): Promise<TextComplexityResult> {
     this.logger.info('Starting text complexity evaluation', {
       evaluator: 'text-complexity',
       operation: 'evaluate',
-      grade,
+      gradeLevel,
       textLength: text.length,
     });
 
     // Use inherited validation methods
     this.validateText(text);
-    this.validateGrade(grade, new Set(TextComplexityEvaluator.metadata.supportedGrades));
+    this.validateGradeLevel(gradeLevel, new Set(TextComplexityEvaluator.metadata.supportedGrades));
 
     const startTime = Date.now();
 
@@ -110,10 +110,10 @@ export class TextComplexityEvaluator extends BaseEvaluator {
       EvaluationResult<TextComplexityLevel, SmkInternal> | { error: Error },
       EvaluationResult<TextComplexityLevel, ConventionalityInternal> | { error: Error },
     ] = await Promise.all([
-      this.limit(() => this.runSubEvaluator(this.vocabularyEvaluator, text, grade)),
-      this.limit(() => this.runSubEvaluator(this.sentenceStructureEvaluator, text, grade)),
-      this.limit(() => this.runSubEvaluator(this.smkEvaluator, text, grade)),
-      this.limit(() => this.runSubEvaluator(this.conventionalityEvaluator, text, grade)),
+      this.limit(() => this.runSubEvaluator(this.vocabularyEvaluator, text, gradeLevel)),
+      this.limit(() => this.runSubEvaluator(this.sentenceStructureEvaluator, text, gradeLevel)),
+      this.limit(() => this.runSubEvaluator(this.smkEvaluator, text, gradeLevel)),
+      this.limit(() => this.runSubEvaluator(this.conventionalityEvaluator, text, gradeLevel)),
     ]);
 
     const latencyMs = Date.now() - startTime;
@@ -133,7 +133,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
       this.logger.error('Text complexity evaluation completed with errors', {
         evaluator: 'text-complexity',
         operation: 'evaluate',
-        grade,
+        gradeLevel,
         errors,
         processingTimeMs: latencyMs,
       });
@@ -148,7 +148,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
       status: hasFailures ? 'error' : 'success',
       latencyMs,
       textLength: text.length,
-      grade,
+      gradeLevel,
       provider: this.config.modelOverride
         ? `${this.config.modelOverride.provider}:${this.config.modelOverride.model}`
         : 'composite:google+openai',
@@ -161,7 +161,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
     this.logger.info('Text complexity evaluation completed', {
       evaluator: 'text-complexity',
       operation: 'evaluate',
-      grade,
+      gradeLevel,
       processingTimeMs: latencyMs,
       hasFailures,
     });
@@ -174,12 +174,12 @@ export class TextComplexityEvaluator extends BaseEvaluator {
    * Returns the evaluation result or `{ error: Error }` if the evaluator throws.
    */
   private async runSubEvaluator<TScore, TInternal>(
-    evaluator: { evaluate(text: string, grade: string): Promise<EvaluationResult<TScore, TInternal>> },
+    evaluator: { evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<TScore, TInternal>> },
     text: string,
-    grade: string
+    gradeLevel: string
   ): Promise<EvaluationResult<TScore, TInternal> | { error: Error }> {
     try {
-      return await evaluator.evaluate(text, grade);
+      return await evaluator.evaluate(text, gradeLevel);
     } catch (error) {
       return { error: error instanceof Error ? error : new Error(String(error)) };
     }
@@ -203,9 +203,9 @@ export class TextComplexityEvaluator extends BaseEvaluator {
  */
 export async function evaluateTextComplexity(
   text: string,
-  grade: string,
+  gradeLevel: string,
   config: BaseEvaluatorConfig
 ): Promise<TextComplexityResult> {
   const evaluator = new TextComplexityEvaluator(config);
-  return evaluator.evaluate(text, grade);
+  return evaluator.evaluate(text, gradeLevel);
 }

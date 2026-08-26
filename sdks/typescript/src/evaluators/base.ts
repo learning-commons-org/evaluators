@@ -74,7 +74,7 @@ type NormalizedTelemetryOptions = Required<Pick<TelemetryOptions, 'enabled' | 'r
  * Two things to know before overriding:
  *
  * - The override is evaluator-wide, not per call site. `VocabularyEvaluator`
- *   deliberately uses three models (Gemini 2.5 Pro for grades 3-4, GPT-4.1 for
+ *   deliberately uses three models (Gemini 2.5 Pro for grade levels 3-4, GPT-4.1 for
  *   5-12, GPT-4o for background knowledge); an override collapses all three.
  * - `PurposeEvaluator` takes its model from the shared cross-language eval config
  *   (`evals/prompts/purpose/config.json`), so overriding it diverges from that
@@ -493,23 +493,23 @@ export abstract class BaseEvaluator {
   }
 
   /**
-   * Validate grade is in supported range
+   * Validate gradeLevel is in supported range
    * Default implementation - can be overridden by concrete evaluators
    *
-   * @param grade - Grade level to validate
-   * @param validGrades - Set of valid grades for this evaluator
-   * @throws {InputValidationError} If grade is invalid
+   * @param gradeLevel - Grade level to validate
+   * @param validGradeLevels - Set of valid grade levels for this evaluator
+   * @throws {InputValidationError} If gradeLevel is invalid
    */
-  protected validateGrade(grade: string, validGrades: Set<string>): void {
-    this.logger.debug('Validating grade input', {
+  protected validateGradeLevel(gradeLevel: string, validGradeLevels: Set<string>): void {
+    this.logger.debug('Validating grade level input', {
       evaluator: this.getEvaluatorType(),
-      operation: 'validateGrade',
-      grade,
+      operation: 'validateGradeLevel',
+      gradeLevel,
     });
 
-    // Check if grade is in valid set
-    if (!validGrades.has(grade)) {
-      const validList = Array.from(validGrades).sort((a, b) => {
+    // Check if gradeLevel is in valid set
+    if (!validGradeLevels.has(gradeLevel)) {
+      const validList = Array.from(validGradeLevels).sort((a, b) => {
         // Sort K first, then numerically
         if (a === 'K') return -1;
         if (b === 'K') return 1;
@@ -517,7 +517,7 @@ export abstract class BaseEvaluator {
       }).join(', ');
 
       throw new InputValidationError(
-        `Invalid grade "${grade}". Supported grades for this evaluator: ${validList}`
+        `Invalid grade level "${gradeLevel}". Supported grade levels for this evaluator: ${validList}`
       );
     }
   }
@@ -566,7 +566,7 @@ export abstract class BaseEvaluator {
     status: 'success' | 'error';
     latencyMs: number;
     textLength: number;
-    grade?: string;
+    gradeLevel?: string;
     provider: string;
     errorCode?: string;
     tokenUsage?: TokenUsage;
@@ -581,7 +581,9 @@ export abstract class BaseEvaluator {
       timestamp: new Date().toISOString(),
       sdk_version: getSDKVersion(),
       evaluator_type: this.getEvaluatorType(),
-      grade: params.grade,
+      // Wire field stays `grade` until the telemetry schema is renamed with the
+      // rest of the event fields; the collector reads this name today.
+      grade: params.gradeLevel,
       status: params.status,
       error_code: params.errorCode,
       latency_ms: params.latencyMs,

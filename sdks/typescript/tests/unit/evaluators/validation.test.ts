@@ -230,7 +230,7 @@ describe('Input Validation - Grade Validation', () => {
       const validText = 'This is a sample text for testing.';
 
       await expect(evaluator.evaluate(validText, grade))
-        .rejects.toThrow(`Invalid grade "${grade}". Supported grades for this evaluator: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12`);
+        .rejects.toThrow(`Invalid grade level "${grade}". Supported grade levels for this evaluator: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12`);
     });
 
     it.each([
@@ -240,7 +240,7 @@ describe('Input Validation - Grade Validation', () => {
       const validText = 'This is a sample text for testing.';
 
       await expect(evaluator.evaluate(validText, grade))
-        .rejects.toThrow(`Invalid grade "${grade}". Supported grades for this evaluator: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12`);
+        .rejects.toThrow(`Invalid grade level "${grade}". Supported grade levels for this evaluator: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12`);
     });
 
     it.each([
@@ -251,7 +251,7 @@ describe('Input Validation - Grade Validation', () => {
       const validText = 'This is a sample text for testing.';
 
       await expect(evaluator.evaluate(validText, grade))
-        .rejects.toThrow(`Invalid grade "${grade}". Supported grades for this evaluator: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12`);
+        .rejects.toThrow(`Invalid grade level "${grade}". Supported grade levels for this evaluator: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12`);
     });
   });
 });

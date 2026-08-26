@@ -51,7 +51,7 @@ export interface EvaluationFailure {
   error: string;
   input: {
     text: string;
-    grade?: string;
+    gradeLevel?: string;
   };
 }
 

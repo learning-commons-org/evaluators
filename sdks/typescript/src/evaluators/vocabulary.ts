@@ -58,12 +58,12 @@ export class VocabularyEvaluator extends BaseEvaluator {
     // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
 
-    // Create Google Gemini provider for complexity evaluation (grades 3-4)
+    // Create Google Gemini provider for complexity evaluation (grade levels 3-4)
     this.grades34ComplexityProvider = this.createConfiguredProvider(
       Provider.Google, 'gemini-2.5-pro', config.googleApiKey
     );
 
-    // Create OpenAI GPT-4.1 provider for complexity evaluation (grades 5-12)
+    // Create OpenAI GPT-4.1 provider for complexity evaluation (grade levels 5-12)
     this.otherGradesComplexityProvider = this.createConfiguredProvider(
       Provider.OpenAI, 'gpt-4.1-2025-04-14', config.openaiApiKey
     );
@@ -78,27 +78,27 @@ export class VocabularyEvaluator extends BaseEvaluator {
    * Evaluate vocabulary complexity for a given text and grade level
    *
    * @param text - The text to evaluate
-   * @param grade - The target grade level (3-12)
+   * @param gradeLevel - The target grade level (3-12)
    * @returns Evaluation result with complexity score and detailed analysis
-   * @throws {InputValidationError} If text is empty, too short/long, or grade is invalid
+   * @throws {InputValidationError} If text is empty, too short/long, or gradeLevel is invalid
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(
     text: string,
-    grade: string
+    gradeLevel: string
   ): Promise<EvaluationResult<TextComplexityLevel, VocabularyInternal>> {
     this.logger.info('Starting vocabulary evaluation', {
       evaluator: 'vocabulary',
       operation: 'evaluate',
-      grade,
+      gradeLevel,
       textLength: text.length,
     });
 
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
-    const complexityProvider = (grade === '3' || grade === '4')
+    const complexityProvider = (gradeLevel === '3' || gradeLevel === '4')
       ? this.grades34ComplexityProvider
       : this.otherGradesComplexityProvider;
     const complexityProviderLabel = complexityProvider.label;
@@ -110,15 +110,15 @@ export class VocabularyEvaluator extends BaseEvaluator {
 
     try {
       // Validate inputs — inside try so validation errors are telemetered.
-      // If partners consistently pass invalid grades/text, telemetry will surface documentation gaps.
+      // If partners consistently pass invalid grade levels/text, telemetry will surface documentation gaps.
       this.validateText(text);
-      this.validateGrade(grade, new Set(VocabularyEvaluator.metadata.supportedGrades));
+      this.validateGradeLevel(gradeLevel, new Set(VocabularyEvaluator.metadata.supportedGrades));
       this.logger.debug('Stage 1: Generating background knowledge', {
         evaluator: 'vocabulary',
         operation: 'background_knowledge',
       });
       // Stage 1: Generate background knowledge assumption
-      const bgResponse = await this.getBackgroundKnowledgeAssumption(text, grade);
+      const bgResponse = await this.getBackgroundKnowledgeAssumption(text, gradeLevel);
 
       stageDetails.push({
         stage: 'background_knowledge',
@@ -136,7 +136,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
       // Stage 2: Evaluate vocabulary complexity
       const complexityResponse = await this.evaluateComplexity(
         text,
-        grade,
+        gradeLevel,
         bgResponse.knowledge.assumption,
         fkLevel
       );
@@ -176,7 +176,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
         status: 'success',
         latencyMs,
         textLength: text.length,
-        grade,
+        gradeLevel,
         provider: modelLabel,
         tokenUsage: totalTokenUsage,
         metadata: {
@@ -190,7 +190,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
       this.logger.info('Vocabulary evaluation completed successfully', {
         evaluator: 'vocabulary',
         operation: 'evaluate',
-        grade,
+        gradeLevel,
         score: result.score,
         processingTimeMs: latencyMs,
       });
@@ -203,7 +203,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
       this.logger.error('Vocabulary evaluation failed', {
         evaluator: 'vocabulary',
         operation: 'evaluate',
-        grade,
+        gradeLevel,
         error: error instanceof Error ? error : undefined,
         processingTimeMs: latencyMs,
         completedStages: stageDetails.length,
@@ -220,7 +220,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
         status: 'error',
         latencyMs,
         textLength: text.length,
-        grade,
+        gradeLevel,
         provider: modelLabel,
         tokenUsage: totalTokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
@@ -252,9 +252,9 @@ export class VocabularyEvaluator extends BaseEvaluator {
    */
   private async getBackgroundKnowledgeAssumption(
     text: string,
-    grade: string
+    gradeLevel: string
   ): Promise<{ knowledge: BackgroundKnowledge; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
-    const prompt = getBackgroundKnowledgePrompt(text, grade);
+    const prompt = getBackgroundKnowledgePrompt(text, gradeLevel);
 
     const response = await this.backgroundKnowledgeProvider.generateText(
       [{ role: 'user', content: prompt }],
@@ -264,7 +264,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
     return {
       knowledge: {
         assumption: response.text.trim(),
-        grade,
+        gradeLevel,
       },
       usage: response.usage,
       latencyMs: response.latencyMs,
@@ -275,18 +275,18 @@ export class VocabularyEvaluator extends BaseEvaluator {
    * Stage 2: Evaluate vocabulary complexity
    *
    * Uses the Qual Text Complexity rubric (SAP) and background knowledge to evaluate vocabulary complexity.
-   * Grades 3-4 use Gemini 2.5 Pro; grades 5-12 use GPT-4.1.
+   * Grades 3-4 use Gemini 2.5 Pro; grade levels 5-12 use GPT-4.1.
    */
   private async evaluateComplexity(
     text: string,
-    grade: string,
+    gradeLevel: string,
     backgroundKnowledge: string,
     fkLevel: number
   ): Promise<{ data: VocabularyInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
-    const systemPrompt = getSystemPrompt(grade);
-    const userPrompt = getUserPrompt(text, grade, backgroundKnowledge, fkLevel);
+    const systemPrompt = getSystemPrompt(gradeLevel);
+    const userPrompt = getUserPrompt(text, gradeLevel, backgroundKnowledge, fkLevel);
 
-    const provider = (grade === '3' || grade === '4')
+    const provider = (gradeLevel === '3' || gradeLevel === '4')
       ? this.grades34ComplexityProvider
       : this.otherGradesComplexityProvider;
 
@@ -325,9 +325,9 @@ export class VocabularyEvaluator extends BaseEvaluator {
  */
 export async function evaluateVocabulary(
   text: string,
-  grade: string,
+  gradeLevel: string,
   config: BaseEvaluatorConfig
 ): Promise<EvaluationResult<TextComplexityLevel, VocabularyInternal>> {
   const evaluator = new VocabularyEvaluator(config);
-  return evaluator.evaluate(text, grade);
+  return evaluator.evaluate(text, gradeLevel);
 }
