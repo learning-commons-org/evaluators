@@ -76,7 +76,7 @@ Any **value** that crosses the SDK boundary into shared systems — results, tel
 
 | Value | Canonical form |
 |---|---|
-| Grade | String token: `"3"` … `"12"` (the set may grow, e.g. `"K"`) |
+| Grade | String token: `"3"` … `"12"` (the set may grow, e.g. `"K"`). Field naming: `grade_level` for a single grade, `grade_band` for a range |
 | Timestamp | ISO 8601 UTC |
 | Model | Model string (§3.4) |
 | Error code | Canonical error class name (§6.1) |
@@ -99,12 +99,13 @@ Every evaluator accepts a config object at construction time.
 | `learning_commons_api_key` | string | none | Learning Commons–issued key, authorizing Learning Commons API calls (e.g. Knowledge Graph). Never used for telemetry (§3.1) |
 | `model_override` | object | none | Override provider and model for all LLM calls (§3.2) |
 | `model_override.provider` | enum | — | A `Provider` value (§3.3) |
-| `model_override.model` | string | — | Pinned snapshot ID (§10.2) supported by that provider |
+| `model_override.model` | string | — | Model ID for that provider, passed through as-is — the SDK does not validate its format (pinning §10.2 is a registry rule; override quality is the caller's responsibility) |
 | `max_retries` | int | `2` | Retry attempts on retryable errors (§6.3). Total attempts = 1 + `max_retries`; `0` disables |
 | `telemetry` | bool \| object | `true` | `true`/`false` shorthand, or an object for granular control |
 | `telemetry.enabled` | bool | `true` | Whether to emit telemetry events |
 | `telemetry.record_raw_inputs` | bool | `false` | Include verbatim user-supplied inputs in telemetry (Principle 7) |
 | `telemetry.learning_commons_api_key` | string | none | Explicit opt-in to **identified** telemetry: sent as auth on telemetry requests, which the gateway resolves to the partner's Learning Commons user for event attribution. Unset → events are anonymous |
+| `llm_provider` | object | none | *(Experimental)* Bring-your-own-provider: a caller-supplied provider client used for all LLM calls. Conflicts with `model_override` → `ConfigurationError` |
 | `logger` | object | none | Custom logger implementing `Logger` (§7): `debug`/`info`/`warn`/`error`, each `(message, context?)`. Replaces the default console logger |
 | `log_level` | enum | `WARN` | Minimum level for the **default** logger: `DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT`. Ignored when a custom `logger` is provided |
 
@@ -160,15 +161,15 @@ Messages MUST convey the same facts (which bound, what the bound is) and SHOULD 
 
 | Limit | Default |
 |---|---|
-| `min_text_length` | `10` |
+| `min_text_length` | `1` |
 | `max_text_length` | `10000` |
 
-An evaluator's registry definition (§10) MAY override these; overrides MUST NOT be silently ignored.
+The SDK defaults carry no product opinion — `min_text_length: 1` only excludes empty input. Meaningful limits are per-evaluator registry values (§10); overrides MUST NOT be silently ignored.
 
 ### 4.2 Grade
 
-- Grade MUST be within the evaluator's declared supported range (§10) → otherwise `InputValidationError`.
-- Grade-free evaluators (e.g. GLA) MUST NOT silently consume a supplied grade.
+- `grade_level` MUST be within the evaluator's declared supported range (§10) → otherwise `InputValidationError`.
+- Grade validation exists **iff** grade is an input: grade-free evaluators (e.g. GLA) have no grade restrictions and MUST NOT silently consume a supplied grade. Grade-ranged *outputs* (e.g. GLA's bands) are fine and declared in the payload shape.
 
 ---
 
@@ -180,7 +181,7 @@ Every `evaluate()` call resolves to:
 
 | Field | Type | Description |
 |---|---|---|
-| `evaluator` | string | Evaluator ID (§10.1), e.g. `"literacy.ela_reading.vocabulary"` |
+| `evaluator` | string | The evaluator's current registry `id` (§10.1); renames are resolvable via `id_history` |
 | `result` | object | Evaluator-scoped payload (§5.2) |
 | `metadata` | object | Operational metadata (below) |
 
@@ -199,6 +200,7 @@ The envelope is identical for every evaluator, in every SDK, forever. New univer
 The shape of `result` is defined per evaluator in its registry definition (§10.1) and MUST be identical across SDKs. No cross-evaluator shape taxonomy is specified (Q-2). Every payload MUST satisfy:
 
 - The full structured model output is surfaced (Principle 6) — never an empty object, never omitted, on any grade path or code path.
+- Individual payload fields MAY be optional or null where the declared shape says so; what is prohibited is withholding data the model returned, or an empty payload.
 - Field names follow §2 (canonical, casing-mapped).
 - The shape is declared in the evaluator's registry definition and covered by its contract fixtures (§11.3).
 - Evaluators producing a single ordinal/categorical judgment SHOULD use the established conventions: `score`, `label`, `reasoning`, `details` — keeping the scored evaluators consistent without mandating the shape for evaluators it doesn't fit.
@@ -361,7 +363,9 @@ A definition MUST specify:
 
 | Field | Meaning |
 |---|---|
-| ID | Canonical evaluator ID — hierarchical, dot-namespaced, e.g. `literacy.ela_reading.vocabulary`. Appears in `evaluator` and `evaluator_type` |
+| `id` | Human-readable dotted identifier (e.g. `student_facing_text.ela_reading.background_knowledge_demands`). Appears in results and telemetry. MAY be renamed — names are not the identity |
+| `stable_id` | Immutable UUID assigned at creation. The identity that survives renames; consumers aggregating across time key on it |
+| `id_history` | Ordered list of prior `id` values, mapping old names to the current one |
 | Stability | Stable or Experimental |
 | Payload shape | The `result` shape (§5.2), field by field |
 | Supported grades | Range of canonical grade tokens, or none for grade-free evaluators |
@@ -373,7 +377,9 @@ Grade-path variants (different model or prompt inputs per grade band) are expres
 
 ### 10.2 Model IDs are pinned snapshots
 
-No floating aliases (Principle 8): `gpt-4o-2024-11-20`, not `gpt-4o`. If no dated snapshot exists, use the most specific stable identifier and note it in the definition. If a provider deprecates a pinned model, the SDK MUST fail fast with `ConfigurationError` — never silently substitute. Model migrations are deliberate registry updates.
+No floating aliases (Principle 8): `gpt-4o-2024-11-20`, not `gpt-4o`. If no dated snapshot exists, use the most specific stable identifier and note it in the definition.
+
+This is a **registry authoring rule**, enforced by registry-side validation (schema checks, fixtures) — SDKs consume definitions as-is and do not re-validate them at runtime. The SDK's only duty: if the provider rejects a model ID, fail fast with `ConfigurationError` — never silently substitute. Model migrations are deliberate registry updates.
 
 ### 10.3 Prompts and structured output
 
@@ -403,7 +409,7 @@ A new SDK claims conformance by satisfying the checklist and passing the shared 
 | C-4 | Result envelope (§5.1) and payload invariants (§5.2) for every implemented evaluator |
 | C-5 | Logger interface and behavior per §7 |
 | C-6 | Telemetry semantics and event schema per §8 |
-| C-7 | Model pinning, prompt hygiene, and derived-input rules per §10.2–10.4 |
+| C-7 | Derived-input computation and structured-output enforcement per §10.3–10.4 (registry authoring rules in §10.2–10.3 are validated registry-side, not by SDKs) |
 | C-8 | Every implemented evaluator matches its registry definition (§10.1) and passes its contract fixtures (§11.3) |
 | C-9 | Any name divergence follows §2.2 (expected: none) |
 | C-10 | SDK declares the spec version it implements (§12.2) |
@@ -472,6 +478,8 @@ Tracked deviations between this spec and the current SDKs — each a bug to fix 
 | 15 | §10.3 | Python | `{format_instructions}` LangChain placeholders remain in prompts | Remove; enforce structured output at the chain layer |
 | 16 | §8.2–8.3 | Both | Telemetry field `provider` carries model strings | Rename to `model` in events and phase details |
 | 17 | §6.1–6.2 | Both | `APIError` shape: no `EvaluationError`/`DependencyError` categories, no catch-all leaves, no `dependency` field; TS `KnowledgeGraphError` sits outside the taxonomy | Restructure to the fault-domain taxonomy; re-parent `KnowledgeGraphError` under `DependencyError` |
+| 18 | §4.1 | Both | `min_text_length` default is 10 | Change SDK default to 1; meaningful minimums move to registry definitions |
+| 19 | §4.2 | Both | Grade parameter named `grade` | Rename to `grade_level` (SDK surfaces; several evaluators already standardized) |
 
 ---
 
@@ -506,7 +514,7 @@ Per-SDK status against §11.2, updated whenever a gap closes or a new SDK lands.
 | Q-4 | Per-rule requirement IDs (OpenFeature-style `[ERR-3]`) | Adopt if fixtures and docs need finer-grained references than section numbers |
 | Q-5 | Timeout defaults and configurability (`timeout_ms` in config?) | `RequestTimeoutError` exists but no canonical timeout knob is specified |
 | Q-6 | Registry home and format: where do shared evaluator definitions and contract fixtures live, and how do SDKs consume them? | Early Python settings/contract-file work is the design input; its temporary layout is not the answer |
-| Q-7 | Evaluator ID taxonomy: finalize the hierarchical scheme (`literacy.ela_reading.vocabulary`) and its segment vocabulary | Blocks gap 13 |
+| Q-7 | ~~Evaluator ID taxonomy~~ | **Resolved (§10.1):** identity is `stable_id` (UUID) + `id_history`; the readable dotted `id` may be renamed freely, so its segments carry no stability burden |
 | Q-8 | ~~Telemetry tracking field semantics~~ | **Resolved (§3, §8.1):** identified telemetry via explicit `telemetry.learning_commons_api_key` (gateway resolves the LC user); no separate tracking field |
 | Q-9 | Anonymous telemetry identity: should the spec define the SDK-generated `client_id`, and where does it travel (header vs event body)? | TS ships a persisted per-install UUID sent as `X-Client-ID`, but nothing downstream reads it — all anonymous events share one `anonymousId`. Needs the collector-side design before the spec commits |
 | Q-10 | Finalize the telemetry event schema (§8.2–8.3, Experimental) and migrate spec + TypeScript SDK + collector in one coordinated change | Spec says `phase`, Python internals say `step`, the deployed collector says `stage` inside a `metadata` wrapper. Recorded recommendations: `step`/`step_details` top-level (registry vocabulary follows); per-input `inputs` map with gated `raw` replacing `input_text`/`text_length_chars`; adopt `sdk_language`; `evaluator_type` → `evaluator`; per-step `error_code` replacing `schema_validation_failed`; absent = omitted, never null; unify `latency_ms`/`processing_time_ms` |
