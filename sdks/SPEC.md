@@ -515,16 +515,15 @@ Per-SDK status against §11.2, updated whenever a gap closes or a new SDK lands.
 
 ## Appendix C: Open Questions
 
+Resolved questions are removed once their resolution is codified in the spec body and recorded in the changelog (Appendix D). Question numbers are never reused.
+
 | # | Question | Notes |
 |---|---|---|
-| Q-1 | ~~Should SDKs read API keys from environment variables as a fallback to explicit config?~~ | **Resolved (§3.1):** never implicitly — env reads are the application's responsibility; SDKs MAY offer an explicit `from_env()` helper |
 | Q-2 | Payload shape taxonomy — should evaluator families (QTC, feedback, standards alignment, …) share declared payload profiles? | Deliberately deferred (§5.2); revisit once feedback and math evaluator classes mature |
 | Q-3 | Should registry definitions carry a version (prompt/model revision) surfaced in result `metadata`? | Would let users pin/detect evaluation-behavior changes (§12.3) programmatically |
 | Q-4 | Per-rule requirement IDs (OpenFeature-style `[ERR-3]`) | Adopt if fixtures and docs need finer-grained references than section numbers |
 | Q-5 | Timeout defaults and configurability (`timeout_ms` in config?) | `RequestTimeoutError` exists but no canonical timeout knob or default defines when it triggers — flagged by every implementer review; resolve before 1.0 |
 | Q-6 | Registry home and format: where do shared evaluator definitions and contract fixtures live, and how do SDKs consume them? | The shared evaluator contract emerging under `evals/<domain>/<skill>/<evaluator>/config.json` (schema, fixtures, prompts, per-language derived-input definitions — PR #173) is the leading candidate |
-| Q-7 | ~~Evaluator ID taxonomy~~ | **Resolved (§10.1):** identity is `stable_id` (UUID) + `id_history`; the readable dotted `id` may be renamed freely, so its segments carry no stability burden |
-| Q-8 | ~~Telemetry tracking field semantics~~ | **Resolved (§3, §8.1):** identified telemetry via explicit `telemetry.learning_commons_api_key`; no separate tracking field |
 | Q-9 | Anonymous telemetry identity: should the spec define the SDK-generated `client_id`, and where does it travel (header vs event body)? | TS ships a persisted per-install UUID sent as `X-Client-ID`, but nothing downstream reads it — all anonymous events share one `anonymousId`. Needs the collector-side design before the spec commits |
 | Q-10 | Finalize the telemetry event schema and wire transport (§8.2–8.3, Draft) and migrate spec + TypeScript SDK + collector in one coordinated change | Requires alignment plus a downstream review of existing telemetry events before any decision. Scope includes transport (endpoint resolution, header names, encoding). Recorded recommendations: `step`/`step_details` top-level (registry vocabulary follows); per-input `inputs` map with gated `raw` replacing `input_text`/`text_length_chars`; adopt `sdk_language`; `evaluator_type` → `evaluator`; `grade` → `grade_level`; per-step `error_code` replacing `schema_validation_failed`; unify `latency_ms`/`processing_time_ms` |
 | Q-11 | Per-language runtime & packaging contracts | Unaddressed surfaces flagged by implementer reviews: sync/async posture (esp. Python), thread safety and evaluator reusability, resource lifecycle/cleanup, cancellation, ESM/CJS + minimum runtime versions, `py.typed`/typing guarantees |
@@ -536,4 +535,5 @@ Per-SDK status against §11.2, updated whenever a gap closes or a new SDK lands.
 
 | Version | Date | Changes |
 |---|---|---|
-| 0.1.0 | 2026-08-18 | Initial formalization: principles, naming + canonical value forms, envelope + payload invariants, canonical error taxonomy, telemetry/logging contracts, optional-capability tier, evaluator registry direction, contract-fixture mechanism, lifecycle & governance |
+| 0.1.0 | 2026-08-25 | Review revisions: fault-domain error taxonomy with category-bound retry strategy and trust boundaries; purpose-scoped credentials (`learning_commons_api_key` + `telemetry.learning_commons_api_key`) with explicit-only key resolution (closes Q-1); `evaluate()` contract; three-layer evaluator identity `id`/`stable_id`/`id_history` (closes Q-7); telemetry attribution via the scoped key, no tracking field (closes Q-8); evaluator-scoped stability + Draft markers; SDK SemVer policy; logging as behavioral contract with per-language mechanisms; `record_raw_inputs`; `grade_level`/`grade_band` naming; immutable-version model IDs |
+| 0.1.0-draft | 2026-08-18 | Initial formalization: principles, naming + canonical value forms, envelope + payload invariants, canonical error taxonomy, telemetry/logging contracts, optional-capability tier, evaluator registry direction, contract-fixture mechanism, lifecycle & governance |
