@@ -25,7 +25,7 @@ New surfaces enter as Experimental and are promoted by maintainer agreement (§1
 
 Every rule in this spec derives from one of these. When the spec is silent, decide by principle, then codify the decision here.
 
-1. **One canonical name.** Every public identifier has exactly one canonical name, identical in every SDK and all documentation. Casing (§2.1) is the only permitted transformation; names are chosen to avoid known language builtins by construction (`RequestTimeoutError`, not `TimeoutError`).
+1. **One canonical name.** Every public identifier has exactly one canonical name, identical in every SDK and all documentation. Casing (§2.1) is the only permitted transformation; names are chosen, where practical, to avoid collisions with builtins and pervasive ecosystem names in target languages (`RequestTimeoutError`, not `TimeoutError`; `InputValidationError`, not pydantic's `ValidationError`).
 
 2. **Idiomatic at the surface, identical at the core.** Types, async model, and packaging follow each language's conventions; behavior, names, and contracts are identical everywhere. When idiom and contract conflict, the contract wins and the gap is raised as a spec issue (§12.1).
 
@@ -37,7 +37,7 @@ Every rule in this spec derives from one of these. When the spec is silent, deci
 
 6. **No hidden state.** The full structured model output MUST be surfaced in every result — never empty, never omitted.
 
-7. **Sensitive data is opt-in.** Raw user-supplied input text, and raw provider error strings (which may echo inputs or key fragments), MUST NOT appear in telemetry, logs, or error messages unless the caller explicitly opts in. Model outputs, scores, and reasoning are product data and MAY be logged and reported.
+7. **Sensitive data is opt-in at process boundaries.** Raw user-supplied input text MUST NOT leave the process — in telemetry or logs — unless the caller explicitly opts in; credentials and key fragments MUST NOT appear on any surface, ever. In-process error objects carry full diagnostic detail (§6.4). Model outputs, scores, and reasoning are product data and MAY be logged and reported.
 
 8. **Determinism is declared.** Models are pinned to dated snapshots and temperatures declared; behavior changes only through deliberate registry updates (§10).
 
@@ -64,7 +64,7 @@ Casing conversion MUST be purely mechanical — no renames, abbreviations, or re
 
 ### 2.2 Divergence convention
 
-A name divergence is permitted **only** when the canonical name collides with a builtin or standard-library name in a target language; stylistic preference is never grounds. The diverging SDK prefixes the most specific domain noun that resolves the collision, keeping the name guessable from the canonical one, and documents the mapping in its own reference docs.
+A name divergence is permitted **only** when the canonical name collides with a builtin, standard-library, or pervasive ecosystem name in a target language; stylistic preference is never grounds. The diverging SDK prefixes the most specific domain noun that resolves the collision, keeping the name guessable from the canonical one, and documents the mapping in its own reference docs.
 
 Divergences are expected to be rare to zero — canonical names are chosen to avoid known conflicts up front. The table below mirrors any that occur, updated in the normal course of spec maintenance (not as a release gate):
 
@@ -206,61 +206,76 @@ The shape of `result` is defined per evaluator in its registry definition (§10.
 
 ### 6.1 Canonical taxonomy
 
-Class names are canonical in every SDK (§2.2). An error pattern useful in one SDK MUST be added here and implemented in all.
+Class names are canonical in every SDK (§2.2). An error pattern useful in one SDK MUST be added here and implemented in all. Errors classify by **fault domain** — who must act — not by mechanism.
 
-| Class | Extends | Trigger | Retryable |
+| Class | Extends | Fault domain / trigger | Retryable |
 |---|---|---|---|
-| `EvaluatorError` | — | Base class for all SDK errors | — |
-| `ConfigurationError` | `EvaluatorError` | Missing/invalid key, unknown provider or model, malformed settings | No |
-| `InputValidationError` | `EvaluatorError` | Caller-supplied text or grade failed validation (§4) | No |
-| `APIError` | `EvaluatorError` | Base class for failures in the provider call | per instance |
-| `AuthenticationError` | `APIError` | 401 / 403 from provider | No |
-| `RateLimitError` | `APIError` | 429 from provider | Yes |
-| `NetworkError` | `APIError` | Connection failure (DNS, refused, TLS) | Yes |
-| `RequestTimeoutError` | `APIError` | Provider request exceeded its timeout | Yes |
-| `OutputValidationError` | `APIError` | Model response failed the expected output schema | Yes |
+| `EvaluatorError` | — | Abstract base for all SDK errors | — |
+| `ConfigurationError` | `EvaluatorError` | Caller: missing/invalid key, unknown provider or model, malformed settings | No |
+| `InputValidationError` | `EvaluatorError` | Caller: text or grade failed validation (§4) | No |
+| `EvaluationError` | `EvaluatorError` | Abstract base: the SDK's own evaluation logic failed after the dependency call succeeded | per class |
+| `LLMOutputProcessingError` | `EvaluationError` | Model response failed parsing, normalization, or the expected output schema | Yes — immediate |
+| `DependencyError` | `EvaluatorError` | Abstract base: an external system failed | per instance |
+| `AuthenticationError` | `DependencyError` | 401 / 403 from the dependency | No |
+| `RateLimitError` | `DependencyError` | 429 from the dependency | Yes — backoff |
+| `NetworkError` | `DependencyError` | Connection failure (DNS, refused, TLS) | Yes — backoff |
+| `RequestTimeoutError` | `DependencyError` | Request to the dependency exceeded its timeout | Yes — backoff |
+| `LLMProviderError` | `DependencyError` | Catch-all for LLM-provider failures not mapped above | iff 5xx |
+| `KnowledgeGraphError` | `DependencyError` | Catch-all for Knowledge Graph service failures not mapped above | iff 5xx |
 
-- `InputValidationError` (caller's fault, never retryable) and `OutputValidationError` (model's fault, retryable — LLMs are nondeterministic) MUST NOT be merged.
-- `OutputValidationError` sits under `APIError` because the failure originated in a provider response, even though `status_code` is typically null.
+- Abstract bases (`EvaluatorError`, `EvaluationError`, `DependencyError`) MUST NOT be instantiated directly — they exist so callers can branch on category.
+- `InputValidationError` (caller's fault, never retryable) and `LLMOutputProcessingError` (model's fault, retryable — LLMs are nondeterministic) MUST NOT be merged.
+- Fault domain decides classification, not subsystem: a caller-supplied unknown standards code is `InputValidationError`, even though the Knowledge Graph reports it.
+
+**Extending to a new dependency:** reuse the shared subclasses (auth, rate-limit, network, timeout) — which system failed is data (`dependency`, §6.2), not a class. A new external system MAY add exactly one catch-all leaf under `DependencyError`, registered in the table above before it ships. No deeper per-integration hierarchies.
 
 ### 6.2 Fields
 
-`APIError` and all subclasses:
+`DependencyError` and all subclasses:
 
 | Field | Type | Description |
 |---|---|---|
-| `status_code` | int \| null | HTTP status from the provider, if available |
+| `dependency` | string | Canonical ID of the failed system: a `Provider` value (§3.3) or a service ID (e.g. `"knowledge-graph"`) |
+| `status_code` | int \| null | HTTP status from the dependency, if available |
 | `retryable` | bool | Whether the caller may retry (§6.3) |
+| `request_id` | string \| null | Dependency's request ID, for support escalation |
+| `model` | string \| null | Model ID in use, when the dependency is an LLM provider |
 
 `RateLimitError` additionally: `retry_after_ms` (int | null) — milliseconds to wait, converted from the provider's `Retry-After` seconds.
 
-`OutputValidationError` additionally: `validation_errors` (array | null) — sanitized per-field failures (§6.4): schema locations and error types only.
+`LLMOutputProcessingError` additionally: `validation_errors` (array | null) — per-field failures as schema locations and error types.
 
-### 6.3 Retryability is data
+### 6.3 Retryability is data; strategy follows the category
 
 - `retryable` on the instance is the single source of truth; callers never memorize the hierarchy.
 - Resolution order: explicit per-instance override → `true` for any 5xx → class default.
-- The SDK's retry loop (`max_retries`, §3) retries **only** retryable errors, with exponential backoff, honoring `retry_after_ms` when present.
+- Strategy is category-bound: **external failures back off, internal failures resample.** Retryable `DependencyError`s use exponential backoff with jitter, honoring `retry_after_ms` — the dependency is constrained and immediate retry worsens contention. Retryable `EvaluationError`s retry immediately — the failure is sampling variance, and waiting only adds latency.
+- The SDK's retry loop (`max_retries`, §3) retries **only** retryable errors, applying the category's strategy.
 
-### 6.4 Error message safety
+### 6.4 Trust boundaries
 
-- Messages MUST be short and controlled. Raw provider error strings MUST NOT be echoed into the message — they may contain prompt content, user text, or key fragments.
-- The original provider exception MUST be preserved via the language's cause chain, with structured attributes (`status_code`, provider, model, request ID where available) exposed for introspection.
-- Validation details forwarded to telemetry or logs MUST be sanitized to schema-oriented facts (field paths, error types) — never raw user input.
+The SDK caller is a code owner who already holds the API keys and inputs; diagnostic detail is theirs. What is limited is what leaves the process by default.
 
-### 6.5 Provider error mapping
+| Surface | Policy |
+|---|---|
+| Exception attributes + cause chain | Full diagnostic detail MUST be preserved: original exception and stack trace via the language's cause chain, plus structured attributes (§6.2) and allowlisted upstream diagnostics (provider message/code/reason) when structured payloads carry them |
+| Error message | MUST be diagnosable and actionable on its own; MAY include input-derived detail where it aids diagnosis; MUST NOT contain credentials or key fragments — messages propagate by default (app logs, error trackers, HTTP responses) |
+| Logs | No raw input text above `DEBUG` (§7) |
+| Telemetry | Error class name and sanitized schema facts (field paths, error types) only; raw input only via `telemetry.record_inputs` (§8) |
 
-Classify by **structured signals first** (status code, typed exception); message-pattern matching only when no structured signal exists. Minimum mapping:
+### 6.5 Dependency error mapping
+
+Classify by **structured signals only** — status code, typed exception, structured error payloads (codes/reasons, walking the cause chain). Free-text message matching MUST NOT reclassify an error: wording is not a contract, and a misclassification is worse than the catch-all. Text-only failures stay in the dependency's catch-all class.
 
 | Signal | Maps to |
 |---|---|
-| 404, or 400 with model-not-found semantics | `ConfigurationError` |
-| 401 / 403 | `AuthenticationError` |
+| 404, or 400 with structured model-not-found semantics | `ConfigurationError` |
+| 401 / 403, or structured auth codes | `AuthenticationError` |
 | 429 | `RateLimitError` |
-| Connection-level failure | `NetworkError` |
-| Timeout | `RequestTimeoutError` |
-| Schema-invalid model output | `OutputValidationError` |
-| Anything else | `APIError` (retryable iff 5xx) |
+| Connection-level failure (typed) | `NetworkError` |
+| Timeout (typed or 408) | `RequestTimeoutError` |
+| Schema-invalid or unparseable model output | `LLMOutputProcessingError` |
+| Anything else | Dependency catch-all (`LLMProviderError`, `KnowledgeGraphError`, …), retryable iff 5xx |
 
 ---
 
@@ -360,7 +375,7 @@ No floating aliases (Principle 8): `gpt-4o-2024-11-20`, not `gpt-4o`. If no date
 
 ### 10.3 Prompts and structured output
 
-Prompts MUST NOT contain LLM-framework artifacts (e.g. injected JSON-schema text). Structured output enforcement belongs at the provider/chain layer; a schema-invalid response raises `OutputValidationError`.
+Prompts MUST NOT contain LLM-framework artifacts (e.g. injected JSON-schema text). Structured output enforcement belongs at the provider/chain layer; a schema-invalid response raises `LLMOutputProcessingError`.
 
 ### 10.4 Derived inputs
 
@@ -439,13 +454,13 @@ Tracked deviations between this spec and the current SDKs — each a bug to fix 
 | # | Spec section | SDK | Gap | Required change |
 |---|---|---|---|---|
 | 1 | §6.1 | TypeScript | `TimeoutError` instead of `RequestTimeoutError` | Rename |
-| 2 | §6.1 | TypeScript | Single `ValidationError`; no `OutputValidationError` | Split into `InputValidationError` / `OutputValidationError` |
+| 2 | §6.1 | TypeScript | Single `ValidationError`; no output-processing class | Split into `InputValidationError` / `LLMOutputProcessingError` |
 | 3 | §6.2 | TypeScript | `retryAfter` unsuffixed | Rename to `retryAfterMs` |
 | 4 | §6.2 | Python | `retry_after` in seconds | Rename to `retry_after_ms`, convert to milliseconds |
 | 5 | §5.1 | TypeScript | Flat `score`/`reasoning`/`metadata`/`_internal`; flat `inputTokens`/`outputTokens` | Migrate to envelope; nest `token_usage` |
 | 6 | §5.1 | Python | Bespoke Pydantic result shapes | Migrate to envelope |
 | 7 | §8.3 | Python | `step_details` / `step` naming | Rename to `phase_details` / `phase` |
-| 8 | §6.4 | TypeScript | `wrapProviderError` echoes raw provider messages | Controlled messages + cause preservation |
+| 8 | §6.4–6.5 | TypeScript | `wrapProviderError` classifies via message regexes and lacks cause preservation | Structured-signal classification; preserve cause chain and structured attributes |
 | 9 | §6.1 | Python | Legacy `EvaluatorRetryableError` references | Remove aliases not in the taxonomy |
 | 10 | §9.1 | TypeScript | Math Standards Alignment batch unverified against contract | Audit per §9.1 |
 | 11 | §3 | Both | `partner_key` naming; no `telemetry.tracking_key` | Rename to `partner_api_key`; add `tracking_key` |
@@ -454,6 +469,7 @@ Tracked deviations between this spec and the current SDKs — each a bug to fix 
 | 14 | §11.3 | Both | No shared fixture format or cross-SDK harness (Python has an early harness tied to a temporary layout) | Establish fixture format with the registry; build per-language harnesses |
 | 15 | §10.3 | Python | `{format_instructions}` LangChain placeholders remain in prompts | Remove; enforce structured output at the chain layer |
 | 16 | §8.2–8.3 | Both | Telemetry field `provider` carries model strings | Rename to `model` in events and phase details |
+| 17 | §6.1–6.2 | Both | `APIError` shape: no `EvaluationError`/`DependencyError` categories, no catch-all leaves, no `dependency` field; TS `KnowledgeGraphError` sits outside the taxonomy | Restructure to the fault-domain taxonomy; re-parent `KnowledgeGraphError` under `DependencyError` |
 
 ---
 
