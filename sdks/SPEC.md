@@ -311,7 +311,7 @@ Logger:
 - When disabled: no event constructed, no client initialized.
 - `telemetry.learning_commons_api_key` is sent as an authentication header on the request — never in the event body. When unset, events are anonymous. The top-level `learning_commons_api_key` MUST NOT be used for telemetry (§3.1). Telemetry auth failures are logged at `DEBUG` and otherwise ignored.
 
-### 8.2 Event fields
+### 8.2 Event fields *(Experimental)*
 
 | Field | Description |
 |---|---|
@@ -329,7 +329,7 @@ Logger:
 | `phase_details` | Array of per-phase objects (§8.3) |
 | `input_text` | Raw input — **only** when `telemetry.record_raw_inputs = true` |
 
-### 8.3 Phase details
+### 8.3 Phase details *(Experimental)*
 
 Each entry: `phase` (name from the registry definition), `model` (`"provider:model-id"`), `latency_ms`, `token_usage` (`{ input_tokens, output_tokens }`).
 
@@ -509,6 +509,7 @@ Per-SDK status against §11.2, updated whenever a gap closes or a new SDK lands.
 | Q-7 | Evaluator ID taxonomy: finalize the hierarchical scheme (`literacy.ela_reading.vocabulary`) and its segment vocabulary | Blocks gap 13 |
 | Q-8 | ~~Telemetry tracking field semantics~~ | **Resolved (§3, §8.1):** identified telemetry via explicit `telemetry.learning_commons_api_key` (gateway resolves the LC user); no separate tracking field |
 | Q-9 | Anonymous telemetry identity: should the spec define the SDK-generated `client_id`, and where does it travel (header vs event body)? | TS ships a persisted per-install UUID sent as `X-Client-ID`, but nothing downstream reads it — all anonymous events share one `anonymousId`. Needs the collector-side design before the spec commits |
+| Q-10 | Finalize the telemetry event schema (§8.2–8.3, Experimental) and migrate spec + TypeScript SDK + collector in one coordinated change | Spec says `phase`, Python internals say `step`, the deployed collector says `stage` inside a `metadata` wrapper. Recorded recommendations: `step`/`step_details` top-level (registry vocabulary follows); per-input `inputs` map with gated `raw` replacing `input_text`/`text_length_chars`; adopt `sdk_language`; `evaluator_type` → `evaluator`; per-step `error_code` replacing `schema_validation_failed`; absent = omitted, never null; unify `latency_ms`/`processing_time_ms` |
 
 ---
 
