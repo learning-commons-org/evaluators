@@ -102,8 +102,8 @@ export interface QuestionBankOptions {
 }
 
 export interface MathStandardsAlignmentEvaluatorConfig extends BaseEvaluatorConfig {
-  /** Learning Commons platform API key — required for Knowledge Graph access */
-  platformApiKey?: string;
+  /** Learning Commons API key — required by this evaluator, for Knowledge Graph access */
+  learningCommonsApiKey?: string;
   /** Max concurrent LLM calls (default: 10) */
   concurrency?: number;
   /** Max concurrent KG HTTP calls (default: 20) */
@@ -165,17 +165,17 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
   private readonly llmLimit: ReturnType<typeof pLimit>;
 
   constructor(config: MathStandardsAlignmentEvaluatorConfig) {
-    // If partnerKey isn't set, fall back to platformApiKey — same LC platform key,
-    // different API surfaces (KG vs telemetry).
-    super({ ...config, partnerKey: config.partnerKey ?? config.platformApiKey });
+    super(config);
 
-    if (!config.platformApiKey && !config._kgClient) {
+    if (!config.learningCommonsApiKey && !config._kgClient) {
       throw new ConfigurationError(
-        'MathStandardsAlignmentEvaluator requires a platformApiKey to access the Learning Commons Knowledge Graph.',
+        'MathStandardsAlignmentEvaluator requires a learningCommonsApiKey to access the Learning Commons Knowledge Graph.',
       );
     }
 
-    this.kgClient = config._kgClient ?? new KnowledgeGraphClient(config.platformApiKey!, config.kgConcurrency ?? 20);
+    this.kgClient =
+      config._kgClient ??
+      new KnowledgeGraphClient(config.learningCommonsApiKey!, config.kgConcurrency ?? 20);
     this.llmLimit = pLimit(config.concurrency ?? 10);
 
     this.detailProvider = this.createConfiguredProvider(

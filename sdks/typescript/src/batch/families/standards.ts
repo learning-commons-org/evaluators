@@ -56,7 +56,7 @@ class StandardsRunner implements FamilyRunner {
   constructor(ctx: FamilyRunContext, selectedMemberIds?: string[]) {
     this.members = resolveMembers(STANDARDS_FAMILY, selectedMemberIds);
     this.evaluator = new MathStandardsAlignmentEvaluator({
-      platformApiKey: ctx.platformApiKey,
+      learningCommonsApiKey: ctx.learningCommonsApiKey,
       anthropicApiKey: ctx.anthropicApiKey,
       // Forwarded so a `--model google:…`/`openai:…` override has its key.
       googleApiKey: ctx.googleApiKey,
@@ -97,7 +97,7 @@ export const STANDARDS_FAMILY: EvaluatorFamily = {
   requiredKeys(_selectedMemberIds: string[], modelOverride?: ModelOverride): KeyKind[] {
     // The platform key (Knowledge Graph) is always required; the LLM provider
     // is Anthropic unless a model override redirects it.
-    return [modelOverride?.provider ?? Provider.Anthropic, 'platform'];
+    return [modelOverride?.provider ?? Provider.Anthropic, 'learning-commons'];
   },
   createRunner(ctx: FamilyRunContext, selectedMemberIds?: string[]): FamilyRunner {
     return new StandardsRunner(ctx, selectedMemberIds);

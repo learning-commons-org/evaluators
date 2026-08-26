@@ -23,7 +23,7 @@ function localCodeProblem(normalizedCode: string): string | null {
 
 export interface StandardsCatalogConfig {
   /** Learning Commons platform API key, used for Knowledge Graph access. */
-  platformApiKey: string;
+  learningCommonsApiKey: string;
   /**
    * Default subject filter for all lookups (e.g. 'Mathematics'). No default,
    * because omitting it makes the result subject-dependent rather than wrong in a
@@ -105,8 +105,8 @@ export class StandardsCatalog {
   private readonly concurrency: number;
 
   constructor(config: StandardsCatalogConfig) {
-    if (!config.platformApiKey?.trim()) {
-      throw new ConfigurationError('platformApiKey is required to access the standards catalog.');
+    if (!config.learningCommonsApiKey?.trim()) {
+      throw new ConfigurationError('learningCommonsApiKey is required to access the standards catalog.');
     }
     const concurrency = config.concurrency ?? 20;
     if (!Number.isInteger(concurrency) || concurrency < 1) {
@@ -116,7 +116,7 @@ export class StandardsCatalog {
     const academicSubject = config.academicSubject?.trim();
 
     this.concurrency = concurrency;
-    this.kg = new KnowledgeGraphClient(config.platformApiKey, concurrency);
+    this.kg = new KnowledgeGraphClient(config.learningCommonsApiKey, concurrency);
     this.academicSubject = academicSubject || undefined;
   }
 

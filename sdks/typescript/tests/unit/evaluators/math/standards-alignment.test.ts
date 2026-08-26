@@ -89,7 +89,7 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('MathStandardsAlignmentEvaluator - constructor', () => {
-  it('throws ConfigurationError when neither platformApiKey nor _kgClient provided', () => {
+  it('throws ConfigurationError when neither learningCommonsApiKey nor _kgClient provided', () => {
     expect(() => new MathStandardsAlignmentEvaluator({ anthropicApiKey: 'sk-ant-test' })).toThrow(ConfigurationError);
   });
 
@@ -101,8 +101,8 @@ describe('MathStandardsAlignmentEvaluator - constructor', () => {
     expect(() => new MathStandardsAlignmentEvaluator(makeConfig())).not.toThrow();
   });
 
-  it('constructs successfully with platformApiKey instead of repository', () => {
-    expect(() => new MathStandardsAlignmentEvaluator({ anthropicApiKey: 'sk-ant-test', platformApiKey: 'pk-test' })).not.toThrow();
+  it('constructs successfully with learningCommonsApiKey instead of repository', () => {
+    expect(() => new MathStandardsAlignmentEvaluator({ anthropicApiKey: 'sk-ant-test', learningCommonsApiKey: 'pk-test' })).not.toThrow();
   });
 });
 

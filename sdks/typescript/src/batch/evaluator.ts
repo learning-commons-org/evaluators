@@ -105,7 +105,7 @@ export class BatchEvaluator {
       googleApiKey: this.config.googleApiKey,
       openaiApiKey: this.config.openaiApiKey,
       anthropicApiKey: this.config.anthropicApiKey,
-      platformApiKey: this.config.platformApiKey,
+      learningCommonsApiKey: this.config.learningCommonsApiKey,
       maxRetries: this.config.maxRetries,
       telemetry: this.config.telemetry,
       modelOverride: this.config.modelOverride,

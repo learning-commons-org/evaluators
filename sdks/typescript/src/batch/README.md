@@ -22,7 +22,7 @@ evaluators-batch
 # Non-interactive (CI): every input supplied up front, never prompts
 evaluators-batch corpus.csv \
   --family math-standards-alignment \
-  --platform-api-key "$PLATFORM_API_KEY" \
+  --learning-commons-api-key "$LEARNING_COMMONS_API_KEY" \
   --anthropic-api-key "$ANTHROPIC_API_KEY" \
   --output-dir ./out --yes
 

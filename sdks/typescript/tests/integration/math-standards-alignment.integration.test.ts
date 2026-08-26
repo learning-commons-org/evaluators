@@ -4,7 +4,7 @@ import { KnowledgeGraphClient } from '../../src/knowledge-graph/client.js';
 
 const RUN = process.env['RUN_INTEGRATION_TESTS'] === 'true';
 const ANTHROPIC_KEY = process.env['ANTHROPIC_API_KEY'];
-const PLATFORM_KEY = process.env['PLATFORM_API_KEY'];
+const LEARNING_COMMONS_KEY = process.env['LEARNING_COMMONS_API_KEY'];
 
 const itIf = (cond: boolean) => (cond ? it : it.skip);
 
@@ -26,7 +26,7 @@ const MD_C_7_FAMILY = ['3.MD.C.7', '3.MD.C.7.a', '3.MD.C.7.b', '3.MD.C.7.c', '3.
 // Instrumented evaluator wraps KnowledgeGraphClient methods to count calls.
 function makeInstrumentedEvaluator() {
   const counters = { uuidFetches: 0, lcFetches: 0, llmCalls: 0 };
-  const baseClient = new KnowledgeGraphClient(PLATFORM_KEY!);
+  const baseClient = new KnowledgeGraphClient(LEARNING_COMMONS_KEY!);
 
   // Wrap individual methods to count KG API calls
   const origInfo = baseClient.getStandardInfo.bind(baseClient);
@@ -36,7 +36,7 @@ function makeInstrumentedEvaluator() {
 
   const evaluator = new MathStandardsAlignmentEvaluator({
     anthropicApiKey: ANTHROPIC_KEY!,
-    platformApiKey: PLATFORM_KEY!,
+    learningCommonsApiKey: LEARNING_COMMONS_KEY!,
     _kgClient: baseClient,
   });
 
@@ -54,7 +54,7 @@ function makeInstrumentedEvaluator() {
 // ---------------------------------------------------------------------------
 
 describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, () => {
-  itIf(RUN && !!ANTHROPIC_KEY && !!PLATFORM_KEY)(
+  itIf(RUN && !!ANTHROPIC_KEY && !!LEARNING_COMMONS_KEY)(
     '3.MD.C.7 family: area L-shape question vs parent + all sub-standards',
     async () => {
       const questionItems = [

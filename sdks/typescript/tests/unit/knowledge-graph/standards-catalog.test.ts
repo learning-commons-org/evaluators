@@ -27,7 +27,7 @@ function errorResponse(status: number, body = 'error') {
 beforeEach(() => { vi.unstubAllGlobals(); });
 
 const API_KEY = 'test-key';
-const catalog = () => new StandardsCatalog({ platformApiKey: API_KEY, academicSubject: 'Mathematics' });
+const catalog = () => new StandardsCatalog({ learningCommonsApiKey: API_KEY, academicSubject: 'Mathematics' });
 
 /** One learning component per identifier, in the paginated shape the LC endpoint returns. */
 function lcPage(...identifiers: string[]) {
@@ -56,12 +56,12 @@ function stubResolution(candidates: unknown[], lcsByUuid: Record<string, string[
 }
 
 describe('StandardsCatalog - construction', () => {
-  it.each(['', '   '])('throws ConfigurationError for a blank platform API key (%j)', (platformApiKey) => {
-    expect(() => new StandardsCatalog({ platformApiKey })).toThrow(ConfigurationError);
+  it.each(['', '   '])('throws ConfigurationError for a blank platform API key (%j)', (learningCommonsApiKey) => {
+    expect(() => new StandardsCatalog({ learningCommonsApiKey })).toThrow(ConfigurationError);
   });
 
   it.each([0, -1, 2.5])('rejects concurrency %s with a clear error rather than a p-limit crash', (concurrency) => {
-    expect(() => new StandardsCatalog({ platformApiKey: API_KEY, concurrency })).toThrow(
+    expect(() => new StandardsCatalog({ learningCommonsApiKey: API_KEY, concurrency })).toThrow(
       /concurrency must be a positive integer/,
     );
   });
@@ -79,7 +79,7 @@ describe('StandardsCatalog - construction', () => {
   it('treats a whitespace-only academicSubject as absent rather than filtering on it', async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse({ data: [], pagination: { hasMore: false } }));
     vi.stubGlobal('fetch', fetchMock);
-    await new StandardsCatalog({ platformApiKey: API_KEY, academicSubject: '   ' }).listStandards('3');
+    await new StandardsCatalog({ learningCommonsApiKey: API_KEY, academicSubject: '   ' }).listStandards('3');
     expect((fetchMock.mock.calls[0][0] as Request).url).not.toContain('academicSubject');
   });
 });
@@ -273,7 +273,7 @@ describe('StandardsCatalog - validateCodes', () => {
     const codes = Array.from({ length: 40 }, (_, i) => `CODE.${i}`);
 
     await expect(
-      new StandardsCatalog({ platformApiKey: API_KEY, concurrency: 2 }).validateCodes(codes),
+      new StandardsCatalog({ learningCommonsApiKey: API_KEY, concurrency: 2 }).validateCodes(codes),
     ).rejects.toThrow(AuthenticationError);
 
     // Without the early abort every one of the 40 codes would have been requested.
@@ -302,7 +302,7 @@ describe('StandardsCatalog - validateCodes', () => {
     // The realistic cause is an unrecognised academicSubject, which fails for every
     // code — so "we could not check this" alone would send the user hunting the code.
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(errorResponse(400, 'Bad Request')));
-    const [result] = await new StandardsCatalog({ platformApiKey: API_KEY, academicSubject: 'Maths' })
+    const [result] = await new StandardsCatalog({ learningCommonsApiKey: API_KEY, academicSubject: 'Maths' })
       .validateCodes(['3.MD.C.7.d']);
     expect(result.status).toBe('unchecked');
     expect(result.error).toContain('academicSubject');

@@ -14,7 +14,7 @@ export interface CliArgs {
   googleApiKey?: string;
   openaiApiKey?: string;
   anthropicApiKey?: string;
-  platformApiKey?: string;
+  learningCommonsApiKey?: string;
   outputDir?: string;
   /** --model: a shortcode (e.g. "haiku") or "provider:model". */
   model?: string;
@@ -58,8 +58,8 @@ export function parseArgs(argv: string[] = process.argv.slice(2)): CliArgs {
     } else if (arg === '--evaluator' && i + 1 < args.length && !args[i + 1].startsWith('-')) {
       const values = args[++i].split(',').map((s) => s.trim()).filter(Boolean);
       result.evaluators = [...(result.evaluators ?? []), ...values];
-    } else if (arg === '--platform-api-key' && i + 1 < args.length && !args[i + 1].startsWith('-')) {
-      result.platformApiKey = args[++i];
+    } else if (arg === '--learning-commons-api-key' && i + 1 < args.length && !args[i + 1].startsWith('-')) {
+      result.learningCommonsApiKey = args[++i];
     } else if (arg === '--model' && i + 1 < args.length && !args[i + 1].startsWith('-')) {
       result.model = args[++i];
     } else if (arg === '--concurrency' && i + 1 < args.length && !args[i + 1].startsWith('-')) {
