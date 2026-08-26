@@ -13,7 +13,7 @@ import {
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
-import { ValidationError, wrapProviderError } from '../errors.js';
+import { EvaluatorError, wrapProviderError } from '../errors.js';
 
 /**
  * Vocabulary Evaluator
@@ -80,7 +80,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
    * @param text - The text to evaluate
    * @param grade - The target grade level (3-12)
    * @returns Evaluation result with complexity score and detailed analysis
-   * @throws {ValidationError} If text is empty, too short/long, or grade is invalid
+   * @throws {InputValidationError} If text is empty, too short/long, or grade is invalid
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
    */
@@ -97,9 +97,10 @@ export class VocabularyEvaluator extends BaseEvaluator {
 
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
-    const complexityProviderLabel = (grade === '3' || grade === '4')
-      ? this.grades34ComplexityProvider.label
-      : this.otherGradesComplexityProvider.label;
+    const complexityProvider = (grade === '3' || grade === '4')
+      ? this.grades34ComplexityProvider
+      : this.otherGradesComplexityProvider;
+    const complexityProviderLabel = complexityProvider.label;
     const backgroundProviderLabel = this.backgroundKnowledgeProvider.label;
     // When override is active all providers resolve to the same model — show a single label.
     const modelLabel = this.config.modelOverride
@@ -229,12 +230,16 @@ export class VocabularyEvaluator extends BaseEvaluator {
       });
 
       // Re-throw validation errors as-is
-      if (error instanceof ValidationError) {
+      if (error instanceof EvaluatorError) {
         throw error;
       }
 
-      // Wrap provider errors into appropriate error types
-      throw wrapProviderError(error, 'Vocabulary evaluation failed');
+      // Three providers can fail here and the catch cannot tell which did, so
+      // attribute to the grade's complexity provider and report both models.
+      throw wrapProviderError(error, {
+        dependency: this.providerContext(complexityProvider).dependency,
+        model: modelLabel,
+      });
     }
   }
 

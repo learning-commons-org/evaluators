@@ -15,7 +15,7 @@ import {
   MAX_QUESTION_LENGTH,
 } from '../../prompts/math/standards-alignment/index.js';
 import { KnowledgeGraphClient, Jurisdiction } from '../../knowledge-graph/index.js';
-import { EvaluatorError, APIError, ConfigurationError, ValidationError, wrapProviderError } from '../../errors.js';
+import { EvaluatorError, DependencyError, ConfigurationError, InputValidationError, LLMOutputProcessingError, wrapProviderError } from '../../errors.js';
 import type { StageDetail } from '../../telemetry/index.js';
 
 export { Jurisdiction } from '../../knowledge-graph/index.js';
@@ -45,12 +45,10 @@ export interface StandardAlignmentResult {
    * Not evidence of non-alignment: alignedCount is 0 because nothing was
    * measured, not because nothing aligned.
    *
-   * `code` and `name` are both carried because subclasses can share a code, and a
-   * report grouping failures by kind needs the narrower one.
+   * `name` is the error class, which is what a report groups failures on.
    */
   error?: {
     message: string;
-    code?: string;
     name?: string;
     statusCode?: number;
     retryable?: boolean;
@@ -136,13 +134,14 @@ const BY_GRADE_WARN_PAIRS = 500;
 /** Flattens a thrown value into the reportable shape, keeping what a report can group on. */
 function describeFailure(err: unknown): NonNullable<StandardAlignmentResult['error']> {
   if (!(err instanceof Error)) return { message: String(err) };
-  const api = err as Partial<APIError>;
+  // `name` is the canonical error code, so there is no separate code field.
   return {
     message: err.message,
     name: err.name,
-    ...(err instanceof EvaluatorError && err.code ? { code: err.code } : {}),
-    ...(typeof api.statusCode === 'number' ? { statusCode: api.statusCode } : {}),
-    ...(typeof api.retryable === 'boolean' ? { retryable: api.retryable } : {}),
+    ...(err instanceof DependencyError && err.statusCode !== null
+      ? { statusCode: err.statusCode }
+      : {}),
+    ...(err instanceof EvaluatorError ? { retryable: err.retryable } : {}),
   };
 }
 
@@ -230,7 +229,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         this.validateQuestion(item.question);
       } catch (err) {
         // Only a domain error is a per-item validation failure. Anything else is a
-        // bug here, and turning it into a ValidationError would report it as bad
+        // bug here, and turning it into a InputValidationError would report it as bad
         // user input.
         if (!(err instanceof EvaluatorError)) throw err;
         validationError = err;
@@ -357,7 +356,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     jurisdiction: Jurisdiction,
     options?: QuestionBankOptions,
   ): Promise<QuestionBankResult> {
-    if (questions.length === 0) throw new ValidationError('questions array must not be empty');
+    if (questions.length === 0) throw new InputValidationError('questions array must not be empty');
     this.validateGrade(grade, new Set(SUPPORTED_GRADES));
 
     const academicStandards = await this.kgClient.getStandardsByGrade(grade, {
@@ -505,9 +504,10 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         .filter((id) => !evalById.has(id));
 
       if (missingIds.length > 0) {
-        throw new APIError(
+        throw new LLMOutputProcessingError(
           `LLM response missing verified evaluations for LC identifiers: ${missingIds.join(', ')}. ` +
           `Standard: ${statementCode}`,
+          missingIds.map((identifier) => ({ path: 'evaluations', identifier })),
         );
       }
 
@@ -570,7 +570,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       }).catch(() => undefined);
 
       if (error instanceof EvaluatorError) throw error;
-      throw wrapProviderError(error, 'Math standards alignment evaluation failed');
+      throw wrapProviderError(error, this.providerContext(this.detailProvider));
     }
   }
 
@@ -648,10 +648,10 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 
   private validateQuestion(question: string): void {
     if (question.trim().length === 0) {
-      throw new ValidationError('question must not be empty');
+      throw new InputValidationError('question must not be empty');
     }
     if (question.length > MAX_QUESTION_LENGTH) {
-      throw new ValidationError(
+      throw new InputValidationError(
         `question exceeds maximum length of ${MAX_QUESTION_LENGTH} characters (got ${question.length})`,
       );
     }
@@ -659,7 +659,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 
   private validateStatementCode(code: string): void {
     if (code.trim().length === 0) {
-      throw new ValidationError('statementCode must not be empty');
+      throw new InputValidationError('statementCode must not be empty');
     }
   }
 }

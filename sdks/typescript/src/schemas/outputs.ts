@@ -44,9 +44,10 @@ export interface BatchSummary {
 }
 
 /**
- * Error type for failed evaluations
+ * A failed slot in a batch result. Named to leave `EvaluationError` free for the
+ * canonical error class.
  */
-export interface EvaluationError {
+export interface EvaluationFailure {
   error: string;
   input: {
     text: string;
@@ -58,6 +59,6 @@ export interface EvaluationError {
  * Batch evaluation result
  */
 export interface BatchEvaluationResult<T = EvaluationResult> {
-  results: Array<T | EvaluationError>;
+  results: Array<T | EvaluationFailure>;
   summary: BatchSummary;
 }

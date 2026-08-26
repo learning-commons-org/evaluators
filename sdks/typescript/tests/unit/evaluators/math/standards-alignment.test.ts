@@ -4,7 +4,7 @@ import {
   Jurisdiction,
   type MathStandardsAlignmentEvaluatorConfig,
 } from '../../../../src/evaluators/math/standards-alignment.js';
-import { ConfigurationError, ValidationError, APIError, KnowledgeGraphError, RateLimitError } from '../../../../src/errors.js';
+import { ConfigurationError, InputValidationError, LLMOutputProcessingError, KnowledgeGraphError, RateLimitError } from '../../../../src/errors.js';
 import type { LLMProvider } from '../../../../src/providers/base.js';
 import type { KnowledgeGraphClient } from '../../../../src/knowledge-graph/client.js';
 
@@ -191,29 +191,31 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
-  it('throws APIError when LLM returns fewer evaluations than LCs', async () => {
+  it('throws LLMOutputProcessingError when LLM returns fewer evaluations than LCs', async () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue({
       ...MOCK_BATCH_RESPONSE,
       data: { evaluations: [MOCK_BATCH_RESPONSE.data.evaluations[0]] }, // only lc-001, missing lc-002
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    await expect(evaluator.evaluate(QUESTION, STATEMENT_CODE, JURISDICTION)).rejects.toThrow(APIError);
+    await expect(evaluator.evaluate(QUESTION, STATEMENT_CODE, JURISDICTION)).rejects.toThrow(
+      LLMOutputProcessingError,
+    );
     await expect(evaluator.evaluate(QUESTION, STATEMENT_CODE, JURISDICTION)).rejects.toThrow('missing verified evaluations for LC identifiers');
   });
 
-  it('throws ValidationError for empty question', async () => {
+  it('throws InputValidationError for empty question', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    await expect(evaluator.evaluate('', STATEMENT_CODE, JURISDICTION)).rejects.toThrow(ValidationError);
+    await expect(evaluator.evaluate('', STATEMENT_CODE, JURISDICTION)).rejects.toThrow(InputValidationError);
   });
 
-  it('throws ValidationError for question exceeding max length', async () => {
+  it('throws InputValidationError for question exceeding max length', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    await expect(evaluator.evaluate('x'.repeat(10_001), STATEMENT_CODE, JURISDICTION)).rejects.toThrow(ValidationError);
+    await expect(evaluator.evaluate('x'.repeat(10_001), STATEMENT_CODE, JURISDICTION)).rejects.toThrow(InputValidationError);
   });
 
-  it('throws ValidationError for empty statementCode', async () => {
+  it('throws InputValidationError for empty statementCode', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    await expect(evaluator.evaluate(QUESTION, '', JURISDICTION)).rejects.toThrow(ValidationError);
+    await expect(evaluator.evaluate(QUESTION, '', JURISDICTION)).rejects.toThrow(InputValidationError);
   });
 
   it('correctly handles kindergarten standard', async () => {
@@ -323,7 +325,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems (per-question codes)',
 // ---------------------------------------------------------------------------
 
 describe('MathStandardsAlignmentEvaluator - evaluateItems (shared codes)', () => {
-  it('throws ValidationError for empty items list', async () => {
+  it('throws InputValidationError for empty items list', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
     expect(await evaluator.evaluateItems([], JURISDICTION)).toEqual([]);
   });
@@ -428,7 +430,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems (shared codes)', () =>
         data: { standards: [{ standard: STATEMENT_CODE, relevant: true }] },
         model: 'anthropic:claude-haiku-4-5-20251001', usage: { inputTokens: 50, outputTokens: 20 }, latencyMs: 200,
       })
-      .mockRejectedValue(new APIError('rate limited', 429));
+      .mockRejectedValue(new RateLimitError('rate limited', { dependency: 'anthropic' }));
 
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
     const results = await evaluator.evaluateItems(
@@ -509,14 +511,14 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems (shared codes)', () =>
 // ---------------------------------------------------------------------------
 
 describe('MathStandardsAlignmentEvaluator - evaluateByGrade', () => {
-  it('throws ValidationError for empty questions array', async () => {
+  it('throws InputValidationError for empty questions array', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    await expect(evaluator.evaluateByGrade([], '3', JURISDICTION)).rejects.toThrow(ValidationError);
+    await expect(evaluator.evaluateByGrade([], '3', JURISDICTION)).rejects.toThrow(InputValidationError);
   });
 
-  it('throws ValidationError for invalid grade', async () => {
+  it('throws InputValidationError for invalid grade', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    await expect(evaluator.evaluateByGrade([QUESTION], '13', JURISDICTION)).rejects.toThrow(ValidationError);
+    await expect(evaluator.evaluateByGrade([QUESTION], '13', JURISDICTION)).rejects.toThrow(InputValidationError);
   });
 
   it('fetches standards for grade and jurisdiction, deduping codes reused across courses', async () => {
@@ -644,12 +646,11 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
     expect(errored).toHaveLength(1);
     expect(errored[0].statementCode).toBe('BAD.CODE');
     // A report needs to group failures by kind, not by message text.
-    expect(errored[0].error?.code).toBe('KNOWLEDGE_GRAPH_ERROR');
     expect(errored[0].error?.name).toBe('KnowledgeGraphError');
   });
 
   it('carries statusCode and retryable through so a report can separate transient failures', async () => {
-    vi.mocked(mockProvider.generateStructured).mockRejectedValueOnce(new RateLimitError('slow down'));
+    vi.mocked(mockProvider.generateStructured).mockRejectedValueOnce(new RateLimitError('slow down', { dependency: 'anthropic' }));
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
 
     const results = await evaluator.evaluateItems(
@@ -659,7 +660,6 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
 
     expect(results[0].standards[0].error).toMatchObject({
       name: 'RateLimitError',
-      code: 'RATE_LIMIT_ERROR',
       statusCode: 429,
       retryable: true,
     });
@@ -683,7 +683,9 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
   });
 
   it('surfaces an LLM failure as a per-pair error rather than rejecting', async () => {
-    vi.mocked(mockProvider.generateStructured).mockRejectedValueOnce(new APIError('rate limited', 429));
+    vi.mocked(mockProvider.generateStructured).mockRejectedValueOnce(
+      new RateLimitError('rate limited', { dependency: 'anthropic' }),
+    );
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
 
     const results = await evaluator.evaluateItems(
@@ -751,9 +753,8 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
     );
 
     expect(results).toHaveLength(2);
-    expect(results[0].standards[0].error?.code).toBe('VALIDATION_ERROR');
     // Same shape as every other failure, so grouping by name does not miss these.
-    expect(results[0].standards[0].error?.name).toBe('ValidationError');
+    expect(results[0].standards[0].error?.name).toBe('InputValidationError');
     expect(results[0].standards[0].statementCode).toBe(STATEMENT_CODE);
     expect(results[1].standards[0].error).toBeUndefined();
     expect(results[1].standards[0].alignedCount).toBe(2);
@@ -770,7 +771,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
 
     expect(results).toHaveLength(1);
     expect(results[0].standards).toEqual([]);
-    expect(results[0].error).toMatchObject({ code: 'VALIDATION_ERROR', name: 'ValidationError' });
+    expect(results[0].error).toMatchObject({ name: 'InputValidationError' });
   });
 
   it('excludes an invalid item from the progress denominator', async () => {

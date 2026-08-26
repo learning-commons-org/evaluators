@@ -6,7 +6,7 @@ import {
 import { getSystemPrompt, getUserPrompt } from '../prompts/grade-level-appropriateness/index.js';
 import type { EvaluationResult, GradeBand } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
-import { ValidationError, wrapProviderError } from '../errors.js';
+import { EvaluatorError, wrapProviderError } from '../errors.js';
 
 /**
  * Grade Level Appropriateness Evaluator
@@ -60,7 +60,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
    *
    * @param text - The text to evaluate
    * @returns Evaluation result with grade recommendations and scaffolding suggestions
-   * @throws {ValidationError} If text is empty or too short/long
+   * @throws {InputValidationError} If text is empty or too short/long
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
    */
@@ -155,12 +155,12 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
       });
 
       // Re-throw validation errors as-is
-      if (error instanceof ValidationError) {
+      if (error instanceof EvaluatorError) {
         throw error;
       }
 
       // Wrap provider errors into appropriate error types
-      throw wrapProviderError(error, 'Grade level appropriateness evaluation failed');
+      throw wrapProviderError(error, this.providerContext(this.provider));
     }
   }
 }

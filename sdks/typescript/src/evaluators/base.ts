@@ -5,7 +5,7 @@ import {
   type TelemetryMetadata,
   type TokenUsage,
 } from '../telemetry/index.js';
-import { ConfigurationError, ValidationError } from '../errors.js';
+import { ConfigurationError, InputValidationError, type DependencyId } from '../errors.js';
 import { createLogger, LogLevel, type Logger } from '../logger.js';
 import { createProvider } from '../providers/index.js';
 import type { LLMProvider } from '../providers/index.js';
@@ -413,10 +413,27 @@ export abstract class BaseEvaluator {
   }
 
   /**
+   * Dependency attribution for errors raised while calling `provider`
+   * Derived from the provider label's `provider:model` form.
+   */
+  protected providerContext(provider: LLMProvider): {
+    dependency: DependencyId;
+    model: string | null;
+  } {
+    const separator = provider.label.indexOf(':');
+    return separator === -1
+      ? { dependency: provider.label as DependencyId, model: null }
+      : {
+          dependency: provider.label.slice(0, separator) as DependencyId,
+          model: provider.label.slice(separator + 1) || null,
+        };
+  }
+
+  /**
    * Validate text meets requirements
    * Default implementation - can be overridden by concrete evaluators
    *
-   * @throws {ValidationError} If text is invalid
+   * @throws {InputValidationError} If text is invalid
    */
   protected validateText(text: string): void {
     this.logger.debug('Validating text input', {
@@ -428,19 +445,19 @@ export abstract class BaseEvaluator {
     // Check if text is empty or only whitespace
     const trimmedText = text.trim();
     if (!trimmedText) {
-      throw new ValidationError('Text cannot be empty or contain only whitespace');
+      throw new InputValidationError('Text cannot be empty or contain only whitespace');
     }
 
     // Check minimum length
     if (trimmedText.length < VALIDATION_LIMITS.MIN_TEXT_LENGTH) {
-      throw new ValidationError(
+      throw new InputValidationError(
         `Text is too short. Minimum length is ${VALIDATION_LIMITS.MIN_TEXT_LENGTH} characters, received ${trimmedText.length} characters`
       );
     }
 
     // Check maximum length
     if (trimmedText.length > VALIDATION_LIMITS.MAX_TEXT_LENGTH) {
-      throw new ValidationError(
+      throw new InputValidationError(
         `Text is too long. Maximum length is ${VALIDATION_LIMITS.MAX_TEXT_LENGTH.toLocaleString()} characters, received ${trimmedText.length.toLocaleString()} characters`
       );
     }
@@ -452,7 +469,7 @@ export abstract class BaseEvaluator {
    *
    * @param grade - Grade level to validate
    * @param validGrades - Set of valid grades for this evaluator
-   * @throws {ValidationError} If grade is invalid
+   * @throws {InputValidationError} If grade is invalid
    */
   protected validateGrade(grade: string, validGrades: Set<string>): void {
     this.logger.debug('Validating grade input', {
@@ -470,7 +487,7 @@ export abstract class BaseEvaluator {
         return parseInt(a, 10) - parseInt(b, 10);
       }).join(', ');
 
-      throw new ValidationError(
+      throw new InputValidationError(
         `Invalid grade "${grade}". Supported grades for this evaluator: ${validList}`
       );
     }

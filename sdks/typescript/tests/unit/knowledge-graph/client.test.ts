@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { KnowledgeGraphClient } from '../../../src/knowledge-graph/client.js';
-import { KnowledgeGraphError, AuthenticationError, RateLimitError, NetworkError } from '../../../src/errors.js';
+import {
+  KnowledgeGraphError,
+  AuthenticationError,
+  RateLimitError,
+  NetworkError,
+  RequestTimeoutError,
+  StandardNotFoundError,
+  InputValidationError,
+} from '../../../src/errors.js';
 
 // openapi-fetch calls response.text() when there is no Content-Length header,
 // then JSON.parse()s the result. Both text and json must reflect the same body.
@@ -45,9 +53,11 @@ describe('KnowledgeGraphClient - getStandardInfo', () => {
     expect(info.description).toBeUndefined();
   });
 
-  it('throws KnowledgeGraphError when no standard found', async () => {
+  it('throws StandardNotFoundError when no standard found', async () => {
     mockFetch(200, []);
-    await expect(new KnowledgeGraphClient(API_KEY).getStandardInfo('X.YZ.A.1')).rejects.toThrow(KnowledgeGraphError);
+    const call = new KnowledgeGraphClient(API_KEY).getStandardInfo('X.YZ.A.1');
+    await expect(call).rejects.toThrow(StandardNotFoundError);
+    await expect(call).rejects.toBeInstanceOf(InputValidationError);
   });
 
   it('returns the first match and flags ambiguity when a code matches multiple standards', async () => {
@@ -238,11 +248,14 @@ describe('KnowledgeGraphClient - getStandardInfo', () => {
     await expect(new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d')).rejects.toThrow(NetworkError);
   });
 
-  it('throws NetworkError with timeout message when AbortSignal fires', async () => {
+  it('throws RequestTimeoutError, not NetworkError, when AbortSignal fires', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('aborted', 'TimeoutError')));
     const err = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d').catch((e) => e);
-    expect(err).toBeInstanceOf(NetworkError);
+    expect(err).toBeInstanceOf(RequestTimeoutError);
+    expect(err).not.toBeInstanceOf(NetworkError);
     expect(err.message).toContain('timed out');
+    expect(err.dependency).toBe('knowledge-graph');
+    expect(err.retryable).toBe(true);
   });
 
   it('sends x-api-key header', async () => {
