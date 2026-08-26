@@ -8,16 +8,18 @@ The spec is prescriptive, not descriptive: SDKs are brought into conformance wit
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are to be interpreted as described in RFC 2119.
 
-### Stability levels
+### Stability and drafts
 
-Every section and evaluator definition carries a stability level; unlabeled content is **Stable**.
+**Stability levels apply to evaluators**, declared per evaluator in its registry definition (§10.1):
 
 | Level | Meaning |
 |---|---|
 | **Stable** | Contract-bound; changes follow the compatibility policy (§12.3) |
 | **Experimental** | May change or be removed without a deprecation window; users are warned in SDK docs |
 
-New surfaces enter as Experimental and are promoted by maintainer agreement (§12.1) once at least one SDK ships them and contract fixtures (§11.3) cover them. Speed lives in Experimental; stability lives in Stable.
+New evaluators enter as Experimental and are promoted by maintainer agreement (§12.1) once at least one SDK ships them and contract fixtures (§11.3) cover them.
+
+Spec sections still under design are marked **(Draft)** with a pointer to the open question tracking them; Draft content carries no compatibility promise. SDK packages themselves are versioned per §12.2, not labeled.
 
 ---
 
@@ -85,6 +87,8 @@ Any **value** that crosses the SDK boundary into shared systems — results, tel
 
 A new value type that crosses the boundary MUST register its canonical form here or in the section that introduces it.
 
+In serialized payloads, absent values are **omitted** — never null.
+
 ---
 
 ## 3. Configuration
@@ -105,9 +109,9 @@ Every evaluator accepts a config object at construction time.
 | `telemetry.enabled` | bool | `true` | Whether to emit telemetry events |
 | `telemetry.record_raw_inputs` | bool | `false` | Include verbatim user-supplied inputs in telemetry (Principle 7) |
 | `telemetry.learning_commons_api_key` | string | none | Explicit opt-in to **identified** telemetry: sent as auth on telemetry requests, which the gateway resolves to the partner's Learning Commons user for event attribution. Unset → events are anonymous |
-| `llm_provider` | object | none | *(Experimental)* Bring-your-own-provider: a caller-supplied provider client used for all LLM calls. Conflicts with `model_override` → `ConfigurationError` |
-| `logger` | object | none | *(TypeScript mechanism, §7)* Custom logger: `debug`/`info`/`warn`/`error`, each `(message, context?)`. Replaces the default console logger |
-| `log_level` | enum | `WARN` | *(TypeScript mechanism, §7)* Minimum level for the default logger: `DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT`. Ignored when a custom `logger` is provided. Python uses the stdlib named-logger hierarchy instead |
+| `llm_provider` | object | none | *(Draft)* Bring-your-own-provider: a caller-supplied provider client used for all LLM calls. Conflicts with `model_override` → `ConfigurationError` |
+
+Logging configuration (`logger`, `log_level`) is a per-language mechanism, not part of the canonical table — see §7.
 
 ### 3.1 Keys: resolution and validation
 
@@ -154,10 +158,10 @@ Validation runs before every LLM call, inside the error-handling boundary, so fa
 Trim leading/trailing Unicode whitespace, then validate in order:
 
 1. Empty or whitespace-only → `InputValidationError("Text cannot be empty or contain only whitespace")`
-2. Trimmed length < min → `InputValidationError` stating the minimum
-3. Trimmed length > max → `InputValidationError` stating the maximum
+2. Trimmed length < min → `InputValidationError("Text is too short. Minimum length is {min} characters.")`
+3. Trimmed length > max → `InputValidationError("Text is too long. Maximum length is {max} characters.")`
 
-Messages MUST convey the same facts (which bound, what the bound is) and SHOULD match the canonical wording. `text_length_chars` in telemetry is the **trimmed** length.
+Messages MUST convey the same facts (which bound, what the bound is) and SHOULD match the canonical wording above. `text_length_chars` in telemetry is the **trimmed** length.
 
 | Limit | Default |
 |---|---|
@@ -173,7 +177,9 @@ The SDK defaults carry no product opinion — `min_text_length: 1` only excludes
 
 ---
 
-## 5. Evaluation Results
+## 5. Evaluation API
+
+Every evaluator exposes **`evaluate`** (casing-mapped per §2.1). It accepts the inputs declared in the evaluator's registry definition (§10.1), passed by their canonical names (e.g. `text`, `grade_level`) — evaluator-specific inputs are declared in the registry's input schema, never as ad-hoc parameters. `evaluate` completes with the result envelope below or fails with a canonical error (§6).
 
 ### 5.1 The envelope
 
@@ -236,13 +242,14 @@ Class names are canonical in every SDK (§2.2). An error pattern useful in one S
 
 ### 6.2 Fields
 
-`DependencyError` and all subclasses:
+Every `EvaluatorError` exposes `retryable` (bool). Class defaults are the Retryable column in §6.1; the instance value is final (§6.3).
+
+`DependencyError` and all subclasses additionally:
 
 | Field | Type | Description |
 |---|---|---|
 | `dependency` | string | Canonical ID of the failed system: a `Provider` value (§3.3) or a service ID (e.g. `"knowledge-graph"`) |
 | `status_code` | int \| null | HTTP status from the dependency, if available |
-| `retryable` | bool | Whether the caller may retry (§6.3) |
 | `request_id` | string \| null | Dependency's request ID, for support escalation |
 | `model` | string \| null | Model ID in use, when the dependency is an LLM provider |
 
@@ -255,6 +262,7 @@ Class names are canonical in every SDK (§2.2). An error pattern useful in one S
 - `retryable` on the instance is the single source of truth; callers never memorize the hierarchy.
 - Resolution order: explicit per-instance override → `true` for any 5xx → class default.
 - Strategy is category-bound: **external failures back off, internal failures resample.** Retryable `DependencyError`s use exponential backoff with jitter, honoring `retry_after_ms` — the dependency is constrained and immediate retry worsens contention. Retryable `EvaluationError`s retry immediately — the failure is sampling variance, and waiting only adds latency.
+- Default backoff (SHOULD; matches the OpenAI and Anthropic SDKs' own constants, so our retry envelope nests inside theirs): `delay = min(500ms × 2^attempt, 8000ms) × random(0.75, 1.0)`. When `retry_after_ms` is present it replaces the computed delay. The immediate-retry path applies no delay.
 - The SDK's retry loop (`max_retries`, §3) retries **only** retryable errors, applying the category's strategy.
 
 ### 6.4 Trust boundaries
@@ -295,7 +303,7 @@ Logging is a behavioral contract; the mechanism is language-idiomatic (Principle
 
 Mechanism per language:
 
-- **TypeScript** — config accepts `logger` (interface: `debug`/`info`/`warn`/`error`, each `(message, context?)`) and `logLevel` for the default console logger; `SILENT` disables it. With a custom logger, the SDK routes all output through it and applies no level filtering — level policy belongs to the logger.
+- **TypeScript** — config accepts `logger` (interface: `debug`/`info`/`warn`/`error`, each `(message, context?)`) and `logLevel` (`DEBUG`/`INFO`/`WARN`/`ERROR`/`SILENT`, default `WARN`) for the default console logger; `SILENT` disables it. With a custom logger, the SDK routes all output through it and applies no level filtering — level policy belongs to the logger. `logLevel` is ignored when a custom logger is provided.
 - **Python** — the SDK emits to its named logger hierarchy (`learning_commons_evaluators.*`) per the stdlib library convention (`NullHandler`, no root configuration); the application owns handlers, levels, and formatting. No logging fields are required in config.
 
 ---
@@ -309,16 +317,16 @@ Mechanism per language:
 - When disabled: no event constructed, no client initialized.
 - `telemetry.learning_commons_api_key` is sent as an authentication header on the request — never in the event body. When unset, events are anonymous. The top-level `learning_commons_api_key` MUST NOT be used for telemetry (§3.1). Telemetry auth failures are logged at `DEBUG` and otherwise ignored.
 
-### 8.2 Event fields *(Experimental)*
+### 8.2 Event fields *(Draft — Q-10)*
 
 | Field | Description |
 |---|---|
 | `timestamp` | ISO 8601 UTC |
 | `sdk_version` | Package version string |
 | `evaluator_type` | Evaluator ID (§10.1) |
-| `grade` | Canonical grade token; null if the evaluator takes no grade |
+| `grade` | Canonical grade token; omitted if the evaluator takes no grade |
 | `status` | `"success"` or `"error"` |
-| `error_code` | Canonical error class name on failure; null on success |
+| `error_code` | Canonical error class name on failure; omitted on success |
 | `latency_ms` | Total wall-clock time |
 | `text_length_chars` | Trimmed input length |
 | `model` | Model string(s) used (§3.4) |
@@ -327,9 +335,11 @@ Mechanism per language:
 | `phase_details` | Array of per-phase objects (§8.3) |
 | `input_text` | Raw input — **only** when `telemetry.record_raw_inputs = true` |
 
-### 8.3 Phase details *(Experimental)*
+### 8.3 Phase details *(Draft — Q-10)*
 
 Each entry: `phase` (name from the registry definition), `model` (`"provider:model-id"`), `latency_ms`, `token_usage` (`{ input_tokens, output_tokens }`).
+
+> **TODO:** the name of the per-LLM-call unit (`phase` above is a placeholder) and this schema are unresolved. Alignment plus a downstream review of existing telemetry events precedes any decision — do not build against these field names yet (Q-10).
 
 ---
 
@@ -337,7 +347,7 @@ Each entry: `phase` (name from the registry definition), `model` (`"provider:mod
 
 No SDK is required to build these — they exist where that SDK's users need them. Any SDK that ships one MUST implement the contract below (Principle 10). New capabilities are added here before the first SDK ships them.
 
-### 9.1 Batch evaluation *(Experimental)*
+### 9.1 Batch evaluation *(Draft)*
 
 - **Never throws for item failures.** Per-item failures are returned as structured entries alongside successes.
 - **Order-aligned results.** Results align index-for-index with inputs; failed items occupy their slot with the canonical error information (§6).
@@ -432,12 +442,14 @@ Cross-SDK behavior is verified by shared, language-neutral fixture files (per-ev
 
 ### 12.2 Versioning
 
-- The spec is SemVer-versioned, independent of SDK packages. Pre-1.0, minor bumps may break; post-1.0, breaking changes to Stable content require a major bump.
+- The spec is SemVer-versioned, independent of SDK packages. Pre-1.0, minor bumps may break; post-1.0, breaking changes to non-Draft content require a major bump.
 - Each SDK release declares the spec version it implements (README and package metadata), so users reason about cross-SDK equivalence by spec version.
+- **SDK packages follow semantic versioning**, independently per language, and optimize for backward compatibility wherever reasonably possible.
+- When a breaking SDK change is needed, it MUST be represented by a major version bump, documented in the changelog, and supported with migration documentation where possible.
 
-### 12.3 Compatibility policy for Stable content
+### 12.3 Compatibility policy
 
-Breaking is judged from the **user's** point of view:
+Applies to non-Draft spec surfaces and Stable evaluators; Draft content and Experimental evaluators are exempt. Breaking is judged from the **user's** point of view:
 
 - **Non-breaking:** adding fields to results, events, or config; adding evaluators, error subclasses, or capabilities; widening accepted inputs; improving error messages within §4.1's same-facts rule.
 - **Breaking (major bump + deprecation):** removing or renaming any public name; changing a field's type, unit, or semantics; narrowing accepted inputs; changing a registry definition's models, phases, or temperature in a way that changes evaluation results.
@@ -463,7 +475,7 @@ Tracked deviations between this spec and the current SDKs — each a bug to fix 
 | 4 | §6.2 | Python | `retry_after` in seconds | Rename to `retry_after_ms`, convert to milliseconds |
 | 5 | §5.1 | TypeScript | Flat `score`/`reasoning`/`metadata`/`_internal`; flat `inputTokens`/`outputTokens` | Migrate to envelope; nest `token_usage` |
 | 6 | §5.1 | Python | Bespoke Pydantic result shapes | Migrate to envelope |
-| 7 | §8.3 | Python | `step_details` / `step` naming | Rename to `phase_details` / `phase` |
+| 7 | §8.2–8.3 | Both | Wire schema diverges three ways (deployed collector: `stage_details` in a `metadata` wrapper; spec placeholder: `phase`; Python internals: `step`) | Blocked on Q-10 — align after downstream review of existing telemetry events |
 | 8 | §6.4–6.5 | TypeScript | `wrapProviderError` classifies via message regexes and lacks cause preservation | Structured-signal classification; preserve cause chain and structured attributes |
 | 9 | §6.1 | Python | Legacy `EvaluatorRetryableError` references | Remove aliases not in the taxonomy |
 | 10 | §9.1 | TypeScript | Math Standards Alignment batch unverified against contract | Audit per §9.1 |
@@ -513,7 +525,7 @@ Per-SDK status against §11.2, updated whenever a gap closes or a new SDK lands.
 | Q-7 | ~~Evaluator ID taxonomy~~ | **Resolved (§10.1):** identity is `stable_id` (UUID) + `id_history`; the readable dotted `id` may be renamed freely, so its segments carry no stability burden |
 | Q-8 | ~~Telemetry tracking field semantics~~ | **Resolved (§3, §8.1):** identified telemetry via explicit `telemetry.learning_commons_api_key` (gateway resolves the LC user); no separate tracking field |
 | Q-9 | Anonymous telemetry identity: should the spec define the SDK-generated `client_id`, and where does it travel (header vs event body)? | TS ships a persisted per-install UUID sent as `X-Client-ID`, but nothing downstream reads it — all anonymous events share one `anonymousId`. Needs the collector-side design before the spec commits |
-| Q-10 | Finalize the telemetry event schema (§8.2–8.3, Experimental) and migrate spec + TypeScript SDK + collector in one coordinated change | Spec says `phase`, Python internals say `step`, the deployed collector says `stage` inside a `metadata` wrapper. Recorded recommendations: `step`/`step_details` top-level (registry vocabulary follows); per-input `inputs` map with gated `raw` replacing `input_text`/`text_length_chars`; adopt `sdk_language`; `evaluator_type` → `evaluator`; per-step `error_code` replacing `schema_validation_failed`; absent = omitted, never null; unify `latency_ms`/`processing_time_ms` |
+| Q-10 | Finalize the telemetry event schema (§8.2–8.3, Draft) and migrate spec + TypeScript SDK + collector in one coordinated change | Requires alignment plus a downstream review of existing telemetry events before any decision. Recorded recommendations: `step`/`step_details` top-level (registry vocabulary follows); per-input `inputs` map with gated `raw` replacing `input_text`/`text_length_chars`; adopt `sdk_language`; `evaluator_type` → `evaluator`; `grade` → `grade_level`; per-step `error_code` replacing `schema_validation_failed`; unify `latency_ms`/`processing_time_ms` |
 
 ---
 
