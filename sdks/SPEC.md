@@ -41,7 +41,7 @@ Every rule in this spec derives from one of these. When the spec is silent, deci
 
 7. **Sensitive data is opt-in at process boundaries.** Raw user-supplied input text MUST NOT leave the process — in telemetry or logs — unless the caller explicitly opts in; credentials and key fragments MUST NOT appear on any surface, ever. In-process error objects carry full diagnostic detail (§6.4). Model outputs, scores, and reasoning are product data and MAY be logged and reported.
 
-8. **Determinism is declared.** Models are pinned to dated snapshots and temperatures declared; behavior changes only through deliberate registry updates (§10).
+8. **Determinism is declared.** Models are pinned to immutable versions and temperatures declared; behavior changes only through deliberate registry updates (§10).
 
 9. **Every unit is in the name.** Quantity fields carry a unit suffix (`_ms`, `_chars`, `_tokens`). The default unit for durations is milliseconds (`_ms`); any other unit is an explicit, documented exception.
 
@@ -100,7 +100,7 @@ Every evaluator accepts a config object at construction time.
 | `google_api_key` | string | none | Required when `default_providers` includes `google` or `model_override.provider` is `google` |
 | `openai_api_key` | string | none | Required when `default_providers` includes `openai` or `model_override.provider` is `openai` |
 | `anthropic_api_key` | string | none | Required when `default_providers` includes `anthropic` or `model_override.provider` is `anthropic` |
-| `learning_commons_api_key` | string | none | Learning Commons–issued key, authorizing Learning Commons API calls (e.g. Knowledge Graph). Never used for telemetry (§3.1) |
+| `learning_commons_api_key` | string | none | Learning Commons–issued key, authorizing Learning Commons API calls (e.g. Knowledge Graph) |
 | `model_override` | object | none | Override provider and model for all LLM calls (§3.2) |
 | `model_override.provider` | enum | — | A `Provider` value (§3.3) |
 | `model_override.model` | string | — | Model ID for that provider, passed through as-is — the SDK does not validate its format (pinning §10.2 is a registry rule; override quality is the caller's responsibility) |
@@ -108,7 +108,7 @@ Every evaluator accepts a config object at construction time.
 | `telemetry` | bool \| object | `true` | `true`/`false` shorthand, or an object for granular control |
 | `telemetry.enabled` | bool | `true` | Whether to emit telemetry events |
 | `telemetry.record_raw_inputs` | bool | `false` | Include verbatim user-supplied inputs in telemetry (Principle 7) |
-| `telemetry.learning_commons_api_key` | string | none | Explicit opt-in to **identified** telemetry: sent as auth on telemetry requests, which the gateway resolves to the partner's Learning Commons user for event attribution. Unset → events are anonymous |
+| `telemetry.learning_commons_api_key` | string | none | Explicit opt-in to **identified** telemetry: sent as auth on telemetry requests so events are attributed to the partner's Learning Commons user. Unset → events are anonymous |
 | `llm_provider` | object | none | *(Draft)* Bring-your-own-provider: a caller-supplied provider client used for all LLM calls. Conflicts with `model_override` → `ConfigurationError` |
 
 Logging configuration (`logger`, `log_level`) is a per-language mechanism, not part of the canonical table — see §7.
@@ -264,6 +264,7 @@ Every `EvaluatorError` exposes `retryable` (bool). Class defaults are the Retrya
 - Strategy is category-bound: **external failures back off, internal failures resample.** Retryable `DependencyError`s use exponential backoff with jitter, honoring `retry_after_ms` — the dependency is constrained and immediate retry worsens contention. Retryable `EvaluationError`s retry immediately — the failure is sampling variance, and waiting only adds latency.
 - Default backoff (SHOULD; matches the OpenAI and Anthropic SDKs' own constants, so our retry envelope nests inside theirs): `delay = min(500ms × 2^attempt, 8000ms) × random(0.75, 1.0)`. When `retry_after_ms` is present it replaces the computed delay. The immediate-retry path applies no delay.
 - The SDK's retry loop (`max_retries`, §3) retries **only** retryable errors, applying the category's strategy.
+- There is no separate strategy field: strategy is fully determined by the category, while retryability varies per class and per instance (an `AuthenticationError` never retries, a `NetworkError` usually does, an `LLMProviderError` depends on status) — hence retryability is data and strategy is not.
 
 ### 6.4 Trust boundaries
 
@@ -315,7 +316,7 @@ Mechanism per language:
 - One event per evaluation — on success **and** failure, including validation failures.
 - Fire-and-forget: emission MUST NOT throw or delay the return value, and is abandoned if the endpoint is unreachable. SDKs SHOULD bound in-flight telemetry with a timeout of a few seconds.
 - When disabled: no event constructed, no client initialized.
-- `telemetry.learning_commons_api_key` is sent as an authentication header on the request — never in the event body. When unset, events are anonymous. The top-level `learning_commons_api_key` MUST NOT be used for telemetry (§3.1). Telemetry auth failures are logged at `DEBUG` and otherwise ignored.
+- `telemetry.learning_commons_api_key` is sent as an authentication header on the request — never in the event body. When unset, events are anonymous. Telemetry auth failures are logged at `DEBUG` and otherwise ignored.
 
 ### 8.2 Event fields *(Draft — Q-10)*
 
@@ -381,9 +382,9 @@ A definition MUST specify:
 
 Grade-path variants (different model or prompt inputs per grade band) are expressed within the phase definitions.
 
-### 10.2 Model IDs are pinned snapshots
+### 10.2 Model IDs are immutable versions
 
-No floating aliases (Principle 8): `gpt-4o-2024-11-20`, not `gpt-4o`. If no dated snapshot exists, use the most specific stable identifier and note it in the definition.
+No floating aliases that a provider can silently re-point (Principle 8): `gpt-4o-2024-11-20`, not `gpt-4o`. Where a provider's model ID is itself an immutable release with no dated snapshot (e.g. `claude-opus-4-7`), that ID qualifies as-is.
 
 This is a **registry authoring rule**, enforced by registry-side validation (schema checks, fixtures) — SDKs consume definitions as-is and do not re-validate them at runtime. The SDK's only duty: if the provider rejects a model ID, fail fast with `ConfigurationError` — never silently substitute. Model migrations are deliberate registry updates.
 
@@ -520,12 +521,14 @@ Per-SDK status against §11.2, updated whenever a gap closes or a new SDK lands.
 | Q-2 | Payload shape taxonomy — should evaluator families (QTC, feedback, standards alignment, …) share declared payload profiles? | Deliberately deferred (§5.2); revisit once feedback and math evaluator classes mature |
 | Q-3 | Should registry definitions carry a version (prompt/model revision) surfaced in result `metadata`? | Would let users pin/detect evaluation-behavior changes (§12.3) programmatically |
 | Q-4 | Per-rule requirement IDs (OpenFeature-style `[ERR-3]`) | Adopt if fixtures and docs need finer-grained references than section numbers |
-| Q-5 | Timeout defaults and configurability (`timeout_ms` in config?) | `RequestTimeoutError` exists but no canonical timeout knob is specified |
+| Q-5 | Timeout defaults and configurability (`timeout_ms` in config?) | `RequestTimeoutError` exists but no canonical timeout knob or default defines when it triggers — flagged by every implementer review; resolve before 1.0 |
 | Q-6 | Registry home and format: where do shared evaluator definitions and contract fixtures live, and how do SDKs consume them? | The shared evaluator contract emerging under `evals/<domain>/<skill>/<evaluator>/config.json` (schema, fixtures, prompts, per-language derived-input definitions — PR #173) is the leading candidate |
 | Q-7 | ~~Evaluator ID taxonomy~~ | **Resolved (§10.1):** identity is `stable_id` (UUID) + `id_history`; the readable dotted `id` may be renamed freely, so its segments carry no stability burden |
 | Q-8 | ~~Telemetry tracking field semantics~~ | **Resolved (§3, §8.1):** identified telemetry via explicit `telemetry.learning_commons_api_key` (gateway resolves the LC user); no separate tracking field |
 | Q-9 | Anonymous telemetry identity: should the spec define the SDK-generated `client_id`, and where does it travel (header vs event body)? | TS ships a persisted per-install UUID sent as `X-Client-ID`, but nothing downstream reads it — all anonymous events share one `anonymousId`. Needs the collector-side design before the spec commits |
-| Q-10 | Finalize the telemetry event schema (§8.2–8.3, Draft) and migrate spec + TypeScript SDK + collector in one coordinated change | Requires alignment plus a downstream review of existing telemetry events before any decision. Recorded recommendations: `step`/`step_details` top-level (registry vocabulary follows); per-input `inputs` map with gated `raw` replacing `input_text`/`text_length_chars`; adopt `sdk_language`; `evaluator_type` → `evaluator`; `grade` → `grade_level`; per-step `error_code` replacing `schema_validation_failed`; unify `latency_ms`/`processing_time_ms` |
+| Q-10 | Finalize the telemetry event schema and wire transport (§8.2–8.3, Draft) and migrate spec + TypeScript SDK + collector in one coordinated change | Requires alignment plus a downstream review of existing telemetry events before any decision. Scope includes transport (endpoint resolution, header names, encoding). Recorded recommendations: `step`/`step_details` top-level (registry vocabulary follows); per-input `inputs` map with gated `raw` replacing `input_text`/`text_length_chars`; adopt `sdk_language`; `evaluator_type` → `evaluator`; `grade` → `grade_level`; per-step `error_code` replacing `schema_validation_failed`; unify `latency_ms`/`processing_time_ms` |
+| Q-11 | Per-language runtime & packaging contracts | Unaddressed surfaces flagged by implementer reviews: sync/async posture (esp. Python), thread safety and evaluator reusability, resource lifecycle/cleanup, cancellation, ESM/CJS + minimum runtime versions, `py.typed`/typing guarantees |
+| Q-12 | Batch result shapes (§9.1, Draft) | Input item shape, result envelope (`results` + `summary` field names), failed-slot representation, and the canonical concurrency option must be defined before §9.1 leaves Draft |
 
 ---
 
