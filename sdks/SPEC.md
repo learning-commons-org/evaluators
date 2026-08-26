@@ -96,28 +96,31 @@ Every evaluator accepts a config object at construction time.
 | `google_api_key` | string | none | Required when `default_providers` includes `google` or `model_override.provider` is `google` |
 | `openai_api_key` | string | none | Required when `default_providers` includes `openai` or `model_override.provider` is `openai` |
 | `anthropic_api_key` | string | none | Required when `default_providers` includes `anthropic` or `model_override.provider` is `anthropic` |
-| `partner_api_key` | string | none | Learning Commons–issued partner key; forwarded as auth on telemetry requests, never in event bodies |
+| `learning_commons_api_key` | string | none | Learning Commons–issued key, authorizing Learning Commons API calls (e.g. Knowledge Graph). Never used for telemetry (§3.1) |
 | `model_override` | object | none | Override provider and model for all LLM calls (§3.2) |
 | `model_override.provider` | enum | — | A `Provider` value (§3.3) |
 | `model_override.model` | string | — | Pinned snapshot ID (§10.2) supported by that provider |
 | `max_retries` | int | `2` | Retry attempts on retryable errors (§6.3). Total attempts = 1 + `max_retries`; `0` disables |
 | `telemetry` | bool \| object | `true` | `true`/`false` shorthand, or an object for granular control |
 | `telemetry.enabled` | bool | `true` | Whether to emit telemetry events |
-| `telemetry.record_inputs` | bool | `false` | Include raw input text in telemetry (Principle 7) |
-| `telemetry.tracking_key` | string | none | Caller-supplied identifier attached to telemetry events, so a partner can segment usage by application or integration |
+| `telemetry.record_raw_inputs` | bool | `false` | Include verbatim user-supplied inputs in telemetry (Principle 7) |
+| `telemetry.learning_commons_api_key` | string | none | Explicit opt-in to **identified** telemetry: sent as auth on telemetry requests, which the gateway resolves to the partner's Learning Commons user for event attribution. Unset → events are anonymous |
 | `logger` | object | none | Custom logger implementing `Logger` (§7): `debug`/`info`/`warn`/`error`, each `(message, context?)`. Replaces the default console logger |
 | `log_level` | enum | `WARN` | Minimum level for the **default** logger: `DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT`. Ignored when a custom `logger` is provided |
 
-### 3.1 Key validation
+### 3.1 Keys: resolution and validation
 
+- Credentials are **purpose-scoped**: a key is used only for the purpose its config location declares. The top-level `learning_commons_api_key` authorizes Learning Commons API calls; identified telemetry requires the separate `telemetry.learning_commons_api_key` declaration — the same value may be passed to both, but each use is opted into explicitly. SDKs MUST NOT repurpose a key across scopes.
+- SDKs MUST NOT read credentials from the environment implicitly. Keys are passed explicitly in config; reading env vars (or vaults, or files) is the calling application's responsibility.
+- An SDK MAY offer an explicit opt-in helper (e.g. `Config.from_env()`) that reads the documented canonical variable names — the env read is then a visible call the application made, never a constructor side effect.
 - A key is *missing* if not provided or provided as the language's null/empty value.
 - If a required key (per the evaluator's `default_providers`, or the `model_override` provider) is missing, the constructor MUST raise `ConfigurationError` — before any I/O.
 - When `model_override` is set, **only** the override provider's key is required.
 
 ### 3.2 `model_override`
 
-- The SDK MUST log a warning when an override is active — evaluators are validated against their default models only.
-- Telemetry MUST record `model_override: true` (§8.2).
+- The SDK MUST log a warning once, at construction, when an override is configured — evaluators are validated against their default models only. Per-evaluation log lines carry the effective model (§3.4); the warning is not repeated per call.
+- Telemetry MUST record `model_override: true` on every evaluation (§8.2).
 - A model-not-found rejection from the provider raises `ConfigurationError`, not a retryable API error.
 
 ### 3.3 `Provider`
@@ -261,7 +264,7 @@ The SDK caller is a code owner who already holds the API keys and inputs; diagno
 | Exception attributes + cause chain | Full diagnostic detail MUST be preserved: original exception and stack trace via the language's cause chain, plus structured attributes (§6.2) and allowlisted upstream diagnostics (provider message/code/reason) when structured payloads carry them |
 | Error message | MUST be diagnosable and actionable on its own; MAY include input-derived detail where it aids diagnosis; MUST NOT contain credentials or key fragments — messages propagate by default (app logs, error trackers, HTTP responses) |
 | Logs | No raw input text above `DEBUG` (§7) |
-| Telemetry | Error class name and sanitized schema facts (field paths, error types) only; raw input only via `telemetry.record_inputs` (§8) |
+| Telemetry | Error class name and sanitized schema facts (field paths, error types) only; raw input only via `telemetry.record_raw_inputs` (§8) |
 
 ### 6.5 Dependency error mapping
 
@@ -306,7 +309,7 @@ Logger:
 - One event per evaluation — on success **and** failure, including validation failures.
 - Fire-and-forget: emission MUST NOT throw or delay the return value, and is abandoned if the endpoint is unreachable. SDKs SHOULD bound in-flight telemetry with a timeout of a few seconds.
 - When disabled: no event constructed, no client initialized.
-- `partner_api_key` is an authentication header on the request — never in the event body. Telemetry auth failures are logged at `DEBUG` and otherwise ignored.
+- `telemetry.learning_commons_api_key` is sent as an authentication header on the request — never in the event body. When unset, events are anonymous. The top-level `learning_commons_api_key` MUST NOT be used for telemetry (§3.1). Telemetry auth failures are logged at `DEBUG` and otherwise ignored.
 
 ### 8.2 Event fields
 
@@ -315,7 +318,6 @@ Logger:
 | `timestamp` | ISO 8601 UTC |
 | `sdk_version` | Package version string |
 | `evaluator_type` | Evaluator ID (§10.1) |
-| `tracking_key` | Caller-supplied `telemetry.tracking_key`; omitted when unset |
 | `grade` | Canonical grade token; null if the evaluator takes no grade |
 | `status` | `"success"` or `"error"` |
 | `error_code` | Canonical error class name on failure; null on success |
@@ -325,7 +327,7 @@ Logger:
 | `model_override` | `true` if an override was set; omitted otherwise |
 | `token_usage` | `{ input_tokens, output_tokens }` aggregated across phases |
 | `phase_details` | Array of per-phase objects (§8.3) |
-| `input_text` | Raw input — **only** when `telemetry.record_inputs = true` |
+| `input_text` | Raw input — **only** when `telemetry.record_raw_inputs = true` |
 
 ### 8.3 Phase details
 
@@ -463,7 +465,7 @@ Tracked deviations between this spec and the current SDKs — each a bug to fix 
 | 8 | §6.4–6.5 | TypeScript | `wrapProviderError` classifies via message regexes and lacks cause preservation | Structured-signal classification; preserve cause chain and structured attributes |
 | 9 | §6.1 | Python | Legacy `EvaluatorRetryableError` references | Remove aliases not in the taxonomy |
 | 10 | §9.1 | TypeScript | Math Standards Alignment batch unverified against contract | Audit per §9.1 |
-| 11 | §3 | Both | `partner_key` naming; no `telemetry.tracking_key` | Rename to `partner_api_key`; add `tracking_key` |
+| 11 | §3 | Both | `partner_key`/`platformApiKey` naming; TS falls back `partnerKey ?? platformApiKey`, silently repurposing the KG key for telemetry attribution | Rename to `learning_commons_api_key`; add `telemetry.learning_commons_api_key`; remove the cross-scope fallback |
 | 12 | §10 | Both | No shared registry; evaluator definitions duplicated in each SDK's code | Establish the registry (Q-6) and migrate definitions |
 | 13 | §10.1 | Both | Evaluator IDs are flat (`vocabulary`), not namespaced | Adopt hierarchical IDs once the taxonomy is finalized (Q-7) |
 | 14 | §11.3 | Both | No shared fixture format or cross-SDK harness (Python has an early harness tied to a temporary layout) | Establish fixture format with the registry; build per-language harnesses |
@@ -498,14 +500,15 @@ Per-SDK status against §11.2, updated whenever a gap closes or a new SDK lands.
 
 | # | Question | Notes |
 |---|---|---|
-| Q-1 | Should SDKs read API keys from environment variables as a fallback to explicit config? | UX win for scripts vs. surprise credential pickup in servers; precedence and naming must be canonical if adopted |
+| Q-1 | ~~Should SDKs read API keys from environment variables as a fallback to explicit config?~~ | **Resolved (§3.1):** never implicitly — env reads are the application's responsibility; SDKs MAY offer an explicit `from_env()` helper |
 | Q-2 | Payload shape taxonomy — should evaluator families (QTC, feedback, standards alignment, …) share declared payload profiles? | Deliberately deferred (§5.2); revisit once feedback and math evaluator classes mature |
 | Q-3 | Should registry definitions carry a version (prompt/model revision) surfaced in result `metadata`? | Would let users pin/detect evaluation-behavior changes (§12.3) programmatically |
 | Q-4 | Per-rule requirement IDs (OpenFeature-style `[ERR-3]`) | Adopt if fixtures and docs need finer-grained references than section numbers |
 | Q-5 | Timeout defaults and configurability (`timeout_ms` in config?) | `RequestTimeoutError` exists but no canonical timeout knob is specified |
 | Q-6 | Registry home and format: where do shared evaluator definitions and contract fixtures live, and how do SDKs consume them? | Early Python settings/contract-file work is the design input; its temporary layout is not the answer |
 | Q-7 | Evaluator ID taxonomy: finalize the hierarchical scheme (`literacy.ela_reading.vocabulary`) and its segment vocabulary | Blocks gap 13 |
-| Q-8 | `telemetry.tracking_key` semantics: confirm intent (partner-side app/integration segmentation), format, and any validation | Field added in §3 pending confirmation |
+| Q-8 | ~~Telemetry tracking field semantics~~ | **Resolved (§3, §8.1):** identified telemetry via explicit `telemetry.learning_commons_api_key` (gateway resolves the LC user); no separate tracking field |
+| Q-9 | Anonymous telemetry identity: should the spec define the SDK-generated `client_id`, and where does it travel (header vs event body)? | TS ships a persisted per-install UUID sent as `X-Client-ID`, but nothing downstream reads it — all anonymous events share one `anonymousId`. Needs the collector-side design before the spec commits |
 
 ---
 
