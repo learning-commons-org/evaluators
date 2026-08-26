@@ -54,6 +54,29 @@ describe('wrapProviderError — status-code classification', () => {
     expect(wrapProviderError(err, CONTEXT)).toBeInstanceOf(RateLimitError);
   });
 
+  // The shape a bring-your-own llmProvider produces: it wraps its vendor SDK's
+  // error rather than re-raising it, so the status is one link down. Reading
+  // only the outermost error would turn a rate limit into a permanent failure.
+  it('finds a loose status nested in the cause chain', () => {
+    const vendor = Object.assign(new Error('429 Too Many Requests'), { status: 429 });
+    const wrapped = wrapProviderError(new Error('gateway call failed', { cause: vendor }), CONTEXT);
+    expect(wrapped).toBeInstanceOf(RateLimitError);
+    expect(wrapped.retryable).toBe(true);
+  });
+
+  it('prefers the outermost loose status over a deeper one', () => {
+    const inner = Object.assign(new Error('inner'), { status: 500 });
+    const outer = Object.assign(new Error('outer'), { statusCode: 401, cause: inner });
+    expect(wrapProviderError(outer, CONTEXT)).toBeInstanceOf(AuthenticationError);
+  });
+
+  it('ignores a non-numeric status rather than reading it as a code', () => {
+    const err = Object.assign(new Error('nope'), { status: '429' });
+    const wrapped = wrapProviderError(err, CONTEXT);
+    expect(wrapped).toBeInstanceOf(LLMProviderError);
+    expect((wrapped as LLMProviderError).statusCode).toBeNull();
+  });
+
   it('falls back to the catch-all when no status is available', () => {
     const wrapped = wrapProviderError(new Error('something opaque'), CONTEXT);
     expect(wrapped).toBeInstanceOf(LLMProviderError);
@@ -239,19 +262,6 @@ describe('wrapProviderError — retryability comes through end to end', () => {
     expect(wrapProviderError(makeAPICallError(401, 'nope'), CONTEXT).retryable).toBe(false);
   });
 
-  it("honours the provider's own isRetryable verdict over the status heuristic", () => {
-    const err = new APICallError({
-      message: 'permanent server-side rejection',
-      url: 'https://api.example.com/v1/chat',
-      requestBodyValues: {},
-      statusCode: 500,
-      responseHeaders: {},
-      responseBody: '',
-      isRetryable: false,
-    });
-
-    expect(wrapProviderError(err, CONTEXT).retryable).toBe(false);
-  });
 });
 
 describe('wrapProviderError — transport failures stay classified and retryable', () => {
@@ -313,14 +323,78 @@ describe('wrapProviderError — unusable model output is our fault, not the depe
     expect(wrapProviderError(err, CONTEXT)).toBeInstanceOf(LLMOutputProcessingError);
   });
 
-  it('outranks a status code carried alongside it', () => {
-    const parse = new JSONParseError({ text: 'nope', cause: new Error('bad') });
+  // A 5xx whose body is an HTML error page surfaces as a parse failure nested
+  // under the APICallError. That is the service failing, not the model, and
+  // resampling it immediately would hammer a server that is already down.
+  it('yields to an HTTP error status, so a 500 with an unparseable body backs off', () => {
+    const parse = new JSONParseError({ text: '<html>502</html>', cause: new Error('bad') });
     const wrapped = wrapProviderError(
       Object.assign(makeAPICallError(500, 'server'), { cause: parse }),
       CONTEXT,
     );
 
+    expect(wrapped).toBeInstanceOf(LLMProviderError);
+    expect(wrapped).not.toBeInstanceOf(LLMOutputProcessingError);
+    expect(wrapped.retryable).toBe(true);
+  });
+
+  it('still claims a parse failure on a successful response', () => {
+    const parse = new JSONParseError({ text: '{"a":', cause: new Error('unexpected end') });
+    const wrapped = wrapProviderError(
+      Object.assign(makeAPICallError(200, 'ok'), { cause: parse }),
+      CONTEXT,
+    );
+
     expect(wrapped).toBeInstanceOf(LLMOutputProcessingError);
+  });
+
+  // 400 is the first failing status, and a 3xx is not a failure at all — the
+  // boundary decides whether the request or the response is blamed.
+  it.each([
+    [400, false],
+    [399, true],
+  ])('treats %i as a parse failure: %s', (status, isParseFailure) => {
+    const parse = new JSONParseError({ text: '<html>oops</html>', cause: new Error('bad') });
+    const wrapped = wrapProviderError(
+      Object.assign(makeAPICallError(status, 'upstream'), { cause: parse }),
+      CONTEXT,
+    );
+
+    expect(wrapped instanceof LLMOutputProcessingError).toBe(isParseFailure);
+  });
+});
+
+describe('wrapProviderError — the dependency verdict may widen, never narrow', () => {
+  const withVerdict = (statusCode: number, isRetryable: boolean) =>
+    new APICallError({
+      message: 'upstream',
+      url: 'https://api.example.com/v1/chat',
+      requestBodyValues: {},
+      statusCode,
+      responseHeaders: {},
+      responseBody: '',
+      isRetryable,
+    });
+
+  it('honours an upstream true on a status our own rule would not retry', () => {
+    // 409 Conflict: the AI SDK retries it, "iff 5xx" alone would not.
+    expect(wrapProviderError(withVerdict(409, true), CONTEXT).retryable).toBe(true);
+  });
+
+  it('keeps the 5xx floor when the upstream verdict says otherwise', () => {
+    expect(wrapProviderError(withVerdict(500, false), CONTEXT).retryable).toBe(true);
+  });
+
+  it('never lets an upstream flag make an auth failure retryable', () => {
+    const wrapped = wrapProviderError(withVerdict(403, true), CONTEXT);
+    expect(wrapped).toBeInstanceOf(AuthenticationError);
+    expect(wrapped.retryable).toBe(false);
+  });
+
+  it('never lets an upstream flag stop a rate limit from retrying', () => {
+    const wrapped = wrapProviderError(withVerdict(429, false), CONTEXT);
+    expect(wrapped).toBeInstanceOf(RateLimitError);
+    expect(wrapped.retryable).toBe(true);
   });
 });
 
@@ -379,9 +453,13 @@ describe('wrapProviderError — classification boundaries', () => {
     );
   });
 
-  it('maps an AbortError name to RequestTimeoutError', () => {
+  // AbortError is deliberate caller cancellation, not a timeout — retrying it
+  // would re-issue a request the caller just called off.
+  it('does not treat an AbortError as a retryable timeout', () => {
     const aborted = Object.assign(new Error('aborted'), { name: 'AbortError' });
-    expect(wrapProviderError(aborted, CONTEXT)).toBeInstanceOf(RequestTimeoutError);
+    const wrapped = wrapProviderError(aborted, CONTEXT);
+    expect(wrapped).not.toBeInstanceOf(RequestTimeoutError);
+    expect(wrapped.retryable).toBe(false);
   });
 
   // An errno we do not recognise must fall to the catch-all, not be guessed at.
@@ -433,6 +511,26 @@ describe('wrapProviderError — retry-after parsing', () => {
     const wrapped = withHeader({ 'retry-after': '0.25' });
     expect((wrapProviderError(wrapped, CONTEXT) as RateLimitError).retryAfterMs).toBe(250);
   });
+
+  it('reads a mixed-case Retry-After', () => {
+    const wrapped = withHeader({ 'Retry-After': '3' });
+    expect((wrapProviderError(wrapped, CONTEXT) as RateLimitError).retryAfterMs).toBe(3000);
+  });
+
+  // A zero delay would read as "retry immediately", which is never what a rate
+  // limiter meant — and `Number('')` is also 0, so this guards the empty header.
+  it.each([['zero', '0'], ['empty', ''], ['negative', '-5']])(
+    'rejects a %s Retry-After',
+    (_why, value) => {
+      const wrapped = withHeader({ 'retry-after': value });
+      expect((wrapProviderError(wrapped, CONTEXT) as RateLimitError).retryAfterMs).toBeNull();
+    }
+  );
+
+  it('falls through to retry-after-ms when the seconds header is unusable', () => {
+    const wrapped = withHeader({ 'retry-after': '0', 'retry-after-ms': '1500' });
+    expect((wrapProviderError(wrapped, CONTEXT) as RateLimitError).retryAfterMs).toBe(1500);
+  });
 });
 
 describe('wrapProviderError — requestId header fallbacks', () => {
@@ -458,6 +556,21 @@ describe('wrapProviderError — requestId header fallbacks', () => {
   it('is null when no known header is present', () => {
     const wrapped = wrapProviderError(withHeaders({ 'x-other': 'nope' }), CONTEXT) as DependencyError;
     expect(wrapped.requestId).toBeNull();
+  });
+
+  // HTTP header names are case-insensitive, and a custom `fetch` need not
+  // lower-case them on the way in.
+  it('reads a header the transport left mixed-case', () => {
+    const wrapped = wrapProviderError(withHeaders({ 'X-Request-Id': 'req_mixed' }), CONTEXT) as DependencyError;
+    expect(wrapped.requestId).toBe('req_mixed');
+  });
+
+  it('prefers x-request-id over the later fallbacks', () => {
+    const wrapped = wrapProviderError(
+      withHeaders({ 'x-amzn-requestid': 'req_amzn', 'x-request-id': 'req_x' }),
+      CONTEXT
+    ) as DependencyError;
+    expect(wrapped.requestId).toBe('req_x');
   });
 });
 

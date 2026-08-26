@@ -430,15 +430,21 @@ export abstract class BaseEvaluator {
     dependency: DependencyId;
     model: string;
   } {
-    const separator = provider.label.indexOf(':');
-    const prefix = separator === -1 ? provider.label : provider.label.slice(0, separator);
+    const label = provider.label;
+    const separator = label.indexOf(':');
+    const prefix = separator === -1 ? label : label.slice(0, separator);
 
-    // A known prefix is already reported as `dependency`, so `model` carries just
-    // the model id. An unknown one keeps the whole label, which is the only
-    // identifier a caller-supplied provider gives us.
-    return PROVIDER_DEPENDENCIES.has(prefix as DependencyId)
-      ? { dependency: prefix as DependencyId, model: provider.label.slice(separator + 1) }
-      : { dependency: 'custom', model: provider.label };
+    // An unrecognised prefix means a caller-supplied provider, whose vendor is
+    // theirs to know; the label is the only identifier we have, so keep it whole.
+    if (!PROVIDER_DEPENDENCIES.has(prefix)) {
+      return { dependency: 'custom', model: label };
+    }
+
+    // The vendor is already reported as `dependency`, so `model` need only carry
+    // the model id. Slicing past a missing separator yields the whole label,
+    // which is also the right answer when there is no model id to strip.
+    const model = label.slice(separator + 1);
+    return { dependency: prefix as DependencyId, model: model === '' ? label : model };
   }
 
   /**

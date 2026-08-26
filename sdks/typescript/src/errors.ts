@@ -34,7 +34,7 @@ export type DependencyId = 'openai' | 'google' | 'anthropic' | 'knowledge-graph'
  * prefix. `knowledge-graph` never does — that client raises its own errors — and
  * `custom` is the fallback for a label none of these match, not a match itself.
  */
-export const PROVIDER_DEPENDENCIES: ReadonlySet<DependencyId> = new Set<DependencyId>([
+export const PROVIDER_DEPENDENCIES: ReadonlySet<string> = new Set<DependencyId>([
   'openai',
   'google',
   'anthropic',
@@ -189,10 +189,18 @@ const NETWORK_CODES = new Set([
 
 /** Timeouts, by Node errno or the DOMException name `AbortSignal.timeout` raises. */
 const TIMEOUT_CODES = new Set(['ETIMEDOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT']);
-const TIMEOUT_NAMES = new Set(['TimeoutError', 'AbortError']);
+/**
+ * Only `TimeoutError`, which is what `AbortSignal.timeout` raises. `AbortError`
+ * is deliberate caller cancellation — retrying that would re-issue a request
+ * the caller just called off, so it stays in the non-retryable catch-all.
+ */
+const TIMEOUT_NAMES = new Set(['TimeoutError']);
 
 /** Header names providers use for the request ID, in preference order. */
 const REQUEST_ID_HEADERS = ['x-request-id', 'request-id', 'x-amzn-requestid'];
+
+/** Beyond this, a `Retry-After` is more likely malformed than meant. */
+const MAX_RETRY_AFTER_MS = 60 * 60 * 1000;
 
 interface ProviderSignals {
   message: string;
@@ -212,18 +220,35 @@ function* causeChain(error: unknown): Generator<unknown> {
   }
 }
 
+/**
+ * A delay is only usable if it is a positive, finite, plausible number of
+ * milliseconds. `Number('')` is `0`, and a zero delay reads as "retry now",
+ * which is worse than having no hint at all — so anything non-positive, and
+ * anything past the ceiling, is discarded.
+ */
+function usableDelayMs(value: number): number | null {
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return Math.min(Math.round(value), MAX_RETRY_AFTER_MS);
+}
+
 function readRetryAfterMs(headers: Record<string, string> | undefined): number | null {
-  const seconds = headers?.['retry-after'];
+  if (!headers) return null;
+  // `Retry-After` may also be an HTTP-date, which is not a delay we can use.
+  const seconds = lookupHeader(headers, 'retry-after');
   if (seconds !== undefined) {
-    const parsed = Number(seconds);
-    if (Number.isFinite(parsed)) return Math.round(parsed * 1000);
+    const fromSeconds = usableDelayMs(Number(seconds) * 1000);
+    if (fromSeconds !== null) return fromSeconds;
   }
-  const ms = headers?.['retry-after-ms'];
-  if (ms !== undefined) {
-    const parsed = Number(ms);
-    if (Number.isFinite(parsed)) return Math.round(parsed);
-  }
-  return null;
+  const ms = lookupHeader(headers, 'retry-after-ms');
+  return ms === undefined ? null : usableDelayMs(Number(ms));
+}
+
+/** Header names are case-insensitive; a custom `fetch` may not normalise them. */
+function lookupHeader(headers: Record<string, string>, name: string): string | undefined {
+  const direct = headers[name];
+  if (direct !== undefined) return direct;
+  const match = Object.keys(headers).find((key) => key.toLowerCase() === name);
+  return match === undefined ? undefined : headers[match];
 }
 
 /**
@@ -244,15 +269,24 @@ function readProviderSignals(error: unknown): ProviderSignals {
     return {
       ...base,
       statusCode: link.statusCode ?? null,
-      requestId: REQUEST_ID_HEADERS.map((h) => headers?.[h]).find((v) => v != null) ?? null,
+      requestId:
+        headers === undefined
+          ? null
+          : REQUEST_ID_HEADERS.map((h) => lookupHeader(headers, h)).find((v) => v != null) ?? null,
       retryable: link.isRetryable,
       retryAfterMs: readRetryAfterMs(headers),
     };
   }
 
-  // Not an AI SDK error: fall back to the loose properties other clients set.
-  const loose = error as { statusCode?: number; status?: number };
-  return { ...base, statusCode: loose?.statusCode ?? loose?.status ?? null };
+  // No AI SDK error in the chain: fall back to the loose properties other
+  // clients set. Searched along the chain too, since a bring-your-own provider
+  // typically wraps its vendor's error rather than re-raising it.
+  for (const link of causeChain(error)) {
+    const loose = link as { statusCode?: unknown; status?: unknown };
+    const status = typeof loose?.statusCode === 'number' ? loose.statusCode : loose?.status;
+    if (typeof status === 'number') return { ...base, statusCode: status };
+  }
+  return base;
 }
 
 /** Schema/parse failures are the model's fault, not the dependency's. */
@@ -298,13 +332,15 @@ export function wrapProviderError(
     statusCode,
     requestId: signals.requestId,
     model: context.model ?? null,
-    retryable: signals.retryable,
     cause: error,
   };
 
-  // The model returned something unusable — our fault to re-sample, not the
-  // dependency's to fix, so this outranks any transport signal.
-  if (isOutputProcessingFailure(error)) {
+  // A parse failure carrying an HTTP error status is the server erroring, not
+  // the model: the body is an error page, not a malformed completion. Treating
+  // it as our own output failure would resample immediately against a service
+  // that is already failing, so only unparseable *successful* responses count.
+  const httpFailed = statusCode !== null && statusCode >= 400;
+  if (!httpFailed && isOutputProcessingFailure(error)) {
     return new LLMOutputProcessingError(message, null, error);
   }
 
@@ -325,5 +361,12 @@ export function wrapProviderError(
   if (transport === 'timeout') return new RequestTimeoutError(message, options);
   if (transport === 'network') return new NetworkError(message, options);
 
-  return new LLMProviderError(message || 'API request failed', options);
+  // The dependency's own verdict only reaches the catch-all, whose class rule is
+  // "retryable iff 5xx" and so genuinely benefits from it. Classes with a
+  // definite policy keep theirs — an upstream flag must not make an auth failure
+  // retryable. It can only widen: a `false` never defeats the 5xx floor.
+  return new LLMProviderError(message || 'API request failed', {
+    ...options,
+    ...(signals.retryable === true ? { retryable: true } : {}),
+  });
 }

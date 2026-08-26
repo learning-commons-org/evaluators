@@ -226,14 +226,60 @@ describe('KnowledgeGraphClient - getStandardInfo', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('throws AuthenticationError on 401', async () => {
-    mockFetch(401, 'Unauthorized');
-    await expect(new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d')).rejects.toThrow(AuthenticationError);
+  it.each([401, 403])('throws AuthenticationError on %i', async (status) => {
+    mockFetch(status, 'Unauthorized');
+    const err = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d').catch((e) => e);
+    expect(err).toBeInstanceOf(AuthenticationError);
+    expect(err.message).toContain('Unauthorized');
+  });
+
+  // Reading the body is best-effort: a failure there must not mask the status
+  // we already know, nor leak "undefined" into the message.
+  it('classifies by status when the error body cannot be read', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      headers: new Headers(),
+      json: () => Promise.reject(new Error('stream closed')),
+      text: () => Promise.reject(new Error('stream closed')),
+    }));
+
+    const err = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d').catch((e) => e);
+    expect(err).toBeInstanceOf(KnowledgeGraphError);
+    expect(err.statusCode).toBe(503);
+    // An unreadable body contributes nothing — not "undefined", not a placeholder.
+    expect(err.message).toBe('Knowledge Graph request failed (503): ');
   });
 
   it('throws RateLimitError on 429', async () => {
     mockFetch(429, 'Too Many Requests');
     await expect(new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d')).rejects.toThrow(RateLimitError);
+  });
+
+  // Attribution and diagnostics are what let a caller tell a KG outage from an
+  // LLM one, so they must survive the trip out of the middleware.
+  it('attributes an HTTP failure to the knowledge graph, with status, request id and body', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: new Headers({ 'content-type': 'text/plain', 'x-request-id': 'req_kg' }),
+      json: () => Promise.resolve('slow down'),
+      text: () => Promise.resolve('slow down'),
+    }));
+
+    const err = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d').catch((e) => e);
+    expect(err).toBeInstanceOf(RateLimitError);
+    expect(err.dependency).toBe('knowledge-graph');
+    expect(err.statusCode).toBe(429);
+    expect(err.requestId).toBe('req_kg');
+    expect(err.message).toContain('slow down');
+  });
+
+  it('leaves requestId null when the response carries no request id', async () => {
+    mockFetch(500, 'Server Error');
+    const err = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d').catch((e) => e);
+    expect(err.requestId).toBeNull();
+    expect(err.message).toContain('Server Error');
   });
 
   it('throws KnowledgeGraphError with statusCode on 500', async () => {
@@ -244,8 +290,46 @@ describe('KnowledgeGraphClient - getStandardInfo', () => {
   });
 
   it('throws NetworkError when fetch throws', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('ECONNREFUSED')));
-    await expect(new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d')).rejects.toThrow(NetworkError);
+    const cause = new Error('ECONNREFUSED');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(cause));
+    const err = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d').catch((e) => e);
+    expect(err).toBeInstanceOf(NetworkError);
+    expect(err.dependency).toBe('knowledge-graph');
+    expect(err.cause).toBe(cause);
+    expect(err.message).toContain('ECONNREFUSED');
+  });
+
+  it('bounds the request with a timeout signal', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse([{ caseIdentifierUUID: 'u1' }]));
+    vi.stubGlobal('fetch', fetchMock);
+    await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d');
+
+    // Without this the client would hang indefinitely on an unresponsive KG.
+    expect(fetchMock.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('reports a non-Error rejection rather than losing it', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue('socket hang up'));
+    const err = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d').catch((e) => e);
+    expect(err).toBeInstanceOf(NetworkError);
+    expect(err.message).toContain('socket hang up');
+  });
+
+  // openapi-fetch parses the body itself, so a KG that answers 200 with
+  // non-JSON surfaces as a SyntaxError from deep inside the client.
+  it('wraps a malformed JSON body as a KnowledgeGraphError', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: () => Promise.resolve('<html>gateway</html>'),
+      json: () => Promise.reject(new SyntaxError('Unexpected token <')),
+    }));
+
+    const err = await new KnowledgeGraphClient(API_KEY).getStandardInfo('3.MD.C.7.d').catch((e) => e);
+    expect(err).toBeInstanceOf(KnowledgeGraphError);
+    expect(err.message).toContain('invalid JSON');
+    expect(err.cause).toBeInstanceOf(SyntaxError);
   });
 
   it('throws RequestTimeoutError, not NetworkError, when AbortSignal fires', async () => {

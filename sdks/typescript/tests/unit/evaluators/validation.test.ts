@@ -309,4 +309,37 @@ describe('providerContext — dependency attribution', () => {
       model: 'gateway:openai-compatible',
     });
   });
+
+  // A label carrying no model id still names the vendor where it can, and never
+  // reports an empty model — a blank attribution is worse than a redundant one.
+  it.each([
+    ['openai', 'openai', 'openai'],
+    ['openai:', 'openai', 'openai:'],
+  ])('keeps %s whole as model when it carries no model id', (label, dependency, model) => {
+    expect(probe().contextFor(label)).toEqual({ dependency, model });
+  });
+
+  it.each([
+    ['the empty label', ''],
+    ['a label with no prefix', ':gpt-4o'],
+    // Prefix matching is exact: a differently-cased vendor is not our vendor.
+    ['a differently-cased vendor', 'OpenAI:gpt-4o'],
+  ])('reports custom for %s', (_why, label) => {
+    expect(probe().contextFor(label)).toEqual({ dependency: 'custom', model: label });
+  });
+
+  // Binds attribution to the label VercelAIProvider actually emits. Without it
+  // every case here is hand-written, so a label-format change would reroute all
+  // real traffic to `custom` with the suite still green.
+  it('names the vendor for a label a real provider emits', () => {
+    const provider = createProvider({
+      type: 'openai',
+      model: 'gpt-4o-2024-11-20',
+      apiKey: 'k',
+    });
+    expect(probe().contextFor(provider.label)).toEqual({
+      dependency: 'openai',
+      model: 'gpt-4o-2024-11-20',
+    });
+  });
 });
