@@ -94,7 +94,7 @@ EVALUATORS: dict[str, dict] = {
         "pr": 161,
         "head_ref": "origin/worktree-ga-conventionality-fixes",
         "steps": {
-            "evaluate_conventionality": {
+            "evaluate_meaning_directness": {
                 "old": [
                     "evals/prompts/conventionality/system.txt",
                     "evals/prompts/conventionality/user.txt",
@@ -217,13 +217,13 @@ EVALUATORS: dict[str, dict] = {
     # --- feedback family -------------------------------------------------
     # All seven moved from evals/feedback/productive-coaching-writing-feedback/
     # to evals/feedback/ela-writing/. Single LLM step each, system + user.
-    "strength-acknowledgement": {
+    "strength-acknowledgment": {
         "family": "feedback",
         "old_name": "Acknowledges Strength",
         "pr": 185,
         "head_ref": "origin/feedback-strength-acknowledgement",
         "steps": {
-            "evaluate_strength_acknowledgement": {
+            "evaluate_strength_acknowledgment": {
                 "old": [
                     "evals/feedback/productive-coaching-writing-feedback/acknowledges-strength/system.txt",
                     "evals/feedback/productive-coaching-writing-feedback/acknowledges-strength/user.txt",
