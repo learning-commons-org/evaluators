@@ -114,8 +114,8 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
         .rejects.toThrow(InputValidationError);
     });
 
-    it('should throw InputValidationError for text that is too short', async () => {
-      await expect(evaluator.evaluate('Hi'))
+    it('should throw InputValidationError for whitespace-only text', async () => {
+      await expect(evaluator.evaluate('   '))
         .rejects.toThrow(InputValidationError);
     });
   });

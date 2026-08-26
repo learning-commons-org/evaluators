@@ -268,8 +268,8 @@ describe('OrganizationalStructureEvaluator - Validation', () => {
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
-  it('rejects text below minimum length', async () => {
-    await expect(evaluator.evaluate('Short', '5')).rejects.toThrow();
+  it('rejects whitespace-only text', async () => {
+    await expect(evaluator.evaluate('   ', '5')).rejects.toThrow(/empty or contain only whitespace/);
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 

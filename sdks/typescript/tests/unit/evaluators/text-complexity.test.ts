@@ -182,9 +182,6 @@ describe('TextComplexityEvaluator', () => {
       await expect(evaluator.evaluate('   ', '5')).rejects.toThrow(
         'Text cannot be empty or contain only whitespace'
       );
-      await expect(evaluator.evaluate('abc', '5')).rejects.toThrow(
-        'Text is too short'
-      );
     });
 
     it('should validate grade input', async () => {

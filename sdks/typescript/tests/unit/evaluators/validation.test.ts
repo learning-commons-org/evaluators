@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { VocabularyEvaluator } from '../../../src/evaluators/vocabulary.js';
 import { SmkEvaluator } from '../../../src/evaluators/smk.js';
 import { VALIDATION_LIMITS, Provider, BaseEvaluator } from '../../../src/evaluators/base.js';
-import { ConfigurationError } from '../../../src/errors.js';
+import { ConfigurationError, InputValidationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import { createProvider } from '../../../src/providers/index.js';
 
@@ -189,10 +189,12 @@ describe('Input Validation - Text Validation', () => {
   });
 
   describe('Minimum length validation', () => {
-    it(`should reject text shorter than ${VALIDATION_LIMITS.MIN_TEXT_LENGTH} characters`, async () => {
-      const shortText = 'Hello wo'; // 8 chars after trim
-      await expect(evaluator.evaluate(shortText, '5'))
-        .rejects.toThrow(`Text is too short. Minimum length is ${VALIDATION_LIMITS.MIN_TEXT_LENGTH} characters, received 8 characters`);
+    // The SDK minimum excludes empty input only, so short-but-real text is no
+    // longer a validation failure. Meaningful minimums are declared in each
+    // evaluator's input schema.
+    it('does not reject short text as invalid input', async () => {
+      const error = await evaluator.evaluate('Hello wo', '5').catch((e) => e);
+      expect(error).not.toBeInstanceOf(InputValidationError);
     });
   });
 
