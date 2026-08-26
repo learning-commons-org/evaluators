@@ -182,3 +182,25 @@ describe('createProvider', () => {
     expect(provider).toBeInstanceOf(mod.VercelAIProvider);
   });
 });
+
+describe('VercelAIProvider - maxTokens', () => {
+  const CONFIG: ProviderConfig = { type: 'openai', model: 'gpt-4o-mini', apiKey: 'k' };
+  const schema = z.object({ ok: z.boolean() });
+  const messages = [{ role: 'user' as const, content: 'hi' }];
+
+  it('forwards maxTokens under the vendor name the SDK actually reads', async () => {
+    const { mod, generateText } = await loadProvider();
+    await new mod.VercelAIProvider(CONFIG).generateStructured({ messages, schema, maxTokens: 4096 });
+
+    const call = generateText.mock.calls[0][0];
+    expect(call.maxOutputTokens).toBe(4096);
+    expect(call).not.toHaveProperty('maxTokens');
+  });
+
+  it('omits it entirely when unset', async () => {
+    const { mod, generateText } = await loadProvider();
+    await new mod.VercelAIProvider(CONFIG).generateStructured({ messages, schema });
+
+    expect(generateText.mock.calls[0][0]).not.toHaveProperty('maxOutputTokens');
+  });
+});

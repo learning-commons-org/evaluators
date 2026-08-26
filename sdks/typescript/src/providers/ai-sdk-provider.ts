@@ -47,7 +47,8 @@ export class VercelAIProvider implements LLMProvider {
       output: Output.object({ schema: request.schema }),
       temperature: request.temperature ?? 0,
       maxRetries: this.config.maxRetries ?? 0,
-      ...(request.maxTokens !== undefined ? { maxTokens: request.maxTokens } : {}),
+      // maxOutputTokens is the vendor option; `maxTokens` is silently discarded.
+      ...(request.maxTokens !== undefined ? { maxOutputTokens: request.maxTokens } : {}),
     });
 
     return {
