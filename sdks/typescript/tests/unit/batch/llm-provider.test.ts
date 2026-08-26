@@ -40,8 +40,8 @@ function makeInputs(count: number): BatchInput[] {
     'called cellular respiration in eukaryotic organisms.';
   return Array.from({ length: count }, (_, i) => ({
     rowIndex: i + 2,
-    columns: { text, grade: '6-8' },
-    originalRow: { text: 'sample', grade: '6-8' },
+    columns: { text, grade_level: '6-8' },
+    originalRow: { text: 'sample', grade_level: '6-8' },
   }));
 }
 

@@ -223,7 +223,7 @@ export function formatAsHTML(output: BatchOutput, meta: ReportMeta): string {
     for (const [rowIndex, rowResults] of byRow) {
       const glaResult = rowResults.find(r => r.evaluatorId === GLA_EVALUATOR_ID);
       if (glaResult && glaResult.status === 'success' && glaResult.score) {
-        const status = getGLAStatus(glaResult.grade, glaResult.score);
+        const status = getGLAStatus(glaResult.gradeLevel, glaResult.score);
         rowGLAStatus.set(rowIndex, { status, band: glaResult.score, reasoning: glaResult.reasoning || '' });
         if (status === 'on-band') glaCounts.onBand++;
         else if (status === 'adjacent') glaCounts.adjacent++;
@@ -267,7 +267,7 @@ export function formatAsHTML(output: BatchOutput, meta: ReportMeta): string {
   for (const [rowIndex, rowResults] of byRow) {
     const firstResult = rowResults[0];
     if (!firstResult) continue;
-    const bandIdx = gradeToBandIndex(firstResult.grade);
+    const bandIdx = gradeToBandIndex(firstResult.gradeLevel);
     if (bandIdx === -1) continue;
 
     const glaStatus = rowGLAStatus.get(rowIndex);
@@ -286,7 +286,7 @@ export function formatAsHTML(output: BatchOutput, meta: ReportMeta): string {
   for (const rowResults of byRow.values()) {
     const firstResult = rowResults[0];
     if (!firstResult) continue;
-    const bandIdx = gradeToBandIndex(firstResult.grade);
+    const bandIdx = gradeToBandIndex(firstResult.gradeLevel);
     if (bandIdx === -1) continue;
 
     complexityIds.forEach((evalId, evalIdx) => {

@@ -21,12 +21,12 @@ const EVALUATOR_ID = MathStandardsAlignmentEvaluator.metadata.id;
 const MEMBERS = [{ id: EVALUATOR_ID, name: MathStandardsAlignmentEvaluator.metadata.name }];
 
 // question + statementCode are load-bearing; jurisdiction defaults to CCSS
-// (Multi-State); grade + id are passthrough metadata (report slicing / joining).
+// (Multi-State); grade_level + id are passthrough metadata (report slicing / joining).
 export const STANDARDS_COLUMNS: ColumnSpec[] = [
   { name: 'question', aliases: ['text'], required: true },
   { name: 'statementCode', aliases: ['statement_code', 'ccss_standard', 'standard'], required: true },
   { name: 'jurisdiction', required: false, default: Jurisdiction.MultiState },
-  { name: 'grade', required: false },
+  { name: 'grade_level', required: false },
   { name: 'id', aliases: ['item_id'], required: false },
 ];
 

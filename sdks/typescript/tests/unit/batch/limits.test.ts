@@ -22,7 +22,7 @@ function stubFamily(runTask: (row: FamilyRow, memberId: string) => Promise<TaskO
     members,
     columns: [
       { name: 'text', required: true },
-      { name: 'grade', required: true },
+      { name: 'grade_level', required: true },
     ],
     maxInputRows: 1000,
     requiredKeys: () => [],
@@ -33,8 +33,8 @@ function stubFamily(runTask: (row: FamilyRow, memberId: string) => Promise<TaskO
 function makeInputs(count: number): BatchInput[] {
   return Array.from({ length: count }, (_, i) => ({
     rowIndex: i + 2,
-    columns: { text: 'The cat sat on the mat.', grade: '3' },
-    originalRow: { text: 'The cat sat on the mat.', grade: '3' },
+    columns: { text: 'The cat sat on the mat.', grade_level: '3' },
+    originalRow: { text: 'The cat sat on the mat.', grade_level: '3' },
   }));
 }
 
@@ -280,11 +280,11 @@ describe('BatchEvaluator.evaluate() — row-level failures and empty input', () 
     const family = stubFamily(async () => ({ score: 'slightly complex', reasoning: 'ok' }));
     const seen: BatchResult[] = [];
 
-    // Header validation passes on row 1, so the empty `grade` is caught per row.
+    // Header validation passes on row 1, so the empty `grade_level` is caught per row.
     // parseCSV trims, so an empty cell arrives as '' — what normalizeRow rejects.
     const inputs: BatchInput[] = [
-      { rowIndex: 2, columns: { text: 'fine', grade: '3' }, originalRow: { text: 'fine', grade: '3' } },
-      { rowIndex: 3, columns: { text: 'bad', grade: '' }, originalRow: { text: 'bad', grade: '' } },
+      { rowIndex: 2, columns: { text: 'fine', grade_level: '3' }, originalRow: { text: 'fine', grade_level: '3' } },
+      { rowIndex: 3, columns: { text: 'bad', grade_level: '' }, originalRow: { text: 'bad', grade_level: '' } },
     ];
 
     const output = await evaluator.evaluate(inputs, family, { onProgress: (r) => seen.push(r) });

@@ -80,7 +80,7 @@ describeIntegration('Batch Evaluator - Integration', () => {
       for (const result of output.results) {
         expect(result.rowIndex).toBeGreaterThan(0);
         expect(result.text).toBeTruthy();
-        expect(result.grade).toBeTruthy();
+        expect(result.gradeLevel).toBeTruthy();
         expect(group.evaluatorIds).toContain(result.evaluatorId);
         expect(result.status).toMatch(/success|error/);
         expect(result.processingTimeMs).toBeGreaterThan(0);

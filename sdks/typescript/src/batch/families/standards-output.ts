@@ -18,7 +18,7 @@ export interface StandardsOutputMeta {
 interface StandardsRow {
   rowIndex: number;
   id: string;
-  grade: string;
+  gradeLevel: string;
   statementCode: string;
   jurisdiction: string;
   question: string;
@@ -57,7 +57,7 @@ function toRow(result: BatchResult): StandardsRow {
   return {
     rowIndex: result.rowIndex,
     id: column(result, 'id'),
-    grade: result.grade || column(result, 'grade'),
+    gradeLevel: result.gradeLevel || column(result, 'grade_level'),
     // Keep context on error rows, which carry no verdict to read from.
     statementCode: verdict?.statementCode ?? column(result, 'statementCode'),
     jurisdiction: verdict?.jurisdiction ?? column(result, 'jurisdiction'),
@@ -97,7 +97,7 @@ export function formatStandardsJSON(output: BatchOutput, meta: StandardsOutputMe
       items: rows.map((r) => ({
         rowIndex: r.rowIndex,
         id: r.id,
-        grade: r.grade,
+        gradeLevel: r.gradeLevel,
         statementCode: r.statementCode,
         jurisdiction: r.jurisdiction,
         question: r.question,
@@ -190,7 +190,7 @@ const INJECTION_MARKER = 'var REPORT_DATA = null; // __REPLACED_BY_FORMATTER__';
 
 /**
  * Self-contained verdict browser: per-item aligned/total with expandable
- * per-component reasoning/feedback, filterable by standard and grade. Reports
+ * per-component reasoning/feedback, filterable by standard and grade level. Reports
  * verdicts only — no flag-rate/coverage aggregates (that is interpretation,
  * done downstream from the JSON).
  */

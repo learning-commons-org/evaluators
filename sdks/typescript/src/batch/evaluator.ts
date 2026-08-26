@@ -65,7 +65,7 @@ function assertHasColumns(input: BatchInput): void {
         `column name to value, received ${received}.` +
         (legacy
           ? ' Rows carrying top-level "text"/"grade" predate family-aware input; pass' +
-            ' { columns: { text, grade } } instead.'
+            ' { columns: { text, grade_level } } instead.'
           : ' Build rows with parseCSV() or supply columns explicitly.'),
     );
   }
@@ -124,7 +124,7 @@ export class BatchEvaluator {
     return {
       rowIndex: row.rowIndex,
       text: row.columns.text ?? row.columns.question ?? '',
-      grade: row.columns.grade ?? '',
+      gradeLevel: row.columns['grade_level'] ?? '',
       evaluatorId: memberId,
       status: 'error',
       error,
@@ -154,7 +154,7 @@ export class BatchEvaluator {
       const result: BatchResult = {
         rowIndex: row.rowIndex,
         text: row.columns.text ?? row.columns.question ?? '',
-        grade: row.columns.grade ?? '',
+        gradeLevel: row.columns['grade_level'] ?? '',
         evaluatorId: task.memberId,
         status: 'success',
         score: outcome.score,
