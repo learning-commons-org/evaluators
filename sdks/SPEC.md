@@ -106,8 +106,8 @@ Every evaluator accepts a config object at construction time.
 | `telemetry.record_raw_inputs` | bool | `false` | Include verbatim user-supplied inputs in telemetry (Principle 7) |
 | `telemetry.learning_commons_api_key` | string | none | Explicit opt-in to **identified** telemetry: sent as auth on telemetry requests, which the gateway resolves to the partner's Learning Commons user for event attribution. Unset → events are anonymous |
 | `llm_provider` | object | none | *(Experimental)* Bring-your-own-provider: a caller-supplied provider client used for all LLM calls. Conflicts with `model_override` → `ConfigurationError` |
-| `logger` | object | none | Custom logger implementing `Logger` (§7): `debug`/`info`/`warn`/`error`, each `(message, context?)`. Replaces the default console logger |
-| `log_level` | enum | `WARN` | Minimum level for the **default** logger: `DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT`. Ignored when a custom `logger` is provided |
+| `logger` | object | none | *(TypeScript mechanism, §7)* Custom logger: `debug`/`info`/`warn`/`error`, each `(message, context?)`. Replaces the default console logger |
+| `log_level` | enum | `WARN` | *(TypeScript mechanism, §7)* Minimum level for the default logger: `DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT`. Ignored when a custom `logger` is provided. Python uses the stdlib named-logger hierarchy instead |
 
 ### 3.1 Keys: resolution and validation
 
@@ -286,21 +286,17 @@ Classify by **structured signals only** — status code, typed exception, struct
 
 ## 7. Logging
 
-The canonical `Logger` interface:
+Logging is a behavioral contract; the mechanism is language-idiomatic (Principle 2). Every SDK MUST:
 
-```
-Logger:
-  debug(message: string, context?: LogContext): void
-  info(message: string, context?: LogContext): void
-  warn(message: string, context?: LogContext): void
-  error(message: string, context?: LogContext): void
-```
+- Never throw, block, or alter results from a logging path (Principle 5) — logging failures are swallowed.
+- Emit structured context where the language allows it, using the reserved keys `evaluator`, `operation`, `error`.
+- Be quiet by default (WARN-equivalent) and fully silenceable.
+- Keep raw user input text out of log output above `DEBUG`; model outputs and scores MAY be logged (Principle 7).
 
-`LogContext` is a string-keyed map. Reserved keys (always safe to emit): `evaluator`, `operation`, `error`. Model outputs and scores may be logged (Principle 7); raw user input text MUST NOT appear above `DEBUG`.
+Mechanism per language:
 
-- With a custom `logger`, the SDK routes all output through it and MUST NOT apply `log_level` filtering — level policy belongs to the custom logger.
-- A logger that throws MUST NOT fail the evaluation (Principle 5); the SDK swallows logger exceptions.
-- `log_level: SILENT` disables the default logger entirely.
+- **TypeScript** — config accepts `logger` (interface: `debug`/`info`/`warn`/`error`, each `(message, context?)`) and `logLevel` for the default console logger; `SILENT` disables it. With a custom logger, the SDK routes all output through it and applies no level filtering — level policy belongs to the logger.
+- **Python** — the SDK emits to its named logger hierarchy (`learning_commons_evaluators.*`) per the stdlib library convention (`NullHandler`, no root configuration); the application owns handlers, levels, and formatting. No logging fields are required in config.
 
 ---
 
@@ -407,7 +403,7 @@ A new SDK claims conformance by satisfying the checklist and passing the shared 
 | C-2 | Full canonical error taxonomy (§6.1) with fields (§6.2), data-driven retryability (§6.3), safe messages (§6.4), provider mapping (§6.5) |
 | C-3 | Input validation order, messages, and limits per §4 |
 | C-4 | Result envelope (§5.1) and payload invariants (§5.2) for every implemented evaluator |
-| C-5 | Logger interface and behavior per §7 |
+| C-5 | Logging behavior per §7 (mechanism is language-idiomatic) |
 | C-6 | Telemetry semantics and event schema per §8 |
 | C-7 | Derived-input computation and structured-output enforcement per §10.3–10.4 (registry authoring rules in §10.2–10.3 are validated registry-side, not by SDKs) |
 | C-8 | Every implemented evaluator matches its registry definition (§10.1) and passes its contract fixtures (§11.3) |
@@ -495,7 +491,7 @@ Per-SDK status against §11.2, updated whenever a gap closes or a new SDK lands.
 | C-2 Errors | ✗ (gaps 1–3, 8) | ◐ (gaps 4, 9) |
 | C-3 Input validation | ◐ | ◐ |
 | C-4 Envelope & payload | ✗ (gap 5) | ✗ (gap 6) |
-| C-5 Logging | ✓ | ◐ |
+| C-5 Logging | ✓ | ✓ |
 | C-6 Telemetry | ◐ | ✗ (gap 7) |
 | C-7 Registry rules | ◐ | ◐ |
 | C-8 Registry + fixtures | ✗ (gaps 12–14) | ✗ (gaps 12–14) |
