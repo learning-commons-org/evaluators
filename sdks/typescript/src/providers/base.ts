@@ -14,7 +14,8 @@ export interface Message {
 export interface LLMRequest<T> {
   messages: Message[];
   schema: z.ZodSchema<T>;
-  temperature?: number;
+  /** `null` sends no temperature at all, for models that reject an explicit value. */
+  temperature?: number | null;
   maxTokens?: number;
 }
 
@@ -56,9 +57,10 @@ export interface LLMProvider {
   generateStructured<T>(request: LLMRequest<T>): Promise<LLMResponse<T>>;
 
   /**
-   * Generate plain text from LLM
+   * Generate plain text from LLM. `null` sends no temperature; omitting the
+   * argument falls back to `ProviderConfig.temperature`.
    */
-  generateText(messages: Message[], temperature?: number): Promise<TextGenerationResponse>;
+  generateText(messages: Message[], temperature?: number | null): Promise<TextGenerationResponse>;
 }
 
 /**
@@ -78,7 +80,8 @@ export interface ProviderConfig {
   type: 'openai' | 'anthropic' | 'google' | 'custom';
   apiKey?: string;
   model?: string;
-  temperature?: number;
+  /** `null` sends no temperature at all. */
+  temperature?: number | null;
   baseURL?: string;
   customProvider?: LLMProvider;
   maxRetries?: number;

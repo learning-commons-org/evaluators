@@ -124,7 +124,7 @@ export interface MathStandardsAlignmentEvaluatorConfig extends BaseEvaluatorConf
 // ---------------------------------------------------------------------------
 
 const DETAIL_MODEL: string = STEP.model.name;
-const TEMPERATURE: number = STEP.generation.temperature;
+const TEMPERATURE: number | null = STEP.generation.temperature;
 const KG_SUBJECT = 'Mathematics';
 /**
  * Above this many question/standard pairs, evaluateByGrade warns. A grade can carry
@@ -600,6 +600,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
           { role: 'user', content: getCoarseFilterPrompt({ question, standards: standardList }) },
         ],
         schema: CoarseFilterSchema,
+        temperature: TEMPERATURE,
       });
 
       const relevant = new Set<string>();
