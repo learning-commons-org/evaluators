@@ -22,7 +22,7 @@ const STANDARDS_PAGE_SIZE = 500;
 const LC_PAGE_SIZE = 100;
 /** The search endpoint's maximum. Explicit because its default is 5, not the cap. */
 export const STANDARD_SEARCH_LIMIT = 50;
-/** Generous: the largest grade needs 3 pages of 500. */
+/** Generous: the largest grade level needs 3 pages of 500. */
 const MAX_PAGES = 200;
 
 /**
@@ -172,7 +172,7 @@ export class KnowledgeGraphClient {
     return p;
   }
 
-  async getStandardsByGrade(grade: string, opts?: StandardsByGradeOptions): Promise<AcademicStandard[]> {
+  async getStandardsByGradeLevel(gradeLevel: string, opts?: StandardsByGradeOptions): Promise<AcademicStandard[]> {
     const frameworkUuid = await this._getFrameworkUuid(
       opts?.jurisdiction ?? 'Multi-State',
       opts?.academicSubject,
@@ -182,11 +182,11 @@ export class KnowledgeGraphClient {
       paths['/academic-standards']['get']['parameters']['query']
     >;
 
-    return this._paginate(`grade "${grade}"`, async (cursor) => {
+    return this._paginate(`grade level "${gradeLevel}"`, async (cursor) => {
       const query: StandardsQuery = {
         limit: STANDARDS_PAGE_SIZE,
         standardsFrameworkCaseIdentifierUUID: frameworkUuid,
-        gradeLevel: [grade] as components['parameters']['GradeLevelParam'],
+        gradeLevel: [gradeLevel] as components['parameters']['GradeLevelParam'],
         normalizedStatementType: 'Standard' as components['schemas']['NormalizedStatementTypeENUM'],
         ...(opts?.academicSubject
           ? { academicSubject: opts.academicSubject as components['schemas']['AcademicSubjectENUM'] }

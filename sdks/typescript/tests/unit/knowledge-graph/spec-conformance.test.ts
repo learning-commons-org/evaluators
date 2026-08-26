@@ -34,7 +34,7 @@ export const listEndpointReturnsSpecStandard: NonNullable<
 // spec adds or removes a jurisdiction, this stops compiling.
 export const jurisdictionsMatchSpec: Exact<`${Jurisdiction}`, SpecJurisdiction> = true;
 
-// Mirrors the projection in client.ts getStandardsByGrade. Fails to compile if
+// Mirrors the projection in client.ts getStandardsByGradeLevel. Fails to compile if
 // the spec renames, removes, or incompatibly narrows any mapped field.
 export function projectSpecStandard(item: SpecStandard): AcademicStandard {
   return {
@@ -69,7 +69,7 @@ beforeEach(() => { vi.unstubAllGlobals(); });
 
 // A response item carrying every field the current spec marks required,
 // including ones we do not project. Regenerating the spec with a new required
-// field should not change what getStandardsByGrade returns.
+// field should not change what getStandardsByGradeLevel returns.
 const fullSpecItem: SpecStandard = {
   identifier: 'id-1',
   caseIdentifierUUID: 'uuid-1',
@@ -90,7 +90,7 @@ describe('Knowledge Graph spec conformance', () => {
   it('projects a fully spec-shaped standard to exactly the AcademicStandard fields', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(okResponse({ data: [fullSpecItem] })));
 
-    const [standard] = await new KnowledgeGraphClient('k').getStandardsByGrade('3');
+    const [standard] = await new KnowledgeGraphClient('k').getStandardsByGradeLevel('3');
 
     expect(standard).toEqual({
       caseIdentifierUUID: 'uuid-1',
@@ -115,7 +115,7 @@ describe('Knowledge Graph spec conformance', () => {
     const item: SpecStandard = { ...fullSpecItem, gradeLevel: null };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(okResponse({ data: [item] })));
 
-    const [standard] = await new KnowledgeGraphClient('k').getStandardsByGrade('3');
+    const [standard] = await new KnowledgeGraphClient('k').getStandardsByGradeLevel('3');
 
     expect(standard.gradeLevel).toEqual([]);
   });
@@ -134,7 +134,7 @@ describe('Knowledge Graph spec conformance', () => {
       );
       vi.stubGlobal('fetch', fetchMock);
 
-      await new KnowledgeGraphClient('k').getStandardsByGrade('3', { jurisdiction });
+      await new KnowledgeGraphClient('k').getStandardsByGradeLevel('3', { jurisdiction });
 
       const url = new URL((fetchMock.mock.calls[0][0] as Request).url);
       expect(url.pathname).toContain('/standards-frameworks');
@@ -151,7 +151,7 @@ describe('Knowledge Graph spec conformance', () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse({ data: [] }));
     vi.stubGlobal('fetch', fetchMock);
 
-    await new KnowledgeGraphClient('k').getStandardsByGrade('3', {
+    await new KnowledgeGraphClient('k').getStandardsByGradeLevel('3', {
       jurisdiction: Jurisdiction.MultiState,
     });
 

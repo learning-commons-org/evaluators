@@ -60,7 +60,7 @@ function makeMockKgClient(overrides: Partial<KnowledgeGraphClient> = {}): Knowle
   return {
     getStandardInfo: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', description: 'Recognize area as additive' }),
     getLearningComponents: vi.fn().mockResolvedValue(LC_COMPONENTS),
-    getStandardsByGrade: vi.fn().mockResolvedValue([
+    getStandardsByGradeLevel: vi.fn().mockResolvedValue([
       {
         caseIdentifierUUID: 'uuid-abc',
         statementCode: STATEMENT_CODE,
@@ -507,34 +507,34 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems (shared codes)', () =>
 });
 
 // ---------------------------------------------------------------------------
-// evaluateByGrade
+// evaluateByGradeLevel
 // ---------------------------------------------------------------------------
 
-describe('MathStandardsAlignmentEvaluator - evaluateByGrade', () => {
+describe('MathStandardsAlignmentEvaluator - evaluateByGradeLevel', () => {
   it('throws InputValidationError for empty questions array', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    await expect(evaluator.evaluateByGrade([], '3', JURISDICTION)).rejects.toThrow(InputValidationError);
+    await expect(evaluator.evaluateByGradeLevel([], '3', JURISDICTION)).rejects.toThrow(InputValidationError);
   });
 
   it('throws InputValidationError for invalid grade', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    await expect(evaluator.evaluateByGrade([QUESTION], '13', JURISDICTION)).rejects.toThrow(InputValidationError);
+    await expect(evaluator.evaluateByGradeLevel([QUESTION], '13', JURISDICTION)).rejects.toThrow(InputValidationError);
   });
 
   it('fetches standards for grade and jurisdiction, deduping codes reused across courses', async () => {
     // A jurisdiction reusing one code across courses returns an item per course.
     // Without deduping, byStandard would repeat that code.
     const repo = makeMockKgClient({
-      getStandardsByGrade: vi.fn().mockResolvedValue([
+      getStandardsByGradeLevel: vi.fn().mockResolvedValue([
         { caseIdentifierUUID: 'u1', statementCode: '3.MD.C.7.d', description: 'Area', statementType: 'Standard', normalizedStatementType: 'Standard', gradeLevel: ['3'] },
         { caseIdentifierUUID: 'u1b', statementCode: '3.MD.C.7.d', description: 'Area, other course', statementType: 'Standard', normalizedStatementType: 'Standard', gradeLevel: ['3'] },
         { caseIdentifierUUID: 'u2', statementCode: '3.OA.A.1', description: 'Products', statementType: 'Standard', normalizedStatementType: 'Standard', gradeLevel: ['3'] },
       ]),
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo }));
-    const result = await evaluator.evaluateByGrade([QUESTION], '3', JURISDICTION, { useCoarseFilter: false });
+    const result = await evaluator.evaluateByGradeLevel([QUESTION], '3', JURISDICTION, { useCoarseFilter: false });
 
-    expect(repo.getStandardsByGrade).toHaveBeenCalledWith('3', { jurisdiction: JURISDICTION, academicSubject: 'Mathematics' });
+    expect(repo.getStandardsByGradeLevel).toHaveBeenCalledWith('3', { jurisdiction: JURISDICTION, academicSubject: 'Mathematics' });
     expect(result.byStandard.map((s) => s.statementCode)).toEqual(['3.MD.C.7.d', '3.OA.A.1']);
     expect(result.byQuestion[0].standards).toHaveLength(2);
   });
@@ -548,12 +548,12 @@ describe('MathStandardsAlignmentEvaluator - evaluateByGrade', () => {
 
     const small = makeMockKgClient();
     await new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: small, logger }))
-      .evaluateByGrade([QUESTION], '3', JURISDICTION, { useCoarseFilter: false });
+      .evaluateByGradeLevel([QUESTION], '3', JURISDICTION, { useCoarseFilter: false });
     expect(logger.warn).not.toHaveBeenCalled();
 
-    const large = makeMockKgClient({ getStandardsByGrade: vi.fn().mockResolvedValue(manyStandards) });
+    const large = makeMockKgClient({ getStandardsByGradeLevel: vi.fn().mockResolvedValue(manyStandards) });
     await new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: large, logger }))
-      .evaluateByGrade([QUESTION], '3', JURISDICTION, { useCoarseFilter: false });
+      .evaluateByGradeLevel([QUESTION], '3', JURISDICTION, { useCoarseFilter: false });
 
     expect(logger.warn).toHaveBeenCalledTimes(1);
     expect(logger.warn.mock.calls[0][1]).toMatchObject({ questions: 1, standards: 501, pairs: 501 });
@@ -576,31 +576,31 @@ describe('MathStandardsAlignmentEvaluator - evaluateByGrade', () => {
     });
 
     const repo = makeMockKgClient({
-      getStandardsByGrade: vi.fn().mockResolvedValue([
+      getStandardsByGradeLevel: vi.fn().mockResolvedValue([
         { caseIdentifierUUID: 'u1', statementCode: STATEMENT_CODE, description: 'Area', statementType: 'Standard', normalizedStatementType: 'Standard', gradeLevel: ['3'] },
       ]),
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo }));
-    const result = await evaluator.evaluateByGrade(['Q1', 'Q2'], '3', JURISDICTION, { useCoarseFilter: false });
+    const result = await evaluator.evaluateByGradeLevel(['Q1', 'Q2'], '3', JURISDICTION, { useCoarseFilter: false });
 
     expect(result.byStandard[0].coverageCount).toBe(1);
     expect(result.byStandard[0].coveredBy[0].question).toBe('Q1');
   });
 
   it('returns empty byStandard and byQuestion stubs when KG returns no standards for grade', async () => {
-    const repo = makeMockKgClient({ getStandardsByGrade: vi.fn().mockResolvedValue([]) });
+    const repo = makeMockKgClient({ getStandardsByGradeLevel: vi.fn().mockResolvedValue([]) });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo }));
-    const result = await evaluator.evaluateByGrade([QUESTION], '3', JURISDICTION);
+    const result = await evaluator.evaluateByGradeLevel([QUESTION], '3', JURISDICTION);
     expect(result.byStandard).toEqual([]);
     expect(result.byQuestion).toEqual([{ question: QUESTION, standards: [] }]);
   });
 
-  it('passes California jurisdiction to getStandardsByGrade', async () => {
-    const repo = makeMockKgClient({ getStandardsByGrade: vi.fn().mockResolvedValue([]) });
+  it('passes California jurisdiction to getStandardsByGradeLevel', async () => {
+    const repo = makeMockKgClient({ getStandardsByGradeLevel: vi.fn().mockResolvedValue([]) });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo }));
-    await evaluator.evaluateByGrade([QUESTION], '5', Jurisdiction.California);
+    await evaluator.evaluateByGradeLevel([QUESTION], '5', Jurisdiction.California);
 
-    expect(repo.getStandardsByGrade).toHaveBeenCalledWith('5', { jurisdiction: Jurisdiction.California, academicSubject: 'Mathematics' });
+    expect(repo.getStandardsByGradeLevel).toHaveBeenCalledWith('5', { jurisdiction: Jurisdiction.California, academicSubject: 'Mathematics' });
   });
 });
 
@@ -795,7 +795,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
       getLearningComponentsByCode: vi.fn().mockRejectedValue(new KnowledgeGraphError('nope')),
     });
     const errored = await new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo }))
-      .evaluateByGrade(['Q1'], '3', JURISDICTION);
+      .evaluateByGradeLevel(['Q1'], '3', JURISDICTION);
 
     expect(errored.byQuestion[0].standards[0].error).toBeDefined();
     expect(errored.byStandard[0].coveredBy).toEqual([]);
@@ -811,7 +811,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
       },
     });
     const unaligned = await new MathStandardsAlignmentEvaluator(makeConfig())
-      .evaluateByGrade(['Q1'], '3', JURISDICTION);
+      .evaluateByGradeLevel(['Q1'], '3', JURISDICTION);
 
     expect(unaligned.byStandard[0]).toMatchObject({
       coverageCount: 0, errorCount: 0, evaluatedCount: 1, noComponentsCount: 0,
@@ -824,7 +824,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
       model: 'anthropic:claude-haiku-4-5-20251001', usage: { inputTokens: 50, outputTokens: 20 }, latencyMs: 200,
     });
     const filtered = await new MathStandardsAlignmentEvaluator(makeConfig())
-      .evaluateByGrade(['Q1'], '3', JURISDICTION, { useCoarseFilter: true });
+      .evaluateByGradeLevel(['Q1'], '3', JURISDICTION, { useCoarseFilter: true });
 
     expect(filtered.byStandard[0]).toMatchObject({
       coverageCount: 0, errorCount: 0, evaluatedCount: 0, filteredCount: 1,
@@ -836,7 +836,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
       getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [] }),
     });
     const unauthored = await new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: noComponents }))
-      .evaluateByGrade(['Q1'], '3', JURISDICTION);
+      .evaluateByGradeLevel(['Q1'], '3', JURISDICTION);
 
     // Its own counter, so all-zeros is never the only signal.
     expect(unauthored.byStandard[0]).toMatchObject({

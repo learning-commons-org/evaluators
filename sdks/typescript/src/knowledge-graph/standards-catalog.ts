@@ -120,9 +120,9 @@ export class StandardsCatalog {
     this.academicSubject = academicSubject || undefined;
   }
 
-  /** All instructional standards for a grade, across every result page. */
-  listStandards(grade: string, opts?: StandardsLookupOptions): Promise<AcademicStandard[]> {
-    return this.kg.getStandardsByGrade(grade, {
+  /** All instructional standards for a grade level, across every result page. */
+  listStandards(gradeLevel: string, opts?: StandardsLookupOptions): Promise<AcademicStandard[]> {
+    return this.kg.getStandardsByGradeLevel(gradeLevel, {
       jurisdiction: opts?.jurisdiction ?? Jurisdiction.MultiState,
       academicSubject: opts?.academicSubject ?? this.academicSubject,
     });
