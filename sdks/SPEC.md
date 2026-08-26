@@ -473,7 +473,7 @@ Tracked deviations between this spec and the current SDKs — each a bug to fix 
 | 10 | §9.1 | TypeScript | Math Standards Alignment batch unverified against contract | Audit per §9.1 |
 | 11 | §3 | Both | `partner_key`/`platformApiKey` naming; TS falls back `partnerKey ?? platformApiKey`, silently repurposing the KG key for telemetry attribution | Rename to `learning_commons_api_key`; add `telemetry.learning_commons_api_key`; remove the cross-scope fallback |
 | 12 | §10 | Both | No shared registry; evaluator definitions duplicated in each SDK's code | Establish the registry (Q-6) and migrate definitions |
-| 13 | §10.1 | Both | Evaluator IDs are flat (`vocabulary`), not namespaced | Adopt hierarchical IDs once the taxonomy is finalized (Q-7) |
+| 13 | §10.1 | Both | SDK-surfaced evaluator IDs are flat legacy names (`vocabulary`); no `stable_id`/`id_history` | Adopt the three-layer identity (`id` + `stable_id` + `id_history`) already used by the shared evaluator contract (PR #173) |
 | 14 | §11.3 | Both | No shared fixture format or cross-SDK harness (Python has an early harness tied to a temporary layout) | Establish fixture format with the registry; build per-language harnesses |
 | 15 | §10.3 | Python | `{format_instructions}` LangChain placeholders remain in prompts | Remove; enforce structured output at the chain layer |
 | 16 | §8.2–8.3 | Both | Telemetry field `provider` carries model strings | Rename to `model` in events and phase details |
@@ -513,7 +513,7 @@ Per-SDK status against §11.2, updated whenever a gap closes or a new SDK lands.
 | Q-3 | Should registry definitions carry a version (prompt/model revision) surfaced in result `metadata`? | Would let users pin/detect evaluation-behavior changes (§12.3) programmatically |
 | Q-4 | Per-rule requirement IDs (OpenFeature-style `[ERR-3]`) | Adopt if fixtures and docs need finer-grained references than section numbers |
 | Q-5 | Timeout defaults and configurability (`timeout_ms` in config?) | `RequestTimeoutError` exists but no canonical timeout knob is specified |
-| Q-6 | Registry home and format: where do shared evaluator definitions and contract fixtures live, and how do SDKs consume them? | Early Python settings/contract-file work is the design input; its temporary layout is not the answer |
+| Q-6 | Registry home and format: where do shared evaluator definitions and contract fixtures live, and how do SDKs consume them? | The shared evaluator contract emerging under `evals/<domain>/<skill>/<evaluator>/config.json` (schema, fixtures, prompts, per-language derived-input definitions — PR #173) is the leading candidate |
 | Q-7 | ~~Evaluator ID taxonomy~~ | **Resolved (§10.1):** identity is `stable_id` (UUID) + `id_history`; the readable dotted `id` may be renamed freely, so its segments carry no stability burden |
 | Q-8 | ~~Telemetry tracking field semantics~~ | **Resolved (§3, §8.1):** identified telemetry via explicit `telemetry.learning_commons_api_key` (gateway resolves the LC user); no separate tracking field |
 | Q-9 | Anonymous telemetry identity: should the spec define the SDK-generated `client_id`, and where does it travel (header vs event body)? | TS ships a persisted per-install UUID sent as `X-Client-ID`, but nothing downstream reads it — all anonymous events share one `anonymousId`. Needs the collector-side design before the spec commits |
