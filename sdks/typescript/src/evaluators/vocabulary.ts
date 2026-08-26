@@ -82,7 +82,8 @@ export class VocabularyEvaluator extends BaseEvaluator {
    * @returns Evaluation result with complexity score and detailed analysis
    * @throws {InputValidationError} If text is empty, too short/long, or grade is invalid
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
-   * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
+   * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
+   * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(
     text: string,
@@ -234,12 +235,12 @@ export class VocabularyEvaluator extends BaseEvaluator {
         throw error;
       }
 
-      // Three providers can fail here and the catch cannot tell which did, so
-      // attribute to the grade's complexity provider and report both models.
-      throw wrapProviderError(error, {
-        dependency: this.providerContext(complexityProvider).dependency,
-        model: modelLabel,
-      });
+      // An empty stageDetails means stage 1 (background knowledge) is what
+      // failed; otherwise it completed and stage 2 (complexity) did. Attribute
+      // to the provider that actually failed rather than a combined label.
+      const failed =
+        stageDetails.length === 0 ? this.backgroundKnowledgeProvider : complexityProvider;
+      throw wrapProviderError(error, this.providerContext(failed));
     }
   }
 

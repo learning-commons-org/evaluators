@@ -9,9 +9,36 @@
  * memorizing which classes retry. Strategy follows the category — dependency
  * failures back off, evaluation failures resample immediately.
  */
+import {
+  APICallError,
+  JSONParseError,
+  NoObjectGeneratedError,
+  TypeValidationError,
+} from 'ai';
 
-/** Canonical ID of an external system, for `DependencyError.dependency`. */
-export type DependencyId = 'openai' | 'google' | 'anthropic' | 'knowledge-graph';
+/**
+ * Canonical ID of an external system, for `DependencyError.dependency`.
+ *
+ * Closed on purpose: an integration we add must be named here rather than
+ * landing in a catch-all. `custom` is not that catch-all — it means the caller
+ * injected their own `llmProvider`, so the vendor is theirs to know, not ours.
+ * A `modelOverride` still reports its real vendor, since it is one of ours.
+ *
+ * The provider arm must stay in step with the `Provider` enum, which cannot be
+ * imported here without a cycle.
+ */
+export type DependencyId = 'openai' | 'google' | 'anthropic' | 'knowledge-graph' | 'custom';
+
+/**
+ * The subset of {@link DependencyId} that can appear as an LLM provider label's
+ * prefix. `knowledge-graph` never does — that client raises its own errors — and
+ * `custom` is the fallback for a label none of these match, not a match itself.
+ */
+export const PROVIDER_DEPENDENCIES: ReadonlySet<DependencyId> = new Set<DependencyId>([
+  'openai',
+  'google',
+  'anthropic',
+]);
 
 export interface DependencyErrorOptions {
   dependency: DependencyId;
@@ -111,7 +138,9 @@ export class RateLimitError extends DependencyError {
   readonly retryAfterMs: number | null;
 
   constructor(message: string, options: DependencyErrorOptions & { retryAfterMs?: number | null }) {
-    super(message, true, { statusCode: 429, ...options });
+    // Spread first, then default: a present-but-undefined statusCode must not
+    // clobber the 429 this class implies.
+    super(message, true, { ...options, statusCode: options.statusCode ?? 429 });
     this.name = 'RateLimitError';
     this.retryAfterMs = options.retryAfterMs ?? null;
   }
@@ -147,51 +176,137 @@ export class KnowledgeGraphError extends DependencyError {
   }
 }
 
-/**
- * Extract what the provider told us, preferring structured fields over the
- * message. Message text is not a contract — it is carried through for
- * diagnosis but never used to reclassify.
- */
-function readProviderError(error: unknown): {
+/** Connection-level failures, by Node errno rather than message text. */
+const NETWORK_CODES = new Set([
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'EPIPE',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+]);
+
+/** Timeouts, by Node errno or the DOMException name `AbortSignal.timeout` raises. */
+const TIMEOUT_CODES = new Set(['ETIMEDOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT']);
+const TIMEOUT_NAMES = new Set(['TimeoutError', 'AbortError']);
+
+/** Header names providers use for the request ID, in preference order. */
+const REQUEST_ID_HEADERS = ['x-request-id', 'request-id', 'x-amzn-requestid'];
+
+interface ProviderSignals {
   message: string;
   statusCode: number | null;
   requestId: string | null;
-} {
-  if (!(error instanceof Error)) {
-    return { message: String(error), statusCode: null, requestId: null };
+  /** The provider's own retryability verdict, when it gave one. */
+  retryable?: boolean;
+  retryAfterMs: number | null;
+}
+
+/** Walk the cause chain so a wrapped provider error is still classifiable. */
+function* causeChain(error: unknown): Generator<unknown> {
+  let current = error;
+  for (let depth = 0; current != null && depth < 10; depth++) {
+    yield current;
+    current = (current as { cause?: unknown }).cause;
   }
-  const err = error as Error & {
-    statusCode?: number;
-    status?: number;
-    requestId?: string;
-    request_id?: string;
+}
+
+function readRetryAfterMs(headers: Record<string, string> | undefined): number | null {
+  const seconds = headers?.['retry-after'];
+  if (seconds !== undefined) {
+    const parsed = Number(seconds);
+    if (Number.isFinite(parsed)) return Math.round(parsed * 1000);
+  }
+  const ms = headers?.['retry-after-ms'];
+  if (ms !== undefined) {
+    const parsed = Number(ms);
+    if (Number.isFinite(parsed)) return Math.round(parsed);
+  }
+  return null;
+}
+
+/**
+ * Read structured fields off whatever was thrown. Message text is carried for
+ * diagnosis but never used to classify.
+ */
+function readProviderSignals(error: unknown): ProviderSignals {
+  const base: ProviderSignals = {
+    message: error instanceof Error ? error.message : String(error),
+    statusCode: null,
+    requestId: null,
+    retryAfterMs: null,
   };
-  return {
-    message: error.message,
-    statusCode: err.statusCode ?? err.status ?? null,
-    requestId: err.requestId ?? err.request_id ?? null,
-  };
+
+  for (const link of causeChain(error)) {
+    if (!APICallError.isInstance(link)) continue;
+    const headers = link.responseHeaders;
+    return {
+      ...base,
+      statusCode: link.statusCode ?? null,
+      requestId: REQUEST_ID_HEADERS.map((h) => headers?.[h]).find((v) => v != null) ?? null,
+      retryable: link.isRetryable,
+      retryAfterMs: readRetryAfterMs(headers),
+    };
+  }
+
+  // Not an AI SDK error: fall back to the loose properties other clients set.
+  const loose = error as { statusCode?: number; status?: number };
+  return { ...base, statusCode: loose?.statusCode ?? loose?.status ?? null };
+}
+
+/** Schema/parse failures are the model's fault, not the dependency's. */
+function isOutputProcessingFailure(error: unknown): boolean {
+  for (const link of causeChain(error)) {
+    if (
+      NoObjectGeneratedError.isInstance(link) ||
+      TypeValidationError.isInstance(link) ||
+      JSONParseError.isInstance(link)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function findTransportFailure(error: unknown): 'network' | 'timeout' | null {
+  for (const link of causeChain(error)) {
+    const { code, name } = (link ?? {}) as { code?: string; name?: string };
+    if (code !== undefined && TIMEOUT_CODES.has(code)) return 'timeout';
+    if (name !== undefined && TIMEOUT_NAMES.has(name)) return 'timeout';
+    if (code !== undefined && NETWORK_CODES.has(code)) return 'network';
+  }
+  return null;
 }
 
 /**
  * Map a dependency failure onto the taxonomy.
  *
- * Classification uses status codes only. Free-text matching is deliberately
- * absent: wording is not a contract, and the catch-all is safer than a wrong
- * class. Text-only failures therefore land on `LLMProviderError`.
+ * Classification uses structured signals only — status codes, typed AI SDK
+ * errors, and Node errnos, each searched along the cause chain. Message text is
+ * never matched: wording is not a contract, and the catch-all is safer than a
+ * wrong class.
  */
 export function wrapProviderError(
   error: unknown,
   context: { dependency: DependencyId; model?: string | null }
 ): EvaluatorError {
-  const { message, statusCode, requestId } = readProviderError(error);
+  const signals = readProviderSignals(error);
+  const { message, statusCode } = signals;
   const options: DependencyErrorOptions = {
     dependency: context.dependency,
     statusCode,
-    requestId,
+    requestId: signals.requestId,
     model: context.model ?? null,
+    retryable: signals.retryable,
     cause: error,
   };
+
+  // The model returned something unusable — our fault to re-sample, not the
+  // dependency's to fix, so this outranks any transport signal.
+  if (isOutputProcessingFailure(error)) {
+    return new LLMOutputProcessingError(message, null, error);
+  }
 
   if (statusCode === 404) {
     return new ConfigurationError(
@@ -203,10 +318,12 @@ export function wrapProviderError(
     return new AuthenticationError(message, options);
   }
   if (statusCode === 429) {
-    return new RateLimitError(message, options);
+    return new RateLimitError(message, { ...options, retryAfterMs: signals.retryAfterMs });
   }
-  if (statusCode === 408) {
-    return new RequestTimeoutError(message, options);
-  }
+
+  const transport = statusCode === 408 ? 'timeout' : findTransportFailure(error);
+  if (transport === 'timeout') return new RequestTimeoutError(message, options);
+  if (transport === 'network') return new NetworkError(message, options);
+
   return new LLMProviderError(message || 'API request failed', options);
 }

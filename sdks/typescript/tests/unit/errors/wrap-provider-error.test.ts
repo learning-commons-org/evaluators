@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { APICallError } from 'ai';
+import { APICallError, JSONParseError, TypeValidationError } from 'ai';
 import {
   wrapProviderError,
   ConfigurationError,
@@ -18,6 +18,8 @@ import {
 
 const CONTEXT = { dependency: 'openai' as const, model: 'gpt-4o-2024-11-20' };
 
+// isRetryable is deliberately left to the AI SDK's own default (408/409/429/5xx),
+// so these fixtures behave like errors the provider actually produces.
 const makeAPICallError = (statusCode: number, message: string) =>
   new APICallError({
     message,
@@ -26,7 +28,6 @@ const makeAPICallError = (statusCode: number, message: string) =>
     statusCode,
     responseHeaders: {},
     responseBody: message,
-    isRetryable: false,
   });
 
 describe('wrapProviderError — status-code classification', () => {
@@ -107,14 +108,6 @@ describe('wrapProviderError — diagnostic attribution', () => {
   it('carries the upstream message rather than a generic substitute', () => {
     const wrapped = wrapProviderError(makeAPICallError(401, 'key sk-abc revoked on 2026-01-01'), CONTEXT);
     expect(wrapped.message).toBe('key sk-abc revoked on 2026-01-01');
-  });
-
-  it('extracts requestId from either casing', () => {
-    const camel = Object.assign(new Error('x'), { statusCode: 500, requestId: 'req_camel' });
-    const snake = Object.assign(new Error('x'), { statusCode: 500, request_id: 'req_snake' });
-
-    expect((wrapProviderError(camel, CONTEXT) as DependencyError).requestId).toBe('req_camel');
-    expect((wrapProviderError(snake, CONTEXT) as DependencyError).requestId).toBe('req_snake');
   });
 
   it('defaults model and requestId to null rather than undefined', () => {
@@ -224,5 +217,281 @@ describe('taxonomy shape', () => {
     const details = [{ path: 'evaluations', identifier: 'LC-1' }];
     expect(new LLMOutputProcessingError('x', details).validationErrors).toEqual(details);
     expect(new LLMOutputProcessingError('x').validationErrors).toBeNull();
+  });
+});
+
+describe('wrapProviderError — retryability comes through end to end', () => {
+  // The gap that let a regression through: retryability was only ever tested by
+  // direct construction, never through the function every evaluator calls.
+  it('keeps a 5xx retryable', () => {
+    expect(wrapProviderError(makeAPICallError(503, 'unavailable'), CONTEXT).retryable).toBe(true);
+  });
+
+  it('keeps a 429 retryable', () => {
+    expect(wrapProviderError(makeAPICallError(429, 'slow down'), CONTEXT).retryable).toBe(true);
+  });
+
+  it('keeps a 400 non-retryable', () => {
+    expect(wrapProviderError(makeAPICallError(400, 'bad request'), CONTEXT).retryable).toBe(false);
+  });
+
+  it('keeps auth failures non-retryable', () => {
+    expect(wrapProviderError(makeAPICallError(401, 'nope'), CONTEXT).retryable).toBe(false);
+  });
+
+  it("honours the provider's own isRetryable verdict over the status heuristic", () => {
+    const err = new APICallError({
+      message: 'permanent server-side rejection',
+      url: 'https://api.example.com/v1/chat',
+      requestBodyValues: {},
+      statusCode: 500,
+      responseHeaders: {},
+      responseBody: '',
+      isRetryable: false,
+    });
+
+    expect(wrapProviderError(err, CONTEXT).retryable).toBe(false);
+  });
+});
+
+describe('wrapProviderError — transport failures stay classified and retryable', () => {
+  const transport = (props: Record<string, unknown>) =>
+    Object.assign(new Error('boom'), props);
+
+  it.each(['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'EPIPE'])(
+    'maps errno %s to a retryable NetworkError',
+    (code) => {
+      const wrapped = wrapProviderError(transport({ code }), CONTEXT);
+      expect(wrapped).toBeInstanceOf(NetworkError);
+      expect(wrapped.retryable).toBe(true);
+    },
+  );
+
+  it.each(['ETIMEDOUT', 'UND_ERR_HEADERS_TIMEOUT'])(
+    'maps errno %s to a retryable RequestTimeoutError',
+    (code) => {
+      const wrapped = wrapProviderError(transport({ code }), CONTEXT);
+      expect(wrapped).toBeInstanceOf(RequestTimeoutError);
+      expect(wrapped.retryable).toBe(true);
+    },
+  );
+
+  it('maps an AbortSignal timeout by its DOMException name', () => {
+    const wrapped = wrapProviderError(new DOMException('aborted', 'TimeoutError'), CONTEXT);
+    expect(wrapped).toBeInstanceOf(RequestTimeoutError);
+    expect(wrapped.retryable).toBe(true);
+  });
+
+  it('maps a 408 to RequestTimeoutError', () => {
+    expect(wrapProviderError(makeAPICallError(408, 'too slow'), CONTEXT)).toBeInstanceOf(
+      RequestTimeoutError,
+    );
+  });
+
+  it('finds a transport failure nested in the cause chain', () => {
+    const nested = Object.assign(new Error('fetch failed'), {
+      cause: Object.assign(new Error('inner'), { code: 'ECONNREFUSED' }),
+    });
+
+    expect(wrapProviderError(nested, CONTEXT)).toBeInstanceOf(NetworkError);
+  });
+});
+
+describe('wrapProviderError — unusable model output is our fault, not the dependency’s', () => {
+  it('maps a schema type-validation failure to LLMOutputProcessingError', () => {
+    const err = new TypeValidationError({ value: { nope: true }, cause: new Error('bad shape') });
+    const wrapped = wrapProviderError(err, CONTEXT);
+
+    expect(wrapped).toBeInstanceOf(LLMOutputProcessingError);
+    expect(wrapped).not.toBeInstanceOf(DependencyError);
+    // Sampling variance, so it resamples immediately rather than backing off.
+    expect(wrapped.retryable).toBe(true);
+  });
+
+  it('maps unparseable JSON to LLMOutputProcessingError', () => {
+    const err = new JSONParseError({ text: '{"a":', cause: new Error('unexpected end') });
+    expect(wrapProviderError(err, CONTEXT)).toBeInstanceOf(LLMOutputProcessingError);
+  });
+
+  it('outranks a status code carried alongside it', () => {
+    const parse = new JSONParseError({ text: 'nope', cause: new Error('bad') });
+    const wrapped = wrapProviderError(
+      Object.assign(makeAPICallError(500, 'server'), { cause: parse }),
+      CONTEXT,
+    );
+
+    expect(wrapped).toBeInstanceOf(LLMOutputProcessingError);
+  });
+});
+
+describe('wrapProviderError — structured diagnostics from the provider', () => {
+  const withHeaders = (headers: Record<string, string>, status = 429) =>
+    new APICallError({
+      message: 'rate limited',
+      url: 'https://api.example.com/v1/chat',
+      requestBodyValues: {},
+      statusCode: status,
+      responseHeaders: headers,
+      responseBody: '',
+      isRetryable: true,
+    });
+
+  it('reads retryAfterMs from the retry-after header, converting seconds', () => {
+    const wrapped = wrapProviderError(withHeaders({ 'retry-after': '3' }), CONTEXT) as RateLimitError;
+    expect(wrapped.retryAfterMs).toBe(3000);
+  });
+
+  it('reads retryAfterMs from retry-after-ms when present', () => {
+    const wrapped = wrapProviderError(
+      withHeaders({ 'retry-after-ms': '1500' }),
+      CONTEXT,
+    ) as RateLimitError;
+    expect(wrapped.retryAfterMs).toBe(1500);
+  });
+
+  it('leaves retryAfterMs null when the provider sent no hint', () => {
+    const wrapped = wrapProviderError(withHeaders({}), CONTEXT) as RateLimitError;
+    expect(wrapped.retryAfterMs).toBeNull();
+  });
+
+  it('reads requestId from the response headers, which is where providers put it', () => {
+    const wrapped = wrapProviderError(
+      withHeaders({ 'x-request-id': 'req_abc123' }, 500),
+      CONTEXT,
+    ) as DependencyError;
+    expect(wrapped.requestId).toBe('req_abc123');
+  });
+});
+
+describe('wrapProviderError — classification boundaries', () => {
+  const withCode = (code: string) => Object.assign(new Error('boom'), { code });
+
+  it.each(['EHOSTUNREACH', 'ENETUNREACH'])(
+    'maps host/net unreachable errno %s to NetworkError',
+    (code) => {
+      expect(wrapProviderError(withCode(code), CONTEXT)).toBeInstanceOf(NetworkError);
+    },
+  );
+
+  it('maps UND_ERR_BODY_TIMEOUT to RequestTimeoutError', () => {
+    expect(wrapProviderError(withCode('UND_ERR_BODY_TIMEOUT'), CONTEXT)).toBeInstanceOf(
+      RequestTimeoutError,
+    );
+  });
+
+  it('maps an AbortError name to RequestTimeoutError', () => {
+    const aborted = Object.assign(new Error('aborted'), { name: 'AbortError' });
+    expect(wrapProviderError(aborted, CONTEXT)).toBeInstanceOf(RequestTimeoutError);
+  });
+
+  // An errno we do not recognise must fall to the catch-all, not be guessed at.
+  it.each(['EACCES', 'ENOENT', 'EWHATEVER'])('does not treat errno %s as transport', (code) => {
+    const wrapped = wrapProviderError(withCode(code), CONTEXT);
+    expect(wrapped).toBeInstanceOf(LLMProviderError);
+    expect(wrapped).not.toBeInstanceOf(NetworkError);
+    expect(wrapped).not.toBeInstanceOf(RequestTimeoutError);
+  });
+});
+
+describe('wrapProviderError — hostile inputs', () => {
+  it.each([null, undefined, 0, false])('survives a thrown %s', (thrown) => {
+    const wrapped = wrapProviderError(thrown, CONTEXT);
+    expect(wrapped).toBeInstanceOf(LLMProviderError);
+  });
+
+  it('terminates on a self-referencing cause chain', () => {
+    const loop = new Error('round and round') as Error & { cause?: unknown };
+    loop.cause = loop;
+
+    expect(wrapProviderError(loop, CONTEXT)).toBeInstanceOf(LLMProviderError);
+  });
+});
+
+describe('wrapProviderError — retry-after parsing', () => {
+  const withHeader = (headers: Record<string, string>) =>
+    new APICallError({
+      message: 'rate limited',
+      url: 'https://api.example.com/v1/chat',
+      requestBodyValues: {},
+      statusCode: 429,
+      responseHeaders: headers,
+      responseBody: '',
+    });
+
+  // Retry-After may legally be an HTTP-date, which we cannot use as a delay.
+  it('ignores a non-numeric Retry-After rather than emitting NaN', () => {
+    const wrapped = withHeader({ 'retry-after': 'Wed, 21 Oct 2026 07:28:00 GMT' });
+    expect((wrapProviderError(wrapped, CONTEXT) as RateLimitError).retryAfterMs).toBeNull();
+  });
+
+  it('prefers retry-after seconds over retry-after-ms when both are present', () => {
+    const wrapped = withHeader({ 'retry-after': '2', 'retry-after-ms': '9999' });
+    expect((wrapProviderError(wrapped, CONTEXT) as RateLimitError).retryAfterMs).toBe(2000);
+  });
+
+  it('rounds fractional seconds to whole milliseconds', () => {
+    const wrapped = withHeader({ 'retry-after': '0.25' });
+    expect((wrapProviderError(wrapped, CONTEXT) as RateLimitError).retryAfterMs).toBe(250);
+  });
+});
+
+describe('wrapProviderError — requestId header fallbacks', () => {
+  const withHeaders = (headers: Record<string, string>) =>
+    new APICallError({
+      message: 'server error',
+      url: 'https://api.example.com/v1/chat',
+      requestBodyValues: {},
+      statusCode: 500,
+      responseHeaders: headers,
+      responseBody: '',
+    });
+
+  it.each([
+    ['x-request-id', 'req_x'],
+    ['request-id', 'req_plain'],
+    ['x-amzn-requestid', 'req_amzn'],
+  ])('reads %s', (header, value) => {
+    const wrapped = wrapProviderError(withHeaders({ [header]: value }), CONTEXT) as DependencyError;
+    expect(wrapped.requestId).toBe(value);
+  });
+
+  it('is null when no known header is present', () => {
+    const wrapped = wrapProviderError(withHeaders({ 'x-other': 'nope' }), CONTEXT) as DependencyError;
+    expect(wrapped.requestId).toBeNull();
+  });
+});
+
+describe('wrapProviderError — provider errors without response headers', () => {
+  // responseHeaders is optional on APICallError, so every header read must
+  // tolerate its absence rather than throwing while classifying an error.
+  const headerless = new APICallError({
+    message: 'rate limited',
+    url: 'https://api.example.com/v1/chat',
+    requestBodyValues: {},
+    statusCode: 429,
+    responseBody: '',
+  });
+
+  it('classifies without crashing', () => {
+    expect(wrapProviderError(headerless, CONTEXT)).toBeInstanceOf(RateLimitError);
+  });
+
+  it('leaves retryAfterMs and requestId null', () => {
+    const wrapped = wrapProviderError(headerless, CONTEXT) as RateLimitError;
+    expect(wrapped.retryAfterMs).toBeNull();
+    expect(wrapped.requestId).toBeNull();
+  });
+
+  it('ignores a non-numeric retry-after-ms', () => {
+    const bad = new APICallError({
+      message: 'rate limited',
+      url: 'https://api.example.com/v1/chat',
+      requestBodyValues: {},
+      statusCode: 429,
+      responseHeaders: { 'retry-after-ms': 'soon' },
+      responseBody: '',
+    });
+
+    expect((wrapProviderError(bad, CONTEXT) as RateLimitError).retryAfterMs).toBeNull();
   });
 });

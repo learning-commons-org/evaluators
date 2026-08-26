@@ -5,7 +5,12 @@ import {
   type TelemetryMetadata,
   type TokenUsage,
 } from '../telemetry/index.js';
-import { ConfigurationError, InputValidationError, type DependencyId } from '../errors.js';
+import {
+  ConfigurationError,
+  InputValidationError,
+  PROVIDER_DEPENDENCIES,
+  type DependencyId,
+} from '../errors.js';
 import { createLogger, LogLevel, type Logger } from '../logger.js';
 import { createProvider } from '../providers/index.js';
 import type { LLMProvider } from '../providers/index.js';
@@ -413,20 +418,27 @@ export abstract class BaseEvaluator {
   }
 
   /**
-   * Dependency attribution for errors raised while calling `provider`
-   * Derived from the provider label's `provider:model` form.
+   * Dependency attribution for errors raised while calling `provider`.
+   *
+   * The label is `provider:model`, and its prefix is a `Provider` value on both
+   * the default and `modelOverride` paths, so those report their real vendor. An
+   * injected `llmProvider` can label itself anything; that reports `custom`
+   * rather than guessing a vendor we never called. The label is always kept as
+   * `model`, so the caller's own identifier is never lost.
    */
   protected providerContext(provider: LLMProvider): {
     dependency: DependencyId;
-    model: string | null;
+    model: string;
   } {
     const separator = provider.label.indexOf(':');
-    return separator === -1
-      ? { dependency: provider.label as DependencyId, model: null }
-      : {
-          dependency: provider.label.slice(0, separator) as DependencyId,
-          model: provider.label.slice(separator + 1) || null,
-        };
+    const prefix = separator === -1 ? provider.label : provider.label.slice(0, separator);
+
+    // A known prefix is already reported as `dependency`, so `model` carries just
+    // the model id. An unknown one keeps the whole label, which is the only
+    // identifier a caller-supplied provider gives us.
+    return PROVIDER_DEPENDENCIES.has(prefix as DependencyId)
+      ? { dependency: prefix as DependencyId, model: provider.label.slice(separator + 1) }
+      : { dependency: 'custom', model: provider.label };
   }
 
   /**

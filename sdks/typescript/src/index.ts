@@ -23,6 +23,7 @@ export {
   LLMProviderError,
   KnowledgeGraphError,
   type DependencyId,
+  type DependencyErrorOptions,
 } from './errors.js';
 
 // Knowledge Graph

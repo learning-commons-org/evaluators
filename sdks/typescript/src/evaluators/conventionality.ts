@@ -57,7 +57,8 @@ export class ConventionalityEvaluator extends BaseEvaluator {
    * @returns Evaluation result with complexity score and detailed analysis
    * @throws {InputValidationError} If text is empty, too short/long, or grade is invalid
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
-   * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
+   * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
+   * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(
     text: string,

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { VocabularyEvaluator } from '../../../src/evaluators/vocabulary.js';
 import { SmkEvaluator } from '../../../src/evaluators/smk.js';
-import { VALIDATION_LIMITS, Provider } from '../../../src/evaluators/base.js';
+import { VALIDATION_LIMITS, Provider, BaseEvaluator } from '../../../src/evaluators/base.js';
 import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import { createProvider } from '../../../src/providers/index.js';
@@ -250,6 +250,63 @@ describe('Input Validation - Grade Validation', () => {
 
       await expect(evaluator.evaluate(validText, grade))
         .rejects.toThrow(`Invalid grade "${grade}". Supported grades for this evaluator: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12`);
+    });
+  });
+});
+
+describe('providerContext — dependency attribution', () => {
+  // Exposed via a minimal subclass because providerContext is protected.
+  class Probe extends BaseEvaluator {
+    static readonly metadata = {
+      id: 'probe',
+      name: 'Probe',
+      description: 'test seam',
+      supportedGrades: ['3'] as const,
+      defaultProviders: [Provider.Google] as const,
+    };
+    contextFor(label: string) {
+      return this.providerContext({
+        label,
+        generateStructured: vi.fn(),
+        generateText: vi.fn(),
+      });
+    }
+  }
+
+  const probe = () =>
+    new Probe({ googleApiKey: 'k', telemetry: false });
+
+  it.each([
+    ['openai:gpt-4o-2024-11-20', 'openai', 'gpt-4o-2024-11-20'],
+    ['google:gemini-3-flash-preview', 'google', 'gemini-3-flash-preview'],
+    ['anthropic:claude-opus-5', 'anthropic', 'claude-opus-5'],
+  ])('names the vendor for %s and strips it from model', (label, dependency, model) => {
+    expect(probe().contextFor(label)).toEqual({ dependency, model });
+  });
+
+  // A modelOverride resolves to one of our vendors, so it is still nameable —
+  // overriding does not make a call "custom".
+  it('reports the overridden vendor, not custom', () => {
+    expect(probe().contextFor('anthropic:claude-haiku-4-5-20251001')).toEqual({
+      dependency: 'anthropic',
+      model: 'claude-haiku-4-5-20251001',
+    });
+  });
+
+  // An injected llmProvider labels itself; the vendor is the caller's to know.
+  it.each([
+    ['azure:gpt-4o', 'azure:gpt-4o'],
+    ['bedrock:anthropic.claude-v2', 'bedrock:anthropic.claude-v2'],
+    ['my-gateway', 'my-gateway'],
+  ])('reports custom for the unrecognised label %s, keeping it as model', (label, model) => {
+    expect(probe().contextFor(label)).toEqual({ dependency: 'custom', model });
+  });
+
+  it('does not let a vendor name appear anywhere in the label pass as that vendor', () => {
+    // Only the prefix counts — a model id mentioning a vendor must not win.
+    expect(probe().contextFor('gateway:openai-compatible')).toEqual({
+      dependency: 'custom',
+      model: 'gateway:openai-compatible',
     });
   });
 });
