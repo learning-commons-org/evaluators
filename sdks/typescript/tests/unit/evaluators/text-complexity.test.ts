@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TextComplexityEvaluator } from '../../../src/evaluators/text-complexity.js';
-import { ConfigurationError, ValidationError } from '../../../src/errors.js';
+import { ConfigurationError, InputValidationError } from '../../../src/errors.js';
 
 // Mock telemetry to avoid real HTTP calls
 vi.mock('../../../src/telemetry/client.js', () => ({
@@ -178,7 +178,7 @@ describe('TextComplexityEvaluator', () => {
     });
 
     it('should validate text input', async () => {
-      await expect(evaluator.evaluate('', '5')).rejects.toThrow(ValidationError);
+      await expect(evaluator.evaluate('', '5')).rejects.toThrow(InputValidationError);
       await expect(evaluator.evaluate('   ', '5')).rejects.toThrow(
         'Text cannot be empty or contain only whitespace'
       );
@@ -191,16 +191,16 @@ describe('TextComplexityEvaluator', () => {
       const text = 'The cat sat on the mat.';
 
       await expect(evaluator.evaluate(text, 'invalid')).rejects.toThrow(
-        ValidationError
+        InputValidationError
       );
       await expect(evaluator.evaluate(text, 'invalid')).rejects.toThrow(
         'Invalid grade "invalid"'
       );
 
       // Grades outside supported range (K, 1, 2 not supported)
-      await expect(evaluator.evaluate(text, 'K')).rejects.toThrow(ValidationError);
-      await expect(evaluator.evaluate(text, '1')).rejects.toThrow(ValidationError);
-      await expect(evaluator.evaluate(text, '2')).rejects.toThrow(ValidationError);
+      await expect(evaluator.evaluate(text, 'K')).rejects.toThrow(InputValidationError);
+      await expect(evaluator.evaluate(text, '1')).rejects.toThrow(InputValidationError);
+      await expect(evaluator.evaluate(text, '2')).rejects.toThrow(InputValidationError);
     });
 
     it('should accept all supported grades', async () => {

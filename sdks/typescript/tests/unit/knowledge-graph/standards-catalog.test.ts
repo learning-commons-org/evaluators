@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StandardsCatalog } from '../../../src/knowledge-graph/standards-catalog.js';
 import { Jurisdiction } from '../../../src/knowledge-graph/types.js';
-import { ConfigurationError, AuthenticationError, ValidationError } from '../../../src/errors.js';
+import { ConfigurationError, AuthenticationError, InputValidationError } from '../../../src/errors.js';
 
 function okResponse(body: unknown) {
   const text = JSON.stringify(body);
@@ -71,7 +71,7 @@ describe('StandardsCatalog - construction', () => {
     async (code) => {
       const fetchMock = vi.fn();
       vi.stubGlobal('fetch', fetchMock);
-      await expect(catalog().getStandard(code)).rejects.toThrow(ValidationError);
+      await expect(catalog().getStandard(code)).rejects.toThrow(InputValidationError);
       expect(fetchMock).not.toHaveBeenCalled();
     },
   );

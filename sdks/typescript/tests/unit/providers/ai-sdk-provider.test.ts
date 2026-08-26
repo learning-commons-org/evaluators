@@ -337,6 +337,54 @@ describe('VercelAIProvider - request assembly', () => {
     await new mod.VercelAIProvider({ ...CONFIG, maxRetries: 3 }).generateStructured({ messages, schema });
     expect(generateText.mock.calls[1][0].maxRetries).toBe(3);
   });
+
+  it('passes the request schema through as the structured output', async () => {
+    const { mod, generateText } = await loadProvider();
+    const messages = [{ role: 'user' as const, content: 'hi' }];
+    await new mod.VercelAIProvider(CONFIG).generateStructured({ messages, schema });
+
+    // `Output.object` is stubbed as an identity, so its argument is observable.
+    expect(generateText.mock.calls[0][0].output).toEqual({ schema });
+  });
+
+  it('applies the same maxRetries policy to generateText', async () => {
+    const { mod, generateText } = await loadProvider();
+    const messages = [{ role: 'user' as const, content: 'hi' }];
+
+    await new mod.VercelAIProvider(CONFIG).generateText(messages);
+    expect(generateText.mock.calls[0][0].maxRetries).toBe(0);
+
+    await new mod.VercelAIProvider({ ...CONFIG, maxRetries: 3 }).generateText(messages);
+    expect(generateText.mock.calls[1][0].maxRetries).toBe(3);
+  });
+
+  // Only a system-role message may be hoisted: promoting a user turn to `system`
+  // would silently rewrite the prompt the caller asked us to send.
+  it('omits system in generateText when the conversation has no system message', async () => {
+    const { mod, generateText } = await loadProvider();
+    const messages = [{ role: 'user' as const, content: 'rate this' }];
+    await new mod.VercelAIProvider(CONFIG).generateText(messages);
+
+    const call = generateText.mock.calls[0][0];
+    expect(call).not.toHaveProperty('system');
+    expect(call.messages).toEqual(messages);
+  });
+
+  // latencyMs is reported as telemetry, so a sign or operand slip would ship
+  // epoch-scale garbage rather than an obviously wrong number.
+  it.each([
+    ['generateStructured', (p: { generateStructured: (r: unknown) => Promise<{ latencyMs: number }> }) =>
+      p.generateStructured({ messages: [{ role: 'user', content: 'hi' }], schema })],
+    ['generateText', (p: { generateText: (m: unknown) => Promise<{ latencyMs: number }> }) =>
+      p.generateText([{ role: 'user', content: 'hi' }])],
+  ])('reports an elapsed-time latency from %s', async (_name, call) => {
+    const { mod } = await loadProvider();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await call(new mod.VercelAIProvider(CONFIG) as any);
+
+    expect(result.latencyMs).toBeGreaterThanOrEqual(0);
+    expect(result.latencyMs).toBeLessThan(60_000);
+  });
 });
 
 describe('createProvider - custom provider dispatch', () => {

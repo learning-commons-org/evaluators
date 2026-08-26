@@ -3,7 +3,7 @@ import {
   ConfigurationError,
   StandardNotFoundError,
   AuthenticationError,
-  ValidationError,
+  InputValidationError,
   KnowledgeGraphError,
 } from '../errors.js';
 import { KnowledgeGraphClient, normalizeStatementCode, STANDARD_SEARCH_LIMIT } from './client.js';
@@ -129,14 +129,14 @@ export class StandardsCatalog {
   }
 
   /**
-   * Resolve a single statement code. Throws `ValidationError` for a code the KG
+   * Resolve a single statement code. Throws `InputValidationError` for a code the KG
    * cannot answer for, and `StandardNotFoundError` when it does not exist.
    */
   // async so a rejected code rejects rather than throwing synchronously, which
   // would force callers into both try/catch and .catch().
   async getStandard(statementCode: string, opts?: StandardsLookupOptions): Promise<StandardInfo> {
     const problem = localCodeProblem(normalizeStatementCode(statementCode));
-    if (problem) throw new ValidationError(problem);
+    if (problem) throw new InputValidationError(problem);
 
     return this.kg.getStandardInfo(statementCode, {
       jurisdiction: opts?.jurisdiction ?? Jurisdiction.MultiState,

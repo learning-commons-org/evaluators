@@ -5,7 +5,7 @@ import { getSystemPrompt, getUserPrompt } from '../prompts/subject-matter-knowle
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
-import { ValidationError, wrapProviderError } from '../errors.js';
+import { EvaluatorError, wrapProviderError } from '../errors.js';
 
 /**
  * Subject Matter Knowledge (SMK) Evaluator
@@ -55,9 +55,10 @@ export class SmkEvaluator extends BaseEvaluator {
    * @param text - The text to evaluate
    * @param grade - The target grade level (3-12)
    * @returns Evaluation result with complexity score and detailed analysis
-   * @throws {ValidationError} If text is empty, too short/long, or grade is invalid
+   * @throws {InputValidationError} If text is empty, too short/long, or grade is invalid
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
-   * @throws {APIError} If LLM API calls fail (includes AuthenticationError, RateLimitError, NetworkError, TimeoutError)
+   * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
+   * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(
     text: string,
@@ -172,11 +173,11 @@ export class SmkEvaluator extends BaseEvaluator {
         // Ignore telemetry errors
       });
 
-      if (error instanceof ValidationError) {
+      if (error instanceof EvaluatorError) {
         throw error;
       }
 
-      throw wrapProviderError(error, 'SMK evaluation failed');
+      throw wrapProviderError(error, this.providerContext(this.provider));
     }
   }
 

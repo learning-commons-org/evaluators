@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { VocabularyEvaluator } from '../../../src/evaluators/vocabulary.js';
 import { SmkEvaluator } from '../../../src/evaluators/smk.js';
-import { VALIDATION_LIMITS, Provider } from '../../../src/evaluators/base.js';
+import { VALIDATION_LIMITS, Provider, BaseEvaluator } from '../../../src/evaluators/base.js';
 import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import { createProvider } from '../../../src/providers/index.js';
@@ -250,6 +250,96 @@ describe('Input Validation - Grade Validation', () => {
 
       await expect(evaluator.evaluate(validText, grade))
         .rejects.toThrow(`Invalid grade "${grade}". Supported grades for this evaluator: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12`);
+    });
+  });
+});
+
+describe('providerContext — dependency attribution', () => {
+  // Exposed via a minimal subclass because providerContext is protected.
+  class Probe extends BaseEvaluator {
+    static readonly metadata = {
+      id: 'probe',
+      name: 'Probe',
+      description: 'test seam',
+      supportedGrades: ['3'] as const,
+      defaultProviders: [Provider.Google] as const,
+    };
+    contextFor(label: string) {
+      return this.providerContext({
+        label,
+        generateStructured: vi.fn(),
+        generateText: vi.fn(),
+      });
+    }
+  }
+
+  const probe = () =>
+    new Probe({ googleApiKey: 'k', telemetry: false });
+
+  it.each([
+    ['openai:gpt-4o-2024-11-20', 'openai', 'gpt-4o-2024-11-20'],
+    ['google:gemini-3-flash-preview', 'google', 'gemini-3-flash-preview'],
+    ['anthropic:claude-opus-5', 'anthropic', 'claude-opus-5'],
+  ])('names the vendor for %s and strips it from model', (label, dependency, model) => {
+    expect(probe().contextFor(label)).toEqual({ dependency, model });
+  });
+
+  // A modelOverride resolves to one of our vendors, so it is still nameable —
+  // overriding does not make a call "custom".
+  it('reports the overridden vendor, not custom', () => {
+    expect(probe().contextFor('anthropic:claude-haiku-4-5-20251001')).toEqual({
+      dependency: 'anthropic',
+      model: 'claude-haiku-4-5-20251001',
+    });
+  });
+
+  // An injected llmProvider labels itself; the vendor is the caller's to know.
+  it.each([
+    ['azure:gpt-4o', 'azure:gpt-4o'],
+    ['bedrock:anthropic.claude-v2', 'bedrock:anthropic.claude-v2'],
+    ['my-gateway', 'my-gateway'],
+  ])('reports custom for the unrecognised label %s, keeping it as model', (label, model) => {
+    expect(probe().contextFor(label)).toEqual({ dependency: 'custom', model });
+  });
+
+  it('does not let a vendor name appear anywhere in the label pass as that vendor', () => {
+    // Only the prefix counts — a model id mentioning a vendor must not win.
+    expect(probe().contextFor('gateway:openai-compatible')).toEqual({
+      dependency: 'custom',
+      model: 'gateway:openai-compatible',
+    });
+  });
+
+  // A label carrying no model id still names the vendor where it can, and never
+  // reports an empty model — a blank attribution is worse than a redundant one.
+  it.each([
+    ['openai', 'openai', 'openai'],
+    ['openai:', 'openai', 'openai:'],
+  ])('keeps %s whole as model when it carries no model id', (label, dependency, model) => {
+    expect(probe().contextFor(label)).toEqual({ dependency, model });
+  });
+
+  it.each([
+    ['the empty label', ''],
+    ['a label with no prefix', ':gpt-4o'],
+    // Prefix matching is exact: a differently-cased vendor is not our vendor.
+    ['a differently-cased vendor', 'OpenAI:gpt-4o'],
+  ])('reports custom for %s', (_why, label) => {
+    expect(probe().contextFor(label)).toEqual({ dependency: 'custom', model: label });
+  });
+
+  // Binds attribution to the label VercelAIProvider actually emits. Without it
+  // every case here is hand-written, so a label-format change would reroute all
+  // real traffic to `custom` with the suite still green.
+  it('names the vendor for a label a real provider emits', () => {
+    const provider = createProvider({
+      type: 'openai',
+      model: 'gpt-4o-2024-11-20',
+      apiKey: 'k',
+    });
+    expect(probe().contextFor(provider.label)).toEqual({
+      dependency: 'openai',
+      model: 'gpt-4o-2024-11-20',
     });
   });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/grade-level-appropriateness.js';
-import { ConfigurationError, ValidationError } from '../../../src/errors.js';
+import { ConfigurationError, InputValidationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 /**
@@ -109,14 +109,14 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
   });
 
   describe('Input Validation', () => {
-    it('should throw ValidationError for empty text', async () => {
+    it('should throw InputValidationError for empty text', async () => {
       await expect(evaluator.evaluate(''))
-        .rejects.toThrow(ValidationError);
+        .rejects.toThrow(InputValidationError);
     });
 
-    it('should throw ValidationError for text that is too short', async () => {
+    it('should throw InputValidationError for text that is too short', async () => {
       await expect(evaluator.evaluate('Hi'))
-        .rejects.toThrow(ValidationError);
+        .rejects.toThrow(InputValidationError);
     });
   });
 

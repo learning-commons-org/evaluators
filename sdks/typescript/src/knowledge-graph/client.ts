@@ -6,7 +6,12 @@ import {
   AuthenticationError,
   RateLimitError,
   NetworkError,
+  RequestTimeoutError,
+  type DependencyId,
 } from '../errors.js';
+
+/** Every error raised here attributes to the Knowledge Graph service. */
+const KG: DependencyId = 'knowledge-graph';
 import type { AcademicStandard, LearningComponent, LearningComponentSet, StandardInfo } from './types.js';
 import type { paths, components } from './kg-api.js';
 
@@ -35,15 +40,23 @@ async function kgFetchFn(input: Request, init?: Parameters<typeof fetch>[1]): Pr
     return await fetch(input, { ...init, signal: AbortSignal.timeout(KG_TIMEOUT_MS) });
   } catch (err) {
     if (err instanceof Error && err.name === 'TimeoutError') {
-      throw new NetworkError(`Knowledge Graph request timed out after ${KG_TIMEOUT_MS}ms`);
+      throw new RequestTimeoutError(
+        `Knowledge Graph request timed out after ${KG_TIMEOUT_MS}ms`,
+        { dependency: KG, cause: err },
+      );
     }
-    throw new NetworkError(`Knowledge Graph request failed: ${err instanceof Error ? err.message : String(err)}`);
+    throw new NetworkError(
+      `Knowledge Graph request failed: ${err instanceof Error ? err.message : String(err)}`,
+      { dependency: KG, cause: err },
+    );
   }
 }
 
 function wrapJsonError(err: unknown): never {
   if (err instanceof SyntaxError) {
-    throw new KnowledgeGraphError(`Knowledge Graph returned invalid JSON: ${err.message}`);
+    throw new KnowledgeGraphError(`Knowledge Graph returned invalid JSON: ${err.message}`, {
+      cause: err,
+    });
   }
   throw err;
 }
@@ -53,13 +66,18 @@ const httpErrorMiddleware: Middleware = {
   async onResponse({ response }) {
     if (!response.ok) {
       const body = await response.text().catch(() => '');
+      const requestId = response.headers.get('x-request-id');
+      const options = { dependency: KG, statusCode: response.status, requestId };
       if (response.status === 401 || response.status === 403) {
-        throw new AuthenticationError(`Knowledge Graph authentication failed: ${body}`, response.status);
+        throw new AuthenticationError(`Knowledge Graph authentication failed: ${body}`, options);
       }
       if (response.status === 429) {
-        throw new RateLimitError(`Knowledge Graph rate limit exceeded: ${body}`);
+        throw new RateLimitError(`Knowledge Graph rate limit exceeded: ${body}`, options);
       }
-      throw new KnowledgeGraphError(`Knowledge Graph request failed (${response.status}): ${body}`, response.status);
+      throw new KnowledgeGraphError(
+        `Knowledge Graph request failed (${response.status}): ${body}`,
+        { statusCode: response.status, requestId },
+      );
     }
   },
 };

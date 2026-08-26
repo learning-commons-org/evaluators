@@ -2,7 +2,7 @@ export {
   TextComplexityLevel,
   type EvaluationResult,
   type EvaluationMetadata,
-  type EvaluationError,
+  type EvaluationFailure,
 } from './outputs.js';
 
 export {

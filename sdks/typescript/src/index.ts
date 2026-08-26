@@ -2,7 +2,7 @@
 export type {
   EvaluationResult,
   EvaluationMetadata,
-  EvaluationError,
+  EvaluationFailure,
 } from './schemas/index.js';
 
 export { TextComplexityLevel, GradeBand } from './schemas/index.js';
@@ -11,14 +11,19 @@ export { TextComplexityLevel, GradeBand } from './schemas/index.js';
 export {
   EvaluatorError,
   ConfigurationError,
-  ValidationError,
-  APIError,
+  InputValidationError,
+  StandardNotFoundError,
+  EvaluationError,
+  LLMOutputProcessingError,
+  DependencyError,
   AuthenticationError,
   RateLimitError,
   NetworkError,
-  TimeoutError,
+  RequestTimeoutError,
+  LLMProviderError,
   KnowledgeGraphError,
-  StandardNotFoundError,
+  type DependencyId,
+  type DependencyErrorOptions,
 } from './errors.js';
 
 // Knowledge Graph
