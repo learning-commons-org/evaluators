@@ -20,9 +20,9 @@ import type { LLMProvider } from '../providers/index.js';
  */
 export const VALIDATION_LIMITS = {
   /** Minimum text length in characters */
-  MIN_TEXT_LENGTH: 10,
-  /** Maximum text length in characters (100K chars ≈ 25K tokens) */
-  MAX_TEXT_LENGTH: 100_000,
+  MIN_TEXT_LENGTH: 1,
+  /** Maximum text length in characters */
+  MAX_TEXT_LENGTH: 10_000,
 } as const;
 
 /**
@@ -460,23 +460,20 @@ export abstract class BaseEvaluator {
       textLength: text.length,
     });
 
-    // Check if text is empty or only whitespace
-    const trimmedText = text.trim();
-    if (!trimmedText) {
+    // Rejected, not repaired — the bounds below measure the text as sent.
+    if (!text.trim()) {
       throw new InputValidationError('Text cannot be empty or contain only whitespace');
     }
 
-    // Check minimum length
-    if (trimmedText.length < VALIDATION_LIMITS.MIN_TEXT_LENGTH) {
+    if (text.length < VALIDATION_LIMITS.MIN_TEXT_LENGTH) {
       throw new InputValidationError(
-        `Text is too short. Minimum length is ${VALIDATION_LIMITS.MIN_TEXT_LENGTH} characters, received ${trimmedText.length} characters`
+        `Text is too short. Minimum length is ${VALIDATION_LIMITS.MIN_TEXT_LENGTH} characters, received ${text.length} characters`
       );
     }
 
-    // Check maximum length
-    if (trimmedText.length > VALIDATION_LIMITS.MAX_TEXT_LENGTH) {
+    if (text.length > VALIDATION_LIMITS.MAX_TEXT_LENGTH) {
       throw new InputValidationError(
-        `Text is too long. Maximum length is ${VALIDATION_LIMITS.MAX_TEXT_LENGTH.toLocaleString()} characters, received ${trimmedText.length.toLocaleString()} characters`
+        `Text is too long. Maximum length is ${VALIDATION_LIMITS.MAX_TEXT_LENGTH.toLocaleString()} characters, received ${text.length.toLocaleString()} characters`
       );
     }
   }
