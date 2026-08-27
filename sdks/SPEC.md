@@ -155,11 +155,17 @@ Validation runs before every LLM call, inside the error-handling boundary, so fa
 
 ### 4.1 Text
 
-Trim leading/trailing Unicode whitespace, then validate in order:
+SDKs MUST NOT modify caller-supplied text. The text validated, the text measured, and the text sent to the model are the same string.
 
-1. Empty or whitespace-only → `InputValidationError("Text cannot be empty or contain only whitespace")`
-2. Trimmed length < min → `InputValidationError("Text is too short. Minimum length is {min} characters.")`
-3. Trimmed length > max → `InputValidationError("Text is too long. Maximum length is {max} characters.")`
+The checks below run for **each** text-bearing input, using that input's registry-declared limits. `{field}` in the canonical messages is the input's canonical name from the registry definition (e.g. `text`, `student_text`), substituted verbatim.
+
+Validate in order:
+
+1. Empty, or whitespace-only after trimming → `InputValidationError("{field} cannot be empty or contain only whitespace")`
+2. Length < min → `InputValidationError("{field} is too short. Minimum length is {min} characters.")`
+3. Length > max → `InputValidationError("{field} is too long. Maximum length is {max} characters.")`
+
+Trimming appears in check 1 as a predicate only — it decides whether the text is whitespace-only, and its result is never substituted for the caller's text. Lengths in checks 2 and 3, and `text_length_chars` in telemetry, are the length of the text as supplied.
 
 Messages MUST convey the same facts (which bound, what the bound is) and SHOULD match the canonical wording above. `text_length_chars` in telemetry is the **trimmed** length.
 
@@ -329,7 +335,7 @@ Mechanism per language:
 | `status` | `"success"` or `"error"` |
 | `error_code` | Canonical error class name on failure; omitted on success |
 | `latency_ms` | Total wall-clock time |
-| `text_length_chars` | Trimmed input length |
+| `text_length_chars` | Character length of the text as supplied (§4.1) |
 | `model` | Model string(s) used (§3.4) |
 | `model_override` | `true` if an override was set; omitted otherwise |
 | `token_usage` | `{ input_tokens, output_tokens }` aggregated across phases |
