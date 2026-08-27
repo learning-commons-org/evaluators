@@ -5,9 +5,9 @@ import { getSystemPrompt, getUserPrompt } from '../prompts/purpose/index.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
-import { EvaluatorError, InputValidationError, wrapProviderError } from '../errors.js';
-import CONFIG from '../../../../evals/prompts/purpose/config.json';
-import INPUT_SCHEMA from '../../../../evals/prompts/purpose/input_schema.json';
+import { EvaluatorError, wrapProviderError } from '../errors.js';
+import CONFIG from '../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';
+import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/purpose-clarity/input_schema.json';
 
 // Step ID convention: "evaluate_{slug}" where slug is the last segment of evaluator.id.
 const STEP_ID = `evaluate_${CONFIG.evaluator.id.split('.').pop()}`;
@@ -15,10 +15,10 @@ const _step = CONFIG.steps.find(s => s.id === STEP_ID);
 if (!_step) throw new Error(`Step "${STEP_ID}" not found in purpose config.json`);
 const STEP = _step;
 
-// Grade range from input_schema — needed for static metadata, so defined at module level.
-const GRADE_MIN = INPUT_SCHEMA.properties.grade_level.minimum;
-const GRADE_MAX = INPUT_SCHEMA.properties.grade_level.maximum;
-const SUPPORTED_GRADES = Array.from({ length: GRADE_MAX - GRADE_MIN + 1 }, (_, i) => String(GRADE_MIN + i));
+// Supported grades from input_schema — needed for static metadata, so defined at
+// module level. The enum is the declared set, so it is used verbatim rather than
+// reconstructed from bounds; that admits gaps and non-numeric tokens such as "K".
+const SUPPORTED_GRADES: readonly string[] = INPUT_SCHEMA.properties.grade_level.enum;
 
 export type PurposeComplexityLevel = TextComplexityLevel | 'More context needed';
 
@@ -82,12 +82,12 @@ export class PurposeEvaluator extends BaseEvaluator {
 
     try {
       this.validateText(text);
-      const gradeNum = this.parseAndValidateGrade(gradeLevel);
+      this.validateGradeLevel(gradeLevel, new Set(SUPPORTED_GRADES));
 
       const fkScore = PurposeEvaluator.computeFkScore(text);
       const inputs: Record<string, string> = {
         text,
-        grade_level: String(gradeNum),
+        grade_level: gradeLevel,
         fk_score: String(fkScore),
       };
       const response = await this.callLLM(inputs);
@@ -121,7 +121,7 @@ export class PurposeEvaluator extends BaseEvaluator {
         status: 'success',
         latencyMs,
         textLength: text.length,
-        gradeLevel: String(gradeNum),
+        gradeLevel,
         provider: this.provider.label,
         tokenUsage,
         metadata: { stage_details: stageDetails },
@@ -131,7 +131,7 @@ export class PurposeEvaluator extends BaseEvaluator {
       this.logger.info('Purpose evaluation completed successfully', {
         evaluator: PurposeEvaluator.metadata.id,
         operation: 'evaluate',
-        gradeLevel: gradeNum,
+        gradeLevel,
         score: result.score,
         processingTimeMs: latencyMs,
       });
@@ -159,7 +159,7 @@ export class PurposeEvaluator extends BaseEvaluator {
         status: 'error',
         latencyMs,
         textLength: text.length,
-        gradeLevel: String(gradeLevel),
+        gradeLevel,
         provider: this.provider.label,
         tokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
@@ -170,16 +170,6 @@ export class PurposeEvaluator extends BaseEvaluator {
       if (error instanceof EvaluatorError) throw error;
       throw wrapProviderError(error, this.providerContext(this.provider));
     }
-  }
-
-  private parseAndValidateGrade(gradeLevel: string): number {
-    const num = Number(gradeLevel.trim());
-    if (!Number.isInteger(num) || num < GRADE_MIN || num > GRADE_MAX) {
-      throw new InputValidationError(
-        `Invalid grade level "${gradeLevel}". Purpose evaluator supports integer grade levels ${GRADE_MIN}–${GRADE_MAX}.`,
-      );
-    }
-    return num;
   }
 
   private async callLLM(

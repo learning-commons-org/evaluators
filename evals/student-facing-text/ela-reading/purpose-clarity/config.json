@@ -1,8 +1,10 @@
 {
-  "$schema": "../../_schemas/config.schema.json",
+  "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "literacy.gla.purpose",
-    "name": "Purpose Dimension Text Complexity Evaluator",
+    "id": "student_facing_text.ela_reading.purpose_clarity",
+    "stable_id": "477da8b7-101b-4f76-a9ef-4b1d74ec9245",
+    "id_history": ["literacy.gla.purpose"],
+    "name": "Purpose Clarity Evaluator",
     "description": "Evaluates the Purpose dimension of qualitative text complexity for K-12 reading assessment, producing a 5-level rubric rating with structured pedagogical detail.",
     "supported_grades": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
   },
@@ -39,7 +41,7 @@
   ],
   "steps": [
     {
-      "id": "evaluate_purpose",
+      "id": "evaluate_purpose_clarity",
       "type": "llm",
       "description": "Single-call LLM step that produces the EvaluatorOutput JSON.",
       "prompt": {

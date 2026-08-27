@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "output_schema.json",
   "title": "EvaluatorOutput",
+  "description": "Final evaluator output for the Purpose Clarity evaluator.",
   "type": "object",
   "required": ["complexity_score", "reasoning", "details"],
   "additionalProperties": false,

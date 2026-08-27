@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { PurposeEvaluator } from '../../../src/evaluators/purpose.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
-import CONFIG from '../../../../../evals/prompts/purpose/config.json';
+import CONFIG from '../../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';
 import { getSystemPrompt, getUserPrompt } from '../../../src/prompts/purpose/index.js';
 
 const STEP = CONFIG.steps[0];
