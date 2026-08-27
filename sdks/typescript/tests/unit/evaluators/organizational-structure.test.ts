@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto';
 import { OrganizationalStructureEvaluator } from '../../../src/evaluators/organizational-structure.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
-import CONFIG from '../../../../../evals/literacy/qualitative-text-complexity/organizational-structure/config.json';
+import CONFIG from '../../../../../evals/student-facing-text/ela-reading/organizational-structure/config.json';
+import INPUT_SCHEMA from '../../../../../evals/student-facing-text/ela-reading/organizational-structure/input_schema.json';
 import { getSystemPrompt, getUserPrompt } from '../../../src/prompts/organizational-structure/index.js';
 
 const STEP = CONFIG.steps[0];
@@ -86,9 +87,17 @@ describe('OrganizationalStructureEvaluator - Metadata', () => {
     expect(OrganizationalStructureEvaluator.metadata.defaultProviders).not.toContain(Provider.OpenAI);
   });
 
-  it('supports integer grade levels 3–12', () => {
+  it('supports grade levels 3–12', () => {
     expect(OrganizationalStructureEvaluator.metadata.supportedGrades).toEqual(
       ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
+    );
+  });
+
+  // Bound to the contract, not a copy of it: the schema's enum is the declared
+  // set, so a change there must show up here rather than drifting silently.
+  it('derives supportedGrades from input_schema.json', () => {
+    expect(OrganizationalStructureEvaluator.metadata.supportedGrades).toEqual(
+      INPUT_SCHEMA.properties.grade_level.enum,
     );
   });
 });

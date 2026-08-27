@@ -13,6 +13,7 @@
     "text": {
       "type": "string",
       "minLength": 1,
+      "maxLength": 10000,
       "description": "The passage to evaluate."
     },
     "grade_level": {
