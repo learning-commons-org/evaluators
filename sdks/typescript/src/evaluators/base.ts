@@ -43,7 +43,19 @@ export interface TelemetryOptions {
 
   /** Record input text in telemetry (default: false) */
   recordInputs?: boolean;
+
+  /**
+   * Learning Commons key authorizing identified telemetry: events are attributed
+   * to your Learning Commons user. Unset → events are anonymous.
+   */
+  learningCommonsApiKey?: string;
 }
+
+/**
+ * Telemetry options after defaults are applied. The key remains optional.
+ */
+type NormalizedTelemetryOptions = Required<Pick<TelemetryOptions, 'enabled' | 'recordInputs'>> &
+  Pick<TelemetryOptions, 'learningCommonsApiKey'>;
 
 /**
  * Override the provider and model used by an evaluator.
@@ -86,11 +98,12 @@ export interface BaseEvaluatorConfig {
   /** Anthropic API key (for evaluators using Claude) */
   anthropicApiKey?: string;
 
-  /** Learning Commons partner key for authenticated telemetry (optional) */
-  partnerKey?: string;
-
-  /** Learning Commons platform API key — used for Knowledge Graph API access */
-  platformApiKey?: string;
+  /**
+   * Learning Commons key authorizing Learning Commons API calls, such as the
+   * Knowledge Graph. For identified telemetry, see
+   * {@link TelemetryOptions.learningCommonsApiKey}.
+   */
+  learningCommonsApiKey?: string;
 
   /**
    * Override the provider and model used by this evaluator.
@@ -186,7 +199,7 @@ export abstract class BaseEvaluator {
   protected telemetryClient?: TelemetryClient;
   protected logger: Logger;
   protected config: Required<Pick<BaseEvaluatorConfig, 'maxRetries'>> & {
-    telemetry: Required<TelemetryOptions>;
+    telemetry: NormalizedTelemetryOptions;
     modelOverride?: ModelOverride;
     googleApiKey?: string;
     openaiApiKey?: string;
@@ -272,7 +285,7 @@ export abstract class BaseEvaluator {
     if (this.config.telemetry.enabled) {
       this.telemetryClient = new TelemetryClient({
         endpoint: 'https://api.learningcommons.org/evaluators-telemetry/v1/events',
-        partnerKey: config.partnerKey,
+        learningCommonsApiKey: this.config.telemetry.learningCommonsApiKey,
         clientId: generateClientId(),
         enabled: true,
         logger: this.logger,
@@ -386,7 +399,7 @@ export abstract class BaseEvaluator {
    */
   private normalizeTelemetryConfig(
     telemetry: boolean | TelemetryOptions | undefined
-  ): Required<TelemetryOptions> {
+  ): NormalizedTelemetryOptions {
     // Handle boolean shortcuts
     if (telemetry === false) {
       return {
@@ -406,6 +419,7 @@ export abstract class BaseEvaluator {
     return {
       enabled: telemetry.enabled ?? true,
       recordInputs: telemetry.recordInputs ?? false,
+      learningCommonsApiKey: telemetry.learningCommonsApiKey,
     };
   }
 

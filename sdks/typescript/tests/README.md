@@ -124,7 +124,7 @@ describeIntegration.concurrent('My Evaluator - Test Suite', () => {
     }
 
     evaluator = new MyEvaluator({
-      partnerKey: process.env.MY_PARTNER_KEY!,
+      telemetry: { learningCommonsApiKey: process.env.LEARNING_COMMONS_API_KEY! },
       retry: false,  // We handle retries in test logic
     });
   });

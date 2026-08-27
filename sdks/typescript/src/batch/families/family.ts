@@ -4,10 +4,13 @@ import type { LLMProvider } from '../../providers/index.js';
 
 /**
  * A credential an evaluator family needs to run. Provider values match
- * {@link Provider}; `'platform'` is the Learning Commons platform key used for
- * Knowledge Graph access (distinct from any LLM provider key).
+ * {@link Provider}; `'learning-commons'` is the Learning Commons API key, which
+ * authorizes every Learning Commons service (currently the Knowledge Graph).
+ *
+ * Keyed by issuer, not by service — one key covers all of them. Failures are
+ * attributed per service instead, via `DependencyId`.
  */
-export type KeyKind = Provider | 'platform';
+export type KeyKind = Provider | 'learning-commons';
 
 /**
  * Declares one canonical input column a family consumes. `aliases` are
@@ -43,7 +46,7 @@ export interface FamilyRunContext {
   googleApiKey?: string;
   openaiApiKey?: string;
   anthropicApiKey?: string;
-  platformApiKey?: string;
+  learningCommonsApiKey?: string;
   maxRetries?: number;
   telemetry?: boolean | TelemetryOptions;
   modelOverride?: ModelOverride;

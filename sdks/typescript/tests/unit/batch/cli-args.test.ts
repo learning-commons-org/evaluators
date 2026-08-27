@@ -231,9 +231,9 @@ describe('parseArgs — family selection flags', () => {
     expect(parseArgs(['--evaluator', 'vocabulary', '--evaluator', 'purpose']).evaluators).toEqual(['vocabulary', 'purpose']);
   });
 
-  it('parses --platform-api-key (space and = form)', () => {
-    expect(parseArgs(['--platform-api-key', 'pk']).platformApiKey).toBe('pk');
-    expect(parseArgs(['--platform-api-key=pk']).platformApiKey).toBe('pk');
+  it('parses --learning-commons-api-key (space and = form)', () => {
+    expect(parseArgs(['--learning-commons-api-key', 'pk']).learningCommonsApiKey).toBe('pk');
+    expect(parseArgs(['--learning-commons-api-key=pk']).learningCommonsApiKey).toBe('pk');
   });
 
   it('parses --model and --yes/-y', () => {

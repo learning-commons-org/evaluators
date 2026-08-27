@@ -8,14 +8,14 @@ import type { FamilyRow } from '../../../src/batch/families/family.js';
 const MEMBER = 'math.standards-alignment';
 
 describe('STANDARDS_FAMILY.requiredKeys', () => {
-  it('requires the platform key plus Anthropic by default', () => {
-    expect(STANDARDS_FAMILY.requiredKeys([MEMBER])).toEqual([Provider.Anthropic, 'platform']);
+  it('requires the Learning Commons key plus Anthropic by default', () => {
+    expect(STANDARDS_FAMILY.requiredKeys([MEMBER])).toEqual([Provider.Anthropic, 'learning-commons']);
   });
 
-  it('swaps in the override provider (platform key still required)', () => {
+  it('swaps in the override provider (Learning Commons key still required)', () => {
     expect(
       STANDARDS_FAMILY.requiredKeys([MEMBER], { provider: Provider.Google, model: 'gemini-x' }),
-    ).toEqual([Provider.Google, 'platform']);
+    ).toEqual([Provider.Google, 'learning-commons']);
   });
 });
 
@@ -47,7 +47,7 @@ describe('QTC_FAMILY.requiredKeys — member selection', () => {
 });
 
 describe('STANDARDS_FAMILY.createRunner — provider-key forwarding', () => {
-  const base = { platformApiKey: 'p' };
+  const base = { learningCommonsApiKey: 'p' };
 
   it('constructs with a Google model override when the Google key is forwarded', () => {
     expect(() =>
@@ -84,7 +84,7 @@ describe('STANDARDS_FAMILY.runTask', () => {
 
   /** The runner builds a real evaluator; swap it for a stub so no network is needed. */
   function runnerWithStub(evaluate: ReturnType<typeof vi.fn>) {
-    const runner = STANDARDS_FAMILY.createRunner({ platformApiKey: 'p', anthropicApiKey: 'a', telemetry: false });
+    const runner = STANDARDS_FAMILY.createRunner({ learningCommonsApiKey: 'p', anthropicApiKey: 'a', telemetry: false });
     (runner as unknown as { evaluator: { evaluate: unknown } }).evaluator = { evaluate };
     return runner;
   }

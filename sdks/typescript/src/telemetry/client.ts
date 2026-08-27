@@ -33,9 +33,9 @@ export class TelemetryClient {
         'X-Client-ID': this.config.clientId,
       };
 
-      // Add partner key if provided
-      if (this.config.partnerKey) {
-        headers['X-API-Key'] = this.config.partnerKey;
+      // Identified telemetry is opt-in; absent key means anonymous events.
+      if (this.config.learningCommonsApiKey) {
+        headers['X-API-Key'] = this.config.learningCommonsApiKey;
       }
 
       const response = await fetch(this.config.endpoint, {

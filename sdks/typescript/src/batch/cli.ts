@@ -58,7 +58,7 @@ const KEY_CONFIG: Record<KeyKind, { envVar: string; label: string; flag: string 
   [Provider.Google]: { envVar: 'GOOGLE_API_KEY', label: 'Google API Key', flag: '--google-api-key' },
   [Provider.OpenAI]: { envVar: 'OPENAI_API_KEY', label: 'OpenAI API Key', flag: '--openai-api-key' },
   [Provider.Anthropic]: { envVar: 'ANTHROPIC_API_KEY', label: 'Anthropic API Key', flag: '--anthropic-api-key' },
-  platform: { envVar: 'PLATFORM_API_KEY', label: 'Learning Commons Platform Key', flag: '--platform-api-key' },
+  'learning-commons': { envVar: 'LEARNING_COMMONS_API_KEY', label: 'Learning Commons API Key', flag: '--learning-commons-api-key' },
 };
 
 // ---- Help / version ----
@@ -87,7 +87,7 @@ API Keys (flag > env var; prompted when interactive, required otherwise):
   --google-api-key <key>     (env: GOOGLE_API_KEY)
   --openai-api-key <key>     (env: OPENAI_API_KEY)
   --anthropic-api-key <key>  (env: ANTHROPIC_API_KEY)
-  --platform-api-key <key>   (env: PLATFORM_API_KEY) — required by math-standards-alignment
+  --learning-commons-api-key <key> (env: LEARNING_COMMONS_API_KEY) — required by math-standards-alignment
 
 Output:
   --output-dir <path>        Write results here (default: ./batch-results-<timestamp>)
@@ -277,7 +277,7 @@ async function main() {
       [Provider.Google]: cliArgs.googleApiKey,
       [Provider.OpenAI]: cliArgs.openaiApiKey,
       [Provider.Anthropic]: cliArgs.anthropicApiKey,
-      platform: cliArgs.platformApiKey,
+      'learning-commons': cliArgs.learningCommonsApiKey,
     };
     const keys: Partial<Record<KeyKind, string>> = {};
     for (const kind of requiredKeys) {
@@ -330,7 +330,7 @@ async function main() {
       googleApiKey: keys[Provider.Google],
       openaiApiKey: keys[Provider.OpenAI],
       anthropicApiKey: keys[Provider.Anthropic],
-      platformApiKey: keys.platform,
+      learningCommonsApiKey: keys['learning-commons'],
       concurrency: cliArgs.concurrency ?? 3,
       maxRetries: cliArgs.maxRetries ?? 2,
       telemetry: !cliArgs.noTelemetry,
