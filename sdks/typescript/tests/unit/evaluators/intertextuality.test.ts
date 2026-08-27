@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { IntertextualityEvaluator } from '../../../src/evaluators/intertextuality.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
-import CONFIG from '../../../../../evals/literacy/qualitative-text-complexity/intertextuality/config.json';
+import CONFIG from '../../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/config.json';
 import { getSystemPrompt, getUserPrompt } from '../../../src/prompts/intertextuality/index.js';
 
 const STEP = CONFIG.steps[0];

@@ -35,7 +35,7 @@
   ],
   "steps": [
     {
-      "id": "evaluate_intertextuality",
+      "id": "evaluate_reference_knowledge_demands",
       "type": "llm",
       "description": "Single-call LLM step that produces the EvaluatorOutput JSON.",
       "prompt": {
@@ -72,7 +72,7 @@
         "alias": "intertextuality-evaluator-default"
       },
       "generation": {
-        "temperature": 1
+        "temperature": 0
       },
       "parser": {
         "kind": "structured_output"
