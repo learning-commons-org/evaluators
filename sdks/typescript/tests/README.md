@@ -124,7 +124,10 @@ describeIntegration.concurrent('My Evaluator - Test Suite', () => {
     }
 
     evaluator = new MyEvaluator({
-      learningCommonsApiKey: process.env.LEARNING_COMMONS_API_KEY!,
+      // Attributes telemetry to your Learning Commons user. The top-level
+      // `learningCommonsApiKey` authorizes API calls instead — declaring it
+      // there does not identify telemetry, and vice versa.
+      telemetry: { learningCommonsApiKey: process.env.LEARNING_COMMONS_API_KEY! },
       retry: false,  // We handle retries in test logic
     });
   });

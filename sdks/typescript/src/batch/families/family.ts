@@ -4,7 +4,7 @@ import type { LLMProvider } from '../../providers/index.js';
 
 /**
  * A credential an evaluator family needs to run. Provider values match
- * {@link Provider}; `'learning-commons'` is the Learning Commons platform key used for
+ * {@link Provider}; `'learning-commons'` is the Learning Commons API key used for
  * Knowledge Graph access (distinct from any LLM provider key).
  */
 export type KeyKind = Provider | 'learning-commons';

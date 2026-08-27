@@ -22,7 +22,7 @@ function localCodeProblem(normalizedCode: string): string | null {
 }
 
 export interface StandardsCatalogConfig {
-  /** Learning Commons platform API key, used for Knowledge Graph access. */
+  /** Learning Commons API key, used for Knowledge Graph access. */
   learningCommonsApiKey: string;
   /**
    * Default subject filter for all lookups (e.g. 'Mathematics'). No default,

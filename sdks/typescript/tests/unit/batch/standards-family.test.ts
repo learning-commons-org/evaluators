@@ -8,11 +8,11 @@ import type { FamilyRow } from '../../../src/batch/families/family.js';
 const MEMBER = 'math.standards-alignment';
 
 describe('STANDARDS_FAMILY.requiredKeys', () => {
-  it('requires the platform key plus Anthropic by default', () => {
+  it('requires the Learning Commons key plus Anthropic by default', () => {
     expect(STANDARDS_FAMILY.requiredKeys([MEMBER])).toEqual([Provider.Anthropic, 'learning-commons']);
   });
 
-  it('swaps in the override provider (platform key still required)', () => {
+  it('swaps in the override provider (Learning Commons key still required)', () => {
     expect(
       STANDARDS_FAMILY.requiredKeys([MEMBER], { provider: Provider.Google, model: 'gemini-x' }),
     ).toEqual([Provider.Google, 'learning-commons']);

@@ -95,7 +95,7 @@ export const STANDARDS_FAMILY: EvaluatorFamily = {
   columns: STANDARDS_COLUMNS,
   maxInputRows: 5000,
   requiredKeys(_selectedMemberIds: string[], modelOverride?: ModelOverride): KeyKind[] {
-    // The platform key (Knowledge Graph) is always required; the LLM provider
+    // The Learning Commons key (Knowledge Graph) is always required; the LLM provider
     // is Anthropic unless a model override redirects it.
     return [modelOverride?.provider ?? Provider.Anthropic, 'learning-commons'];
   },

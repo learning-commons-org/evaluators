@@ -56,7 +56,7 @@ function stubResolution(candidates: unknown[], lcsByUuid: Record<string, string[
 }
 
 describe('StandardsCatalog - construction', () => {
-  it.each(['', '   '])('throws ConfigurationError for a blank platform API key (%j)', (learningCommonsApiKey) => {
+  it.each(['', '   '])('throws ConfigurationError for a blank Learning Commons API key (%j)', (learningCommonsApiKey) => {
     expect(() => new StandardsCatalog({ learningCommonsApiKey })).toThrow(ConfigurationError);
   });
 

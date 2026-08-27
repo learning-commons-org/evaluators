@@ -89,7 +89,7 @@ export interface BatchConfig {
   googleApiKey?: string;
   openaiApiKey?: string;
   anthropicApiKey?: string;
-  /** Learning Commons platform key — required for families that hit the Knowledge Graph. */
+  /** Learning Commons API key — required for families that hit the Knowledge Graph. */
   learningCommonsApiKey?: string;
   concurrency?: number;
   maxRetries?: number;
