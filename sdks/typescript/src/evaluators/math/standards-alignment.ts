@@ -40,7 +40,7 @@ export interface StandardAlignmentResult {
   coarseFiltered?: boolean;
   /**
    * Set when this pair could not be evaluated. Produced only by evaluateItems and
-   * evaluateByGrade; evaluate() throws instead.
+   * evaluateByGradeLevel; evaluate() throws instead.
    *
    * Not evidence of non-alignment: alignedCount is 0 because nothing was
    * measured, not because nothing aligned.
@@ -125,7 +125,7 @@ const DETAIL_MODEL: string = STEP.model.name;
 const TEMPERATURE: number | null = STEP.generation.temperature;
 const KG_SUBJECT = 'Mathematics';
 /**
- * Above this many question/standard pairs, evaluateByGrade warns. A grade level can carry
+ * Above this many question/standard pairs, evaluateByGradeLevel warns. A grade level can carry
  * over a thousand standards in some jurisdictions, so a handful of questions is
  * enough to run into five figures of LLM calls.
  */
@@ -208,7 +208,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
   //
   // Each item specifies its own statementCodes list. Use this for:
   //   - Tagging validation: verify a question covers its pre-mapped standards
-  //   - Grade-level coverage: pass the same codes to all items (evaluateByGrade does this)
+  //   - Grade-level coverage: pass the same codes to all items (evaluateByGradeLevel does this)
   //
   // Set options.useCoarseFilter to true to run a fast pre-filter before the
   // full per-LC evaluation — reduces LLM calls at scale, slight recall trade-off.
@@ -343,14 +343,14 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
   }
 
   // -------------------------------------------------------------------------
-  // evaluateByGrade — fetches all math standards for a grade level, then evaluates
+  // evaluateByGradeLevel — fetches all math standards for a grade level, then evaluates
   //
   // Use when you don't have a predetermined standards list. Jurisdiction
   // determines which state's adopted standards are fetched from the KG.
   // Returns both a by-question and by-standard view of coverage.
   // -------------------------------------------------------------------------
 
-  async evaluateByGrade(
+  async evaluateByGradeLevel(
     questions: string[],
     gradeLevel: string,
     jurisdiction: Jurisdiction,
@@ -359,7 +359,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     if (questions.length === 0) throw new InputValidationError('questions array must not be empty');
     this.validateGradeLevel(gradeLevel, new Set(SUPPORTED_GRADES));
 
-    const academicStandards = await this.kgClient.getStandardsByGrade(gradeLevel, {
+    const academicStandards = await this.kgClient.getStandardsByGradeLevel(gradeLevel, {
       jurisdiction,
       academicSubject: KG_SUBJECT,
     });

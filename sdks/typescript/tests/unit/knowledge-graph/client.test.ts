@@ -448,12 +448,12 @@ describe('KnowledgeGraphClient - getLearningComponents', () => {
   });
 });
 
-describe('KnowledgeGraphClient - getStandardsByGrade', () => {
+describe('KnowledgeGraphClient - getStandardsByGradeLevel', () => {
   it('returns standards filtered to normalizedStatementType=Standard via URL', async () => {
     const body = { data: [{ caseIdentifierUUID: 'u1', statementCode: '3.MD.C.7.d', normalizedStatementType: 'Standard', gradeLevel: ['3'] }] };
     const fetchMock = vi.fn().mockResolvedValue(okResponse(body));
     vi.stubGlobal('fetch', fetchMock);
-    const results = await new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3');
+    const results = await new KnowledgeGraphClient(API_KEY).getStandardsByGradeLevel('3');
     const request = fetchMock.mock.calls[0][0] as Request;
     expect(request.url).toContain('normalizedStatementType=Standard');
     expect(results).toHaveLength(1);
@@ -463,7 +463,7 @@ describe('KnowledgeGraphClient - getStandardsByGrade', () => {
   it('resolves Multi-State to the CCSS framework without a lookup request', async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse({ data: [], pagination: { hasMore: false } }));
     vi.stubGlobal('fetch', fetchMock);
-    await new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3');
+    await new KnowledgeGraphClient(API_KEY).getStandardsByGradeLevel('3');
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = (fetchMock.mock.calls[0][0] as Request).url;
     expect(url).toContain('/academic-standards?');
@@ -480,7 +480,7 @@ describe('KnowledgeGraphClient - getStandardsByGrade', () => {
       }));
     });
     vi.stubGlobal('fetch', fetchMock);
-    const results = await new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3');
+    const results = await new KnowledgeGraphClient(API_KEY).getStandardsByGradeLevel('3');
     expect(results).toHaveLength(3);
     expect(results.map((r) => r.statementCode)).toEqual(['3.MD.C.7.1', '3.MD.C.7.2', '3.MD.C.7.3']);
     expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -490,13 +490,13 @@ describe('KnowledgeGraphClient - getStandardsByGrade', () => {
 
   it('throws KnowledgeGraphError if hasMore=true but nextCursor is null', async () => {
     mockFetch(200, { data: [], pagination: { hasMore: true, nextCursor: null } });
-    await expect(new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3'))
+    await expect(new KnowledgeGraphClient(API_KEY).getStandardsByGradeLevel('3'))
       .rejects.toThrow(KnowledgeGraphError);
   });
 
   it('throws KnowledgeGraphError if the API repeats a cursor', async () => {
     mockFetch(200, { data: [], pagination: { hasMore: true, nextCursor: 'same-page' } });
-    const err = await new KnowledgeGraphClient(API_KEY).getStandardsByGrade('3').catch((e) => e);
+    const err = await new KnowledgeGraphClient(API_KEY).getStandardsByGradeLevel('3').catch((e) => e);
     expect(err).toBeInstanceOf(KnowledgeGraphError);
     expect(err.message).toContain('repeated');
   });
