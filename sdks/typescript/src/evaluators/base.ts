@@ -45,20 +45,14 @@ export interface TelemetryOptions {
   recordInputs?: boolean;
 
   /**
-   * Opt in to **identified** telemetry by declaring the Learning Commons key
-   * here as well: events are then attributed to your Learning Commons user
-   * rather than being anonymous.
-   *
-   * Deliberately separate from the top-level `learningCommonsApiKey`. The same
-   * value may be passed to both, but each use is opted into explicitly — the
-   * SDK never repurposes a key given for API access as an identity.
+   * Learning Commons key authorizing identified telemetry: events are attributed
+   * to your Learning Commons user. Unset → events are anonymous.
    */
   learningCommonsApiKey?: string;
 }
 
 /**
- * Telemetry options after defaults are applied. The key stays optional: absent
- * means anonymous events, which is the default, not a missing value to fill in.
+ * Telemetry options after defaults are applied. The key remains optional.
  */
 type NormalizedTelemetryOptions = Required<Pick<TelemetryOptions, 'enabled' | 'recordInputs'>> &
   Pick<TelemetryOptions, 'learningCommonsApiKey'>;
@@ -105,11 +99,8 @@ export interface BaseEvaluatorConfig {
   anthropicApiKey?: string;
 
   /**
-   * Learning Commons–issued key authorizing Learning Commons API calls, such as
-   * the Knowledge Graph.
-   *
-   * Scoped to that purpose only. To also attribute telemetry to your Learning
-   * Commons user, declare it again under
+   * Learning Commons key authorizing Learning Commons API calls, such as the
+   * Knowledge Graph. For identified telemetry, see
    * {@link TelemetryOptions.learningCommonsApiKey}.
    */
   learningCommonsApiKey?: string;
