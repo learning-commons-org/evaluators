@@ -1,0 +1,14 @@
+[
+  {
+    "id": "trees",
+    "description": "Simple informational passage about trees; one technical term ('photosynthesis') lifts it above the 2-3 band for independent reading.",
+    "source": "Python SDK contract capture (sdks/settings/grade-level-appropriateness/contracts.toml, cases.trees)",
+    "input": {
+      "text": "Trees are important plants that grow in many parts of the world. They have roots that go deep into the ground to find water and nutrients. Their leaves use sunlight to make food through a process called photosynthesis. Trees provide homes for birds and animals. They also give us wood for building homes and making furniture. Some trees produce fruit that people and animals eat. Forests made of many trees help keep the air clean and fresh."
+    },
+    "expected": {
+      "grade_band": "4-5",
+      "alternative_grade_band": "2-3"
+    }
+  }
+]

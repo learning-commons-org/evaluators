@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "input_schema.json",
+  "title": "EvaluatorInput",
+  "description": "Runtime inputs for the Grade Level Appropriateness evaluator.",
+  "type": "object",
+  "required": ["text"],
+  "additionalProperties": false,
+  "properties": {
+    "text": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 10000,
+      "description": "The passage to evaluate. Note this evaluator takes no grade input — it determines which grade band the text suits. Bounds mirror the SDK text input spec (sdks/settings/grade-level-appropriateness/settings.toml: min_text_length / max_text_length)."
+    }
+  }
+}

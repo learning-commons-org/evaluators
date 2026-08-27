@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../_schemas/config.schema.json",
+  "evaluator": {
+    "id": "student_facing_text.ela_reading.grade_level_appropriateness",
+    "stable_id": "770e6381-e6d7-4f1f-a70b-13add43899a7",
+    "id_history": ["grade-level-appropriateness"],
+    "name": "Grade Level Appropriateness Evaluator",
+    "description": "Evaluates which grade band a text is appropriate for at independent reading, plus an alternative band reachable with scaffolding, using word count, Flesch-Kincaid, the qualitative text complexity rubric, and background knowledge demands. Unlike the other literacy evaluators this one takes no grade input, so supported_grades records the grades spanned by the bands it can return rather than constraining an input.",
+    "supported_grades": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+  },
+  "input_schema": {
+    "$ref": "input_schema.json"
+  },
+  "preprocessing": [],
+  "steps": [
+    {
+      "id": "evaluate_grade_level_appropriateness",
+      "type": "llm",
+      "description": "Single-call LLM step that produces the EvaluatorOutput JSON. TODO: the Flesch-Kincaid Grade Level is still computed by the model from the formula embedded in system.txt. Every other evaluator precomputes FK deterministically as a `preprocessing` step (textstat / text-readability, rounded to 2dp) and injects it as {fk_score}. Migrate GLA to the same preprocessing contract so the quantitative signal stops varying run to run.",
+      "prompt": {
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "9253690863f8e7605eda4dcb7f906d4384e5b407d8237298362c9f8585bffc8a"
+          },
+          {
+            "role": "user",
+            "source_path": "user.txt",
+            "sha256": "12d5bb41ea5aec13cc92d4540c992b97916d8732f9bac071a73c9b54c3e8d83f"
+          }
+        ],
+        "placeholders": {
+          "text": {
+            "required": true,
+            "source": "input"
+          }
+        }
+      },
+      "model": {
+        "provider": "google",
+        "name": "gemini-3.6-flash"
+      },
+      "generation": {
+        "temperature": 1
+      },
+      "parser": {
+        "kind": "structured_output"
+      }
+    }
+  ],
+  "output_schema": {
+    "$ref": "output_schema.json"
+  },
+  "fixtures": {
+    "path": "fixtures.json"
+  }
+}
