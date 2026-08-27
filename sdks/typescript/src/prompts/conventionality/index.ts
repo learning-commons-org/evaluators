@@ -1,5 +1,5 @@
-import SYSTEM_PROMPT from '../../../../../evals/prompts/conventionality/system.txt';
-import USER_PROMPT_TEMPLATE from '../../../../../evals/prompts/conventionality/user.txt';
+import SYSTEM_PROMPT from '../../../../../evals/student-facing-text/ela-reading/meaning-directness/system.txt';
+import USER_PROMPT_TEMPLATE from '../../../../../evals/student-facing-text/ela-reading/meaning-directness/user.txt';
 
 /**
  * Get the Conventionality evaluator system prompt
@@ -17,6 +17,6 @@ export function getSystemPrompt(): string {
 export function getUserPrompt(text: string, grade: string, fkScore: number): string {
   return USER_PROMPT_TEMPLATE
     .replaceAll('{text}', text)
-    .replaceAll('{grade}', grade)
+    .replaceAll('{grade_level}', grade)
     .replaceAll('{fk_score}', fkScore.toString());
 }
