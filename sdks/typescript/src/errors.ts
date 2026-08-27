@@ -24,6 +24,10 @@ import {
  * injected their own `llmProvider`, so the vendor is theirs to know, not ours.
  * A `modelOverride` still reports its real vendor, since it is one of ours.
  *
+ * Named per service, so `knowledge-graph` rather than `learning-commons`: the
+ * one Learning Commons key authorizes several services, and a failure needs to
+ * name the one that failed. Further Learning Commons services get their own IDs.
+ *
  * The provider arm must stay in step with the `Provider` enum, which cannot be
  * imported here without a cycle.
  */
