@@ -13,13 +13,13 @@ function makeResult(overrides: Partial<BatchResult>): BatchResult {
   return {
     rowIndex: 1,
     text: 'Sample text.',
-    grade: '5',
+    gradeLevel: '5',
     evaluatorId: 'vocabulary',
     status: 'success',
     score: 'slightly complex',
     reasoning: 'ok',
     processingTimeMs: 100,
-    originalRow: { text: 'Sample text.', grade: '5' },
+    originalRow: { text: 'Sample text.', grade_level: '5' },
     ...overrides,
   };
 }
@@ -83,8 +83,8 @@ describe('formatAsCSV', () => {
 
   it('places evaluator columns in alphabetical order after original columns', () => {
     const output = makeOutput([
-      makeResult({ evaluatorId: 'vocabulary',         originalRow: { id: '1', text: 'txt', grade: '5' } }),
-      makeResult({ evaluatorId: 'sentence-structure', originalRow: { id: '1', text: 'txt', grade: '5' } }),
+      makeResult({ evaluatorId: 'vocabulary',         originalRow: { id: '1', text: 'txt', grade_level: '5' } }),
+      makeResult({ evaluatorId: 'sentence-structure', originalRow: { id: '1', text: 'txt', grade_level: '5' } }),
     ]);
 
     const header = formatAsCSV(output).split('\n')[0];
@@ -118,12 +118,12 @@ describe('formatAsCSV', () => {
   it('outputs not_run when an evaluator produced no result for a row', () => {
     // Row 1: vocabulary ran; sentence-structure did not
     const output = makeOutput([
-      makeResult({ rowIndex: 1, evaluatorId: 'vocabulary', originalRow: { text: 'x', grade: '5' } }),
+      makeResult({ rowIndex: 1, evaluatorId: 'vocabulary', originalRow: { text: 'x', grade_level: '5' } }),
     ]);
     // Manually add sentence-structure to the results so the column exists but not for row 1
     output.results.push(makeResult({
       rowIndex: 2, evaluatorId: 'sentence-structure',
-      originalRow: { text: 'y', grade: '5' },
+      originalRow: { text: 'y', grade_level: '5' },
     }));
 
     const csv = formatAsCSV(output);
@@ -139,7 +139,7 @@ describe('formatAsCSV', () => {
       makeResult({
         score: 'slightly complex',
         reasoning: 'Has "quotes" and, comma',
-        originalRow: { text: 'Line1\nLine2', grade: '5' },
+        originalRow: { text: 'Line1\nLine2', grade_level: '5' },
       }),
     ]);
 
@@ -174,7 +174,7 @@ describe('formatAsHTML', () => {
   describe('GLA status classification', () => {
     function glaOutput(inputGrade: string, glaBand: string) {
       return makeOutput([makeResult({
-        grade: inputGrade,
+        gradeLevel: inputGrade,
         evaluatorId: 'grade-level-appropriateness',
         score: glaBand,
       })]);
@@ -316,7 +316,7 @@ describe('formatAsHTML', () => {
     it('groups by the INPUT grade band, not the GLA result band', () => {
       // Grade 3 → "2-3" bucket (index 1). GLA says "9-10" (off-target, diff=3).
       const output = makeOutput([makeResult({
-        grade: '3',
+        gradeLevel: '3',
         evaluatorId: 'grade-level-appropriateness',
         score: '9-10',
       })]);
@@ -338,7 +338,7 @@ describe('formatAsHTML', () => {
     it('produces null for grade bands that have no data', () => {
       // Only grade 5 rows → only "4-5" band (index 2) has data; others are null
       const output = makeOutput([
-        makeResult({ grade: '5', evaluatorId: 'vocabulary', score: 'moderately complex' }),
+        makeResult({ gradeLevel: '5', evaluatorId: 'vocabulary', score: 'moderately complex' }),
       ]);
 
       const { complexityHeatmap } = extractReportData(formatAsHTML(output, makeMeta()));
@@ -349,8 +349,8 @@ describe('formatAsHTML', () => {
     it('computes the correct per-cell average', () => {
       // Two grade-5 rows: scores 1 and 3 → average 2.0
       const output = makeOutput([
-        makeResult({ rowIndex: 1, grade: '5', evaluatorId: 'vocabulary', score: 'slightly complex' }),
-        makeResult({ rowIndex: 2, grade: '5', evaluatorId: 'vocabulary', score: 'very complex' }),
+        makeResult({ rowIndex: 1, gradeLevel: '5', evaluatorId: 'vocabulary', score: 'slightly complex' }),
+        makeResult({ rowIndex: 2, gradeLevel: '5', evaluatorId: 'vocabulary', score: 'very complex' }),
       ]);
 
       const { complexityHeatmap } = extractReportData(formatAsHTML(output, makeMeta({ totalInputRows: 2 })));
@@ -363,7 +363,7 @@ describe('formatAsHTML', () => {
     it('Unicode-escapes < > & so injected data cannot break out of the script tag', () => {
       const output = makeOutput([makeResult({
         text: '<script>alert("xss")</script>',
-        originalRow: { text: '<script>alert("xss")</script>', grade: '5' },
+        originalRow: { text: '<script>alert("xss")</script>', grade_level: '5' },
       })]);
 
       const html = formatAsHTML(output, makeMeta());

@@ -23,7 +23,7 @@ import {
 } from './family.js';
 
 interface SimpleEvaluator {
-  evaluate(text: string, grade: string): Promise<EvaluationResult<string, unknown>>;
+  evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<string, unknown>>;
 }
 type EvaluatorConstructor = new (config: BaseEvaluatorConfig) => SimpleEvaluator;
 
@@ -51,7 +51,7 @@ const MEMBERS = [
 
 const COLUMNS: ColumnSpec[] = [
   { name: 'text', required: true },
-  { name: 'grade', required: true },
+  { name: 'grade_level', required: true },
 ];
 
 /**
@@ -97,7 +97,7 @@ class QtcRunner implements FamilyRunner {
   }
 
   async runTask(row: FamilyRow, memberId: string): Promise<TaskOutcome> {
-    const result = await this.getEvaluator(memberId).evaluate(row.columns.text, row.columns.grade);
+    const result = await this.getEvaluator(memberId).evaluate(row.columns.text, row.columns['grade_level']);
     return { score: result.score, reasoning: result.reasoning };
   }
 }

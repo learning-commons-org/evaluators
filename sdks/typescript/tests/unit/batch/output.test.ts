@@ -15,7 +15,7 @@ function standardsResult(over: Partial<BatchResult> = {}): BatchResult {
   return {
     rowIndex: 2,
     text: '2+2=?',
-    grade: '4',
+    gradeLevel: '4',
     evaluatorId: 'math.standards-alignment',
     status: 'success',
     score: '1/2',
@@ -120,9 +120,9 @@ describe('renderOutputs — standards family', () => {
 describe('renderOutputs — text-complexity family (generic JSON)', () => {
   it('emits one result per (row, evaluator) with score/reasoning', () => {
     const qtcResult: BatchResult = {
-      rowIndex: 2, text: 'hello', grade: '3', evaluatorId: 'vocabulary', status: 'success',
+      rowIndex: 2, text: 'hello', gradeLevel: '3', evaluatorId: 'vocabulary', status: 'success',
       score: 'slightly complex', reasoning: 'simple words', processingTimeMs: 5,
-      originalRow: { text: 'hello', grade: '3' },
+      originalRow: { text: 'hello', grade_level: '3' },
     };
     const bundle = renderOutputs('text-complexity', output([qtcResult]), { ...meta, groupId: 'text-complexity' });
     const parsed = JSON.parse(bundle.json);
@@ -132,9 +132,9 @@ describe('renderOutputs — text-complexity family (generic JSON)', () => {
 
   it('orders results by row, then by evaluator id within a row', () => {
     const qtc = (rowIndex: number, evaluatorId: string): BatchResult => ({
-      rowIndex, text: 't', grade: '3', evaluatorId, status: 'success',
+      rowIndex, text: 't', gradeLevel: '3', evaluatorId, status: 'success',
       score: 'slightly complex', reasoning: '', processingTimeMs: 1,
-      originalRow: { text: 't', grade: '3' },
+      originalRow: { text: 't', grade_level: '3' },
     });
     // Deliberately unsorted, with a same-row pair so the tiebreak is exercised.
     const bundle = renderOutputs(
@@ -288,14 +288,14 @@ describe('standards CSV — escaping, header contract, and blank handling', () =
     const bundle = renderOutputs(
       'math-standards-alignment',
       output([standardsResult({
-        status: 'error', error: 'boom', payload: undefined, grade: undefined,
+        status: 'error', error: 'boom', payload: undefined, gradeLevel: undefined,
         text: 'question from the row', originalRow: { id: 'itm-9' },
       })]),
       meta,
     );
     const row = JSON.parse(bundle.json).items[0];
     expect(row.question).toBe('question from the row');
-    expect(row.grade).toBe('');
+    expect(row.gradeLevel).toBe('');
   });
 
   it('lists a column shared by several rows only once', () => {

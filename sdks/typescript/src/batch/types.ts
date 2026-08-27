@@ -26,14 +26,14 @@ export interface BatchTask {
 /**
  * Result from a single evaluation.
  *
- * `text`/`grade` are convenience projections of the corresponding columns when
+ * `text`/`gradeLevel` are convenience projections of the corresponding columns when
  * present (used by the text-complexity report); `payload` carries the full
  * structured verdict for families whose output isn't a scalar score.
  */
 export interface BatchResult {
   rowIndex: number;
   text: string;
-  grade: string;
+  gradeLevel: string;
   evaluatorId: string;
   status: 'success' | 'error';
   score?: string;

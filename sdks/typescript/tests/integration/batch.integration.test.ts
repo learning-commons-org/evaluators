@@ -80,7 +80,7 @@ describeIntegration('Batch Evaluator - Integration', () => {
       for (const result of output.results) {
         expect(result.rowIndex).toBeGreaterThan(0);
         expect(result.text).toBeTruthy();
-        expect(result.grade).toBeTruthy();
+        expect(result.gradeLevel).toBeTruthy();
         expect(group.evaluatorIds).toContain(result.evaluatorId);
         expect(result.status).toMatch(/success|error/);
         expect(result.processingTimeMs).toBeGreaterThan(0);
@@ -122,7 +122,7 @@ describeIntegration('Batch Evaluator - Integration', () => {
 
       // Single row — verify all group evaluators ran
       const inputs: BatchInput[] = [
-        { rowIndex: 1, columns: { text: 'The cat sat on the mat.', grade: '3' }, originalRow: { text: 'The cat sat on the mat.', grade: '3' } },
+        { rowIndex: 1, columns: { text: 'The cat sat on the mat.', grade_level: '3' }, originalRow: { text: 'The cat sat on the mat.', grade_level: '3' } },
       ];
 
       console.log(`\n📊 Processing 1 row with ${group.evaluatorIds.length} evaluators...`);
