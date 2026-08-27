@@ -109,7 +109,7 @@ Every evaluator accepts a config object at construction time.
 | `telemetry.enabled` | bool | `true` | Whether to emit telemetry events |
 | `telemetry.record_raw_inputs` | bool | `false` | Include verbatim user-supplied inputs in telemetry (Principle 7) |
 | `telemetry.learning_commons_api_key` | string | none | Explicit opt-in to **identified** telemetry: sent as auth on telemetry requests so events are attributed to the partner's Learning Commons user. Unset → events are anonymous |
-| `llm_provider` | object | none | *(Draft)* Bring-your-own-provider: a caller-supplied provider client used for all LLM calls. Conflicts with `model_override` → `ConfigurationError` |
+| `llm_provider` | object | none | *(Draft)* Bring-your-own-provider: a caller-supplied provider client used for all LLM calls. Conflicts with `model_override` → `ConfigurationError`. Excluded from key derivation (§3.1) — the caller owns its auth |
 
 Logging configuration (`logger`, `log_level`) is a per-language mechanism, not part of the canonical table — see §7.
 
@@ -119,8 +119,9 @@ Logging configuration (`logger`, `log_level`) is a per-language mechanism, not p
 - SDKs MUST NOT read credentials from the environment implicitly. Keys are passed explicitly in config; reading env vars (or vaults, or files) is the calling application's responsibility.
 - An SDK MAY offer an explicit opt-in helper (e.g. `Config.from_env()`) that reads the documented canonical variable names — the env read is then a visible call the application made, never a constructor side effect.
 - A key is *missing* if not provided or provided as the language's null/empty value.
-- If a required key (per the evaluator's `default_providers`, or the `model_override` provider) is missing, the constructor MUST raise `ConfigurationError` — before any I/O.
-- When `model_override` is set, **only** the override provider's key is required.
+- If a required key is missing — per the evaluator's `default_providers`, its `required_credentials` (§10.1), or the `model_override` provider — the constructor MUST raise `ConfigurationError` before any I/O. Canonical message: `"Missing required credential: {field}"`.
+- When `model_override` is set, only the override provider's key is required **in place of those derived from `default_providers`**. `required_credentials` are unaffected: an override changes which model runs, never which services the evaluator calls.
+- Rendering a canonical key name in a message or config surface is the mechanical casing mapping of §2.1 — SDKs do not maintain per-key lookup tables.
 
 ### 3.2 `model_override`
 
@@ -254,7 +255,7 @@ Every `EvaluatorError` exposes `retryable` (bool). Class defaults are the Retrya
 
 | Field | Type | Description |
 |---|---|---|
-| `dependency` | string | Canonical ID of the failed system: a `Provider` value (§3.3) or a service ID (e.g. `"knowledge-graph"`) |
+| `dependency` | string | Canonical ID of the failed **service**: a `Provider` value (§3.3) or a service ID (e.g. `"knowledge-graph"`) — never the issuing organisation. Credentials are issuer-scoped (§3); failures are service-scoped |
 | `status_code` | int \| null | HTTP status from the dependency, if available |
 | `request_id` | string \| null | Dependency's request ID, for support escalation |
 | `model` | string \| null | Model ID in use, when the dependency is an LLM provider |
@@ -382,7 +383,8 @@ A definition MUST specify:
 | Stability | Stable or Experimental |
 | Payload shape | The `result` shape (§5.2), field by field |
 | Supported grades | Range of canonical grade tokens, or none for grade-free evaluators |
-| Default providers | Drives key requirements (§3.1) |
+| Default providers | LLM providers; drives LLM key requirements (§3.1), narrowed by `model_override` |
+| `required_credentials` | Canonical config keys (§3) for non-LLM services the evaluator calls (e.g. `learning_commons_api_key`); unaffected by `model_override` |
 | Phases | Ordered phase names; per phase: pinned model ID (§10.2), prompt inputs, temperature |
 | Text limits | Only when overriding the §4.1 defaults |
 
@@ -495,6 +497,7 @@ Tracked deviations between this spec and the current SDKs — each a bug to fix 
 | 17 | §6.1–6.2 | Both | `APIError` shape: no `EvaluationError`/`DependencyError` categories, no catch-all leaves, no `dependency` field; TS `KnowledgeGraphError` sits outside the taxonomy | Restructure to the fault-domain taxonomy; re-parent `KnowledgeGraphError` under `DependencyError` |
 | 18 | §4.1 | Both | `min_text_length` default is 10 | Change SDK default to 1; meaningful minimums move to registry definitions |
 | 19 | §4.2 | Both | Grade parameter named `grade` | Rename to `grade_level` (SDK surfaces; several evaluators already standardized) |
+| 20 | §3.1 | TypeScript | `validateApiKeys` early-returns under `model_override`, skipping non-LLM credential checks; the Learning Commons requirement is hand-rolled in Math Standards Alignment; parallel per-key lookup tables and divergent missing-key messages | Derive requirements from `default_providers` + `required_credentials` with override narrowing only the former; adopt the canonical message and §2.1 rendering |
 
 ---
 
@@ -541,5 +544,5 @@ Resolved questions are removed once their resolution is codified in the spec bod
 
 | Version | Date | Changes |
 |---|---|---|
-| 0.1.0 | 2026-08-25 | Review revisions: fault-domain error taxonomy with category-bound retry strategy and trust boundaries; purpose-scoped credentials (`learning_commons_api_key` + `telemetry.learning_commons_api_key`) with explicit-only key resolution (closes Q-1); `evaluate()` contract; three-layer evaluator identity `id`/`stable_id`/`id_history` (closes Q-7); telemetry attribution via the scoped key, no tracking field (closes Q-8); evaluator-scoped stability + Draft markers; SDK SemVer policy; logging as behavioral contract with per-language mechanisms; `record_raw_inputs`; `grade_level`/`grade_band` naming; immutable-version model IDs |
+| 0.1.0 | 2026-08-25 | Review revisions: fault-domain error taxonomy with category-bound retry strategy and trust boundaries; purpose-scoped credentials (`learning_commons_api_key` + `telemetry.learning_commons_api_key`) with explicit-only key resolution (closes Q-1); `evaluate()` contract; three-layer evaluator identity `id`/`stable_id`/`id_history` (closes Q-7); telemetry attribution via the scoped key, no tracking field (closes Q-8); evaluator-scoped stability + Draft markers; SDK SemVer policy; logging as behavioral contract with per-language mechanisms; `record_raw_inputs`; `grade_level`/`grade_band` naming; immutable-version model IDs; registry-declared `required_credentials` with override-invariant semantics |
 | 0.1.0-draft | 2026-08-18 | Initial formalization: principles, naming + canonical value forms, envelope + payload invariants, canonical error taxonomy, telemetry/logging contracts, optional-capability tier, evaluator registry direction, contract-fixture mechanism, lifecycle & governance |
