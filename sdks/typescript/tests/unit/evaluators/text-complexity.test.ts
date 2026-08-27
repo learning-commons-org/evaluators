@@ -191,7 +191,7 @@ describe('TextComplexityEvaluator', () => {
         InputValidationError
       );
       await expect(evaluator.evaluate(text, 'invalid')).rejects.toThrow(
-        'Invalid grade "invalid"'
+        'Invalid grade level "invalid"'
       );
 
       // Grades outside supported range (K, 1, 2 not supported)

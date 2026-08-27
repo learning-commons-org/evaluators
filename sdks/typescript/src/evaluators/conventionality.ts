@@ -53,21 +53,21 @@ export class ConventionalityEvaluator extends BaseEvaluator {
    * Evaluate conventionality complexity for a given text and grade level
    *
    * @param text - The text to evaluate
-   * @param grade - The target grade level (3-12)
+   * @param gradeLevel - The target grade level (3-12)
    * @returns Evaluation result with complexity score and detailed analysis
-   * @throws {InputValidationError} If text is empty, too short/long, or grade is invalid
+   * @throws {InputValidationError} If text is empty, too short/long, or gradeLevel is invalid
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(
     text: string,
-    grade: string
+    gradeLevel: string
   ): Promise<EvaluationResult<TextComplexityLevel, ConventionalityInternal>> {
     this.logger.info('Starting Conventionality evaluation', {
       evaluator: 'conventionality',
       operation: 'evaluate',
-      grade,
+      gradeLevel,
       textLength: text.length,
     });
 
@@ -77,7 +77,7 @@ export class ConventionalityEvaluator extends BaseEvaluator {
     try {
       // Validate inputs — inside try so validation errors are telemetered.
       this.validateText(text);
-      this.validateGrade(grade, new Set(ConventionalityEvaluator.metadata.supportedGrades));
+      this.validateGradeLevel(gradeLevel, new Set(ConventionalityEvaluator.metadata.supportedGrades));
 
       this.logger.debug('Evaluating conventionality complexity', {
         evaluator: 'conventionality',
@@ -85,7 +85,7 @@ export class ConventionalityEvaluator extends BaseEvaluator {
       });
 
       const fkScore = calculateFleschKincaidGrade(text);
-      const response = await this.evaluateConventionality(text, grade, fkScore);
+      const response = await this.evaluateConventionality(text, gradeLevel, fkScore);
 
       stageDetails.push({
         stage: 'conventionality_evaluation',
@@ -122,7 +122,7 @@ export class ConventionalityEvaluator extends BaseEvaluator {
         status: 'success',
         latencyMs,
         textLength: text.length,
-        grade,
+        gradeLevel,
         provider: this.provider.label,
         tokenUsage: totalTokenUsage,
         metadata: {
@@ -136,7 +136,7 @@ export class ConventionalityEvaluator extends BaseEvaluator {
       this.logger.info('Conventionality evaluation completed successfully', {
         evaluator: 'conventionality',
         operation: 'evaluate',
-        grade,
+        gradeLevel,
         score: result.score,
         processingTimeMs: latencyMs,
       });
@@ -148,7 +148,7 @@ export class ConventionalityEvaluator extends BaseEvaluator {
       this.logger.error('Conventionality evaluation failed', {
         evaluator: 'conventionality',
         operation: 'evaluate',
-        grade,
+        gradeLevel,
         error: error instanceof Error ? error : undefined,
         processingTimeMs: latencyMs,
         completedStages: stageDetails.length,
@@ -163,7 +163,7 @@ export class ConventionalityEvaluator extends BaseEvaluator {
         status: 'error',
         latencyMs,
         textLength: text.length,
-        grade,
+        gradeLevel,
         provider: this.provider.label,
         tokenUsage: totalTokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
@@ -186,13 +186,13 @@ export class ConventionalityEvaluator extends BaseEvaluator {
    */
   private async evaluateConventionality(
     text: string,
-    grade: string,
+    gradeLevel: string,
     fkScore: number
   ): Promise<{ data: ConventionalityInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const response = await this.provider.generateStructured({
       messages: [
         { role: 'system', content: getSystemPrompt() },
-        { role: 'user', content: getUserPrompt(text, grade, fkScore) },
+        { role: 'user', content: getUserPrompt(text, gradeLevel, fkScore) },
       ],
       schema: ConventionalityOutputSchema,
       temperature: 0,
@@ -220,9 +220,9 @@ export class ConventionalityEvaluator extends BaseEvaluator {
  */
 export async function evaluateConventionality(
   text: string,
-  grade: string,
+  gradeLevel: string,
   config: BaseEvaluatorConfig
 ): Promise<EvaluationResult<TextComplexityLevel, ConventionalityInternal>> {
   const evaluator = new ConventionalityEvaluator(config);
-  return evaluator.evaluate(text, grade);
+  return evaluator.evaluate(text, gradeLevel);
 }

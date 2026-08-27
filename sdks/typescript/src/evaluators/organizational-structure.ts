@@ -62,18 +62,18 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
    * Evaluate organizational structure complexity for a given text and grade level
    *
    * @param text - The text to evaluate
-   * @param grade - The target grade level (3-12)
+   * @param gradeLevel - The target grade level (3-12)
    * @returns Evaluation result with complexity score and detailed analysis
-   * @throws {InputValidationError} If text is empty, too short/long, or grade is invalid
+   * @throws {InputValidationError} If text is empty, too short/long, or gradeLevel is invalid
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(text: string, grade: string): Promise<EvaluationResult<TextComplexityLevel, OrganizationalStructureInternal>> {
+  async evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<TextComplexityLevel, OrganizationalStructureInternal>> {
     this.logger.info('Starting Organizational Structure evaluation', {
       evaluator: OrganizationalStructureEvaluator.metadata.id,
       operation: 'evaluate',
-      grade,
+      gradeLevel,
       textLength: text.length,
     });
 
@@ -82,7 +82,7 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
 
     try {
       this.validateText(text);
-      const gradeNum = this.parseAndValidateGrade(grade);
+      const gradeNum = this.parseAndValidateGrade(gradeLevel);
 
       const fkScore = OrganizationalStructureEvaluator.computeFkScore(text);
       const inputs: Record<string, string> = {
@@ -121,7 +121,7 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
         status: 'success',
         latencyMs,
         textLength: text.length,
-        grade: String(gradeNum),
+        gradeLevel: String(gradeNum),
         provider: this.provider.label,
         tokenUsage,
         metadata: { stage_details: stageDetails },
@@ -131,7 +131,7 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
       this.logger.info('Organizational Structure evaluation completed successfully', {
         evaluator: OrganizationalStructureEvaluator.metadata.id,
         operation: 'evaluate',
-        grade: gradeNum,
+        gradeLevel: gradeNum,
         score: result.score,
         processingTimeMs: latencyMs,
       });
@@ -143,7 +143,7 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
       this.logger.error('Organizational Structure evaluation failed', {
         evaluator: OrganizationalStructureEvaluator.metadata.id,
         operation: 'evaluate',
-        grade,
+        gradeLevel,
         error: error instanceof Error ? error : undefined,
         processingTimeMs: latencyMs,
       });
@@ -159,7 +159,7 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
         status: 'error',
         latencyMs,
         textLength: text.length,
-        grade: String(grade),
+        gradeLevel: String(gradeLevel),
         provider: this.provider.label,
         tokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
@@ -172,11 +172,11 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
     }
   }
 
-  private parseAndValidateGrade(grade: string): number {
-    const num = Number(grade.trim());
+  private parseAndValidateGrade(gradeLevel: string): number {
+    const num = Number(gradeLevel.trim());
     if (!Number.isInteger(num) || num < GRADE_MIN || num > GRADE_MAX) {
       throw new InputValidationError(
-        `Invalid grade "${grade}". Organizational Structure evaluator supports integer grades ${GRADE_MIN}–${GRADE_MAX}.`,
+        `Invalid grade level "${gradeLevel}". Organizational Structure evaluator supports integer grade levels ${GRADE_MIN}–${GRADE_MAX}.`,
       );
     }
     return num;
@@ -200,8 +200,8 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
 
 export async function evaluateOrganizationalStructure(
   text: string,
-  grade: string,
+  gradeLevel: string,
   config: BaseEvaluatorConfig,
 ): Promise<EvaluationResult<TextComplexityLevel, OrganizationalStructureInternal>> {
-  return new OrganizationalStructureEvaluator(config).evaluate(text, grade);
+  return new OrganizationalStructureEvaluator(config).evaluate(text, gradeLevel);
 }

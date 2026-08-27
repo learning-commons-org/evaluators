@@ -45,7 +45,7 @@ function normalizeLabel(label: string | null | undefined): TextComplexityLevel |
  * Evaluates sentence structure complexity of educational texts relative to grade level.
  * Uses a 2-stage process:
  * 1. Analyze grammatical structure (sentence types, clauses, phrases, etc.)
- * 2. Classify complexity using features and grade-specific rubric
+ * 2. Classify complexity using features and grade-level-specific rubric
  *
  * Based on Qualitative Text Complexity rubric with 4 levels:
  * - Slightly complex
@@ -87,21 +87,21 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
    * Evaluate sentence structure complexity for a given text and grade level
    *
    * @param text - The text to evaluate
-   * @param grade - The target grade level (3-12)
+   * @param gradeLevel - The target grade level (3-12)
    * @returns Evaluation result with complexity score and detailed analysis
-   * @throws {InputValidationError} If text is empty, too short/long, or grade is invalid
+   * @throws {InputValidationError} If text is empty, too short/long, or gradeLevel is invalid
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(
     text: string,
-    grade: string
+    gradeLevel: string
   ): Promise<EvaluationResult<TextComplexityLevel, SentenceStructureInternal>> {
     this.logger.info('Starting sentence structure evaluation', {
       evaluator: 'sentence-structure',
       operation: 'evaluate',
-      grade,
+      gradeLevel,
       textLength: text.length,
     });
 
@@ -111,7 +111,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     try {
       // Validate inputs — inside try so validation errors are telemetered.
       this.validateText(text);
-      this.validateGrade(grade, new Set(SentenceStructureEvaluator.metadata.supportedGrades));
+      this.validateGradeLevel(gradeLevel, new Set(SentenceStructureEvaluator.metadata.supportedGrades));
       this.logger.debug('Stage 1: Analyzing sentence structure', {
         evaluator: 'sentence-structure',
         operation: 'sentence_analysis',
@@ -137,7 +137,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         operation: 'complexity_classification',
       });
       // Stage 2: Classify complexity
-      const complexityResponse = await this.classifyComplexity(features, grade, text);
+      const complexityResponse = await this.classifyComplexity(features, gradeLevel, text);
 
       stageDetails.push({
         stage: 'complexity_classification',
@@ -178,7 +178,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         status: 'success',
         latencyMs,
         textLength: text.length,
-        grade,
+        gradeLevel,
         provider: this.provider.label,
         tokenUsage: totalTokenUsage,
         metadata: {
@@ -192,7 +192,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
       this.logger.info('Sentence structure evaluation completed successfully', {
         evaluator: 'sentence-structure',
         operation: 'evaluate',
-        grade,
+        gradeLevel,
         score: result.score,
         processingTimeMs: latencyMs,
       });
@@ -205,7 +205,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
       this.logger.error('Sentence structure evaluation failed', {
         evaluator: 'sentence-structure',
         operation: 'evaluate',
-        grade,
+        gradeLevel,
         error: error instanceof Error ? error : undefined,
         processingTimeMs: latencyMs,
         completedStages: stageDetails.length,
@@ -222,7 +222,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         status: 'error',
         latencyMs,
         textLength: text.length,
-        grade,
+        gradeLevel,
         provider: this.provider.label,
         tokenUsage: totalTokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
@@ -282,17 +282,17 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
   /**
    * Stage 2: Classify sentence structure complexity
    *
-   * Uses engineered features and grade-specific rubric to classify complexity level
+   * Uses engineered features and grade-level-specific rubric to classify complexity level
    */
   private async classifyComplexity(
     features: SentenceFeatures,
-    grade: string,
+    gradeLevel: string,
     excerpt: string
   ): Promise<{ data: ComplexityClassification; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     // Convert features to JSON string (cast to int by default, matching Python)
     const featuresJSON = featuresToJSON(features, 1, true);
 
-    const userPrompt = getUserPromptComplexity(featuresJSON, grade, excerpt);
+    const userPrompt = getUserPromptComplexity(featuresJSON, gradeLevel, excerpt);
 
     const response = await this.provider.generateStructured({
       messages: [
@@ -341,9 +341,9 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
  */
 export async function evaluateSentenceStructure(
   text: string,
-  grade: string,
+  gradeLevel: string,
   config: BaseEvaluatorConfig
 ): Promise<EvaluationResult<TextComplexityLevel, SentenceStructureInternal>> {
   const evaluator = new SentenceStructureEvaluator(config);
-  return evaluator.evaluate(text, grade);
+  return evaluator.evaluate(text, gradeLevel);
 }

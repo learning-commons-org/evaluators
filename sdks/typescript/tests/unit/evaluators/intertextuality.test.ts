@@ -86,7 +86,7 @@ describe('IntertextualityEvaluator - Metadata', () => {
     expect(IntertextualityEvaluator.metadata.defaultProviders).not.toContain(Provider.OpenAI);
   });
 
-  it('supports integer grades 3–12', () => {
+  it('supports integer grade levels 3–12', () => {
     expect(IntertextualityEvaluator.metadata.supportedGrades).toEqual(
       ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
     );

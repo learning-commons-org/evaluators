@@ -125,7 +125,7 @@ const DETAIL_MODEL: string = STEP.model.name;
 const TEMPERATURE: number | null = STEP.generation.temperature;
 const KG_SUBJECT = 'Mathematics';
 /**
- * Above this many question/standard pairs, evaluateByGrade warns. A grade can carry
+ * Above this many question/standard pairs, evaluateByGrade warns. A grade level can carry
  * over a thousand standards in some jurisdictions, so a handful of questions is
  * enough to run into five figures of LLM calls.
  */
@@ -343,7 +343,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
   }
 
   // -------------------------------------------------------------------------
-  // evaluateByGrade — fetches all math standards for a grade, then evaluates
+  // evaluateByGrade — fetches all math standards for a grade level, then evaluates
   //
   // Use when you don't have a predetermined standards list. Jurisdiction
   // determines which state's adopted standards are fetched from the KG.
@@ -352,14 +352,14 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 
   async evaluateByGrade(
     questions: string[],
-    grade: string,
+    gradeLevel: string,
     jurisdiction: Jurisdiction,
     options?: QuestionBankOptions,
   ): Promise<QuestionBankResult> {
     if (questions.length === 0) throw new InputValidationError('questions array must not be empty');
-    this.validateGrade(grade, new Set(SUPPORTED_GRADES));
+    this.validateGradeLevel(gradeLevel, new Set(SUPPORTED_GRADES));
 
-    const academicStandards = await this.kgClient.getStandardsByGrade(grade, {
+    const academicStandards = await this.kgClient.getStandardsByGrade(gradeLevel, {
       jurisdiction,
       academicSubject: KG_SUBJECT,
     });
@@ -376,7 +376,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     if (pairs > BY_GRADE_WARN_PAIRS) {
       this.logger.warn('Large grade-wide evaluation; each pair costs an LLM call', {
         evaluator: EVALUATOR_ID,
-        grade,
+        gradeLevel,
         jurisdiction,
         questions: questions.length,
         standards: codes.length,

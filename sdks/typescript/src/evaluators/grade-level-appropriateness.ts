@@ -40,7 +40,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
     id: 'grade-level-appropriateness',
     name: 'Grade Level Appropriateness',
     description: 'Determines appropriate grade level for text with scaffolding recommendations',
-    supportedGrades: [] as const, // No grade parameter required - evaluates what grade the text is appropriate for
+    supportedGrades: [] as const, // No gradeLevel parameter required - evaluates what grade level the text is appropriate for
     defaultProviders: [Provider.Google] as const,
   };
 
@@ -59,7 +59,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
    * Evaluate grade level appropriateness for a given text
    *
    * @param text - The text to evaluate
-   * @returns Evaluation result with grade recommendations and scaffolding suggestions
+   * @returns Evaluation result with grade level recommendations and scaffolding suggestions
    * @throws {InputValidationError} If text is empty or too short/long
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
@@ -100,6 +100,8 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
       };
 
       const result = {
+        // `grade` is the model's output field, declared in the eval's schema —
+        // not the SDK's parameter name.
         score: response.data.grade,
         reasoning: response.data.reasoning,
         metadata: {
@@ -127,7 +129,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
       this.logger.info('Grade level appropriateness evaluation completed successfully', {
         evaluator: 'grade-level-appropriateness',
         operation: 'evaluate',
-        grade: result.score,
+        gradeLevel: result.score,
         processingTimeMs: latencyMs,
       });
 
