@@ -122,7 +122,7 @@ describe('renderOutputs — text-complexity family (generic JSON)', () => {
     const qtcResult: BatchResult = {
       rowIndex: 2, text: 'hello', gradeLevel: '3', evaluatorId: 'vocabulary', status: 'success',
       score: 'slightly complex', reasoning: 'simple words', processingTimeMs: 5,
-      originalRow: { text: 'hello', gradeLevel: '3' },
+      originalRow: { text: 'hello', grade_level: '3' },
     };
     const bundle = renderOutputs('text-complexity', output([qtcResult]), { ...meta, groupId: 'text-complexity' });
     const parsed = JSON.parse(bundle.json);
@@ -134,7 +134,7 @@ describe('renderOutputs — text-complexity family (generic JSON)', () => {
     const qtc = (rowIndex: number, evaluatorId: string): BatchResult => ({
       rowIndex, text: 't', gradeLevel: '3', evaluatorId, status: 'success',
       score: 'slightly complex', reasoning: '', processingTimeMs: 1,
-      originalRow: { text: 't', gradeLevel: '3' },
+      originalRow: { text: 't', grade_level: '3' },
     });
     // Deliberately unsorted, with a same-row pair so the tiebreak is exercised.
     const bundle = renderOutputs(

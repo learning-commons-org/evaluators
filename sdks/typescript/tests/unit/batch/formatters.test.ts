@@ -19,7 +19,7 @@ function makeResult(overrides: Partial<BatchResult>): BatchResult {
     score: 'slightly complex',
     reasoning: 'ok',
     processingTimeMs: 100,
-    originalRow: { text: 'Sample text.', gradeLevel: '5' },
+    originalRow: { text: 'Sample text.', grade_level: '5' },
     ...overrides,
   };
 }
@@ -83,8 +83,8 @@ describe('formatAsCSV', () => {
 
   it('places evaluator columns in alphabetical order after original columns', () => {
     const output = makeOutput([
-      makeResult({ evaluatorId: 'vocabulary',         originalRow: { id: '1', text: 'txt', gradeLevel: '5' } }),
-      makeResult({ evaluatorId: 'sentence-structure', originalRow: { id: '1', text: 'txt', gradeLevel: '5' } }),
+      makeResult({ evaluatorId: 'vocabulary',         originalRow: { id: '1', text: 'txt', grade_level: '5' } }),
+      makeResult({ evaluatorId: 'sentence-structure', originalRow: { id: '1', text: 'txt', grade_level: '5' } }),
     ]);
 
     const header = formatAsCSV(output).split('\n')[0];
@@ -118,12 +118,12 @@ describe('formatAsCSV', () => {
   it('outputs not_run when an evaluator produced no result for a row', () => {
     // Row 1: vocabulary ran; sentence-structure did not
     const output = makeOutput([
-      makeResult({ rowIndex: 1, evaluatorId: 'vocabulary', originalRow: { text: 'x', gradeLevel: '5' } }),
+      makeResult({ rowIndex: 1, evaluatorId: 'vocabulary', originalRow: { text: 'x', grade_level: '5' } }),
     ]);
     // Manually add sentence-structure to the results so the column exists but not for row 1
     output.results.push(makeResult({
       rowIndex: 2, evaluatorId: 'sentence-structure',
-      originalRow: { text: 'y', gradeLevel: '5' },
+      originalRow: { text: 'y', grade_level: '5' },
     }));
 
     const csv = formatAsCSV(output);
@@ -139,7 +139,7 @@ describe('formatAsCSV', () => {
       makeResult({
         score: 'slightly complex',
         reasoning: 'Has "quotes" and, comma',
-        originalRow: { text: 'Line1\nLine2', gradeLevel: '5' },
+        originalRow: { text: 'Line1\nLine2', grade_level: '5' },
       }),
     ]);
 
@@ -363,7 +363,7 @@ describe('formatAsHTML', () => {
     it('Unicode-escapes < > & so injected data cannot break out of the script tag', () => {
       const output = makeOutput([makeResult({
         text: '<script>alert("xss")</script>',
-        originalRow: { text: '<script>alert("xss")</script>', gradeLevel: '5' },
+        originalRow: { text: '<script>alert("xss")</script>', grade_level: '5' },
       })]);
 
       const html = formatAsHTML(output, makeMeta());

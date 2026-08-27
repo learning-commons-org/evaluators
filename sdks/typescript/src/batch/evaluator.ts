@@ -65,7 +65,8 @@ function assertHasColumns(input: BatchInput): void {
         `column name to value, received ${received}.` +
         (legacy
           ? ' Rows carrying top-level "text"/"grade" predate family-aware input; pass' +
-            ' { columns: { text, grade_level } } instead.'
+            " the row's columns as { columns: { <csv header>: <value> } } instead" +
+            " — see the family's column spec for the names it expects."
           : ' Build rows with parseCSV() or supply columns explicitly.'),
     );
   }

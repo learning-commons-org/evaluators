@@ -122,7 +122,7 @@ describeIntegration('Batch Evaluator - Integration', () => {
 
       // Single row — verify all group evaluators ran
       const inputs: BatchInput[] = [
-        { rowIndex: 1, columns: { text: 'The cat sat on the mat.', grade: '3' }, originalRow: { text: 'The cat sat on the mat.', grade: '3' } },
+        { rowIndex: 1, columns: { text: 'The cat sat on the mat.', grade_level: '3' }, originalRow: { text: 'The cat sat on the mat.', grade_level: '3' } },
       ];
 
       console.log(`\n📊 Processing 1 row with ${group.evaluatorIds.length} evaluators...`);
