@@ -167,7 +167,7 @@ Validate in order:
 
 Trimming appears in check 1 as a predicate only — it decides whether the text is whitespace-only, and its result is never substituted for the caller's text. Lengths in checks 2 and 3, and `text_length_chars` in telemetry, are the length of the text as supplied.
 
-Messages MUST convey the same facts (which bound, what the bound is) and SHOULD match the canonical wording above. `text_length_chars` in telemetry is the **trimmed** length.
+Messages MUST convey the same facts (which bound, what the bound is) and SHOULD match the canonical wording above.
 
 | Limit | Default |
 |---|---|
