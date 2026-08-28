@@ -1,18 +1,18 @@
 import type { LLMProvider } from '../providers/index.js';
-import { IntertextualityOutputSchema, type IntertextualityInternal } from '../schemas/intertextuality.js';
+import { PurposeClarityOutputSchema, type PurposeClarityInternal } from '../schemas/purpose-clarity.js';
 import { runPreprocessingStep } from '../features/preprocessing.js';
-import { getSystemPrompt, getUserPrompt } from '../prompts/intertextuality/index.js';
+import { getSystemPrompt, getUserPrompt } from '../prompts/purpose-clarity/index.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
-import CONFIG from '../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/config.json';
-import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/input_schema.json';
+import CONFIG from '../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';
+import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/purpose-clarity/input_schema.json';
 
 // Step ID convention: "evaluate_{slug}" where slug is the last segment of evaluator.id.
 const STEP_ID = `evaluate_${CONFIG.evaluator.id.split('.').pop()}`;
 const _step = CONFIG.steps.find(s => s.id === STEP_ID);
-if (!_step) throw new Error(`Step "${STEP_ID}" not found in intertextuality config.json`);
+if (!_step) throw new Error(`Step "${STEP_ID}" not found in purpose-clarity config.json`);
 const STEP = _step;
 
 // Supported grades from input_schema — needed for static metadata, so defined at
@@ -20,17 +20,22 @@ const STEP = _step;
 // reconstructed from bounds; that admits gaps and non-numeric tokens such as "K".
 const SUPPORTED_GRADES: readonly string[] = INPUT_SCHEMA.properties.grade_level.enum;
 
+export type PurposeClarityComplexityLevel = TextComplexityLevel | 'More context needed';
+
 // Maps snake_case LLM output → SDK-standard sentence case score.
-const COMPLEXITY_SCORE_DISPLAY: Record<IntertextualityInternal['complexity_score'], TextComplexityLevel> = {
+const COMPLEXITY_SCORE_DISPLAY: Record<PurposeClarityInternal['complexity_score'], PurposeClarityComplexityLevel> = {
   'slightly_complex': 'Slightly complex',
   'moderately_complex': 'Moderately complex',
   'very_complex': 'Very complex',
   'exceedingly_complex': 'Exceedingly complex',
+  'more_context_needed': 'More context needed',
 };
 
-export class IntertextualityEvaluator extends BaseEvaluator {
+export class PurposeClarityEvaluator extends BaseEvaluator {
   static readonly metadata = {
     id: CONFIG.evaluator.id,
+    stableId: CONFIG.evaluator.stable_id,
+    idHistory: CONFIG.evaluator.id_history,
     name: CONFIG.evaluator.name,
     description: CONFIG.evaluator.description,
     supportedGrades: SUPPORTED_GRADES,
@@ -41,7 +46,7 @@ export class IntertextualityEvaluator extends BaseEvaluator {
 
   private static computeFkScore(text: string): number {
     const fkStep = CONFIG.preprocessing.find(p => p.id === 'fk_score');
-    if (!fkStep) throw new Error('fk_score preprocessing step not found in intertextuality config.json');
+    if (!fkStep) throw new Error('fk_score preprocessing step not found in purpose-clarity config.json');
     return runPreprocessingStep(text, fkStep.implementation.typescript);
   }
 
@@ -56,7 +61,7 @@ export class IntertextualityEvaluator extends BaseEvaluator {
   }
 
   /**
-   * Evaluate intertextuality complexity for a given text and grade level
+   * Evaluate purpose complexity for a given text and grade level
    *
    * @param text - The text to evaluate
    * @param gradeLevel - The target grade level (3-12)
@@ -66,9 +71,9 @@ export class IntertextualityEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<TextComplexityLevel, IntertextualityInternal>> {
-    this.logger.info('Starting Intertextuality evaluation', {
-      evaluator: IntertextualityEvaluator.metadata.id,
+  async evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<PurposeClarityComplexityLevel, PurposeClarityInternal>> {
+    this.logger.info('Starting Purpose Clarity evaluation', {
+      evaluator: PurposeClarityEvaluator.metadata.id,
       operation: 'evaluate',
       gradeLevel,
       textLength: text.length,
@@ -81,7 +86,7 @@ export class IntertextualityEvaluator extends BaseEvaluator {
       this.validateText(text);
       this.validateGradeLevel(gradeLevel, new Set(SUPPORTED_GRADES));
 
-      const fkScore = IntertextualityEvaluator.computeFkScore(text);
+      const fkScore = PurposeClarityEvaluator.computeFkScore(text);
       const inputs: Record<string, string> = {
         text,
         grade_level: gradeLevel,
@@ -102,7 +107,7 @@ export class IntertextualityEvaluator extends BaseEvaluator {
         token_usage: tokenUsage,
       });
 
-      const result: EvaluationResult<TextComplexityLevel, IntertextualityInternal> = {
+      const result: EvaluationResult<PurposeClarityComplexityLevel, PurposeClarityInternal> = {
         score: COMPLEXITY_SCORE_DISPLAY[response.data.complexity_score],
         reasoning: response.data.reasoning,
         metadata: {
@@ -125,8 +130,8 @@ export class IntertextualityEvaluator extends BaseEvaluator {
         inputText: text,
       }).catch(() => undefined);
 
-      this.logger.info('Intertextuality evaluation completed successfully', {
-        evaluator: IntertextualityEvaluator.metadata.id,
+      this.logger.info('Purpose Clarity evaluation completed successfully', {
+        evaluator: PurposeClarityEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         score: result.score,
@@ -137,8 +142,8 @@ export class IntertextualityEvaluator extends BaseEvaluator {
     } catch (error) {
       const latencyMs = Date.now() - startTime;
 
-      this.logger.error('Intertextuality evaluation failed', {
-        evaluator: IntertextualityEvaluator.metadata.id,
+      this.logger.error('Purpose Clarity evaluation failed', {
+        evaluator: PurposeClarityEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         error: error instanceof Error ? error : undefined,
@@ -171,24 +176,24 @@ export class IntertextualityEvaluator extends BaseEvaluator {
 
   private async callLLM(
     inputs: Record<string, string>,
-  ): Promise<{ data: IntertextualityInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
+  ): Promise<{ data: PurposeClarityInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const response = await this.provider.generateStructured({
       messages: [
         { role: 'system', content: getSystemPrompt(inputs) },
         { role: 'user', content: getUserPrompt(inputs) },
       ],
-      schema: IntertextualityOutputSchema,
-      temperature: IntertextualityEvaluator.TEMPERATURE,
+      schema: PurposeClarityOutputSchema,
+      temperature: PurposeClarityEvaluator.TEMPERATURE,
     });
 
     return { data: response.data, usage: response.usage, latencyMs: response.latencyMs };
   }
 }
 
-export async function evaluateIntertextuality(
+export async function evaluatePurposeClarity(
   text: string,
   gradeLevel: string,
   config: BaseEvaluatorConfig,
-): Promise<EvaluationResult<TextComplexityLevel, IntertextualityInternal>> {
-  return new IntertextualityEvaluator(config).evaluate(text, gradeLevel);
+): Promise<EvaluationResult<PurposeClarityComplexityLevel, PurposeClarityInternal>> {
+  return new PurposeClarityEvaluator(config).evaluate(text, gradeLevel);
 }

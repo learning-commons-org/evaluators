@@ -65,7 +65,7 @@ describe('TextComplexityEvaluator', () => {
           openaiApiKey: 'test-openai-key',
           telemetry: false,
         });
-      }).toThrow('Google API key is required for Text Complexity evaluator');
+      }).toThrow(`Google API key is required for ${TextComplexityEvaluator.metadata.name}. Pass googleApiKey in config.`);
     });
 
     it('should throw error when OpenAI API key is missing', () => {
@@ -80,7 +80,7 @@ describe('TextComplexityEvaluator', () => {
           googleApiKey: 'test-google-key',
           telemetry: false,
         });
-      }).toThrow('OpenAI API key is required for Text Complexity evaluator');
+      }).toThrow(`OpenAI API key is required for ${TextComplexityEvaluator.metadata.name}. Pass openaiApiKey in config.`);
     });
 
     it('should throw error when both API keys are missing', () => {
@@ -97,7 +97,7 @@ describe('TextComplexityEvaluator', () => {
     let vocabSpy: any;
     let sentenceSpy: any;
     let smkSpy: any;
-    let conventionalitySpy: any;
+    let meaningDirectnessSpy: any;
 
     beforeEach(() => {
       evaluator = new TextComplexityEvaluator({
@@ -131,7 +131,7 @@ describe('TextComplexityEvaluator', () => {
         _internal: {},
       });
 
-      smkSpy = vi.spyOn((evaluator as any).smkEvaluator, 'evaluate').mockResolvedValue({
+      smkSpy = vi.spyOn((evaluator as any).backgroundKnowledgeDemandsEvaluator, 'evaluate').mockResolvedValue({
         score: 'Moderately complex',
         reasoning: 'Subject matter knowledge test reasoning',
         metadata: {
@@ -143,9 +143,9 @@ describe('TextComplexityEvaluator', () => {
         _internal: {},
       });
 
-      conventionalitySpy = vi.spyOn((evaluator as any).conventionalityEvaluator, 'evaluate').mockResolvedValue({
+      meaningDirectnessSpy = vi.spyOn((evaluator as any).meaningDirectnessEvaluator, 'evaluate').mockResolvedValue({
         score: 'Moderately complex',
-        reasoning: 'Conventionality test reasoning',
+        reasoning: 'Meaning Directness test reasoning',
         metadata: {
           model: 'google:gemini-3-flash-preview',
           processingTimeMs: 100,
@@ -167,14 +167,14 @@ describe('TextComplexityEvaluator', () => {
       const result = await evaluator.evaluate(text, grade);
 
       expect(result).toBeDefined();
-      expect(result.vocabulary).toBeDefined();
+      expect(result.vocabularyComplexity).toBeDefined();
       expect(result.sentenceStructure).toBeDefined();
-      expect(result.subjectMatterKnowledge).toBeDefined();
-      expect(result.conventionality).toBeDefined();
-      expect('error' in result.vocabulary).toBe(false);
+      expect(result.backgroundKnowledgeDemands).toBeDefined();
+      expect(result.meaningDirectness).toBeDefined();
+      expect('error' in result.vocabularyComplexity).toBe(false);
       expect('error' in result.sentenceStructure).toBe(false);
-      expect('error' in result.subjectMatterKnowledge).toBe(false);
-      expect('error' in result.conventionality).toBe(false);
+      expect('error' in result.backgroundKnowledgeDemands).toBe(false);
+      expect('error' in result.meaningDirectness).toBe(false);
     });
 
     it('should validate text input', async () => {
@@ -223,10 +223,10 @@ describe('TextComplexityEvaluator', () => {
       // Allow some overhead but should be significantly less than 400ms
       expect(duration).toBeLessThan(400);
 
-      expect('error' in result.vocabulary).toBe(false);
+      expect('error' in result.vocabularyComplexity).toBe(false);
       expect('error' in result.sentenceStructure).toBe(false);
-      expect('error' in result.subjectMatterKnowledge).toBe(false);
-      expect('error' in result.conventionality).toBe(false);
+      expect('error' in result.backgroundKnowledgeDemands).toBe(false);
+      expect('error' in result.meaningDirectness).toBe(false);
     });
 
     it('should handle partial failures gracefully', async () => {
@@ -239,11 +239,11 @@ describe('TextComplexityEvaluator', () => {
       const result = await evaluator.evaluate(text, grade);
 
       expect(result).toBeDefined();
-      expect('error' in result.vocabulary).toBe(true);
-      expect((result.vocabulary as { error: Error }).error).toBeDefined();
+      expect('error' in result.vocabularyComplexity).toBe(true);
+      expect((result.vocabularyComplexity as { error: Error }).error).toBeDefined();
       expect('error' in result.sentenceStructure).toBe(false);
-      expect('error' in result.subjectMatterKnowledge).toBe(false);
-      expect('error' in result.conventionality).toBe(false);
+      expect('error' in result.backgroundKnowledgeDemands).toBe(false);
+      expect('error' in result.meaningDirectness).toBe(false);
     });
 
     it('should throw when all four evaluators fail', async () => {
@@ -254,27 +254,27 @@ describe('TextComplexityEvaluator', () => {
       vocabSpy.mockRejectedValue(new Error('Vocabulary evaluation failed'));
       sentenceSpy.mockRejectedValue(new Error('Sentence structure evaluation failed'));
       smkSpy.mockRejectedValue(new Error('SMK evaluation failed'));
-      conventionalitySpy.mockRejectedValue(new Error('Conventionality evaluation failed'));
+      meaningDirectnessSpy.mockRejectedValue(new Error('Meaning Directness evaluation failed'));
 
       await expect(evaluator.evaluate(text, grade)).rejects.toThrow(
         'Text complexity evaluation failed'
       );
     });
 
-    it('should handle conventionality failure while others succeed', async () => {
+    it('should handle meaningDirectness failure while others succeed', async () => {
       const text = 'The cat sat on the mat.';
       const grade = '5';
 
-      conventionalitySpy.mockRejectedValue(new Error('Conventionality evaluation failed'));
+      meaningDirectnessSpy.mockRejectedValue(new Error('Meaning Directness evaluation failed'));
 
       const result = await evaluator.evaluate(text, grade);
 
       expect(result).toBeDefined();
-      expect('error' in result.conventionality).toBe(true);
-      expect((result.conventionality as { error: Error }).error).toBeDefined();
-      expect('error' in result.vocabulary).toBe(false);
+      expect('error' in result.meaningDirectness).toBe(true);
+      expect((result.meaningDirectness as { error: Error }).error).toBeDefined();
+      expect('error' in result.vocabularyComplexity).toBe(false);
       expect('error' in result.sentenceStructure).toBe(false);
-      expect('error' in result.subjectMatterKnowledge).toBe(false);
+      expect('error' in result.backgroundKnowledgeDemands).toBe(false);
     });
 
     it('should determine overall complexity correctly', async () => {
@@ -318,10 +318,10 @@ describe('TextComplexityEvaluator', () => {
         _internal: {},
       });
 
-      // Override conventionality to return "Exceedingly complex"
-      conventionalitySpy.mockResolvedValue({
+      // Override meaningDirectness to return "Exceedingly complex"
+      meaningDirectnessSpy.mockResolvedValue({
         score: 'Exceedingly complex',
-        reasoning: 'Conventionality reasoning',
+        reasoning: 'Meaning Directness reasoning',
         metadata: {
           model: 'google:gemini-3-flash-preview',
           processingTimeMs: 100,
@@ -333,21 +333,21 @@ describe('TextComplexityEvaluator', () => {
 
       const result = await evaluator.evaluate(text, grade);
 
-      expect('error' in result.vocabulary).toBe(false);
+      expect('error' in result.vocabularyComplexity).toBe(false);
       expect('error' in result.sentenceStructure).toBe(false);
-      expect('error' in result.subjectMatterKnowledge).toBe(false);
-      expect('error' in result.conventionality).toBe(false);
-      if (!('error' in result.vocabulary)) {
-        expect(result.vocabulary.score).toBe('Moderately complex');
+      expect('error' in result.backgroundKnowledgeDemands).toBe(false);
+      expect('error' in result.meaningDirectness).toBe(false);
+      if (!('error' in result.vocabularyComplexity)) {
+        expect(result.vocabularyComplexity.score).toBe('Moderately complex');
       }
       if (!('error' in result.sentenceStructure)) {
         expect(result.sentenceStructure.score).toBe('Slightly complex');
       }
-      if (!('error' in result.subjectMatterKnowledge)) {
-        expect(result.subjectMatterKnowledge.score).toBe('Very complex');
+      if (!('error' in result.backgroundKnowledgeDemands)) {
+        expect(result.backgroundKnowledgeDemands.score).toBe('Very complex');
       }
-      if (!('error' in result.conventionality)) {
-        expect(result.conventionality.score).toBe('Exceedingly complex');
+      if (!('error' in result.meaningDirectness)) {
+        expect(result.meaningDirectness.score).toBe('Exceedingly complex');
       }
     });
 
@@ -390,9 +390,9 @@ describe('TextComplexityEvaluator', () => {
         _internal: {},
       });
 
-      conventionalitySpy.mockResolvedValue({
+      meaningDirectnessSpy.mockResolvedValue({
         score: 'Moderately complex',
-        reasoning: 'This is the conventionality reasoning.',
+        reasoning: 'This is the meaningDirectness reasoning.',
         metadata: {
           model: 'google:gemini-3-flash-preview',
           processingTimeMs: 100,
@@ -404,17 +404,17 @@ describe('TextComplexityEvaluator', () => {
 
       const result = await evaluator.evaluate(text, grade);
 
-      if (!('error' in result.vocabulary)) {
-        expect(result.vocabulary.reasoning).toBe('This is the vocabulary reasoning.');
+      if (!('error' in result.vocabularyComplexity)) {
+        expect(result.vocabularyComplexity.reasoning).toBe('This is the vocabulary reasoning.');
       }
       if (!('error' in result.sentenceStructure)) {
         expect(result.sentenceStructure.reasoning).toBe('This is the sentence structure reasoning.');
       }
-      if (!('error' in result.subjectMatterKnowledge)) {
-        expect(result.subjectMatterKnowledge.reasoning).toBe('This is the SMK reasoning.');
+      if (!('error' in result.backgroundKnowledgeDemands)) {
+        expect(result.backgroundKnowledgeDemands.reasoning).toBe('This is the SMK reasoning.');
       }
-      if (!('error' in result.conventionality)) {
-        expect(result.conventionality.reasoning).toBe('This is the conventionality reasoning.');
+      if (!('error' in result.meaningDirectness)) {
+        expect(result.meaningDirectness.reasoning).toBe('This is the meaningDirectness reasoning.');
       }
     });
   });

@@ -6,6 +6,11 @@ import {
   type BatchOutput,
   type BatchResult,
 } from '../../../src/batch/index.js';
+import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/index.js';
+
+// The report singles GLA out to derive on-band/off-target status, so this id has to
+// match the evaluator. Other evaluator ids in this file are arbitrary grouping labels.
+const GLA_ID = GradeLevelAppropriatenessEvaluator.metadata.id;
 
 // ---- Test fixtures ----
 
@@ -60,6 +65,59 @@ function extractReportData(html: string): any {
   const json = line.endsWith(';') ? line.slice(0, -1) : line;
   return JSON.parse(json);
 }
+
+// ============================================================
+// Evaluator id -> column and label derivation
+// ============================================================
+
+describe('deriving columns and labels from a registry id', () => {
+  // Registry ids are dotted and snake_case. Everything user-visible in the report is
+  // derived from the last segment, so a dotted id must not leak its namespace into a
+  // CSV header, an HTML row field, or a display label.
+  const DOTTED = 'student_facing_text.ela_reading.vocabulary_complexity';
+
+  it('uses only the last id segment for CSV column names', () => {
+    const csv = formatAsCSV(makeOutput([makeResult({ evaluatorId: DOTTED })]));
+    const header = csv.split('\n')[0];
+
+    expect(header).toContain('vocabulary_complexity_score');
+    expect(header).toContain('vocabulary_complexity_reasoning');
+    expect(header).toContain('vocabulary_complexity_status');
+    expect(header).not.toContain('student_facing_text');
+  });
+
+  it('uses only the last id segment for HTML row fields, one column per evaluator', () => {
+    const other = 'student_facing_text.ela_reading.meaning_directness';
+    const html = formatAsHTML(
+      makeOutput([
+        makeResult({ rowIndex: 1, evaluatorId: DOTTED, score: 'very complex' }),
+        makeResult({ rowIndex: 1, evaluatorId: other, score: 'slightly complex' }),
+      ]),
+      makeMeta(),
+    );
+    const row = extractReportData(html).fullResults.rows[0];
+
+    // Each evaluator's score lands under its own prefix, so neither can read as the other's.
+    expect(row['__vocabulary_complexity_score']).toBe('very complex');
+    expect(row['__meaning_directness_score']).toBe('slightly complex');
+    expect(Object.keys(row).some(k => k.includes('student_facing_text'))).toBe(false);
+  });
+
+  it('renders a display name from the last id segment', () => {
+    const html = formatAsHTML(makeOutput([makeResult({ evaluatorId: DOTTED })]), makeMeta());
+    const { complexityEvaluators } = extractReportData(html).fullResults;
+
+    expect(complexityEvaluators).toEqual([
+      { evaluatorId: DOTTED, name: 'Vocabulary Complexity', prefix: 'vocabulary_complexity' },
+    ]);
+  });
+
+  it('still handles a hyphenated id with no namespace', () => {
+    const csv = formatAsCSV(makeOutput([makeResult({ evaluatorId: 'sentence-structure' })]));
+
+    expect(csv.split('\n')[0]).toContain('sentence_structure_score');
+  });
+});
 
 // ============================================================
 // formatAsCSV
@@ -175,7 +233,7 @@ describe('formatAsHTML', () => {
     function glaOutput(inputGrade: string, glaBand: string) {
       return makeOutput([makeResult({
         gradeLevel: inputGrade,
-        evaluatorId: 'grade-level-appropriateness',
+        evaluatorId: GLA_ID,
         score: glaBand,
       })]);
     }
@@ -261,7 +319,7 @@ describe('formatAsHTML', () => {
 
     it('excludes GLA from complexity stats even when it runs alongside complexity evaluators', () => {
       const output = makeOutput([
-        makeResult({ rowIndex: 1, evaluatorId: 'grade-level-appropriateness', score: '4-5' }),
+        makeResult({ rowIndex: 1, evaluatorId: GLA_ID, score: '4-5' }),
         makeResult({ rowIndex: 1, evaluatorId: 'vocabulary', score: 'slightly complex' }),
       ]);
 
@@ -317,7 +375,7 @@ describe('formatAsHTML', () => {
       // Grade 3 → "2-3" bucket (index 1). GLA says "9-10" (off-target, diff=3).
       const output = makeOutput([makeResult({
         gradeLevel: '3',
-        evaluatorId: 'grade-level-appropriateness',
+        evaluatorId: GLA_ID,
         score: '9-10',
       })]);
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MathStandardsAlignmentEvaluator } from '../../../src/evaluators/math/standards-alignment.js';
-import { ConventionalityEvaluator } from '../../../src/evaluators/conventionality.js';
+import { MeaningDirectnessEvaluator } from '../../../src/evaluators/meaning-directness.js';
 import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
@@ -32,9 +32,9 @@ beforeEach(() => {
 const TEXT = 'The author sustains irony throughout to critique civilized society.';
 
 async function telemetryHeaders(
-  telemetry: ConstructorParameters<typeof ConventionalityEvaluator>[0]['telemetry']
+  telemetry: ConstructorParameters<typeof MeaningDirectnessEvaluator>[0]['telemetry']
 ) {
-  await new ConventionalityEvaluator({
+  await new MeaningDirectnessEvaluator({
     googleApiKey: 'k',
     learningCommonsApiKey: 'lc-key',
     telemetry,

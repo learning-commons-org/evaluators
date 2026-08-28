@@ -1,9 +1,13 @@
 import type { BatchOutput, BatchResult } from './types.js';
 import reportTemplate from './report-template.html';
+import { GradeLevelAppropriatenessEvaluator } from '../evaluators/grade-level-appropriateness.js';
 
 // ---- Constants ----
 
-const GLA_EVALUATOR_ID = 'grade-level-appropriateness';
+// Read from the evaluator rather than restated: the report singles GLA out to
+// derive on-band/off-target status, and a stale copy here would silently drop the
+// column instead of failing.
+const GLA_EVALUATOR_ID = GradeLevelAppropriatenessEvaluator.metadata.id;
 
 const GRADE_BANDS = ['K-1', '2-3', '4-5', '6-8', '9-10', '11-CCR'] as const;
 type GradeBand = typeof GRADE_BANDS[number];
@@ -21,7 +25,8 @@ const COMPLEXITY_SCORE_MAP: Record<string, number> = {
 // ---- Helpers ----
 
 function evaluatorDisplayName(id: string): string {
-  return id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  const slug = id.split('.').pop()!;
+  return slug.split(/[-_]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
 /** Maps a raw grade string (K, 1, 2 … 12, CCR) to a GRADE_BANDS index (0–5). */
@@ -329,7 +334,7 @@ export function formatAsHTML(output: BatchOutput, meta: ReportMeta): string {
 
     for (const evalId of complexityIds) {
       const r = rowResults.find(x => x.evaluatorId === evalId);
-      const prefix = `__${evalId.replace(/-/g, '_')}`;
+      const prefix = `__${formatEvaluatorPrefix(evalId)}`;
       row[`${prefix}_score`] = r?.status === 'success' ? (r.score ?? '') : (r?.status === 'error' ? 'Error' : '');
       row[`${prefix}_reasoning`] = r?.status === 'success' ? (r.reasoning ?? '') : (r?.error ?? '');
     }
@@ -380,7 +385,7 @@ export function formatAsHTML(output: BatchOutput, meta: ReportMeta): string {
       complexityEvaluators: complexityIds.map(id => ({
         evaluatorId: id,
         name: evaluatorDisplayName(id),
-        prefix: id.replace(/-/g, '_'),
+        prefix: formatEvaluatorPrefix(id),
       })),
       rows: fullResultsRows,
     },

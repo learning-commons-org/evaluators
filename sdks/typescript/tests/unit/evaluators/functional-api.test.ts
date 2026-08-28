@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  evaluateConventionality,
+  evaluateMeaningDirectness,
   evaluateGradeLevelAppropriateness,
-  evaluateIntertextuality,
+  evaluateReferenceKnowledgeDemands,
   evaluateOrganizationalStructure,
-  evaluatePurpose,
+  evaluatePurposeClarity,
   evaluateSentenceStructure,
-  evaluateSmk,
-  evaluateVocabulary,
+  evaluateBackgroundKnowledgeDemands,
+  evaluateVocabularyComplexity,
 } from '../../../src/evaluators/index.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
@@ -107,13 +107,13 @@ beforeEach(() => {
 describe('functional API wrappers', () => {
   // Each takes (text, gradeLevel, config) and must reach the LLM with both.
   it.each([
-    ['evaluateConventionality', evaluateConventionality],
-    ['evaluateIntertextuality', evaluateIntertextuality],
+    ['evaluateMeaningDirectness', evaluateMeaningDirectness],
+    ['evaluateReferenceKnowledgeDemands', evaluateReferenceKnowledgeDemands],
     ['evaluateOrganizationalStructure', evaluateOrganizationalStructure],
-    ['evaluatePurpose', evaluatePurpose],
+    ['evaluatePurposeClarity', evaluatePurposeClarity],
     ['evaluateSentenceStructure', evaluateSentenceStructure],
-    ['evaluateSmk', evaluateSmk],
-    ['evaluateVocabulary', evaluateVocabulary],
+    ['evaluateBackgroundKnowledgeDemands', evaluateBackgroundKnowledgeDemands],
+    ['evaluateVocabularyComplexity', evaluateVocabularyComplexity],
   ])('%s forwards text and gradeLevel and returns a result', async (_name, fn) => {
     const result = await (fn as (t: string, g: string, c: typeof CONFIG) => Promise<unknown>)(
       TEXT,
@@ -141,7 +141,7 @@ describe('functional API wrappers', () => {
   });
 
   it('propagates a validation failure rather than swallowing it', async () => {
-    await expect(evaluateConventionality('', GRADE_LEVEL, CONFIG)).rejects.toThrow(
+    await expect(evaluateMeaningDirectness('', GRADE_LEVEL, CONFIG)).rejects.toThrow(
       /empty|whitespace/i
     );
   });

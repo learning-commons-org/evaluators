@@ -9,7 +9,6 @@ const STEP_ID = 'evaluate_math_standards_alignment';
 const _step = CONFIG.steps.find((s) => s.id === STEP_ID);
 if (!_step) throw new Error(`Step "${STEP_ID}" not found in math-standards-alignment config.json`);
 export const STEP = _step;
-export const EVALUATOR_ID: string = CONFIG.evaluator.id;
 
 /** SHA-256 over all prompt files — stable cache key for downstream tools. */
 export const PROMPT_CHECKSUM = createHash('sha256')

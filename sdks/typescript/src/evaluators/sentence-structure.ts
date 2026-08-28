@@ -18,6 +18,7 @@ import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js'
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, LLMOutputProcessingError, wrapProviderError } from '../errors.js';
+import CONFIG from '../../../../evals/student-facing-text/ela-reading/sentence-structure/config.json';
 
 /**
  * Normalize complexity label to handle LLM output variations
@@ -66,9 +67,11 @@ function normalizeLabel(label: string | null | undefined): TextComplexityLevel |
  */
 export class SentenceStructureEvaluator extends BaseEvaluator {
   static readonly metadata = {
-    id: 'sentence-structure',
-    name: 'Sentence Structure',
-    description: 'Evaluates sentence structure complexity based on grammatical features',
+    id: CONFIG.evaluator.id,
+    stableId: CONFIG.evaluator.stable_id,
+    idHistory: CONFIG.evaluator.id_history,
+    name: CONFIG.evaluator.name,
+    description: CONFIG.evaluator.description,
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
     defaultProviders: [Provider.OpenAI] as const,
   };
@@ -99,7 +102,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     gradeLevel: string
   ): Promise<EvaluationResult<TextComplexityLevel, SentenceStructureInternal>> {
     this.logger.info('Starting sentence structure evaluation', {
-      evaluator: 'sentence-structure',
+      evaluator: SentenceStructureEvaluator.metadata.id,
       operation: 'evaluate',
       gradeLevel,
       textLength: text.length,
@@ -113,7 +116,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
       this.validateText(text);
       this.validateGradeLevel(gradeLevel, new Set(SentenceStructureEvaluator.metadata.supportedGrades));
       this.logger.debug('Stage 1: Analyzing sentence structure', {
-        evaluator: 'sentence-structure',
+        evaluator: SentenceStructureEvaluator.metadata.id,
         operation: 'sentence_analysis',
       });
       // Stage 1: Analyze sentence structure
@@ -133,7 +136,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
       const features = addEngineeredFeatures(analysisResponse.data);
 
       this.logger.debug('Stage 2: Classifying complexity', {
-        evaluator: 'sentence-structure',
+        evaluator: SentenceStructureEvaluator.metadata.id,
         operation: 'complexity_classification',
       });
       // Stage 2: Classify complexity
@@ -190,7 +193,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
       });
 
       this.logger.info('Sentence structure evaluation completed successfully', {
-        evaluator: 'sentence-structure',
+        evaluator: SentenceStructureEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         score: result.score,
@@ -203,7 +206,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
 
       // Log the error
       this.logger.error('Sentence structure evaluation failed', {
-        evaluator: 'sentence-structure',
+        evaluator: SentenceStructureEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         error: error instanceof Error ? error : undefined,

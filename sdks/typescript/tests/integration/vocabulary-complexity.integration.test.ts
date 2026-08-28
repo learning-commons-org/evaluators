@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { VocabularyEvaluator } from '../../src/evaluators/vocabulary.js';
+import { VocabularyComplexityEvaluator } from '../../src/evaluators/vocabulary-complexity.js';
 import {
   runEvaluatorTest,
   type BaseTestCase,
@@ -86,10 +86,10 @@ const TEST_CASES: BaseTestCase[] = [
 ];
 
 describeIntegration.concurrent('Vocabulary Evaluator - Comprehensive Test Suite', () => {
-  let evaluator: VocabularyEvaluator;
+  let evaluator: VocabularyComplexityEvaluator;
 
   beforeAll(() => {
-    evaluator = new VocabularyEvaluator({
+    evaluator = new VocabularyComplexityEvaluator({
       googleApiKey: process.env.GOOGLE_API_KEY!,
       openaiApiKey: process.env.OPENAI_API_KEY!,
     });

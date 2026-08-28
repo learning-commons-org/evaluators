@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'node:crypto';
-import { PurposeEvaluator } from '../../../src/evaluators/purpose.js';
+import { PurposeClarityEvaluator } from '../../../src/evaluators/purpose-clarity.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import CONFIG from '../../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';
-import { getSystemPrompt, getUserPrompt } from '../../../src/prompts/purpose/index.js';
+import { getSystemPrompt, getUserPrompt } from '../../../src/prompts/purpose-clarity/index.js';
 
 const STEP = CONFIG.steps[0];
 
@@ -55,9 +55,9 @@ const MOCK_RESPONSE = {
 
 // --- Constructor ---
 
-describe('PurposeEvaluator - Constructor', () => {
+describe('PurposeClarityEvaluator - Constructor', () => {
   it('throws when Google API key is missing', () => {
-    expect(() => new PurposeEvaluator({ googleApiKey: '' })).toThrow(
+    expect(() => new PurposeClarityEvaluator({ googleApiKey: '' })).toThrow(
       /Google API key is required/,
     );
   });
@@ -65,29 +65,29 @@ describe('PurposeEvaluator - Constructor', () => {
 
 // --- Metadata derives from config.json ---
 
-describe('PurposeEvaluator - Metadata', () => {
+describe('PurposeClarityEvaluator - Metadata', () => {
   it('derives id from config.json', () => {
-    expect(PurposeEvaluator.metadata.id).toBe(CONFIG.evaluator.id);
+    expect(PurposeClarityEvaluator.metadata.id).toBe(CONFIG.evaluator.id);
   });
 
   it('derives name from config.json', () => {
-    expect(PurposeEvaluator.metadata.name).toBe(CONFIG.evaluator.name);
+    expect(PurposeClarityEvaluator.metadata.name).toBe(CONFIG.evaluator.name);
   });
 
   it('derives description from config.json', () => {
-    expect(PurposeEvaluator.metadata.description).toBe(CONFIG.evaluator.description);
+    expect(PurposeClarityEvaluator.metadata.description).toBe(CONFIG.evaluator.description);
   });
 
   it('defaultProviders includes Google', () => {
-    expect(PurposeEvaluator.metadata.defaultProviders).toContain(Provider.Google);
+    expect(PurposeClarityEvaluator.metadata.defaultProviders).toContain(Provider.Google);
   });
 
   it('defaultProviders does not include OpenAI', () => {
-    expect(PurposeEvaluator.metadata.defaultProviders).not.toContain(Provider.OpenAI);
+    expect(PurposeClarityEvaluator.metadata.defaultProviders).not.toContain(Provider.OpenAI);
   });
 
   it('supports integer grade levels 3–12', () => {
-    expect(PurposeEvaluator.metadata.supportedGrades).toEqual(
+    expect(PurposeClarityEvaluator.metadata.supportedGrades).toEqual(
       ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
     );
   });
@@ -95,7 +95,7 @@ describe('PurposeEvaluator - Metadata', () => {
 
 // --- Prompt integrity (contract test) ---
 
-describe('PurposeEvaluator - Prompt contract', () => {
+describe('PurposeClarityEvaluator - Prompt contract', () => {
   it('system prompt SHA256 matches config.json declaration', () => {
     const expectedSha = CONFIG.steps[0].prompt.messages[0].sha256;
     const actualSha = createHash('sha256').update(getSystemPrompt({})).digest('hex');
@@ -121,13 +121,13 @@ describe('PurposeEvaluator - Prompt contract', () => {
 
 // --- LLM call contract ---
 
-describe('PurposeEvaluator - LLM call contract', () => {
-  let evaluator: PurposeEvaluator;
+describe('PurposeClarityEvaluator - LLM call contract', () => {
+  let evaluator: PurposeClarityEvaluator;
   let mockProvider: LLMProvider;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    evaluator = new PurposeEvaluator({ googleApiKey: 'test-key', telemetry: false });
+    evaluator = new PurposeClarityEvaluator({ googleApiKey: 'test-key', telemetry: false });
     // @ts-expect-error accessing private for testing
     mockProvider = evaluator.provider;
   });
@@ -201,7 +201,7 @@ describe('PurposeEvaluator - LLM call contract', () => {
   });
 
   it('reflects modelOverride in metadata.model', async () => {
-    const overrideEvaluator = new PurposeEvaluator({
+    const overrideEvaluator = new PurposeClarityEvaluator({
       anthropicApiKey: 'test-key',
       modelOverride: { provider: Provider.Anthropic, model: 'claude-haiku-4-5-20251001' },
       telemetry: false,
@@ -242,13 +242,13 @@ describe('PurposeEvaluator - LLM call contract', () => {
 
 // --- Validation ---
 
-describe('PurposeEvaluator - Validation', () => {
-  let evaluator: PurposeEvaluator;
+describe('PurposeClarityEvaluator - Validation', () => {
+  let evaluator: PurposeClarityEvaluator;
   let mockProvider: LLMProvider;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    evaluator = new PurposeEvaluator({ googleApiKey: 'test-key', telemetry: false });
+    evaluator = new PurposeClarityEvaluator({ googleApiKey: 'test-key', telemetry: false });
     // @ts-expect-error accessing private for testing
     mockProvider = evaluator.provider;
   });

@@ -7,11 +7,11 @@ export {
 
 export {
   GradeBand,
-  GradeLevelAppropriatenessSchema,
+  GradeLevelAppropriatenessOutputSchema,
   type GradeLevelAppropriatenessInternal,
 } from './grade-level-appropriateness.js';
 
 export {
-  PurposeOutputSchema,
-  type PurposeInternal,
-} from './purpose.js';
+  PurposeClarityOutputSchema,
+  type PurposeClarityInternal,
+} from './purpose-clarity.js';

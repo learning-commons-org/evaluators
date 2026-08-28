@@ -101,7 +101,7 @@ describe('generateSchemaFile', () => {
     const { content } = generateSchemaFile(PURPOSE_CONFIG);
     expect(content).toContain('export const PurposeClarityOutputSchema');
     expect(content).toContain('export type PurposeClarityInternal');
-    expect(content).not.toContain('export type PurposeComplexityLevel');
+    expect(content).not.toContain('export type PurposeClarityComplexityLevel');
   });
 
   it('generates all 5 Purpose complexity levels', () => {

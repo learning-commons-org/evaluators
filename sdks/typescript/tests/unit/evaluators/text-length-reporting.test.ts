@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ConventionalityEvaluator } from '../../../src/evaluators/conventionality.js';
+import { MeaningDirectnessEvaluator } from '../../../src/evaluators/meaning-directness.js';
 import { VALIDATION_LIMITS } from '../../../src/evaluators/base.js';
 import { InputValidationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
@@ -31,7 +31,7 @@ vi.mock('../../../src/telemetry/client.js', () => ({
 }));
 
 const CORE = 'The author sustains irony throughout to critique civilized society.';
-const evaluator = () => new ConventionalityEvaluator({ googleApiKey: 'k' });
+const evaluator = () => new MeaningDirectnessEvaluator({ googleApiKey: 'k' });
 
 beforeEach(() => {
   vi.clearAllMocks();

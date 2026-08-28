@@ -4,6 +4,10 @@ import {
   validateRequiredColumns,
   resolveMembers,
 } from '../../../src/batch/families/family.js';
+import {
+  VocabularyComplexityEvaluator,
+  MeaningDirectnessEvaluator,
+} from '../../../src/evaluators/index.js';
 import { QTC_FAMILY } from '../../../src/batch/families/qtc.js';
 import { STANDARDS_FAMILY } from '../../../src/batch/families/standards.js';
 import { Jurisdiction } from '../../../src/knowledge-graph/index.js';
@@ -81,8 +85,9 @@ describe('resolveMembers', () => {
   });
 
   it('resolves a selected subset in order', () => {
-    const selected = resolveMembers(QTC_FAMILY, ['vocabulary', 'conventionality']);
-    expect(selected.map((m) => m.id)).toEqual(['vocabulary', 'conventionality']);
+    const ids = [VocabularyComplexityEvaluator.metadata.id, MeaningDirectnessEvaluator.metadata.id];
+    const selected = resolveMembers(QTC_FAMILY, ids);
+    expect(selected.map((m) => m.id)).toEqual(ids);
   });
 
   it('throws for an unknown member id', () => {

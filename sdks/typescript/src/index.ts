@@ -67,48 +67,48 @@ export {
   ComplexityClassificationSchema,
 } from './schemas/sentence-structure.js';
 
-// Vocabulary exports
-export type { VocabularyInternal } from './schemas/vocabulary.js';
+// Vocabulary Complexity exports
+export type { VocabularyComplexityInternal } from './schemas/vocabulary-complexity.js';
 
-// Subject Matter Knowledge exports
-export type { SmkInternal } from './schemas/smk.js';
+// Background Knowledge Demands exports
+export type { BackgroundKnowledgeDemandsInternal } from './schemas/background-knowledge-demands.js';
 
-// Conventionality exports
-export type { ConventionalityInternal } from './schemas/conventionality.js';
+// Meaning Directness exports
+export type { MeaningDirectnessInternal } from './schemas/meaning-directness.js';
 
 // Grade Level Appropriateness exports
 export type { GradeLevelAppropriatenessInternal } from './schemas/grade-level-appropriateness.js';
 
-export { GradeLevelAppropriatenessSchema } from './schemas/grade-level-appropriateness.js';
+export { GradeLevelAppropriatenessOutputSchema } from './schemas/grade-level-appropriateness.js';
 
-// Purpose exports
-export type { PurposeInternal } from './schemas/purpose.js';
+// Purpose Clarity exports
+export type { PurposeClarityInternal } from './schemas/purpose-clarity.js';
 
-// Intertextuality exports
-export type { IntertextualityInternal } from './schemas/intertextuality.js';
+// Reference Knowledge Demands exports
+export type { ReferenceKnowledgeDemandsInternal } from './schemas/reference-knowledge-demands.js';
 
 // Organizational Structure exports
-export type { OrganizationalStructureInternal } from './schemas/organizational_structure.js';
+export type { OrganizationalStructureInternal } from './schemas/organizational-structure.js';
 
 export {
-  VocabularyEvaluator,
-  evaluateVocabulary,
+  VocabularyComplexityEvaluator,
+  evaluateVocabularyComplexity,
   SentenceStructureEvaluator,
   evaluateSentenceStructure,
-  SmkEvaluator,
-  evaluateSmk,
-  ConventionalityEvaluator,
-  evaluateConventionality,
+  BackgroundKnowledgeDemandsEvaluator,
+  evaluateBackgroundKnowledgeDemands,
+  MeaningDirectnessEvaluator,
+  evaluateMeaningDirectness,
   GradeLevelAppropriatenessEvaluator,
   evaluateGradeLevelAppropriateness,
   TextComplexityEvaluator,
   evaluateTextComplexity,
   type TextComplexityResult,
-  PurposeEvaluator,
-  evaluatePurpose,
-  type PurposeComplexityLevel,
-  IntertextualityEvaluator,
-  evaluateIntertextuality,
+  PurposeClarityEvaluator,
+  evaluatePurposeClarity,
+  type PurposeClarityComplexityLevel,
+  ReferenceKnowledgeDemandsEvaluator,
+  evaluateReferenceKnowledgeDemands,
   OrganizationalStructureEvaluator,
   evaluateOrganizationalStructure,
   MathStandardsAlignmentEvaluator,

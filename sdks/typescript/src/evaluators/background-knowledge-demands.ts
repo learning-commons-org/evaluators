@@ -1,14 +1,15 @@
 import type { LLMProvider } from '../providers/index.js';
-import { SmkOutputSchema, type SmkInternal } from '../schemas/smk.js';
+import { BackgroundKnowledgeDemandsOutputSchema, type BackgroundKnowledgeDemandsInternal } from '../schemas/background-knowledge-demands.js';
 import { calculateFleschKincaidGrade } from '../features/index.js';
-import { getSystemPrompt, getUserPrompt } from '../prompts/subject-matter-knowledge/index.js';
+import { getSystemPrompt, getUserPrompt } from '../prompts/background-knowledge-demands/index.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
+import CONFIG from '../../../../evals/student-facing-text/ela-reading/background-knowledge-demands/config.json';
 
 /**
- * Subject Matter Knowledge (SMK) Evaluator
+ * Background Knowledge Demands Evaluator
  *
  * Evaluates the background knowledge demands of educational texts relative to grade level.
  * Determines how much prior subject knowledge a student needs to comprehend the text.
@@ -21,7 +22,7 @@ import { EvaluatorError, wrapProviderError } from '../errors.js';
  *
  * @example
  * ```typescript
- * const evaluator = new SmkEvaluator({
+ * const evaluator = new BackgroundKnowledgeDemandsEvaluator({
  *   googleApiKey: process.env.GOOGLE_API_KEY
  * });
  *
@@ -30,11 +31,13 @@ import { EvaluatorError, wrapProviderError } from '../errors.js';
  * console.log(result.reasoning);
  * ```
  */
-export class SmkEvaluator extends BaseEvaluator {
+export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
   static readonly metadata = {
-    id: 'subject-matter-knowledge',
-    name: 'Subject Matter Knowledge',
-    description: 'Evaluates background knowledge demands of educational texts relative to grade level',
+    id: CONFIG.evaluator.id,
+    stableId: CONFIG.evaluator.stable_id,
+    idHistory: CONFIG.evaluator.id_history,
+    name: CONFIG.evaluator.name,
+    description: CONFIG.evaluator.description,
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
     defaultProviders: [Provider.Google] as const,
   };
@@ -63,9 +66,9 @@ export class SmkEvaluator extends BaseEvaluator {
   async evaluate(
     text: string,
     gradeLevel: string
-  ): Promise<EvaluationResult<TextComplexityLevel, SmkInternal>> {
-    this.logger.info('Starting SMK evaluation', {
-      evaluator: 'subject-matter-knowledge',
+  ): Promise<EvaluationResult<TextComplexityLevel, BackgroundKnowledgeDemandsInternal>> {
+    this.logger.info('Starting Background Knowledge Demands evaluation', {
+      evaluator: BackgroundKnowledgeDemandsEvaluator.metadata.id,
       operation: 'evaluate',
       gradeLevel,
       textLength: text.length,
@@ -77,15 +80,15 @@ export class SmkEvaluator extends BaseEvaluator {
     try {
       // Validate inputs — inside try so validation errors are telemetered.
       this.validateText(text);
-      this.validateGradeLevel(gradeLevel, new Set(SmkEvaluator.metadata.supportedGrades));
+      this.validateGradeLevel(gradeLevel, new Set(BackgroundKnowledgeDemandsEvaluator.metadata.supportedGrades));
 
       this.logger.debug('Evaluating subject matter knowledge complexity', {
-        evaluator: 'subject-matter-knowledge',
-        operation: 'smk_evaluation',
+        evaluator: BackgroundKnowledgeDemandsEvaluator.metadata.id,
+        operation: 'background_knowledge_demands_evaluation',
       });
 
       const fkScore = calculateFleschKincaidGrade(text);
-      const response = await this.evaluateSmk(text, gradeLevel, fkScore);
+      const response = await this.evaluateBackgroundKnowledgeDemands(text, gradeLevel, fkScore);
 
       stageDetails.push({
         stage: 'smk_evaluation',
@@ -133,8 +136,8 @@ export class SmkEvaluator extends BaseEvaluator {
         // Ignore telemetry errors
       });
 
-      this.logger.info('SMK evaluation completed successfully', {
-        evaluator: 'subject-matter-knowledge',
+      this.logger.info('Background Knowledge Demands evaluation completed successfully', {
+        evaluator: BackgroundKnowledgeDemandsEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         score: result.score,
@@ -145,8 +148,8 @@ export class SmkEvaluator extends BaseEvaluator {
     } catch (error) {
       const latencyMs = Date.now() - startTime;
 
-      this.logger.error('SMK evaluation failed', {
-        evaluator: 'subject-matter-knowledge',
+      this.logger.error('Background Knowledge Demands evaluation failed', {
+        evaluator: BackgroundKnowledgeDemandsEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         error: error instanceof Error ? error : undefined,
@@ -184,17 +187,17 @@ export class SmkEvaluator extends BaseEvaluator {
   /**
    * Run the SMK evaluation LLM call
    */
-  private async evaluateSmk(
+  private async evaluateBackgroundKnowledgeDemands(
     text: string,
     gradeLevel: string,
     fkScore: number
-  ): Promise<{ data: SmkInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
+  ): Promise<{ data: BackgroundKnowledgeDemandsInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const response = await this.provider.generateStructured({
       messages: [
         { role: 'system', content: getSystemPrompt() },
         { role: 'user', content: getUserPrompt(text, gradeLevel, fkScore) },
       ],
-      schema: SmkOutputSchema,
+      schema: BackgroundKnowledgeDemandsOutputSchema,
       temperature: 0,
     });
 
@@ -211,18 +214,18 @@ export class SmkEvaluator extends BaseEvaluator {
  *
  * @example
  * ```typescript
- * const result = await evaluateSmk(
+ * const result = await evaluateBackgroundKnowledgeDemands(
  *   "Hydraulic propulsion works by sucking water at the bow and forcing it sternward.",
  *   "10",
  *   { googleApiKey: process.env.GOOGLE_API_KEY }
  * );
  * ```
  */
-export async function evaluateSmk(
+export async function evaluateBackgroundKnowledgeDemands(
   text: string,
   gradeLevel: string,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<TextComplexityLevel, SmkInternal>> {
-  const evaluator = new SmkEvaluator(config);
+): Promise<EvaluationResult<TextComplexityLevel, BackgroundKnowledgeDemandsInternal>> {
+  const evaluator = new BackgroundKnowledgeDemandsEvaluator(config);
   return evaluator.evaluate(text, gradeLevel);
 }

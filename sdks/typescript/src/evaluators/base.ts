@@ -73,10 +73,10 @@ type NormalizedTelemetryOptions = Required<Pick<TelemetryOptions, 'enabled' | 'r
  *
  * Two things to know before overriding:
  *
- * - The override is evaluator-wide, not per call site. `VocabularyEvaluator`
+ * - The override is evaluator-wide, not per call site. `VocabularyComplexityEvaluator`
  *   deliberately uses three models (Gemini 2.5 Pro for grade levels 3-4, GPT-4.1 for
  *   5-12, GPT-4o for background knowledge); an override collapses all three.
- * - `PurposeEvaluator` takes its model from the shared cross-language eval config
+ * - `PurposeClarityEvaluator` takes its model from the shared cross-language eval config
  *   (`evals/student-facing-text/ela-reading/purpose-clarity/config.json`), so overriding it diverges from that
  *   rather than from a hardcoded default.
  */
@@ -171,9 +171,23 @@ export interface BaseEvaluatorConfig {
  * Each evaluator must provide this metadata as static properties
  */
 export interface EvaluatorMetadata {
-  /** Unique identifier for the evaluator (e.g., 'vocabulary', 'sentence-structure') */
+  /**
+   * Current dotted registry id, e.g.
+   * `student_facing_text.ela_reading.vocabulary_complexity`. Appears in results and
+   * telemetry. May be renamed — the name is not the identity.
+   */
   readonly id: string;
-  /** Human-readable name (e.g., 'Vocabulary', 'Sentence Structure') */
+  /**
+   * Immutable UUID assigned at the evaluator's creation. The identity that survives
+   * renames; consumers aggregating across time key on this rather than on `id`.
+   *
+   * Absent only for composites that are an SDK convenience rather than a registry
+   * evaluator (`TextComplexityEvaluator`), which have no definition to read it from.
+   */
+  readonly stableId?: string;
+  /** Prior `id` values, oldest first, so old names remain resolvable. */
+  readonly idHistory?: readonly string[];
+  /** Human-readable name (e.g., 'Vocabulary Complexity Evaluator') */
   readonly name: string;
   /** Brief description of what the evaluator does */
   readonly description: string;
@@ -388,7 +402,8 @@ export abstract class BaseEvaluator {
     for (const provider of this.metadata.defaultProviders) {
       if (!keyFor[provider]) {
         throw new ConfigurationError(
-          `${humanName[provider]} is required for ${this.metadata.name} evaluator. Pass ${configKey[provider]} in config.`
+          // No " evaluator" suffix: registry names already end in "Evaluator".
+          `${humanName[provider]} is required for ${this.metadata.name}. Pass ${configKey[provider]} in config.`
         );
       }
     }

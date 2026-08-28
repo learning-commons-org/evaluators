@@ -1,12 +1,12 @@
 import {
-  VocabularyEvaluator,
+  VocabularyComplexityEvaluator,
   SentenceStructureEvaluator,
   GradeLevelAppropriatenessEvaluator,
-  SmkEvaluator,
-  ConventionalityEvaluator,
-  PurposeEvaluator,
+  BackgroundKnowledgeDemandsEvaluator,
+  MeaningDirectnessEvaluator,
+  PurposeClarityEvaluator,
   OrganizationalStructureEvaluator,
-  IntertextualityEvaluator,
+  ReferenceKnowledgeDemandsEvaluator,
 } from '../../evaluators/index.js';
 import type { BaseEvaluatorConfig, ModelOverride } from '../../evaluators/base.js';
 import { Provider } from '../../evaluators/base.js';
@@ -29,24 +29,24 @@ type EvaluatorConstructor = new (config: BaseEvaluatorConfig) => SimpleEvaluator
 
 const EVALUATOR_MAP = new Map<string, EvaluatorConstructor>([
   [GradeLevelAppropriatenessEvaluator.metadata.id, GradeLevelAppropriatenessEvaluator],
-  [SmkEvaluator.metadata.id, SmkEvaluator],
-  [VocabularyEvaluator.metadata.id, VocabularyEvaluator],
+  [BackgroundKnowledgeDemandsEvaluator.metadata.id, BackgroundKnowledgeDemandsEvaluator],
+  [VocabularyComplexityEvaluator.metadata.id, VocabularyComplexityEvaluator],
   [SentenceStructureEvaluator.metadata.id, SentenceStructureEvaluator],
-  [ConventionalityEvaluator.metadata.id, ConventionalityEvaluator],
-  [PurposeEvaluator.metadata.id, PurposeEvaluator],
+  [MeaningDirectnessEvaluator.metadata.id, MeaningDirectnessEvaluator],
+  [PurposeClarityEvaluator.metadata.id, PurposeClarityEvaluator],
   [OrganizationalStructureEvaluator.metadata.id, OrganizationalStructureEvaluator],
-  [IntertextualityEvaluator.metadata.id, IntertextualityEvaluator],
+  [ReferenceKnowledgeDemandsEvaluator.metadata.id, ReferenceKnowledgeDemandsEvaluator],
 ]);
 
 const MEMBERS = [
   { id: GradeLevelAppropriatenessEvaluator.metadata.id, name: GradeLevelAppropriatenessEvaluator.metadata.name },
-  { id: SmkEvaluator.metadata.id, name: SmkEvaluator.metadata.name },
-  { id: VocabularyEvaluator.metadata.id, name: VocabularyEvaluator.metadata.name },
+  { id: BackgroundKnowledgeDemandsEvaluator.metadata.id, name: BackgroundKnowledgeDemandsEvaluator.metadata.name },
+  { id: VocabularyComplexityEvaluator.metadata.id, name: VocabularyComplexityEvaluator.metadata.name },
   { id: SentenceStructureEvaluator.metadata.id, name: SentenceStructureEvaluator.metadata.name },
-  { id: ConventionalityEvaluator.metadata.id, name: ConventionalityEvaluator.metadata.name },
-  { id: PurposeEvaluator.metadata.id, name: PurposeEvaluator.metadata.name },
+  { id: MeaningDirectnessEvaluator.metadata.id, name: MeaningDirectnessEvaluator.metadata.name },
+  { id: PurposeClarityEvaluator.metadata.id, name: PurposeClarityEvaluator.metadata.name },
   { id: OrganizationalStructureEvaluator.metadata.id, name: OrganizationalStructureEvaluator.metadata.name },
-  { id: IntertextualityEvaluator.metadata.id, name: IntertextualityEvaluator.metadata.name },
+  { id: ReferenceKnowledgeDemandsEvaluator.metadata.id, name: ReferenceKnowledgeDemandsEvaluator.metadata.name },
 ];
 
 const COLUMNS: ColumnSpec[] = [
@@ -60,13 +60,13 @@ const COLUMNS: ColumnSpec[] = [
  */
 const PROVIDERS_BY_MEMBER = new Map<string, readonly Provider[]>([
   [GradeLevelAppropriatenessEvaluator.metadata.id, GradeLevelAppropriatenessEvaluator.metadata.defaultProviders],
-  [SmkEvaluator.metadata.id, SmkEvaluator.metadata.defaultProviders],
-  [VocabularyEvaluator.metadata.id, VocabularyEvaluator.metadata.defaultProviders],
+  [BackgroundKnowledgeDemandsEvaluator.metadata.id, BackgroundKnowledgeDemandsEvaluator.metadata.defaultProviders],
+  [VocabularyComplexityEvaluator.metadata.id, VocabularyComplexityEvaluator.metadata.defaultProviders],
   [SentenceStructureEvaluator.metadata.id, SentenceStructureEvaluator.metadata.defaultProviders],
-  [ConventionalityEvaluator.metadata.id, ConventionalityEvaluator.metadata.defaultProviders],
-  [PurposeEvaluator.metadata.id, PurposeEvaluator.metadata.defaultProviders],
+  [MeaningDirectnessEvaluator.metadata.id, MeaningDirectnessEvaluator.metadata.defaultProviders],
+  [PurposeClarityEvaluator.metadata.id, PurposeClarityEvaluator.metadata.defaultProviders],
   [OrganizationalStructureEvaluator.metadata.id, OrganizationalStructureEvaluator.metadata.defaultProviders],
-  [IntertextualityEvaluator.metadata.id, IntertextualityEvaluator.metadata.defaultProviders],
+  [ReferenceKnowledgeDemandsEvaluator.metadata.id, ReferenceKnowledgeDemandsEvaluator.metadata.defaultProviders],
 ]);
 
 class QtcRunner implements FamilyRunner {

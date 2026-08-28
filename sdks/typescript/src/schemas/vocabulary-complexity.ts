@@ -4,7 +4,7 @@ import { TextComplexityLevel } from './outputs.js';
 /**
  * Vocabulary evaluation output schema
  */
-export const VocabularyComplexitySchema = z.object({
+export const VocabularyComplexityOutputSchema = z.object({
   tier_2_words: z.string().describe('List of Tier 2 words (academic words)'),
   tier_3_words: z.string().describe('List of Tier 3 words (domain-specific)'),
   archaic_words: z.string().describe('List of Archaic words'),
@@ -15,7 +15,7 @@ export const VocabularyComplexitySchema = z.object({
   reasoning: z.string().describe('Detailed reasoning for the complexity rating'),
 });
 
-export type VocabularyInternal = z.infer<typeof VocabularyComplexitySchema>;
+export type VocabularyComplexityInternal = z.infer<typeof VocabularyComplexityOutputSchema>;
 
 /**
  * Background knowledge assumption for a student at a given grade level

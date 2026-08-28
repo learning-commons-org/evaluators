@@ -8,9 +8,9 @@ export {
 } from './base.js';
 
 export {
-  VocabularyEvaluator,
-  evaluateVocabulary,
-} from './vocabulary.js';
+  VocabularyComplexityEvaluator,
+  evaluateVocabularyComplexity,
+} from './vocabulary-complexity.js';
 
 export {
   SentenceStructureEvaluator,
@@ -23,14 +23,14 @@ export {
 } from './grade-level-appropriateness.js';
 
 export {
-  SmkEvaluator,
-  evaluateSmk,
-} from './smk.js';
+  BackgroundKnowledgeDemandsEvaluator,
+  evaluateBackgroundKnowledgeDemands,
+} from './background-knowledge-demands.js';
 
 export {
-  ConventionalityEvaluator,
-  evaluateConventionality,
-} from './conventionality.js';
+  MeaningDirectnessEvaluator,
+  evaluateMeaningDirectness,
+} from './meaning-directness.js';
 
 export {
   TextComplexityEvaluator,
@@ -39,15 +39,15 @@ export {
 } from './text-complexity.js';
 
 export {
-  PurposeEvaluator,
-  evaluatePurpose,
-  type PurposeComplexityLevel,
-} from './purpose.js';
+  PurposeClarityEvaluator,
+  evaluatePurposeClarity,
+  type PurposeClarityComplexityLevel,
+} from './purpose-clarity.js';
 
 export {
-  IntertextualityEvaluator,
-  evaluateIntertextuality,
-} from './intertextuality.js';
+  ReferenceKnowledgeDemandsEvaluator,
+  evaluateReferenceKnowledgeDemands,
+} from './reference-knowledge-demands.js';
 
 export {
   OrganizationalStructureEvaluator,

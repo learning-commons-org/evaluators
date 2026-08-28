@@ -2,7 +2,7 @@ import type { LLMProvider } from '../providers/index.js';
 import {
   OrganizationalStructureOutputSchema,
   type OrganizationalStructureInternal,
-} from '../schemas/organizational_structure.js';
+} from '../schemas/organizational-structure.js';
 import { runPreprocessingStep } from '../features/preprocessing.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/organizational-structure/index.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
@@ -34,6 +34,8 @@ const COMPLEXITY_SCORE_DISPLAY: Record<OrganizationalStructureInternal['complexi
 export class OrganizationalStructureEvaluator extends BaseEvaluator {
   static readonly metadata = {
     id: CONFIG.evaluator.id,
+    stableId: CONFIG.evaluator.stable_id,
+    idHistory: CONFIG.evaluator.id_history,
     name: CONFIG.evaluator.name,
     description: CONFIG.evaluator.description,
     supportedGrades: SUPPORTED_GRADES,

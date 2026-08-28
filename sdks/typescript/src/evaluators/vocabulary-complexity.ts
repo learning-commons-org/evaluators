@@ -1,19 +1,20 @@
 import type { LLMProvider } from '../providers/index.js';
 import {
-  VocabularyComplexitySchema,
-  type VocabularyInternal,
+  VocabularyComplexityOutputSchema,
+  type VocabularyComplexityInternal,
   type BackgroundKnowledge,
-} from '../schemas/vocabulary.js';
+} from '../schemas/vocabulary-complexity.js';
 import { calculateFleschKincaidGrade } from '../features/index.js';
 import {
   getBackgroundKnowledgePrompt,
   getSystemPrompt,
   getUserPrompt,
-} from '../prompts/vocabulary/index.js';
+} from '../prompts/vocabulary-complexity/index.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
+import CONFIG from '../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/config.json';
 
 /**
  * Vocabulary Evaluator
@@ -31,7 +32,7 @@ import { EvaluatorError, wrapProviderError } from '../errors.js';
  *
  * @example
  * ```typescript
- * const evaluator = new VocabularyEvaluator({
+ * const evaluator = new VocabularyComplexityEvaluator({
  *   googleApiKey: process.env.GOOGLE_API_KEY,
  *   openaiApiKey: process.env.OPENAI_API_KEY
  * });
@@ -41,11 +42,13 @@ import { EvaluatorError, wrapProviderError } from '../errors.js';
  * console.log(result.reasoning);
  * ```
  */
-export class VocabularyEvaluator extends BaseEvaluator {
+export class VocabularyComplexityEvaluator extends BaseEvaluator {
   static readonly metadata = {
-    id: 'vocabulary',
-    name: 'Vocabulary',
-    description: 'Evaluates vocabulary complexity of educational texts relative to grade level',
+    id: CONFIG.evaluator.id,
+    stableId: CONFIG.evaluator.stable_id,
+    idHistory: CONFIG.evaluator.id_history,
+    name: CONFIG.evaluator.name,
+    description: CONFIG.evaluator.description,
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
     defaultProviders: [Provider.Google, Provider.OpenAI] as const,
   };
@@ -88,9 +91,9 @@ export class VocabularyEvaluator extends BaseEvaluator {
   async evaluate(
     text: string,
     gradeLevel: string
-  ): Promise<EvaluationResult<TextComplexityLevel, VocabularyInternal>> {
-    this.logger.info('Starting vocabulary evaluation', {
-      evaluator: 'vocabulary',
+  ): Promise<EvaluationResult<TextComplexityLevel, VocabularyComplexityInternal>> {
+    this.logger.info('Starting Vocabulary Complexity evaluation', {
+      evaluator: VocabularyComplexityEvaluator.metadata.id,
       operation: 'evaluate',
       gradeLevel,
       textLength: text.length,
@@ -112,9 +115,9 @@ export class VocabularyEvaluator extends BaseEvaluator {
       // Validate inputs — inside try so validation errors are telemetered.
       // If partners consistently pass invalid grade levels/text, telemetry will surface documentation gaps.
       this.validateText(text);
-      this.validateGradeLevel(gradeLevel, new Set(VocabularyEvaluator.metadata.supportedGrades));
+      this.validateGradeLevel(gradeLevel, new Set(VocabularyComplexityEvaluator.metadata.supportedGrades));
       this.logger.debug('Stage 1: Generating background knowledge', {
-        evaluator: 'vocabulary',
+        evaluator: VocabularyComplexityEvaluator.metadata.id,
         operation: 'background_knowledge',
       });
       // Stage 1: Generate background knowledge assumption
@@ -187,8 +190,8 @@ export class VocabularyEvaluator extends BaseEvaluator {
         // Ignore telemetry errors
       });
 
-      this.logger.info('Vocabulary evaluation completed successfully', {
-        evaluator: 'vocabulary',
+      this.logger.info('Vocabulary Complexity evaluation completed successfully', {
+        evaluator: VocabularyComplexityEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         score: result.score,
@@ -200,8 +203,8 @@ export class VocabularyEvaluator extends BaseEvaluator {
       const latencyMs = Date.now() - startTime;
 
       // Log the error
-      this.logger.error('Vocabulary evaluation failed', {
-        evaluator: 'vocabulary',
+      this.logger.error('Vocabulary Complexity evaluation failed', {
+        evaluator: VocabularyComplexityEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         error: error instanceof Error ? error : undefined,
@@ -282,7 +285,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
     gradeLevel: string,
     backgroundKnowledge: string,
     fkLevel: number
-  ): Promise<{ data: VocabularyInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
+  ): Promise<{ data: VocabularyComplexityInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const systemPrompt = getSystemPrompt(gradeLevel);
     const userPrompt = getUserPrompt(text, gradeLevel, backgroundKnowledge, fkLevel);
 
@@ -295,7 +298,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      schema: VocabularyComplexitySchema,
+      schema: VocabularyComplexityOutputSchema,
       temperature: 0,
     });
 
@@ -313,7 +316,7 @@ export class VocabularyEvaluator extends BaseEvaluator {
  *
  * @example
  * ```typescript
- * const result = await evaluateVocabulary(
+ * const result = await evaluateVocabularyComplexity(
  *   "The mitochondria is the powerhouse of the cell.",
  *   "3",
  *   {
@@ -323,11 +326,11 @@ export class VocabularyEvaluator extends BaseEvaluator {
  * );
  * ```
  */
-export async function evaluateVocabulary(
+export async function evaluateVocabularyComplexity(
   text: string,
   gradeLevel: string,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<TextComplexityLevel, VocabularyInternal>> {
-  const evaluator = new VocabularyEvaluator(config);
+): Promise<EvaluationResult<TextComplexityLevel, VocabularyComplexityInternal>> {
+  const evaluator = new VocabularyComplexityEvaluator(config);
   return evaluator.evaluate(text, gradeLevel);
 }

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Provider, type BaseEvaluatorConfig } from '../../../src/evaluators/base.js';
 import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/grade-level-appropriateness.js';
-import { ConventionalityEvaluator } from '../../../src/evaluators/conventionality.js';
-import { SmkEvaluator } from '../../../src/evaluators/smk.js';
+import { MeaningDirectnessEvaluator } from '../../../src/evaluators/meaning-directness.js';
+import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/background-knowledge-demands.js';
 import { SentenceStructureEvaluator } from '../../../src/evaluators/sentence-structure.js';
-import { PurposeEvaluator } from '../../../src/evaluators/purpose.js';
-import { VocabularyEvaluator } from '../../../src/evaluators/vocabulary.js';
+import { PurposeClarityEvaluator } from '../../../src/evaluators/purpose-clarity.js';
+import { VocabularyComplexityEvaluator } from '../../../src/evaluators/vocabulary-complexity.js';
 
 /**
  * Wiring only: every evaluator must accept an Anthropic override with just an
@@ -47,11 +47,11 @@ function anthropicOnlyConfig(): BaseEvaluatorConfig {
 
 const EVALUATORS = [
   { name: 'GradeLevelAppropriateness', Ctor: GradeLevelAppropriatenessEvaluator },
-  { name: 'Conventionality', Ctor: ConventionalityEvaluator },
-  { name: 'Smk', Ctor: SmkEvaluator },
+  { name: 'Meaning Directness', Ctor: MeaningDirectnessEvaluator },
+  { name: 'Background Knowledge Demands', Ctor: BackgroundKnowledgeDemandsEvaluator },
   { name: 'SentenceStructure', Ctor: SentenceStructureEvaluator },
-  { name: 'Purpose', Ctor: PurposeEvaluator },
-  { name: 'Vocabulary', Ctor: VocabularyEvaluator },
+  { name: 'Purpose', Ctor: PurposeClarityEvaluator },
+  { name: 'Vocabulary', Ctor: VocabularyComplexityEvaluator },
 ] as const;
 
 beforeEach(() => {
@@ -95,7 +95,7 @@ describe('Anthropic modelOverride — vocabulary multi-model collapse', () => {
   // Vocabulary deliberately uses three models; an override collapses all three.
   // Asserted so the CLI can warn rather than surprise users.
   it('collapses all three vocabulary call sites onto the single override model', () => {
-    new VocabularyEvaluator(anthropicOnlyConfig());
+    new VocabularyComplexityEvaluator(anthropicOnlyConfig());
 
     expect(createProvider).toHaveBeenCalledTimes(3);
     const models = createProvider.mock.calls.map(([arg]) => arg.model);
@@ -103,7 +103,7 @@ describe('Anthropic modelOverride — vocabulary multi-model collapse', () => {
   });
 
   it('uses three distinct models across two providers without an override', () => {
-    new VocabularyEvaluator({
+    new VocabularyComplexityEvaluator({
       googleApiKey: 'g-test',
       openaiApiKey: 'o-test',
       telemetry: false,

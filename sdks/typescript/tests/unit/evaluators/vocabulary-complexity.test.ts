@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { VocabularyEvaluator } from '../../../src/evaluators/vocabulary.js';
+import { VocabularyComplexityEvaluator } from '../../../src/evaluators/vocabulary-complexity.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 /**
- * Comprehensive unit tests for VocabularyEvaluator
+ * Comprehensive unit tests for VocabularyComplexityEvaluator
  *
  * These tests verify:
  * - Constructor validation
@@ -36,25 +36,25 @@ vi.mock('../../../src/telemetry/client.js', () => {
   };
 });
 
-describe('VocabularyEvaluator - Constructor Validation', () => {
+describe('VocabularyComplexityEvaluator - Constructor Validation', () => {
   it('should throw error when Google API key is missing', () => {
-    expect(() => new VocabularyEvaluator({
+    expect(() => new VocabularyComplexityEvaluator({
       googleApiKey: '',
       openaiApiKey: 'test-openai-key',
-    })).toThrow('Google API key is required for Vocabulary evaluator. Pass googleApiKey in config.');
+    })).toThrow(`Google API key is required for ${VocabularyComplexityEvaluator.metadata.name}. Pass googleApiKey in config.`);
   });
 
   it('should throw error when OpenAI API key is missing', () => {
-    expect(() => new VocabularyEvaluator({
+    expect(() => new VocabularyComplexityEvaluator({
       googleApiKey: 'test-google-key',
       openaiApiKey: '',
-    })).toThrow('OpenAI API key is required for Vocabulary evaluator. Pass openaiApiKey in config.');
+    })).toThrow(`OpenAI API key is required for ${VocabularyComplexityEvaluator.metadata.name}. Pass openaiApiKey in config.`);
   });
 
 });
 
-describe('VocabularyEvaluator - Evaluation Flow', () => {
-  let evaluator: VocabularyEvaluator;
+describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
+  let evaluator: VocabularyComplexityEvaluator;
   let mockBackgroundProvider: LLMProvider;
   let mockComplexityProvider: LLMProvider;
 
@@ -62,7 +62,7 @@ describe('VocabularyEvaluator - Evaluation Flow', () => {
     vi.clearAllMocks();
 
     // Create evaluator (providers will be mocked)
-    evaluator = new VocabularyEvaluator({
+    evaluator = new VocabularyComplexityEvaluator({
       googleApiKey: 'test-google-key',
       openaiApiKey: 'test-openai-key',
       telemetry: false, // Disable telemetry for most tests
@@ -224,7 +224,7 @@ describe('VocabularyEvaluator - Evaluation Flow', () => {
     });
 
     it('should reflect modelOverride in metadata.model for both stages', async () => {
-      const overrideEvaluator = new VocabularyEvaluator({
+      const overrideEvaluator = new VocabularyComplexityEvaluator({
         openaiApiKey: 'test-key',
         modelOverride: { provider: Provider.OpenAI, model: 'gpt-4o-mini' },
         telemetry: false,

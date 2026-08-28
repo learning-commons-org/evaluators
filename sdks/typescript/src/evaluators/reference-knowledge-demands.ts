@@ -1,18 +1,18 @@
 import type { LLMProvider } from '../providers/index.js';
-import { PurposeOutputSchema, type PurposeInternal } from '../schemas/purpose.js';
+import { ReferenceKnowledgeDemandsOutputSchema, type ReferenceKnowledgeDemandsInternal } from '../schemas/reference-knowledge-demands.js';
 import { runPreprocessingStep } from '../features/preprocessing.js';
-import { getSystemPrompt, getUserPrompt } from '../prompts/purpose/index.js';
+import { getSystemPrompt, getUserPrompt } from '../prompts/reference-knowledge-demands/index.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
-import CONFIG from '../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';
-import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/purpose-clarity/input_schema.json';
+import CONFIG from '../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/config.json';
+import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/input_schema.json';
 
 // Step ID convention: "evaluate_{slug}" where slug is the last segment of evaluator.id.
 const STEP_ID = `evaluate_${CONFIG.evaluator.id.split('.').pop()}`;
 const _step = CONFIG.steps.find(s => s.id === STEP_ID);
-if (!_step) throw new Error(`Step "${STEP_ID}" not found in purpose config.json`);
+if (!_step) throw new Error(`Step "${STEP_ID}" not found in reference-knowledge-demands config.json`);
 const STEP = _step;
 
 // Supported grades from input_schema — needed for static metadata, so defined at
@@ -20,20 +20,19 @@ const STEP = _step;
 // reconstructed from bounds; that admits gaps and non-numeric tokens such as "K".
 const SUPPORTED_GRADES: readonly string[] = INPUT_SCHEMA.properties.grade_level.enum;
 
-export type PurposeComplexityLevel = TextComplexityLevel | 'More context needed';
-
 // Maps snake_case LLM output → SDK-standard sentence case score.
-const COMPLEXITY_SCORE_DISPLAY: Record<PurposeInternal['complexity_score'], PurposeComplexityLevel> = {
+const COMPLEXITY_SCORE_DISPLAY: Record<ReferenceKnowledgeDemandsInternal['complexity_score'], TextComplexityLevel> = {
   'slightly_complex': 'Slightly complex',
   'moderately_complex': 'Moderately complex',
   'very_complex': 'Very complex',
   'exceedingly_complex': 'Exceedingly complex',
-  'more_context_needed': 'More context needed',
 };
 
-export class PurposeEvaluator extends BaseEvaluator {
+export class ReferenceKnowledgeDemandsEvaluator extends BaseEvaluator {
   static readonly metadata = {
     id: CONFIG.evaluator.id,
+    stableId: CONFIG.evaluator.stable_id,
+    idHistory: CONFIG.evaluator.id_history,
     name: CONFIG.evaluator.name,
     description: CONFIG.evaluator.description,
     supportedGrades: SUPPORTED_GRADES,
@@ -44,7 +43,7 @@ export class PurposeEvaluator extends BaseEvaluator {
 
   private static computeFkScore(text: string): number {
     const fkStep = CONFIG.preprocessing.find(p => p.id === 'fk_score');
-    if (!fkStep) throw new Error('fk_score preprocessing step not found in purpose config.json');
+    if (!fkStep) throw new Error('fk_score preprocessing step not found in reference-knowledge-demands config.json');
     return runPreprocessingStep(text, fkStep.implementation.typescript);
   }
 
@@ -59,7 +58,7 @@ export class PurposeEvaluator extends BaseEvaluator {
   }
 
   /**
-   * Evaluate purpose complexity for a given text and grade level
+   * Evaluate reference knowledge demands complexity for a given text and grade level
    *
    * @param text - The text to evaluate
    * @param gradeLevel - The target grade level (3-12)
@@ -69,9 +68,9 @@ export class PurposeEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<PurposeComplexityLevel, PurposeInternal>> {
-    this.logger.info('Starting Purpose evaluation', {
-      evaluator: PurposeEvaluator.metadata.id,
+  async evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<TextComplexityLevel, ReferenceKnowledgeDemandsInternal>> {
+    this.logger.info('Starting Reference Knowledge Demands evaluation', {
+      evaluator: ReferenceKnowledgeDemandsEvaluator.metadata.id,
       operation: 'evaluate',
       gradeLevel,
       textLength: text.length,
@@ -84,7 +83,7 @@ export class PurposeEvaluator extends BaseEvaluator {
       this.validateText(text);
       this.validateGradeLevel(gradeLevel, new Set(SUPPORTED_GRADES));
 
-      const fkScore = PurposeEvaluator.computeFkScore(text);
+      const fkScore = ReferenceKnowledgeDemandsEvaluator.computeFkScore(text);
       const inputs: Record<string, string> = {
         text,
         grade_level: gradeLevel,
@@ -105,7 +104,7 @@ export class PurposeEvaluator extends BaseEvaluator {
         token_usage: tokenUsage,
       });
 
-      const result: EvaluationResult<PurposeComplexityLevel, PurposeInternal> = {
+      const result: EvaluationResult<TextComplexityLevel, ReferenceKnowledgeDemandsInternal> = {
         score: COMPLEXITY_SCORE_DISPLAY[response.data.complexity_score],
         reasoning: response.data.reasoning,
         metadata: {
@@ -128,8 +127,8 @@ export class PurposeEvaluator extends BaseEvaluator {
         inputText: text,
       }).catch(() => undefined);
 
-      this.logger.info('Purpose evaluation completed successfully', {
-        evaluator: PurposeEvaluator.metadata.id,
+      this.logger.info('Reference Knowledge Demands evaluation completed successfully', {
+        evaluator: ReferenceKnowledgeDemandsEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         score: result.score,
@@ -140,8 +139,8 @@ export class PurposeEvaluator extends BaseEvaluator {
     } catch (error) {
       const latencyMs = Date.now() - startTime;
 
-      this.logger.error('Purpose evaluation failed', {
-        evaluator: PurposeEvaluator.metadata.id,
+      this.logger.error('Reference Knowledge Demands evaluation failed', {
+        evaluator: ReferenceKnowledgeDemandsEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         error: error instanceof Error ? error : undefined,
@@ -174,24 +173,24 @@ export class PurposeEvaluator extends BaseEvaluator {
 
   private async callLLM(
     inputs: Record<string, string>,
-  ): Promise<{ data: PurposeInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
+  ): Promise<{ data: ReferenceKnowledgeDemandsInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const response = await this.provider.generateStructured({
       messages: [
         { role: 'system', content: getSystemPrompt(inputs) },
         { role: 'user', content: getUserPrompt(inputs) },
       ],
-      schema: PurposeOutputSchema,
-      temperature: PurposeEvaluator.TEMPERATURE,
+      schema: ReferenceKnowledgeDemandsOutputSchema,
+      temperature: ReferenceKnowledgeDemandsEvaluator.TEMPERATURE,
     });
 
     return { data: response.data, usage: response.usage, latencyMs: response.latencyMs };
   }
 }
 
-export async function evaluatePurpose(
+export async function evaluateReferenceKnowledgeDemands(
   text: string,
   gradeLevel: string,
   config: BaseEvaluatorConfig,
-): Promise<EvaluationResult<PurposeComplexityLevel, PurposeInternal>> {
-  return new PurposeEvaluator(config).evaluate(text, gradeLevel);
+): Promise<EvaluationResult<TextComplexityLevel, ReferenceKnowledgeDemandsInternal>> {
+  return new ReferenceKnowledgeDemandsEvaluator(config).evaluate(text, gradeLevel);
 }

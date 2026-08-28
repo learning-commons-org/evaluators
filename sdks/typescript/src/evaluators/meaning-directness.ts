@@ -1,14 +1,15 @@
 import type { LLMProvider } from '../providers/index.js';
-import { ConventionalityOutputSchema, type ConventionalityInternal } from '../schemas/conventionality.js';
+import { MeaningDirectnessOutputSchema, type MeaningDirectnessInternal } from '../schemas/meaning-directness.js';
 import { calculateFleschKincaidGrade } from '../features/index.js';
-import { getSystemPrompt, getUserPrompt } from '../prompts/conventionality/index.js';
+import { getSystemPrompt, getUserPrompt } from '../prompts/meaning-directness/index.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
+import CONFIG from '../../../../evals/student-facing-text/ela-reading/meaning-directness/config.json';
 
 /**
- * Conventionality Evaluator
+ * Meaning Directness Evaluator
  *
  * Evaluates how explicit, literal, and straightforward a text's meaning is versus
  * how abstract, ironic, figurative, or archaic it is for the target grade level.
@@ -21,7 +22,7 @@ import { EvaluatorError, wrapProviderError } from '../errors.js';
  *
  * @example
  * ```typescript
- * const evaluator = new ConventionalityEvaluator({
+ * const evaluator = new MeaningDirectnessEvaluator({
  *   googleApiKey: process.env.GOOGLE_API_KEY
  * });
  *
@@ -30,11 +31,13 @@ import { EvaluatorError, wrapProviderError } from '../errors.js';
  * console.log(result.reasoning);
  * ```
  */
-export class ConventionalityEvaluator extends BaseEvaluator {
+export class MeaningDirectnessEvaluator extends BaseEvaluator {
   static readonly metadata = {
-    id: 'conventionality',
-    name: 'Conventionality',
-    description: 'Evaluates how explicit, literal, and straightforward a text\'s meaning is relative to grade level',
+    id: CONFIG.evaluator.id,
+    stableId: CONFIG.evaluator.stable_id,
+    idHistory: CONFIG.evaluator.id_history,
+    name: CONFIG.evaluator.name,
+    description: CONFIG.evaluator.description,
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
     defaultProviders: [Provider.Google] as const,
   };
@@ -63,9 +66,9 @@ export class ConventionalityEvaluator extends BaseEvaluator {
   async evaluate(
     text: string,
     gradeLevel: string
-  ): Promise<EvaluationResult<TextComplexityLevel, ConventionalityInternal>> {
-    this.logger.info('Starting Conventionality evaluation', {
-      evaluator: 'conventionality',
+  ): Promise<EvaluationResult<TextComplexityLevel, MeaningDirectnessInternal>> {
+    this.logger.info('Starting Meaning Directness evaluation', {
+      evaluator: MeaningDirectnessEvaluator.metadata.id,
       operation: 'evaluate',
       gradeLevel,
       textLength: text.length,
@@ -77,15 +80,15 @@ export class ConventionalityEvaluator extends BaseEvaluator {
     try {
       // Validate inputs — inside try so validation errors are telemetered.
       this.validateText(text);
-      this.validateGradeLevel(gradeLevel, new Set(ConventionalityEvaluator.metadata.supportedGrades));
+      this.validateGradeLevel(gradeLevel, new Set(MeaningDirectnessEvaluator.metadata.supportedGrades));
 
       this.logger.debug('Evaluating conventionality complexity', {
-        evaluator: 'conventionality',
-        operation: 'conventionality_evaluation',
+        evaluator: MeaningDirectnessEvaluator.metadata.id,
+        operation: 'meaning_directness_evaluation',
       });
 
       const fkScore = calculateFleschKincaidGrade(text);
-      const response = await this.evaluateConventionality(text, gradeLevel, fkScore);
+      const response = await this.evaluateMeaningDirectness(text, gradeLevel, fkScore);
 
       stageDetails.push({
         stage: 'conventionality_evaluation',
@@ -133,8 +136,8 @@ export class ConventionalityEvaluator extends BaseEvaluator {
         // Ignore telemetry errors
       });
 
-      this.logger.info('Conventionality evaluation completed successfully', {
-        evaluator: 'conventionality',
+      this.logger.info('Meaning Directness evaluation completed successfully', {
+        evaluator: MeaningDirectnessEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         score: result.score,
@@ -145,8 +148,8 @@ export class ConventionalityEvaluator extends BaseEvaluator {
     } catch (error) {
       const latencyMs = Date.now() - startTime;
 
-      this.logger.error('Conventionality evaluation failed', {
-        evaluator: 'conventionality',
+      this.logger.error('Meaning Directness evaluation failed', {
+        evaluator: MeaningDirectnessEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         error: error instanceof Error ? error : undefined,
@@ -182,19 +185,19 @@ export class ConventionalityEvaluator extends BaseEvaluator {
   }
 
   /**
-   * Run the Conventionality evaluation LLM call
+   * Run the Meaning Directness evaluation LLM call
    */
-  private async evaluateConventionality(
+  private async evaluateMeaningDirectness(
     text: string,
     gradeLevel: string,
     fkScore: number
-  ): Promise<{ data: ConventionalityInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
+  ): Promise<{ data: MeaningDirectnessInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const response = await this.provider.generateStructured({
       messages: [
         { role: 'system', content: getSystemPrompt() },
         { role: 'user', content: getUserPrompt(text, gradeLevel, fkScore) },
       ],
-      schema: ConventionalityOutputSchema,
+      schema: MeaningDirectnessOutputSchema,
       temperature: 0,
     });
 
@@ -207,22 +210,22 @@ export class ConventionalityEvaluator extends BaseEvaluator {
 }
 
 /**
- * Functional API for Conventionality evaluation
+ * Functional API for Meaning Directness evaluation
  *
  * @example
  * ```typescript
- * const result = await evaluateConventionality(
+ * const result = await evaluateMeaningDirectness(
  *   "The author uses sustained irony to critique societal norms.",
  *   "10",
  *   { googleApiKey: process.env.GOOGLE_API_KEY }
  * );
  * ```
  */
-export async function evaluateConventionality(
+export async function evaluateMeaningDirectness(
   text: string,
   gradeLevel: string,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<TextComplexityLevel, ConventionalityInternal>> {
-  const evaluator = new ConventionalityEvaluator(config);
+): Promise<EvaluationResult<TextComplexityLevel, MeaningDirectnessInternal>> {
+  const evaluator = new MeaningDirectnessEvaluator(config);
   return evaluator.evaluate(text, gradeLevel);
 }

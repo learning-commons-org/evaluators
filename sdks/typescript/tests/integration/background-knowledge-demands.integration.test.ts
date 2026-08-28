@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { SmkEvaluator } from '../../src/evaluators/smk.js';
+import { BackgroundKnowledgeDemandsEvaluator } from '../../src/evaluators/background-knowledge-demands.js';
 import {
   runEvaluatorTest,
   type BaseTestCase,
@@ -120,10 +120,10 @@ const TEST_CASES: BaseTestCase[] = [
 ];
 
 describeIntegration.concurrent('SMK Evaluator - Comprehensive Test Suite', () => {
-  let evaluator: SmkEvaluator;
+  let evaluator: BackgroundKnowledgeDemandsEvaluator;
 
   beforeAll(() => {
-    evaluator = new SmkEvaluator({
+    evaluator = new BackgroundKnowledgeDemandsEvaluator({
       googleApiKey: process.env.GOOGLE_API_KEY!,
     });
 

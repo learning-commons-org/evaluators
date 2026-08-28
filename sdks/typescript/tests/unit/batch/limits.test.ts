@@ -3,6 +3,11 @@ import { getAvailableGroups, BatchEvaluator, Provider } from '../../../src/batch
 import type { BatchInput, BatchConfig, BatchResult } from '../../../src/batch/index.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import type { EvaluatorFamily, FamilyRow, TaskOutcome } from '../../../src/batch/families/family.js';
+import {
+  VocabularyComplexityEvaluator,
+  SentenceStructureEvaluator,
+  GradeLevelAppropriatenessEvaluator,
+} from '../../../src/evaluators/index.js';
 
 /**
  * A deterministic stub family for exercising BatchEvaluator orchestration
@@ -78,9 +83,9 @@ describe('getAvailableGroups', () => {
 
   it('text-complexity group contains vocabulary, sentence-structure, and grade-level-appropriateness', () => {
     const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-    expect(group.evaluatorIds).toContain('vocabulary');
-    expect(group.evaluatorIds).toContain('sentence-structure');
-    expect(group.evaluatorIds).toContain('grade-level-appropriateness');
+    expect(group.evaluatorIds).toContain(VocabularyComplexityEvaluator.metadata.id);
+    expect(group.evaluatorIds).toContain(SentenceStructureEvaluator.metadata.id);
+    expect(group.evaluatorIds).toContain(GradeLevelAppropriatenessEvaluator.metadata.id);
   });
 
   it('text-complexity group requires both Google and OpenAI keys', () => {
