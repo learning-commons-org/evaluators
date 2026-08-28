@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "output_schema.json",
   "title": "EvaluatorOutput",
+  "description": "Final evaluator output for the Reference Knowledge Demands evaluator.",
   "type": "object",
   "required": ["complexity_score", "reasoning", "details"],
   "additionalProperties": false,
@@ -14,14 +15,14 @@
         "very_complex",
         "exceedingly_complex"
       ],
-      "description": "The Intertextuality complexity level for the target grade."
+      "description": "The Reference Knowledge Demands complexity level for the target grade."
     },
     "reasoning": {
       "type": "string",
       "description": "A high-level summary of why the text is at this complexity level for the target grade."
     },
     "details": {
-      "$ref": "#/$defs/IntertextualityDetails"
+      "$ref": "#/$defs/ReferenceKnowledgeDemandsDetails"
     }
   },
   "$defs": {
@@ -74,7 +75,7 @@
         }
       }
     },
-    "IntertextualityDetails": {
+    "ReferenceKnowledgeDemandsDetails": {
       "type": "object",
       "description": "Practical instructional details including scaffolding strategies and recommended use cases.",
       "required": ["detailed_summary", "adjustment_and_scaffolding", "recommended_use_cases"],

@@ -1,9 +1,11 @@
 {
   "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "literacy.gla.intertextuality",
-    "name": "Intertextuality Dimension Text Complexity Evaluator",
-    "description": "Evaluates the Intertextuality dimension of qualitative text complexity for grades 3-12 reading assessment, producing a 4-level rubric rating with structured pedagogical detail.",
+    "id": "student_facing_text.ela_reading.reference_knowledge_demands",
+    "stable_id": "b52b1924-73b7-40e3-bbca-081302c83f30",
+    "id_history": ["literacy.gla.intertextuality"],
+    "name": "Reference Knowledge Demands Evaluator",
+    "description": "Evaluates the Reference Knowledge Demands (intertextuality) dimension of qualitative text complexity for grades 3-12 reading assessment, producing a 4-level rubric rating with structured pedagogical detail.",
     "supported_grades": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
   },
   "input_schema": {
@@ -33,7 +35,7 @@
   ],
   "steps": [
     {
-      "id": "evaluate_intertextuality",
+      "id": "evaluate_reference_knowledge_demands",
       "type": "llm",
       "description": "Single-call LLM step that produces the EvaluatorOutput JSON.",
       "prompt": {
@@ -70,7 +72,7 @@
         "alias": "intertextuality-evaluator-default"
       },
       "generation": {
-        "temperature": 0.0
+        "temperature": 0
       },
       "parser": {
         "kind": "structured_output"
