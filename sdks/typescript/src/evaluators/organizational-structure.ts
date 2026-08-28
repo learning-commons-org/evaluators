@@ -9,8 +9,8 @@ import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js'
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, InputValidationError, wrapProviderError } from '../errors.js';
-import CONFIG from '../../../../evals/literacy/qualitative-text-complexity/organizational-structure/config.json';
-import INPUT_SCHEMA from '../../../../evals/literacy/qualitative-text-complexity/organizational-structure/input_schema.json';
+import CONFIG from '../../../../evals/student-facing-text/ela-reading/organizational-structure/config.json';
+import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/organizational-structure/input_schema.json';
 
 // Step ID convention: "evaluate_{slug}" where slug is the last segment of evaluator.id.
 const STEP_ID = `evaluate_${CONFIG.evaluator.id.split('.').pop()}`;
@@ -18,10 +18,10 @@ const _step = CONFIG.steps.find(s => s.id === STEP_ID);
 if (!_step) throw new Error(`Step "${STEP_ID}" not found in organizational-structure config.json`);
 const STEP = _step;
 
-// Grade range from input_schema — needed for static metadata, so defined at module level.
-const GRADE_MIN = INPUT_SCHEMA.properties.grade_level.minimum;
-const GRADE_MAX = INPUT_SCHEMA.properties.grade_level.maximum;
-const SUPPORTED_GRADES = Array.from({ length: GRADE_MAX - GRADE_MIN + 1 }, (_, i) => String(GRADE_MIN + i));
+// Supported grades from input_schema — needed for static metadata, so defined at
+// module level. The enum is the declared set, so it is used verbatim rather than
+// reconstructed from bounds; that also admits non-numeric tokens such as "K".
+const SUPPORTED_GRADES: readonly string[] = INPUT_SCHEMA.properties.grade_level.enum;
 
 // Maps snake_case LLM output → SDK-standard sentence case score.
 const COMPLEXITY_SCORE_DISPLAY: Record<OrganizationalStructureInternal['complexity_score'], TextComplexityLevel> = {
@@ -173,13 +173,13 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
   }
 
   private parseAndValidateGrade(gradeLevel: string): number {
-    const num = Number(gradeLevel.trim());
-    if (!Number.isInteger(num) || num < GRADE_MIN || num > GRADE_MAX) {
+    const trimmed = gradeLevel.trim();
+    if (!SUPPORTED_GRADES.includes(trimmed)) {
       throw new InputValidationError(
-        `Invalid grade level "${gradeLevel}". Organizational Structure evaluator supports integer grade levels ${GRADE_MIN}–${GRADE_MAX}.`,
+        `Invalid grade level "${gradeLevel}". Organizational Structure evaluator supports grade levels ${SUPPORTED_GRADES.join(', ')}.`,
       );
     }
-    return num;
+    return Number(trimmed);
   }
 
   private async callLLM(
