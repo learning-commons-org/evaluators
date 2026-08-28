@@ -1,10 +1,22 @@
 {
   "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "feedback.productive_coaching_writing_feedback.is_manageable",
-    "name": "Manageable Feedback-Quality Evaluator",
+    "id": "feedback.ela_writing.revision_manageability",
+    "stable_id": "5104cc25-be3c-44df-9bfd-818b5723c8b2",
+    "id_history": [
+      "feedback.productive_coaching_writing_feedback.is_manageable"
+    ],
+    "name": "Revision Manageability Evaluator",
     "description": "Is the amount of feedback manageable for the student?",
-    "supported_grades": ["8", "9"]
+    "supported_grades": [
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12"
+    ]
   },
   "input_schema": {
     "$ref": "input_schema.json"
@@ -12,7 +24,7 @@
   "preprocessing": [],
   "steps": [
     {
-      "id": "evaluate_is_manageable",
+      "id": "evaluate_revision_manageability",
       "type": "llm",
       "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
       "prompt": {
