@@ -9,11 +9,13 @@
     "student_text": {
       "type": "string",
       "minLength": 1,
+      "maxLength": 10000,
       "description": "The student's written response."
     },
     "feedback_text": {
       "type": "string",
       "minLength": 1,
+      "maxLength": 10000,
       "description": "The teacher's feedback to the student."
     }
 

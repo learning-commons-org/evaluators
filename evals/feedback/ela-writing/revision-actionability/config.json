@@ -1,10 +1,22 @@
 {
   "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "feedback.productive_coaching_writing_feedback.is_actionable_revision",
-    "name": "Actionable Revision Feedback-Quality Evaluator",
+    "id": "feedback.ela_writing.revision_actionability",
+    "stable_id": "7300245f-8e78-4743-9e76-3c965e5a5f1f",
+    "id_history": [
+      "feedback.productive_coaching_writing_feedback.is_actionable_revision"
+    ],
+    "name": "Revision Actionability Evaluator",
     "description": "If revision is needed, does the feedback give a clear next step?",
-    "supported_grades": ["8", "9"]
+    "supported_grades": [
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12"
+    ]
   },
   "input_schema": {
     "$ref": "input_schema.json"
@@ -12,7 +24,7 @@
   "preprocessing": [],
   "steps": [
     {
-      "id": "evaluate_is_actionable_revision",
+      "id": "evaluate_revision_actionability",
       "type": "llm",
       "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
       "prompt": {
