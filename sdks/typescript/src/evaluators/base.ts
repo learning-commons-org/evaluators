@@ -180,13 +180,10 @@ export interface EvaluatorMetadata {
   /**
    * Immutable UUID assigned at the evaluator's creation. The identity that survives
    * renames; consumers aggregating across time key on this rather than on `id`.
-   *
-   * Absent only for composites that are an SDK convenience rather than a registry
-   * evaluator (`TextComplexityEvaluator`), which have no definition to read it from.
    */
-  readonly stableId?: string;
+  readonly stableId: string;
   /** Prior `id` values, oldest first, so old names remain resolvable. */
-  readonly idHistory?: readonly string[];
+  readonly idHistory: readonly string[];
   /** Human-readable name (e.g., 'Vocabulary Complexity Evaluator') */
   readonly name: string;
   /** Brief description of what the evaluator does */
