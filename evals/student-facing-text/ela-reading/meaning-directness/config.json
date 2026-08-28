@@ -1,0 +1,91 @@
+{
+  "$schema": "../../../_schemas/config.schema.json",
+  "evaluator": {
+    "id": "student_facing_text.ela_reading.meaning_directness",
+    "stable_id": "51f25288-f80f-4948-84c7-d1527eee45b4",
+    "id_history": ["conventionality"],
+    "name": "Meaning Directness Evaluator",
+    "description": "Evaluates how explicit, literal, and straightforward a text's meaning is versus how abstract, ironic, figurative, or archaic it is, producing a 4-level rubric rating with structured pedagogical detail.",
+    "supported_grades": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+  },
+  "input_schema": {
+    "$ref": "input_schema.json"
+  },
+  "preprocessing": [
+    {
+      "id": "fk_score",
+      "type": "computation",
+      "kind": "flesch_kincaid_grade",
+      "description": "Compute the Flesch-Kincaid Grade Level for the input text and bind it to {fk_score} in the prompt.",
+      "input": "text",
+      "output": "fk_score",
+      "implementation": {
+        "python": {
+          "library": "textstat",
+          "function": "flesch_kincaid_grade",
+          "post_transform": { "type": "round", "precision": 2 }
+        },
+        "typescript": {
+          "library": "text-readability",
+          "function": "fleschKincaidGrade",
+          "post_transform": { "type": "round", "precision": 2 }
+        }
+      }
+    }
+  ],
+  "steps": [
+    {
+      "id": "evaluate_meaning_directness",
+      "type": "llm",
+      "description": "Single-call LLM step that produces the EvaluatorOutput JSON.",
+      "prompt": {
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "19ebed89d5c2e896471f8cafa71b009cbce29b49c83e1a5bcf82bdecec01668b"
+          },
+          {
+            "role": "user",
+            "source_path": "user.txt",
+            "sha256": "cd8e6347db1a55d104e34436f8f66e833bd6583645d4786a554aaefdd26479b2"
+          }
+        ],
+        "placeholders": {
+          "text": {
+            "required": true,
+            "source": "input"
+          },
+          "grade_level": {
+            "required": true,
+            "source": "input"
+          },
+          "fk_score": {
+            "required": true,
+            "source": "preprocessing.fk_score"
+          }
+        }
+      },
+      "model": {
+        "provider": "google",
+        "name": "gemini-3-flash-preview"
+      },
+      "generation": {
+        "temperature": 0
+      },
+      "parser": {
+        "kind": "structured_output"
+      }
+    }
+  ],
+  "output_schema": {
+    "$ref": "output_schema.json"
+  },
+  "fixtures": {
+    "path": "fixtures.json",
+    "tolerance": {
+      "allow_adjacent_levels": true,
+      "notes": "If allow_adjacent_levels is true, predictions within one rubric step of the expected label count as a pass."
+    }
+  }
+}
