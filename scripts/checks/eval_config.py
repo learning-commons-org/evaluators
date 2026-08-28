@@ -189,7 +189,11 @@ class EvalConfig(Check):
 
     @staticmethod
     def _check_outcome(config: dict, base: str, fail) -> None:
-        """`outcome` must name properties that the output schema actually declares."""
+        """`outcome` must name properties the output schema declares *and* requires.
+
+        Declared is not enough: a verdict the schema permits to be absent is not a
+        verdict a report can rely on.
+        """
         outcome = config.get("outcome")
         if not outcome:
             return
