@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { ConventionalityEvaluator } from '../../src/evaluators/conventionality.js';
+import { MeaningDirectnessEvaluator } from '../../src/evaluators/meaning-directness.js';
 import {
   runEvaluatorTest,
   type BaseTestCase,
 } from '../utils/index.js';
 
 /**
- * Conventionality Evaluator Integration Tests
+ * Meaning Directness Evaluator Integration Tests
  *
  * Test cases cover grades 3-12, one per grade, drawn from the annotated dataset
  * (dataset_conventionality.csv). complexity_score values from the dataset (snake_case)
@@ -135,11 +135,11 @@ const TEST_CASES: BaseTestCase[] = [
   },
 ];
 
-describeIntegration.concurrent('Conventionality Evaluator - Comprehensive Test Suite', () => {
-  let evaluator: ConventionalityEvaluator;
+describeIntegration.concurrent('Meaning Directness Evaluator - Comprehensive Test Suite', () => {
+  let evaluator: MeaningDirectnessEvaluator;
 
   beforeAll(() => {
-    evaluator = new ConventionalityEvaluator({
+    evaluator = new MeaningDirectnessEvaluator({
       googleApiKey: process.env.GOOGLE_API_KEY!,
     });
 

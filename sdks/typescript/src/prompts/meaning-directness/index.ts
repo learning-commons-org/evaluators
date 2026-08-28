@@ -2,14 +2,14 @@ import SYSTEM_PROMPT from '../../../../../evals/student-facing-text/ela-reading/
 import USER_PROMPT_TEMPLATE from '../../../../../evals/student-facing-text/ela-reading/meaning-directness/user.txt';
 
 /**
- * Get the Conventionality evaluator system prompt
+ * Get the Meaning Directness evaluator system prompt
  */
 export function getSystemPrompt(): string {
   return SYSTEM_PROMPT;
 }
 
 /**
- * Generate the user prompt for Conventionality evaluation
+ * Generate the user prompt for Meaning Directness evaluation
  * @param text - The text to evaluate
  * @param grade - The target grade level
  * @param fkScore - Flesch-Kincaid grade level score

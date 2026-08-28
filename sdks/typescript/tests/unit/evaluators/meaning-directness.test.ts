@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ConventionalityEvaluator } from '../../../src/evaluators/conventionality.js';
+import { MeaningDirectnessEvaluator } from '../../../src/evaluators/meaning-directness.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 // Mock providers
@@ -19,33 +19,33 @@ vi.mock('../../../src/telemetry/client.js', () => ({
   },
 }));
 
-describe('ConventionalityEvaluator - Constructor Validation', () => {
+describe('MeaningDirectnessEvaluator - Constructor Validation', () => {
   it('should throw with specific message when Google API key is missing', () => {
-    expect(() => new ConventionalityEvaluator({ googleApiKey: '' })).toThrow(
-      'Google API key is required for Conventionality evaluator. Pass googleApiKey in config.'
+    expect(() => new MeaningDirectnessEvaluator({ googleApiKey: '' })).toThrow(
+      `Google API key is required for ${MeaningDirectnessEvaluator.metadata.name}. Pass googleApiKey in config.`
     );
   });
 });
 
-describe('ConventionalityEvaluator - Metadata', () => {
+describe('MeaningDirectnessEvaluator - Metadata', () => {
   it('should have correct metadata', () => {
-    expect(ConventionalityEvaluator.metadata.id).toBe('conventionality');
-    expect(ConventionalityEvaluator.metadata.name).toBe('Conventionality');
-    expect(ConventionalityEvaluator.metadata.defaultProviders).toEqual(['google']);
-    expect(ConventionalityEvaluator.metadata.supportedGrades).toEqual([
+    expect(MeaningDirectnessEvaluator.metadata.id).toBe('student_facing_text.ela_reading.meaning_directness');
+    expect(MeaningDirectnessEvaluator.metadata.idHistory).toContain('conventionality');
+    expect(MeaningDirectnessEvaluator.metadata.defaultProviders).toEqual(['google']);
+    expect(MeaningDirectnessEvaluator.metadata.supportedGrades).toEqual([
       '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
     ]);
   });
 });
 
-describe('ConventionalityEvaluator - Evaluation Flow', () => {
-  let evaluator: ConventionalityEvaluator;
+describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
+  let evaluator: MeaningDirectnessEvaluator;
   let mockProvider: LLMProvider;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    evaluator = new ConventionalityEvaluator({
+    evaluator = new MeaningDirectnessEvaluator({
       googleApiKey: 'test-google-key',
       telemetry: false,
     });

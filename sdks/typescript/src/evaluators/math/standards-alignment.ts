@@ -10,13 +10,15 @@ import {
   getUserPrompt,
   getCoarseFilterPrompt,
   STEP,
-  EVALUATOR_ID,
   SUPPORTED_GRADES,
   MAX_QUESTION_LENGTH,
 } from '../../prompts/math/standards-alignment/index.js';
 import { KnowledgeGraphClient, Jurisdiction } from '../../knowledge-graph/index.js';
 import { EvaluatorError, DependencyError, ConfigurationError, InputValidationError, LLMOutputProcessingError, wrapProviderError } from '../../errors.js';
 import type { StageDetail } from '../../telemetry/index.js';
+import CONFIG from '../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/config.json';
+
+const EVALUATOR_ID = CONFIG.evaluator.id;
 
 export { Jurisdiction } from '../../knowledge-graph/index.js';
 
@@ -151,9 +153,11 @@ function describeFailure(err: unknown): NonNullable<StandardAlignmentResult['err
 
 export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
   static readonly metadata = {
-    id: EVALUATOR_ID,
-    name: 'Math Standards Alignment',
-    description: 'Evaluates whether an assessment question aligns to a math standard via learning-component analysis',
+    id: CONFIG.evaluator.id,
+    stableId: CONFIG.evaluator.stable_id,
+    idHistory: CONFIG.evaluator.id_history,
+    name: CONFIG.evaluator.name,
+    description: CONFIG.evaluator.description,
     supportedGrades: SUPPORTED_GRADES as string[],
     defaultProviders: [Provider.Anthropic] as const,
   };

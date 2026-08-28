@@ -1,12 +1,13 @@
 import type { LLMProvider } from '../providers/index.js';
 import {
-  GradeLevelAppropriatenessSchema,
+  GradeLevelAppropriatenessOutputSchema,
   type GradeLevelAppropriatenessInternal,
 } from '../schemas/grade-level-appropriateness.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/grade-level-appropriateness/index.js';
 import type { EvaluationResult, GradeBand } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
+import CONFIG from '../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/config.json';
 
 /**
  * Grade Level Appropriateness Evaluator
@@ -37,9 +38,11 @@ import { EvaluatorError, wrapProviderError } from '../errors.js';
  */
 export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
   static readonly metadata = {
-    id: 'grade-level-appropriateness',
-    name: 'Grade Level Appropriateness',
-    description: 'Determines appropriate grade level for text with scaffolding recommendations',
+    id: CONFIG.evaluator.id,
+    stableId: CONFIG.evaluator.stable_id,
+    idHistory: CONFIG.evaluator.id_history,
+    name: CONFIG.evaluator.name,
+    description: CONFIG.evaluator.description,
     supportedGrades: [] as const, // No gradeLevel parameter required - evaluates what grade level the text is appropriate for
     defaultProviders: [Provider.Google] as const,
   };
@@ -67,7 +70,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
    */
   async evaluate(text: string): Promise<EvaluationResult<GradeBand, GradeLevelAppropriatenessInternal>> {
     this.logger.info('Starting grade level appropriateness evaluation', {
-      evaluator: 'grade-level-appropriateness',
+      evaluator: GradeLevelAppropriatenessEvaluator.metadata.id,
       operation: 'evaluate',
       textLength: text.length,
     });
@@ -78,7 +81,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
       // Validate inputs — inside try so validation errors are telemetered.
       this.validateText(text);
       this.logger.debug('Evaluating grade level appropriateness', {
-        evaluator: 'grade-level-appropriateness',
+        evaluator: GradeLevelAppropriatenessEvaluator.metadata.id,
         operation: 'grade_evaluation',
       });
       const userPrompt = getUserPrompt(text);
@@ -88,7 +91,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
           { role: 'system', content: getSystemPrompt() },
           { role: 'user', content: userPrompt },
         ],
-        schema: GradeLevelAppropriatenessSchema,
+        schema: GradeLevelAppropriatenessOutputSchema,
         temperature: 0.25,
       });
 
@@ -127,7 +130,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
       });
 
       this.logger.info('Grade level appropriateness evaluation completed successfully', {
-        evaluator: 'grade-level-appropriateness',
+        evaluator: GradeLevelAppropriatenessEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel: result.score,
         processingTimeMs: latencyMs,
@@ -139,7 +142,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
 
       // Log the error
       this.logger.error('Grade level appropriateness evaluation failed', {
-        evaluator: 'grade-level-appropriateness',
+        evaluator: GradeLevelAppropriatenessEvaluator.metadata.id,
         operation: 'evaluate',
         error: error instanceof Error ? error : undefined,
         processingTimeMs: latencyMs,

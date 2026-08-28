@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { VocabularyEvaluator } from '../../../src/evaluators/vocabulary.js';
-import { SmkEvaluator } from '../../../src/evaluators/smk.js';
+import { VocabularyComplexityEvaluator } from '../../../src/evaluators/vocabulary-complexity.js';
+import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/background-knowledge-demands.js';
 import { VALIDATION_LIMITS, Provider, BaseEvaluator } from '../../../src/evaluators/base.js';
 import { ConfigurationError, InputValidationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
@@ -10,7 +10,7 @@ import { createProvider } from '../../../src/providers/index.js';
  * Comprehensive validation tests for input validation
  *
  * Tests the base evaluator validation logic that all evaluators inherit.
- * Uses VocabularyEvaluator as the test subject since it extends BaseEvaluator.
+ * Uses VocabularyComplexityEvaluator as the test subject since it extends BaseEvaluator.
  *
  * All tests use mocked providers to avoid real API calls.
  */
@@ -38,14 +38,14 @@ vi.mock('../../../src/telemetry/client.js', () => {
 
 describe('Configuration Validation', () => {
   it('should throw ConfigurationError when googleApiKey is missing', () => {
-    expect(() => new VocabularyEvaluator({
+    expect(() => new VocabularyComplexityEvaluator({
       googleApiKey: '',
       openaiApiKey: 'test-openai-key',
     })).toThrow(ConfigurationError);
   });
 
   it('should throw ConfigurationError when openaiApiKey is missing', () => {
-    expect(() => new VocabularyEvaluator({
+    expect(() => new VocabularyComplexityEvaluator({
       googleApiKey: 'test-google-key',
       openaiApiKey: '',
     })).toThrow(ConfigurationError);
@@ -54,8 +54,8 @@ describe('Configuration Validation', () => {
 
 describe('ModelOverride', () => {
   it('should bypass default key validation when modelOverride is provided with the matching key', () => {
-    // No googleApiKey or openaiApiKey — normally would throw for VocabularyEvaluator
-    expect(() => new VocabularyEvaluator({
+    // No googleApiKey or openaiApiKey — normally would throw for VocabularyComplexityEvaluator
+    expect(() => new VocabularyComplexityEvaluator({
       anthropicApiKey: 'test-key',
       modelOverride: { provider: Provider.Anthropic, model: 'claude-sonnet-4-6' },
     })).not.toThrow();
@@ -63,7 +63,7 @@ describe('ModelOverride', () => {
 
   it('should throw ConfigurationError when the override provider key is missing', () => {
     // modelOverride requests Anthropic but no anthropicApiKey provided
-    expect(() => new VocabularyEvaluator({
+    expect(() => new VocabularyComplexityEvaluator({
       modelOverride: { provider: Provider.Anthropic, model: 'claude-sonnet-4-6' },
     })).toThrow(ConfigurationError);
   });
@@ -71,7 +71,7 @@ describe('ModelOverride', () => {
   it('should pass override params to createProvider', () => {
     vi.mocked(createProvider).mockClear();
 
-    new SmkEvaluator({
+    new BackgroundKnowledgeDemandsEvaluator({
       anthropicApiKey: 'test-key',
       modelOverride: { provider: Provider.Anthropic, model: 'claude-haiku-4-5-20251001' },
       telemetry: false,
@@ -85,7 +85,7 @@ describe('ModelOverride', () => {
   it('should not call createProvider with default provider params when override is set', () => {
     vi.mocked(createProvider).mockClear();
 
-    new SmkEvaluator({
+    new BackgroundKnowledgeDemandsEvaluator({
       openaiApiKey: 'test-key',
       modelOverride: { provider: Provider.OpenAI, model: 'gpt-4o-mini' },
       telemetry: false,
@@ -101,7 +101,7 @@ describe('ModelOverride', () => {
 
   describe('modelOverride shape validation', () => {
     it('should throw ConfigurationError when model is an empty string', () => {
-      expect(() => new SmkEvaluator({
+      expect(() => new BackgroundKnowledgeDemandsEvaluator({
         openaiApiKey: 'test-key',
         modelOverride: { provider: Provider.OpenAI, model: '' },
         telemetry: false,
@@ -109,7 +109,7 @@ describe('ModelOverride', () => {
     });
 
     it('should throw ConfigurationError when model is whitespace only', () => {
-      expect(() => new SmkEvaluator({
+      expect(() => new BackgroundKnowledgeDemandsEvaluator({
         openaiApiKey: 'test-key',
         modelOverride: { provider: Provider.OpenAI, model: '   ' },
         telemetry: false,
@@ -117,7 +117,7 @@ describe('ModelOverride', () => {
     });
 
     it('should throw ConfigurationError when provider is not a valid Provider value', () => {
-      expect(() => new SmkEvaluator({
+      expect(() => new BackgroundKnowledgeDemandsEvaluator({
         openaiApiKey: 'test-key',
         // @ts-expect-error intentional invalid provider for runtime test
         modelOverride: { provider: 'unsupported-provider', model: 'some-model' },
@@ -126,7 +126,7 @@ describe('ModelOverride', () => {
     });
 
     it('error message should list valid providers when provider is invalid', () => {
-      expect(() => new SmkEvaluator({
+      expect(() => new BackgroundKnowledgeDemandsEvaluator({
         openaiApiKey: 'test-key',
         // @ts-expect-error intentional invalid provider for runtime test
         modelOverride: { provider: 'unsupported-provider', model: 'some-model' },
@@ -142,7 +142,7 @@ describe('ModelOverride', () => {
         createMockProvider({ type: 'openai', model: 'gpt-fake' })
       );
 
-      const evaluator = new SmkEvaluator({
+      const evaluator = new BackgroundKnowledgeDemandsEvaluator({
         openaiApiKey: 'test-key',
         modelOverride: { provider: Provider.OpenAI, model: 'gpt-fake' },
         telemetry: false,
@@ -163,12 +163,12 @@ describe('ModelOverride', () => {
 });
 
 describe('Input Validation - Text Validation', () => {
-  let evaluator: VocabularyEvaluator;
+  let evaluator: VocabularyComplexityEvaluator;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    evaluator = new VocabularyEvaluator({
+    evaluator = new VocabularyComplexityEvaluator({
       googleApiKey: 'test-google-key',
       openaiApiKey: 'test-openai-key',
       telemetry: false,
@@ -209,12 +209,12 @@ describe('Input Validation - Text Validation', () => {
 });
 
 describe('Input Validation - Grade Validation', () => {
-  let evaluator: VocabularyEvaluator;
+  let evaluator: VocabularyComplexityEvaluator;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    evaluator = new VocabularyEvaluator({
+    evaluator = new VocabularyComplexityEvaluator({
       googleApiKey: 'test-google-key',
       openaiApiKey: 'test-openai-key',
       telemetry: false,

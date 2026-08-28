@@ -1,17 +1,18 @@
 import type { LLMProvider } from '../providers/index.js';
-import { ConventionalityOutputSchema, type ConventionalityInternal } from '../schemas/conventionality.js';
+import { BackgroundKnowledgeDemandsOutputSchema, type BackgroundKnowledgeDemandsInternal } from '../schemas/background-knowledge-demands.js';
 import { calculateFleschKincaidGrade } from '../features/index.js';
-import { getSystemPrompt, getUserPrompt } from '../prompts/conventionality/index.js';
+import { getSystemPrompt, getUserPrompt } from '../prompts/background-knowledge-demands/index.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
+import CONFIG from '../../../../evals/student-facing-text/ela-reading/background-knowledge-demands/config.json';
 
 /**
- * Conventionality Evaluator
+ * Background Knowledge Demands Evaluator
  *
- * Evaluates how explicit, literal, and straightforward a text's meaning is versus
- * how abstract, ironic, figurative, or archaic it is for the target grade level.
+ * Evaluates the background knowledge demands of educational texts relative to grade level.
+ * Determines how much prior subject knowledge a student needs to comprehend the text.
  *
  * Based on the Common Core Qualitative Text Complexity Rubric with 4 levels:
  * - Slightly complex
@@ -21,7 +22,7 @@ import { EvaluatorError, wrapProviderError } from '../errors.js';
  *
  * @example
  * ```typescript
- * const evaluator = new ConventionalityEvaluator({
+ * const evaluator = new BackgroundKnowledgeDemandsEvaluator({
  *   googleApiKey: process.env.GOOGLE_API_KEY
  * });
  *
@@ -30,11 +31,13 @@ import { EvaluatorError, wrapProviderError } from '../errors.js';
  * console.log(result.reasoning);
  * ```
  */
-export class ConventionalityEvaluator extends BaseEvaluator {
+export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
   static readonly metadata = {
-    id: 'conventionality',
-    name: 'Conventionality',
-    description: 'Evaluates how explicit, literal, and straightforward a text\'s meaning is relative to grade level',
+    id: CONFIG.evaluator.id,
+    stableId: CONFIG.evaluator.stable_id,
+    idHistory: CONFIG.evaluator.id_history,
+    name: CONFIG.evaluator.name,
+    description: CONFIG.evaluator.description,
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
     defaultProviders: [Provider.Google] as const,
   };
@@ -50,7 +53,7 @@ export class ConventionalityEvaluator extends BaseEvaluator {
   }
 
   /**
-   * Evaluate conventionality complexity for a given text and grade level
+   * Evaluate subject matter knowledge complexity for a given text and grade level
    *
    * @param text - The text to evaluate
    * @param gradeLevel - The target grade level (3-12)
@@ -63,9 +66,9 @@ export class ConventionalityEvaluator extends BaseEvaluator {
   async evaluate(
     text: string,
     gradeLevel: string
-  ): Promise<EvaluationResult<TextComplexityLevel, ConventionalityInternal>> {
-    this.logger.info('Starting Conventionality evaluation', {
-      evaluator: 'conventionality',
+  ): Promise<EvaluationResult<TextComplexityLevel, BackgroundKnowledgeDemandsInternal>> {
+    this.logger.info('Starting Background Knowledge Demands evaluation', {
+      evaluator: BackgroundKnowledgeDemandsEvaluator.metadata.id,
       operation: 'evaluate',
       gradeLevel,
       textLength: text.length,
@@ -77,18 +80,18 @@ export class ConventionalityEvaluator extends BaseEvaluator {
     try {
       // Validate inputs — inside try so validation errors are telemetered.
       this.validateText(text);
-      this.validateGradeLevel(gradeLevel, new Set(ConventionalityEvaluator.metadata.supportedGrades));
+      this.validateGradeLevel(gradeLevel, new Set(BackgroundKnowledgeDemandsEvaluator.metadata.supportedGrades));
 
-      this.logger.debug('Evaluating conventionality complexity', {
-        evaluator: 'conventionality',
-        operation: 'conventionality_evaluation',
+      this.logger.debug('Evaluating subject matter knowledge complexity', {
+        evaluator: BackgroundKnowledgeDemandsEvaluator.metadata.id,
+        operation: 'smk_evaluation',
       });
 
       const fkScore = calculateFleschKincaidGrade(text);
-      const response = await this.evaluateConventionality(text, gradeLevel, fkScore);
+      const response = await this.evaluateBackgroundKnowledgeDemands(text, gradeLevel, fkScore);
 
       stageDetails.push({
-        stage: 'conventionality_evaluation',
+        stage: 'smk_evaluation',
         provider: this.provider.label,
         latency_ms: response.latencyMs,
         token_usage: {
@@ -133,8 +136,8 @@ export class ConventionalityEvaluator extends BaseEvaluator {
         // Ignore telemetry errors
       });
 
-      this.logger.info('Conventionality evaluation completed successfully', {
-        evaluator: 'conventionality',
+      this.logger.info('Background Knowledge Demands evaluation completed successfully', {
+        evaluator: BackgroundKnowledgeDemandsEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         score: result.score,
@@ -145,8 +148,8 @@ export class ConventionalityEvaluator extends BaseEvaluator {
     } catch (error) {
       const latencyMs = Date.now() - startTime;
 
-      this.logger.error('Conventionality evaluation failed', {
-        evaluator: 'conventionality',
+      this.logger.error('Background Knowledge Demands evaluation failed', {
+        evaluator: BackgroundKnowledgeDemandsEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         error: error instanceof Error ? error : undefined,
@@ -182,19 +185,19 @@ export class ConventionalityEvaluator extends BaseEvaluator {
   }
 
   /**
-   * Run the Conventionality evaluation LLM call
+   * Run the SMK evaluation LLM call
    */
-  private async evaluateConventionality(
+  private async evaluateBackgroundKnowledgeDemands(
     text: string,
     gradeLevel: string,
     fkScore: number
-  ): Promise<{ data: ConventionalityInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
+  ): Promise<{ data: BackgroundKnowledgeDemandsInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const response = await this.provider.generateStructured({
       messages: [
         { role: 'system', content: getSystemPrompt() },
         { role: 'user', content: getUserPrompt(text, gradeLevel, fkScore) },
       ],
-      schema: ConventionalityOutputSchema,
+      schema: BackgroundKnowledgeDemandsOutputSchema,
       temperature: 0,
     });
 
@@ -207,22 +210,22 @@ export class ConventionalityEvaluator extends BaseEvaluator {
 }
 
 /**
- * Functional API for Conventionality evaluation
+ * Functional API for SMK evaluation
  *
  * @example
  * ```typescript
- * const result = await evaluateConventionality(
- *   "The author uses sustained irony to critique societal norms.",
+ * const result = await evaluateBackgroundKnowledgeDemands(
+ *   "Hydraulic propulsion works by sucking water at the bow and forcing it sternward.",
  *   "10",
  *   { googleApiKey: process.env.GOOGLE_API_KEY }
  * );
  * ```
  */
-export async function evaluateConventionality(
+export async function evaluateBackgroundKnowledgeDemands(
   text: string,
   gradeLevel: string,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<TextComplexityLevel, ConventionalityInternal>> {
-  const evaluator = new ConventionalityEvaluator(config);
+): Promise<EvaluationResult<TextComplexityLevel, BackgroundKnowledgeDemandsInternal>> {
+  const evaluator = new BackgroundKnowledgeDemandsEvaluator(config);
   return evaluator.evaluate(text, gradeLevel);
 }

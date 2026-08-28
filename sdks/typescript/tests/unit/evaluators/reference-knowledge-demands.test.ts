@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'node:crypto';
-import { IntertextualityEvaluator } from '../../../src/evaluators/intertextuality.js';
+import { ReferenceKnowledgeDemandsEvaluator } from '../../../src/evaluators/reference-knowledge-demands.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import CONFIG from '../../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/config.json';
-import { getSystemPrompt, getUserPrompt } from '../../../src/prompts/intertextuality/index.js';
+import { getSystemPrompt, getUserPrompt } from '../../../src/prompts/reference-knowledge-demands/index.js';
 
 const STEP = CONFIG.steps[0];
 
@@ -55,9 +55,9 @@ const MOCK_RESPONSE = {
 
 // --- Constructor ---
 
-describe('IntertextualityEvaluator - Constructor', () => {
+describe('ReferenceKnowledgeDemandsEvaluator - Constructor', () => {
   it('throws when Google API key is missing', () => {
-    expect(() => new IntertextualityEvaluator({ googleApiKey: '' })).toThrow(
+    expect(() => new ReferenceKnowledgeDemandsEvaluator({ googleApiKey: '' })).toThrow(
       /Google API key is required/,
     );
   });
@@ -65,29 +65,29 @@ describe('IntertextualityEvaluator - Constructor', () => {
 
 // --- Metadata derives from config.json ---
 
-describe('IntertextualityEvaluator - Metadata', () => {
+describe('ReferenceKnowledgeDemandsEvaluator - Metadata', () => {
   it('derives id from config.json', () => {
-    expect(IntertextualityEvaluator.metadata.id).toBe(CONFIG.evaluator.id);
+    expect(ReferenceKnowledgeDemandsEvaluator.metadata.id).toBe(CONFIG.evaluator.id);
   });
 
   it('derives name from config.json', () => {
-    expect(IntertextualityEvaluator.metadata.name).toBe(CONFIG.evaluator.name);
+    expect(ReferenceKnowledgeDemandsEvaluator.metadata.name).toBe(CONFIG.evaluator.name);
   });
 
   it('derives description from config.json', () => {
-    expect(IntertextualityEvaluator.metadata.description).toBe(CONFIG.evaluator.description);
+    expect(ReferenceKnowledgeDemandsEvaluator.metadata.description).toBe(CONFIG.evaluator.description);
   });
 
   it('defaultProviders includes Google', () => {
-    expect(IntertextualityEvaluator.metadata.defaultProviders).toContain(Provider.Google);
+    expect(ReferenceKnowledgeDemandsEvaluator.metadata.defaultProviders).toContain(Provider.Google);
   });
 
   it('defaultProviders does not include OpenAI', () => {
-    expect(IntertextualityEvaluator.metadata.defaultProviders).not.toContain(Provider.OpenAI);
+    expect(ReferenceKnowledgeDemandsEvaluator.metadata.defaultProviders).not.toContain(Provider.OpenAI);
   });
 
   it('supports integer grade levels 3–12', () => {
-    expect(IntertextualityEvaluator.metadata.supportedGrades).toEqual(
+    expect(ReferenceKnowledgeDemandsEvaluator.metadata.supportedGrades).toEqual(
       ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
     );
   });
@@ -95,7 +95,7 @@ describe('IntertextualityEvaluator - Metadata', () => {
 
 // --- Prompt integrity (contract test) ---
 
-describe('IntertextualityEvaluator - Prompt contract', () => {
+describe('ReferenceKnowledgeDemandsEvaluator - Prompt contract', () => {
   it('system prompt SHA256 matches config.json declaration', () => {
     const expectedSha = CONFIG.steps[0].prompt.messages[0].sha256;
     const actualSha = createHash('sha256').update(getSystemPrompt({})).digest('hex');
@@ -121,13 +121,13 @@ describe('IntertextualityEvaluator - Prompt contract', () => {
 
 // --- LLM call contract ---
 
-describe('IntertextualityEvaluator - LLM call contract', () => {
-  let evaluator: IntertextualityEvaluator;
+describe('ReferenceKnowledgeDemandsEvaluator - LLM call contract', () => {
+  let evaluator: ReferenceKnowledgeDemandsEvaluator;
   let mockProvider: LLMProvider;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    evaluator = new IntertextualityEvaluator({ googleApiKey: 'test-key', telemetry: false });
+    evaluator = new ReferenceKnowledgeDemandsEvaluator({ googleApiKey: 'test-key', telemetry: false });
     // @ts-expect-error accessing private for testing
     mockProvider = evaluator.provider;
   });
@@ -201,7 +201,7 @@ describe('IntertextualityEvaluator - LLM call contract', () => {
   });
 
   it('reflects modelOverride in metadata.model', async () => {
-    const overrideEvaluator = new IntertextualityEvaluator({
+    const overrideEvaluator = new ReferenceKnowledgeDemandsEvaluator({
       anthropicApiKey: 'test-key',
       modelOverride: { provider: Provider.Anthropic, model: 'claude-haiku-4-5-20251001' },
       telemetry: false,
@@ -242,13 +242,13 @@ describe('IntertextualityEvaluator - LLM call contract', () => {
 
 // --- Validation ---
 
-describe('IntertextualityEvaluator - Validation', () => {
-  let evaluator: IntertextualityEvaluator;
+describe('ReferenceKnowledgeDemandsEvaluator - Validation', () => {
+  let evaluator: ReferenceKnowledgeDemandsEvaluator;
   let mockProvider: LLMProvider;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    evaluator = new IntertextualityEvaluator({ googleApiKey: 'test-key', telemetry: false });
+    evaluator = new ReferenceKnowledgeDemandsEvaluator({ googleApiKey: 'test-key', telemetry: false });
     // @ts-expect-error accessing private for testing
     mockProvider = evaluator.provider;
   });

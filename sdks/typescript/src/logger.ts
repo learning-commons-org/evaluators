@@ -49,7 +49,7 @@ export interface LogContext {
  *   error: (msg, ctx) => myLogger.error(msg, ctx),
  * };
  *
- * const evaluator = new VocabularyEvaluator({
+ * const evaluator = new VocabularyComplexityEvaluator({
  *   googleApiKey: '...',
  *   openaiApiKey: '...',
  *   logger: customLogger,

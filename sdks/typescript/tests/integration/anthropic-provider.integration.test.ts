@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { Provider, type BaseEvaluatorConfig } from '../../src/evaluators/base.js';
 import type { EvaluationResult } from '../../src/schemas/index.js';
 import { GradeLevelAppropriatenessEvaluator } from '../../src/evaluators/grade-level-appropriateness.js';
-import { ConventionalityEvaluator } from '../../src/evaluators/conventionality.js';
-import { SmkEvaluator } from '../../src/evaluators/smk.js';
+import { MeaningDirectnessEvaluator } from '../../src/evaluators/meaning-directness.js';
+import { BackgroundKnowledgeDemandsEvaluator } from '../../src/evaluators/background-knowledge-demands.js';
 import { SentenceStructureEvaluator } from '../../src/evaluators/sentence-structure.js';
-import { PurposeEvaluator } from '../../src/evaluators/purpose.js';
-import { VocabularyEvaluator } from '../../src/evaluators/vocabulary.js';
+import { PurposeClarityEvaluator } from '../../src/evaluators/purpose-clarity.js';
+import { VocabularyComplexityEvaluator } from '../../src/evaluators/vocabulary-complexity.js';
 
 /**
  * Anthropic provider integration tests (live API). Structured output on Anthropic is
@@ -53,11 +53,11 @@ const EVALUATORS: Array<{
     name: 'GradeLevelAppropriateness',
     run: (c) => new GradeLevelAppropriatenessEvaluator(c).evaluate(SAMPLE_TEXT),
   },
-  { name: 'Conventionality', run: (c) => new ConventionalityEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { name: 'Smk', run: (c) => new SmkEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
+  { name: 'Meaning Directness', run: (c) => new MeaningDirectnessEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
+  { name: 'Background Knowledge Demands', run: (c) => new BackgroundKnowledgeDemandsEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
   { name: 'SentenceStructure', run: (c) => new SentenceStructureEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { name: 'Purpose', run: (c) => new PurposeEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { name: 'Vocabulary', run: (c) => new VocabularyEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
+  { name: 'Purpose', run: (c) => new PurposeClarityEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
+  { name: 'Vocabulary', run: (c) => new VocabularyComplexityEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
 ];
 
 describeIntegration('Anthropic provider — all text-complexity evaluators (live API)', () => {

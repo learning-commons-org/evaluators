@@ -1,37 +1,37 @@
 import pLimit from 'p-limit';
-import { VocabularyEvaluator } from './vocabulary.js';
+import { VocabularyComplexityEvaluator } from './vocabulary-complexity.js';
 import { SentenceStructureEvaluator } from './sentence-structure.js';
-import { SmkEvaluator } from './smk.js';
-import { ConventionalityEvaluator } from './conventionality.js';
+import { BackgroundKnowledgeDemandsEvaluator } from './background-knowledge-demands.js';
+import { MeaningDirectnessEvaluator } from './meaning-directness.js';
 import type { SentenceStructureInternal } from '../schemas/sentence-structure.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
-import type { VocabularyInternal } from '../schemas/vocabulary.js';
-import type { SmkInternal } from '../schemas/smk.js';
-import type { ConventionalityInternal } from '../schemas/conventionality.js';
+import type { VocabularyComplexityInternal } from '../schemas/vocabulary-complexity.js';
+import type { BackgroundKnowledgeDemandsInternal } from '../schemas/background-knowledge-demands.js';
+import type { MeaningDirectnessInternal } from '../schemas/meaning-directness.js';
 
 /**
  * Result map returned by TextComplexityEvaluator.
  * Each key holds the full evaluation result from its sub-evaluator, or an error if it failed.
  */
 export interface TextComplexityResult {
-  vocabulary: EvaluationResult<TextComplexityLevel, VocabularyInternal> | { error: Error };
+  vocabularyComplexity: EvaluationResult<TextComplexityLevel, VocabularyComplexityInternal> | { error: Error };
   sentenceStructure: EvaluationResult<TextComplexityLevel, SentenceStructureInternal> | { error: Error };
-  subjectMatterKnowledge: EvaluationResult<TextComplexityLevel, SmkInternal> | { error: Error };
-  conventionality: EvaluationResult<TextComplexityLevel, ConventionalityInternal> | { error: Error };
+  backgroundKnowledgeDemands: EvaluationResult<TextComplexityLevel, BackgroundKnowledgeDemandsInternal> | { error: Error };
+  meaningDirectness: EvaluationResult<TextComplexityLevel, MeaningDirectnessInternal> | { error: Error };
 }
 
 /**
  * Text Complexity Evaluator
  *
- * Composite evaluator that analyzes vocabulary, sentence structure, subject matter knowledge, and conventionality.
+ * Composite evaluator that analyzes vocabulary complexity, sentence structure, background knowledge demands, and meaning directness.
  * Runs all evaluations in parallel with concurrency control to avoid rate limiting.
  *
  * Uses:
- * - VocabularyEvaluator (Google Gemini 2.5 Pro + OpenAI GPT-4o)
+ * - VocabularyComplexityEvaluator (Google Gemini 2.5 Pro + OpenAI GPT-4o)
  * - SentenceStructureEvaluator (OpenAI GPT-4o)
- * - SmkEvaluator (Google Gemini 3 Flash Preview)
- * - ConventionalityEvaluator (Google Gemini 3 Flash Preview)
+ * - BackgroundKnowledgeDemandsEvaluator (Google Gemini 3 Flash Preview)
+ * - MeaningDirectnessEvaluator (Google Gemini 3 Flash Preview)
  *
  * @example
  * ```typescript
@@ -41,8 +41,8 @@ export interface TextComplexityResult {
  * });
  *
  * const result = await evaluator.evaluate(text, "5");
- * if (!('error' in result.vocabulary)) {
- *   console.log(result.vocabulary.score); // "Moderately complex"
+ * if (!('error' in result.vocabularyComplexity)) {
+ *   console.log(result.vocabularyComplexity.score); // "Moderately complex"
  * }
  * ```
  */
@@ -50,15 +50,15 @@ export class TextComplexityEvaluator extends BaseEvaluator {
   static readonly metadata = {
     id: 'text-complexity',
     name: 'Text Complexity',
-    description: 'Composite evaluator analyzing vocabulary, sentence structure, subject matter knowledge, and conventionality complexity',
+    description: 'Composite evaluator analyzing vocabulary complexity, sentence structure, background knowledge demands, and meaning directness',
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
     defaultProviders: [Provider.Google, Provider.OpenAI] as const,
   };
 
-  private vocabularyEvaluator: VocabularyEvaluator;
+  private vocabularyEvaluator: VocabularyComplexityEvaluator;
   private sentenceStructureEvaluator: SentenceStructureEvaluator;
-  private smkEvaluator: SmkEvaluator;
-  private conventionalityEvaluator: ConventionalityEvaluator;
+  private backgroundKnowledgeDemandsEvaluator: BackgroundKnowledgeDemandsEvaluator;
+  private meaningDirectnessEvaluator: MeaningDirectnessEvaluator;
   private limit: ReturnType<typeof pLimit>;
 
   constructor(config: BaseEvaluatorConfig) {
@@ -66,10 +66,10 @@ export class TextComplexityEvaluator extends BaseEvaluator {
     super(config);
 
     // Create child evaluators with same config
-    this.vocabularyEvaluator = new VocabularyEvaluator(config);
+    this.vocabularyEvaluator = new VocabularyComplexityEvaluator(config);
     this.sentenceStructureEvaluator = new SentenceStructureEvaluator(config);
-    this.smkEvaluator = new SmkEvaluator(config);
-    this.conventionalityEvaluator = new ConventionalityEvaluator(config);
+    this.backgroundKnowledgeDemandsEvaluator = new BackgroundKnowledgeDemandsEvaluator(config);
+    this.meaningDirectnessEvaluator = new MeaningDirectnessEvaluator(config);
 
     // Create concurrency limiter (max 3 concurrent operations)
     this.limit = pLimit(3);
@@ -91,7 +91,7 @@ export class TextComplexityEvaluator extends BaseEvaluator {
    */
   async evaluate(text: string, gradeLevel: string): Promise<TextComplexityResult> {
     this.logger.info('Starting text complexity evaluation', {
-      evaluator: 'text-complexity',
+      evaluator: TextComplexityEvaluator.metadata.id,
       operation: 'evaluate',
       gradeLevel,
       textLength: text.length,
@@ -104,41 +104,41 @@ export class TextComplexityEvaluator extends BaseEvaluator {
     const startTime = Date.now();
 
     // Run all evaluators in parallel with concurrency control
-    const [vocabResult, sentenceResult, smkResult, conventionalityResult]: [
-      EvaluationResult<TextComplexityLevel, VocabularyInternal> | { error: Error },
+    const [vocabResult, sentenceResult, backgroundKnowledgeDemandsResult, meaningDirectnessResult]: [
+      EvaluationResult<TextComplexityLevel, VocabularyComplexityInternal> | { error: Error },
       EvaluationResult<TextComplexityLevel, SentenceStructureInternal> | { error: Error },
-      EvaluationResult<TextComplexityLevel, SmkInternal> | { error: Error },
-      EvaluationResult<TextComplexityLevel, ConventionalityInternal> | { error: Error },
+      EvaluationResult<TextComplexityLevel, BackgroundKnowledgeDemandsInternal> | { error: Error },
+      EvaluationResult<TextComplexityLevel, MeaningDirectnessInternal> | { error: Error },
     ] = await Promise.all([
       this.limit(() => this.runSubEvaluator(this.vocabularyEvaluator, text, gradeLevel)),
       this.limit(() => this.runSubEvaluator(this.sentenceStructureEvaluator, text, gradeLevel)),
-      this.limit(() => this.runSubEvaluator(this.smkEvaluator, text, gradeLevel)),
-      this.limit(() => this.runSubEvaluator(this.conventionalityEvaluator, text, gradeLevel)),
+      this.limit(() => this.runSubEvaluator(this.backgroundKnowledgeDemandsEvaluator, text, gradeLevel)),
+      this.limit(() => this.runSubEvaluator(this.meaningDirectnessEvaluator, text, gradeLevel)),
     ]);
 
     const latencyMs = Date.now() - startTime;
     const vocabFailed = 'error' in vocabResult;
     const sentenceFailed = 'error' in sentenceResult;
-    const smkFailed = 'error' in smkResult;
-    const conventionalityFailed = 'error' in conventionalityResult;
-    const hasFailures = vocabFailed || sentenceFailed || smkFailed || conventionalityFailed;
+    const backgroundKnowledgeDemandsFailed = 'error' in backgroundKnowledgeDemandsResult;
+    const meaningDirectnessFailed = 'error' in meaningDirectnessResult;
+    const hasFailures = vocabFailed || sentenceFailed || backgroundKnowledgeDemandsFailed || meaningDirectnessFailed;
 
     if (hasFailures) {
       const errors: string[] = [];
-      if (vocabFailed) errors.push(`Vocabulary: ${vocabResult.error.message}`);
+      if (vocabFailed) errors.push(`Vocabulary complexity: ${vocabResult.error.message}`);
       if (sentenceFailed) errors.push(`Sentence structure: ${sentenceResult.error.message}`);
-      if (smkFailed) errors.push(`Subject matter knowledge: ${smkResult.error.message}`);
-      if (conventionalityFailed) errors.push(`Conventionality: ${conventionalityResult.error.message}`);
+      if (backgroundKnowledgeDemandsFailed) errors.push(`Background knowledge demands: ${backgroundKnowledgeDemandsResult.error.message}`);
+      if (meaningDirectnessFailed) errors.push(`Meaning directness: ${meaningDirectnessResult.error.message}`);
 
       this.logger.error('Text complexity evaluation completed with errors', {
-        evaluator: 'text-complexity',
+        evaluator: TextComplexityEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
         errors,
         processingTimeMs: latencyMs,
       });
 
-      if (vocabFailed && sentenceFailed && smkFailed && conventionalityFailed) {
+      if (vocabFailed && sentenceFailed && backgroundKnowledgeDemandsFailed && meaningDirectnessFailed) {
         throw new Error(`Text complexity evaluation failed: ${errors.join('; ')}`);
       }
     }
@@ -159,14 +159,14 @@ export class TextComplexityEvaluator extends BaseEvaluator {
     });
 
     this.logger.info('Text complexity evaluation completed', {
-      evaluator: 'text-complexity',
+      evaluator: TextComplexityEvaluator.metadata.id,
       operation: 'evaluate',
       gradeLevel,
       processingTimeMs: latencyMs,
       hasFailures,
     });
 
-    return { vocabulary: vocabResult, sentenceStructure: sentenceResult, subjectMatterKnowledge: smkResult, conventionality: conventionalityResult };
+    return { vocabularyComplexity: vocabResult, sentenceStructure: sentenceResult, backgroundKnowledgeDemands: backgroundKnowledgeDemandsResult, meaningDirectness: meaningDirectnessResult };
   }
 
   /**

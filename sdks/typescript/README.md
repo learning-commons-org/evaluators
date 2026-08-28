@@ -38,12 +38,12 @@ console.log(result.score); // 4-5
 | Evaluator                   | Documentation                                                                                                                      |
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | Grade Level Appropriateness | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/grade-level-appropriateness-evaluator/about-this-evaluator) |
-| Subject Matter Knowledge    | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/subject-matter-knowledge/about-this-evaluator)              |
-| Vocabulary                  | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/vocabulary-evaluator/about-this-evaluator)                  |
+| Background Knowledge Demands | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/subject-matter-knowledge/about-this-evaluator)              |
+| Vocabulary Complexity       | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/vocabulary-evaluator/about-this-evaluator)                  |
 | Sentence Structure          | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/sentence-structure-evaluator/about-this-evaluator)          |
-| Conventionality             | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/conventionality/about-this-evaluator)                       |
-| Purpose                     | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/purpose/about-this-evaluator)                               |
-| Intertextuality             | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/intertextuality)                                            |
+| Meaning Directness          | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/conventionality/about-this-evaluator)                       |
+| Purpose Clarity             | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/purpose/about-this-evaluator)                               |
+| Reference Knowledge Demands | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/intertextuality)                                            |
 | Organizational Structure    | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/organizational-structure)                                   |
 
 For more implementation details, visit [our docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview).

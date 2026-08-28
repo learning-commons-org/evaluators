@@ -6,6 +6,11 @@ import {
   type BatchOutput,
   type BatchResult,
 } from '../../../src/batch/index.js';
+import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/index.js';
+
+// The report singles GLA out to derive on-band/off-target status, so this id has to
+// match the evaluator. Other evaluator ids in this file are arbitrary grouping labels.
+const GLA_ID = GradeLevelAppropriatenessEvaluator.metadata.id;
 
 // ---- Test fixtures ----
 
@@ -175,7 +180,7 @@ describe('formatAsHTML', () => {
     function glaOutput(inputGrade: string, glaBand: string) {
       return makeOutput([makeResult({
         gradeLevel: inputGrade,
-        evaluatorId: 'grade-level-appropriateness',
+        evaluatorId: GLA_ID,
         score: glaBand,
       })]);
     }
@@ -261,7 +266,7 @@ describe('formatAsHTML', () => {
 
     it('excludes GLA from complexity stats even when it runs alongside complexity evaluators', () => {
       const output = makeOutput([
-        makeResult({ rowIndex: 1, evaluatorId: 'grade-level-appropriateness', score: '4-5' }),
+        makeResult({ rowIndex: 1, evaluatorId: GLA_ID, score: '4-5' }),
         makeResult({ rowIndex: 1, evaluatorId: 'vocabulary', score: 'slightly complex' }),
       ]);
 
@@ -317,7 +322,7 @@ describe('formatAsHTML', () => {
       // Grade 3 → "2-3" bucket (index 1). GLA says "9-10" (off-target, diff=3).
       const output = makeOutput([makeResult({
         gradeLevel: '3',
-        evaluatorId: 'grade-level-appropriateness',
+        evaluatorId: GLA_ID,
         score: '9-10',
       })]);
 

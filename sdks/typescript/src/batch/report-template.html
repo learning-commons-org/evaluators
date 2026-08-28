@@ -222,8 +222,8 @@
         reportId: 'sample_content_batch_20260301T1430',
         generatedAt: 'Mar 1, 2026 2:30 PM',
         csvPath: '/Users/designer/Documents/interventionhelper_content_batch_03-01.csv',
-        evaluatorIds: ['grade-level-appropriateness', 'subject-matter-knowledge', 'vocabulary', 'sentence-structure', 'conventionality'],
-        evaluatorNames: ['Grade Level Appropriateness', 'Subject Matter Knowledge', 'Vocabulary', 'Sentence Structure', 'Conventionality'],
+        evaluatorIds: ['student_facing_text.ela_reading.grade_level_appropriateness', 'student_facing_text.ela_reading.background_knowledge_demands', 'student_facing_text.ela_reading.vocabulary_complexity', 'student_facing_text.ela_reading.sentence_structure', 'student_facing_text.ela_reading.meaning_directness'],
+        evaluatorNames: ['Grade Level Appropriateness Evaluator', 'Background Knowledge Demands Evaluator', 'Vocabulary Complexity Evaluator', 'Sentence Structure Evaluator', 'Meaning Directness Evaluator'],
         totalRows: 300,
         processedRows: 287,
         erroredRows: 13,
@@ -235,22 +235,22 @@
       },
       complexityStats: [
         {
-          evaluatorId: 'subject-matter-knowledge', name: 'Subject Matter Knowledge',
+          evaluatorId: 'student_facing_text.ela_reading.background_knowledge_demands', name: 'Background Knowledge Demands Evaluator',
           average: 2.6, label: 'Moderately complex',
           distribution: [28, 98, 110, 51],
         },
         {
-          evaluatorId: 'vocabulary', name: 'Vocabulary',
+          evaluatorId: 'student_facing_text.ela_reading.vocabulary_complexity', name: 'Vocabulary Complexity Evaluator',
           average: 2.4, label: 'Moderately complex',
           distribution: [45, 120, 95, 27],
         },
         {
-          evaluatorId: 'sentence-structure', name: 'Sentence Structure',
+          evaluatorId: 'student_facing_text.ela_reading.sentence_structure', name: 'Sentence Structure Evaluator',
           average: 1.9, label: 'Slightly complex',
           distribution: [88, 105, 72, 22],
         },
         {
-          evaluatorId: 'conventionality', name: 'Conventionality',
+          evaluatorId: 'student_facing_text.ela_reading.meaning_directness', name: 'Meaning Directness Evaluator',
           average: 1.7, label: 'Slightly complex',
           distribution: [112, 118, 45, 12],
         },
@@ -268,8 +268,8 @@
       },
       complexityHeatmap: {
         bands: ['K-1', '2-3', '4-5', '6-8', '9-10', '11-CCR'],
-        evaluators: ['Subject Matter Knowledge', 'Vocabulary', 'Sentence Structure', 'Conventionality'],
-        evaluatorIds: ['subject-matter-knowledge', 'vocabulary', 'sentence-structure', 'conventionality'],
+        evaluators: ['Background Knowledge Demands Evaluator', 'Vocabulary Complexity Evaluator', 'Sentence Structure Evaluator', 'Meaning Directness Evaluator'],
+        evaluatorIds: ['student_facing_text.ela_reading.background_knowledge_demands', 'student_facing_text.ela_reading.vocabulary_complexity', 'student_facing_text.ela_reading.sentence_structure', 'student_facing_text.ela_reading.meaning_directness'],
         values: [
           [null, null, null, null],
           [1.8,  1.6,  1.4,  1.3 ],
@@ -288,10 +288,10 @@
         originalColumns: ['row_id', 'text', 'grade', 'source'],
         hasGLA: true,
         complexityEvaluators: [
-          { evaluatorId: 'subject-matter-knowledge', name: 'Subject Matter Knowledge', prefix: 'subject_matter_knowledge' },
-          { evaluatorId: 'vocabulary',               name: 'Vocabulary',               prefix: 'vocabulary'               },
-          { evaluatorId: 'sentence-structure',       name: 'Sentence Structure',       prefix: 'sentence_structure'       },
-          { evaluatorId: 'conventionality',          name: 'Conventionality',          prefix: 'conventionality'          },
+          { evaluatorId: 'student_facing_text.ela_reading.background_knowledge_demands', name: 'Background Knowledge Demands Evaluator', prefix: 'background_knowledge_demands' },
+          { evaluatorId: 'student_facing_text.ela_reading.vocabulary_complexity',               name: 'Vocabulary Complexity Evaluator',               prefix: 'vocabulary_complexity'               },
+          { evaluatorId: 'student_facing_text.ela_reading.sentence_structure',       name: 'Sentence Structure Evaluator',       prefix: 'sentence_structure'       },
+          { evaluatorId: 'student_facing_text.ela_reading.meaning_directness',          name: 'Meaning Directness Evaluator',          prefix: 'meaning_directness'          },
         ],
         rows: [
           {
@@ -422,11 +422,11 @@
     // ---------------------------------------------------------------------------
 
     const EVALUATOR_ORDER = [
-      'grade-level-appropriateness',
-      'subject-matter-knowledge',
-      'vocabulary',
-      'sentence-structure',
-      'conventionality',
+      'student_facing_text.ela_reading.grade_level_appropriateness',
+      'student_facing_text.ela_reading.background_knowledge_demands',
+      'student_facing_text.ela_reading.vocabulary_complexity',
+      'student_facing_text.ela_reading.sentence_structure',
+      'student_facing_text.ela_reading.meaning_directness',
     ];
 
     function evalSortIndex(id) {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { SmkEvaluator } from '../../../src/evaluators/smk.js';
+import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/background-knowledge-demands.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
@@ -20,33 +20,33 @@ vi.mock('../../../src/telemetry/client.js', () => ({
   },
 }));
 
-describe('SmkEvaluator - Constructor Validation', () => {
+describe('BackgroundKnowledgeDemandsEvaluator - Constructor Validation', () => {
   it('should throw with specific message when Google API key is missing', () => {
-    expect(() => new SmkEvaluator({ googleApiKey: '' })).toThrow(
-      'Google API key is required for Subject Matter Knowledge evaluator. Pass googleApiKey in config.'
+    expect(() => new BackgroundKnowledgeDemandsEvaluator({ googleApiKey: '' })).toThrow(
+      `Google API key is required for ${BackgroundKnowledgeDemandsEvaluator.metadata.name}. Pass googleApiKey in config.`
     );
   });
 });
 
-describe('SmkEvaluator - Metadata', () => {
+describe('BackgroundKnowledgeDemandsEvaluator - Metadata', () => {
   it('should have correct metadata', () => {
-    expect(SmkEvaluator.metadata.id).toBe('subject-matter-knowledge');
-    expect(SmkEvaluator.metadata.name).toBe('Subject Matter Knowledge');
-    expect(SmkEvaluator.metadata.defaultProviders).toEqual(['google']);
-    expect(SmkEvaluator.metadata.supportedGrades).toEqual([
+    expect(BackgroundKnowledgeDemandsEvaluator.metadata.id).toBe('student_facing_text.ela_reading.background_knowledge_demands');
+    expect(BackgroundKnowledgeDemandsEvaluator.metadata.idHistory).toContain('subject-matter-knowledge');
+    expect(BackgroundKnowledgeDemandsEvaluator.metadata.defaultProviders).toEqual(['google']);
+    expect(BackgroundKnowledgeDemandsEvaluator.metadata.supportedGrades).toEqual([
       '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
     ]);
   });
 });
 
-describe('SmkEvaluator - Evaluation Flow', () => {
-  let evaluator: SmkEvaluator;
+describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
+  let evaluator: BackgroundKnowledgeDemandsEvaluator;
   let mockProvider: LLMProvider;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    evaluator = new SmkEvaluator({
+    evaluator = new BackgroundKnowledgeDemandsEvaluator({
       googleApiKey: 'test-google-key',
       telemetry: false,
     });
@@ -95,7 +95,7 @@ describe('SmkEvaluator - Evaluation Flow', () => {
   });
 
   it('should reflect modelOverride in metadata.model', async () => {
-    const overrideEvaluator = new SmkEvaluator({
+    const overrideEvaluator = new BackgroundKnowledgeDemandsEvaluator({
       anthropicApiKey: 'test-key',
       modelOverride: { provider: Provider.Anthropic, model: 'claude-haiku-4-5-20251001' },
       telemetry: false,
