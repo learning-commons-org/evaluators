@@ -31,7 +31,7 @@ const VERDICT_FIELD_OVERRIDES: Readonly<Record<string, string>> = {
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -46,10 +46,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function readOutcome(evaluatorId: string, result: unknown): Outcome {
   if (!isRecord(result)) return { score: '', reasoning: '' };
 
-  const override = VERDICT_FIELD_OVERRIDES[evaluatorId];
-  const field = override ?? Object.keys(result).find((key) => key.endsWith('_score'));
+  // An override only wins while its field is actually present, so an evaluator that
+  // later adopts the convention starts working without anyone remembering to delete
+  // its entry — the alternative silently reports no verdict at all.
+  //
+  // `''` stands in for "no field": no payload declares an empty key, so both lookups
+  // below miss and the outcome comes back blank.
+  const declared = VERDICT_FIELD_OVERRIDES[evaluatorId] ?? '';
+  const field = declared in result
+    ? declared
+    : Object.keys(result).find((key) => key.endsWith('_score')) ?? '';
 
-  const score = field !== undefined ? result[field] : undefined;
+  const score = result[field];
   const reasoning = result['reasoning'];
 
   return {

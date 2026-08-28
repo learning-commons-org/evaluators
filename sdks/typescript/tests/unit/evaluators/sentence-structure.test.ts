@@ -151,10 +151,10 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       // Verify provider was called twice (once per stage)
       expect(mockProvider.generateStructured).toHaveBeenCalledTimes(2);
 
-      // The payload is the classify step's output, which is all output_schema.json
-      // declares -- the analysis step's counts are an internal intermediate.
-      expect(result.result.answer).toBe('Slightly complex');
-      expect(result.result.reasoning).toContain('simple sentence structures');
+      // output_schema.json declares the classify step's output only, so the analysis
+      // step's ~30 grammatical counts are not surfaced.
+      expect(result.result).not.toHaveProperty('sentenceAnalysis');
+      expect(result.result).not.toHaveProperty('features');
     });
   });
 

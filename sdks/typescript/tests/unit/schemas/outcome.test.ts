@@ -62,6 +62,18 @@ describe('readOutcome — declared exceptions', () => {
     expect(outcome.score).toBe('4-5');
   });
 
+  it('falls back to the convention once the declared field is gone', () => {
+    // Sentence Structure's schema will be regenerated to `complexity_score`. If the
+    // stale `answer` entry still took precedence, the verdict would silently go
+    // empty; instead the convention takes over and the entry becomes inert.
+    const outcome = readOutcome(SENTENCE_ID, {
+      complexity_score: 'moderately_complex',
+      reasoning: 'mixed structures',
+    });
+
+    expect(outcome.score).toBe('moderately_complex');
+  });
+
   it('reads `answer` for Sentence Structure', () => {
     const outcome = readOutcome(SENTENCE_ID, {
       answer: 'Moderately complex',
@@ -90,6 +102,7 @@ describe('readOutcome — payloads with nothing to read', () => {
     ['a string', 'not a payload'],
     ['a number', 7],
     ['an empty object', {}],
+    ['an array', [{ complexity_score: 'slightly_complex' }]],
   ])('returns empty strings for %s', (_label, payload) => {
     expect(readOutcome(COMPLEXITY_ID, payload)).toEqual({ score: '', reasoning: '' });
   });
