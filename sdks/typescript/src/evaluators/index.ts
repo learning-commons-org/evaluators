@@ -33,12 +33,6 @@ export {
 } from './meaning-directness.js';
 
 export {
-  TextComplexityEvaluator,
-  evaluateTextComplexity,
-  type TextComplexityResult,
-} from './text-complexity.js';
-
-export {
   PurposeClarityEvaluator,
   evaluatePurposeClarity,
   type PurposeClarityComplexityLevel,
