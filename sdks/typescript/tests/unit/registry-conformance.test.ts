@@ -48,7 +48,7 @@ import {
 const constructed: Array<{ type: string; model: string }> = [];
 
 /** Records the generation settings of every LLM call an evaluator makes. */
-const sent: Array<{ temperature?: number }> = [];
+const llmCalls: Array<{ temperature?: number }> = [];
 
 vi.mock('../../src/providers/index.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
@@ -59,7 +59,7 @@ vi.mock('../../src/providers/index.js', async (importOriginal) => {
       return {
         label: `${config.type}:${config.model}`,
         generateStructured: vi.fn(async (request: { temperature?: number }) => {
-          sent.push({ temperature: request.temperature });
+          llmCalls.push({ temperature: request.temperature });
           return {
             data: {},
             model: config.model,
@@ -405,12 +405,12 @@ describe('the schema the SDK sends matches the contract', () => {
 
   it.each(withSchema)('$name', ({ E }) => {
     const { outputSchema } = contractFor(E.metadata.id);
-    const sent = Object.keys(SDK_OUTPUT_SCHEMAS[E.metadata.id].shape).sort();
+    const sentFields = Object.keys(SDK_OUTPUT_SCHEMAS[E.metadata.id].shape).sort();
     const declared = Object.keys(outputSchema.properties).sort();
 
     expectAgainstContract(
       SCHEMA_GAPS.has(E.metadata.id),
-      sent,
+      sentFields,
       declared,
       `${E.metadata.name} sent payload fields`,
     );
@@ -599,18 +599,18 @@ describe('the report can order every family member', () => {
 
 describe('the temperature sent matches the contract', () => {
   beforeEach(() => {
-    sent.length = 0;
+    llmCalls.length = 0;
   });
 
   it.each(singleStepCases)('$name', async ({ E }) => {
     const { config } = contractFor(E.metadata.id);
     await INVOKE[E.metadata.id](E, 'A sentence long enough to pass validation.');
 
-    expect(sent, `${E.metadata.name} made no LLM call`).toHaveLength(1);
+    expect(llmCalls, `${E.metadata.name} made no LLM call`).toHaveLength(1);
 
     expectAgainstContract(
       TEMPERATURE_GAPS.has(E.metadata.id),
-      sent[0].temperature,
+      llmCalls[0].temperature,
       config.steps[0].generation?.temperature,
       `${E.metadata.name} temperature`,
     );
