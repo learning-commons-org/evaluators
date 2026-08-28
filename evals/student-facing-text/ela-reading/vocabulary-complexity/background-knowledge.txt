@@ -1,5 +1,5 @@
 
-Review the following text, which is an educational text written for students in the following grade band: {grade}.
+Review the following text, which is an educational text written for students in the following grade band: {grade_level}.
 
 Your job is to give me a background knowledge assumption; that is: what topics, if any, from the text students are likely to be familiar with based on a standard progression of topics in US public school education, as well as topics, if any the student is not likely to be familiar with.
 
@@ -22,8 +22,8 @@ You should assume that the student is an average US public school who is learnin
 
 You can use the following list of topics that we know are covered for each grade level, although use your best judgement if you know there are other topics out there that students are likely to have covered. And this doesn't cover higher grade levels, so you'll have to again use your judgement for, say, what background knowledge a 9th grader is likely to have:
 [BEGIN TOPICS]
-[
-    K: [
+{
+    "K": [
         "Toys and Play", "Weather Wonders", "Trees are Alive", "Enjoying and Appreciating Trees",
         "The Five Senses: How do our senses help us learn?", "Once Upon a Farm: What makes a good story?",
         "America, Then and Now: How has life in America changed over time?", "The Continents: What makes the world fascinating?",
@@ -31,7 +31,7 @@ You can use the following list of topics that we know are covered for each grade
         "How Do People Learn and Work Together?", "Where Do We Live?", "What Does it Mean to Be an American?",
         "How Has Our World Changed?", "Why Do People Have Jobs?"
     ],
-    1: [
+    "1": [
         "Tools and Work", "A Study of the Sun, Moon, and Stars", "Birds' Amazing Bodies", "Caring for Birds",
         "A World of Books: How do books change lives around the world?", "Creature Features: What can we discover about animals' unique features?",
         "Powerful Forces: How do people respond to the powerful force of the wind?", "Cinderella Stories: Why do people around the world admire Cinderella?",
@@ -39,7 +39,7 @@ You can use the following list of topics that we know are covered for each grade
         "What Are the Rights and Responsibilities of Citizens?", "How Can We Describe Where We Live?",
         "How Do We Celebrate Our Country?", "How Does the Past Shape Our Lives?", "Why Do People Work?"
     ],
-    2: [
+    "2": [
         "Schools and Community", "Fossils Tell of Earth's Changes", "The Secret World of Pollination", "Providing for Pollinators",
         "A Season of Change: How does change impact people and nature?", "The American West: What was life like in the West for early Americans?",
         "Civil Rights Heroes: How can people respond to injustice?", "Good Eating: How does food nourish us?",
@@ -55,7 +55,7 @@ You can use the following list of topics that we know are covered for each grade
         "What Makes a Community Unique?", "How Does the Past Impact the Present?", "Why Do Governments and Citizens Need Each Other?",
         "How Do People in a Community Meet Their Wants and Needs?"
     ],
-    4: [
+    "4": [
         "Poetry", "Animal Defense Mechanisms", "The American Revolution",
         "Responding to Inequality: Ratifying the 19th Amendment (covers gender and racial inequality)",
         "A Great Heart: What does it mean to have a great heart, literally and figuratively?",
@@ -66,7 +66,7 @@ You can use the following list of topics that we know are covered for each grade
         "How Has the Southeast Changed Over Time?", "How Does the Midwest Reflect the Spirit of America?",
         "How Does the Southwest Reflect Its Diverse Past and Unique Environment?", "What Draws People to the West?"
     ],
-    5: [
+    "5": [
         "Human Rights", "Biodiversity in the Rainforest", "Athlete Leaders of Social Change",
         "Impact of Natural Disasters", "Cultures in Conflict: How do cultural beliefs and values guide people?",
         "Word Play: How and why do writers play with words?", "A War Between Us: How did the Civil War impact people?",
@@ -79,7 +79,7 @@ You can use the following list of topics that we know are covered for each grade
         "What Do the Early Years of the United States Reveal About the Character of the Nation?",
         "What Was the Effect of the Civil War on U.S. Society?"
     ],
-    6: [
+    "6": [
         "Greek Mythology", "Critical Problems and Design Solutions", "American Indian Boarding Schools",
         "Remarkable Accomplishments in Space Science", "Resilience in the Great Depression: How can enduring tremendous hardship contribute to personal transformation?",
         "A Hero's Journey: What is the significance and power of the hero's journey?",
@@ -94,7 +94,7 @@ You can use the following list of topics that we know are covered for each grade
         "New Industry and a Changing Society", "Expansion and War", "The 1920s and 1930s", "World War II",
         "The Cold War", "Civil Rights and American Society", "America Since the 1970s"
     ],
-    7: [
+    "7": [
         "The Lost Children of Sudan (Genocide, Genocide in Sudan)", "Epidemics", "Harlem Renaissance", "Plastic Pollution",
         "Identity in the Middle Ages: How does society both support and limit the development of identity?",
         "Americans All: How did World War II affect individuals?", "Language and Power: What is the power of language?",
@@ -106,7 +106,7 @@ You can use the following list of topics that we know are covered for each grade
         "China in the Middle Ages", "Korea and Japan in the Middle Ages", "African Civilizations", "New Ways of Thinking",
         "Age of Exploration and Trade", "Revolutions and Empires", "The Modern World"
     ],
-    8: [
+    "8": [
         "Folklore of Latin America", "Food Choices", "The Holocaust", "Japanese American Internment",
         "The Poetics and Power of Storytelling: What is the power of storytelling?",
         "The Great War: How do literature and art illuminate the effects of World War I?", "What Is Love?",
@@ -117,7 +117,7 @@ You can use the following list of topics that we know are covered for each grade
         "Political Geography", "Human-Environment Geography", "What is Economics?", "Markets, Money, and Businesses",
         "Government and the Economy", "The Global Economy"
     ]
-]
+}
 [END TOPICS]
 
 Here is the text:

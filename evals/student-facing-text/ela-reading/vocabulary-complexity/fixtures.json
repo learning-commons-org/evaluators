@@ -1,0 +1,26 @@
+[
+  {
+    "id": "marco_polo_grade3",
+    "description": "Marco Polo passage, grade 3. Dense proper nouns (Mongol Dynasty, Kublai Khan) and Tier 3 goods (ivory, jade, porcelain) with no contextual scaffolding.",
+    "source": "SDK contract capture (sdks/settings/vocabulary/contracts.toml, cases.marco_polo_grade3)",
+    "input": {
+      "text": "Polo went on a 24-year trip to China with his father and uncle during the Mongol Dynasty. He left Venice at the age of 17 on a boat that went through the Mediterranean Sea, Ayas, Tabriz and Kerman. Then he travelled across Asia getting as far as Beijing. On the way there he had to go over mountains and through terrible deserts, across hot burning lands and places where the cold was horrible. He served in Kublai Khan's court for 17 years. He left the Far East and returned to Venice by sea. There was sickness on board and 600 passengers and crew died and some say pirates attacked. Nevertheless, Marco Polo survived it all.\nSome scholars believe that while Marco Polo did go to China, he did not go to all of the other places described in his book. He brought noodles back from China and the Italians came up with different sizes and shapes and called it pasta. Polo returned to Venice with treasures like ivory, jade, jewels, porcelain and silk.\nHis father had borrowed money and bought a ship. He became wealthy because of his trading in the near East.",
+      "grade_level": "3"
+    },
+    "expected": {
+      "complexity_score": "very_complex"
+    }
+  },
+  {
+    "id": "hurricanes_grade7",
+    "description": "Hurricanes passage, grade 7. Subject-specific weather vocabulary (hurricane, typhoon, cyclone, atmosphere) introduced with context; accessible for independent reading at this grade.",
+    "source": "SDK contract capture (sdks/settings/vocabulary/contracts.toml, cases.hurricanes_grade7)",
+    "input": {
+      "text": "Great whirling storms roar out of the oceans in many parts of the world. They are called by several names \u2014 hurricane, typhoon, and cyclone are the three most familiar ones. But no matter what they are called, they are all the same sort of storm. They are born in the same way, in tropical waters. They develop the same way, feeding on warm, moist air. And they do the same kind of damage, both ashore and at sea. Other storms may cover a bigger area or have higher winds, but none can match both the size and the fury of hurricanes. They are earth's mightiest storms.\n\nLike all storms, they take place in the atmosphere, the envelope of air that surrounds the earth and presses on its surface. The pressure at any one place is always changing. There are days when air is sinking and the atmosphere presses harder on the surface. These are the times of high pressure. There are days when a lot of air is rising and the atmosphere does not press down as hard. These are times of low pressure. Low-pressure areas over warm oceans give birth to hurricanes.",
+      "grade_level": "7"
+    },
+    "expected": {
+      "complexity_score": "slightly_complex"
+    }
+  }
+]
