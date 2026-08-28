@@ -114,14 +114,14 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       const result = await evaluator.evaluate(testText, testGrade);
 
       // Verify result structure
-      expect(result.score).toBe('Moderately complex');
-      expect(result.reasoning).toContain('grade-appropriate vocabulary');
+      expect(result.result.complexity_score).toBe('Moderately complex');
+      expect(result.result.reasoning).toContain('grade-appropriate vocabulary');
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20+openai:gpt-4.1-2025-04-14');
       expect(result.metadata.processingTimeMs).toBeGreaterThan(0);
       // Token usage is aggregated across both stages: background (100/50) + complexity (200/100)
-      expect(result.metadata.inputTokens).toBe(300);
-      expect(result.metadata.outputTokens).toBe(150);
+      expect(result.metadata.tokenUsage.inputTokens).toBe(300);
+      expect(result.metadata.tokenUsage.outputTokens).toBe(150);
 
       // Verify both providers were called
       expect(mockBackgroundProvider.generateText).toHaveBeenCalledTimes(1);
@@ -207,10 +207,10 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       const result = await evaluator.evaluate('Test text here', '5');
 
       // Verify result structure
-      expect(result).toHaveProperty('score');
-      expect(result).toHaveProperty('reasoning');
+      expect(result).toHaveProperty('evaluator');
+      expect(result).toHaveProperty('result');
       expect(result).toHaveProperty('metadata');
-      expect(result).toHaveProperty('_internal');
+      expect(result).not.toHaveProperty('score');
 
       // Verify metadata structure
       expect(result.metadata).toHaveProperty('model');
@@ -219,8 +219,8 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       // Verify metadata values
       expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20+openai:gpt-4.1-2025-04-14');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0); // Mocked calls can be instant (0ms)
-      expect(result.metadata.inputTokens).toBe(300);
-      expect(result.metadata.outputTokens).toBe(150);
+      expect(result.metadata.tokenUsage.inputTokens).toBe(300);
+      expect(result.metadata.tokenUsage.outputTokens).toBe(150);
     });
 
     it('should reflect modelOverride in metadata.model for both stages', async () => {
@@ -276,7 +276,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       const result = await evaluator.evaluate('Test text here', '5');
 
       // Verify internal data is included
-      expect(result._internal).toEqual(mockComplexityData);
+      expect(result.result).toEqual(mockComplexityData);
     });
   });
 });

@@ -5,7 +5,6 @@ import {
   type SentenceAnalysis,
   type SentenceFeatures,
   type ComplexityClassification,
-  type SentenceStructureInternal,
 } from '../schemas/sentence-structure.js';
 import { calculateReadabilityMetrics, addEngineeredFeatures, featuresToJSON } from '../features/index.js';
 import {
@@ -100,7 +99,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
   async evaluate(
     text: string,
     gradeLevel: string
-  ): Promise<EvaluationResult<TextComplexityLevel, SentenceStructureInternal>> {
+  ): Promise<EvaluationResult<ComplexityClassification>> {
     this.logger.info('Starting sentence structure evaluation', {
       evaluator: SentenceStructureEvaluator.metadata.id,
       operation: 'evaluate',
@@ -161,18 +160,15 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
       };
 
       const result = {
-        score: complexityResponse.data.answer,
-        reasoning: complexityResponse.data.reasoning,
+        evaluator: SentenceStructureEvaluator.metadata.id,
+        result: complexityResponse.data,
         metadata: {
           model: this.provider.label,
           processingTimeMs: latencyMs,
-          inputTokens: totalTokenUsage.input_tokens,
-          outputTokens: totalTokenUsage.output_tokens,
-        },
-        _internal: {
-          sentenceAnalysis: analysisResponse.data,
-          features,
-          complexity: complexityResponse.data,
+          tokenUsage: {
+            inputTokens: totalTokenUsage.input_tokens,
+            outputTokens: totalTokenUsage.output_tokens,
+          },
         },
       };
 
@@ -196,7 +192,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         evaluator: SentenceStructureEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
-        score: result.score,
+        score: complexityResponse.data.answer,
         processingTimeMs: latencyMs,
       });
 
@@ -346,7 +342,7 @@ export async function evaluateSentenceStructure(
   text: string,
   gradeLevel: string,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<TextComplexityLevel, SentenceStructureInternal>> {
+): Promise<EvaluationResult<ComplexityClassification>> {
   const evaluator = new SentenceStructureEvaluator(config);
   return evaluator.evaluate(text, gradeLevel);
 }

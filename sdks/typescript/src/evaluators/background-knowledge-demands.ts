@@ -2,7 +2,7 @@ import type { LLMProvider } from '../providers/index.js';
 import { BackgroundKnowledgeDemandsOutputSchema, type BackgroundKnowledgeDemandsInternal } from '../schemas/background-knowledge-demands.js';
 import { calculateFleschKincaidGrade } from '../features/index.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/background-knowledge-demands/index.js';
-import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
+import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
@@ -66,7 +66,7 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
   async evaluate(
     text: string,
     gradeLevel: string
-  ): Promise<EvaluationResult<TextComplexityLevel, BackgroundKnowledgeDemandsInternal>> {
+  ): Promise<EvaluationResult<BackgroundKnowledgeDemandsInternal>> {
     this.logger.info('Starting Background Knowledge Demands evaluation', {
       evaluator: BackgroundKnowledgeDemandsEvaluator.metadata.id,
       operation: 'evaluate',
@@ -109,15 +109,16 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
       };
 
       const result = {
-        score: response.data.complexity_score,
-        reasoning: response.data.reasoning,
+        evaluator: BackgroundKnowledgeDemandsEvaluator.metadata.id,
+        result: response.data,
         metadata: {
           model: this.provider.label,
           processingTimeMs: latencyMs,
-          inputTokens: totalTokenUsage.input_tokens,
-          outputTokens: totalTokenUsage.output_tokens,
+          tokenUsage: {
+            inputTokens: totalTokenUsage.input_tokens,
+            outputTokens: totalTokenUsage.output_tokens,
+          },
         },
-        _internal: response.data,
       };
 
       // Send success telemetry (fire-and-forget)
@@ -140,7 +141,7 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
         evaluator: BackgroundKnowledgeDemandsEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
-        score: result.score,
+        score: response.data.complexity_score,
         processingTimeMs: latencyMs,
       });
 
@@ -225,7 +226,7 @@ export async function evaluateBackgroundKnowledgeDemands(
   text: string,
   gradeLevel: string,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<TextComplexityLevel, BackgroundKnowledgeDemandsInternal>> {
+): Promise<EvaluationResult<BackgroundKnowledgeDemandsInternal>> {
   const evaluator = new BackgroundKnowledgeDemandsEvaluator(config);
   return evaluator.evaluate(text, gradeLevel);
 }

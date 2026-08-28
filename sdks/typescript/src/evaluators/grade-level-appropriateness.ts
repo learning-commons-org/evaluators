@@ -4,7 +4,7 @@ import {
   type GradeLevelAppropriatenessInternal,
 } from '../schemas/grade-level-appropriateness.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/grade-level-appropriateness/index.js';
-import type { EvaluationResult, GradeBand } from '../schemas/index.js';
+import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
 import CONFIG from '../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/config.json';
@@ -68,7 +68,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(text: string): Promise<EvaluationResult<GradeBand, GradeLevelAppropriatenessInternal>> {
+  async evaluate(text: string): Promise<EvaluationResult<GradeLevelAppropriatenessInternal>> {
     this.logger.info('Starting grade level appropriateness evaluation', {
       evaluator: GradeLevelAppropriatenessEvaluator.metadata.id,
       operation: 'evaluate',
@@ -105,15 +105,16 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
       const result = {
         // `grade` is the model's output field, declared in the eval's schema —
         // not the SDK's parameter name.
-        score: response.data.grade,
-        reasoning: response.data.reasoning,
+        evaluator: GradeLevelAppropriatenessEvaluator.metadata.id,
+        result: response.data,
         metadata: {
           model: this.provider.label,
           processingTimeMs: latencyMs,
-          inputTokens: tokenUsage.input_tokens,
-          outputTokens: tokenUsage.output_tokens,
+          tokenUsage: {
+            inputTokens: tokenUsage.input_tokens,
+            outputTokens: tokenUsage.output_tokens,
+          },
         },
-        _internal: response.data,
       };
 
       // Send success telemetry (fire-and-forget)
@@ -132,7 +133,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
       this.logger.info('Grade level appropriateness evaluation completed successfully', {
         evaluator: GradeLevelAppropriatenessEvaluator.metadata.id,
         operation: 'evaluate',
-        gradeLevel: result.score,
+        gradeLevel: response.data.grade,
         processingTimeMs: latencyMs,
       });
 
@@ -187,7 +188,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
 export async function evaluateGradeLevelAppropriateness(
   text: string,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<GradeBand, GradeLevelAppropriatenessInternal>> {
+): Promise<EvaluationResult<GradeLevelAppropriatenessInternal>> {
   const evaluator = new GradeLevelAppropriatenessEvaluator(config);
   return evaluator.evaluate(text);
 }

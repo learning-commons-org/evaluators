@@ -77,12 +77,6 @@ export type ComplexityClassification = z.infer<typeof ComplexityClassificationSc
 /**
  * Internal data structure for sentence structure evaluation
  */
-export interface SentenceStructureInternal {
-  sentenceAnalysis: SentenceAnalysis;
-  features: SentenceFeatures;
-  complexity: ComplexityClassification;
-}
-
 /**
  * Engineered features computed from sentence analysis
  * These are calculated in TypeScript, not requested from LLM

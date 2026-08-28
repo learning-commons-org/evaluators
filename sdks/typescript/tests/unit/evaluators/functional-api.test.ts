@@ -136,7 +136,7 @@ describe('functional API wrappers', () => {
   it('evaluateGradeLevelAppropriateness takes no gradeLevel', async () => {
     const result = await evaluateGradeLevelAppropriateness(TEXT, CONFIG);
 
-    expect(result.score).toBe('6-8');
+    expect(result.result.grade).toBe('6-8');
     expect(mockProvider.generateStructured).toHaveBeenCalledTimes(1);
   });
 

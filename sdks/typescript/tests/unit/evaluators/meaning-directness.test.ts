@@ -80,12 +80,12 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
 
     const result = await evaluator.evaluate(testText, testGrade);
 
-    expect(result.score).toBe('Very complex');
-    expect(result.reasoning).toContain('irony');
+    expect(result.result.complexity_score).toBe('Very complex');
+    expect(result.result.reasoning).toContain('irony');
     expect(result.metadata.model).toBe('google:gemini-3-flash-preview');
     expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
-    expect(result.metadata.inputTokens).toBe(250);
-    expect(result.metadata.outputTokens).toBe(120);
+    expect(result.metadata.tokenUsage.inputTokens).toBe(250);
+    expect(result.metadata.tokenUsage.outputTokens).toBe(120);
 
     expect(mockProvider.generateStructured).toHaveBeenCalledTimes(1);
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0];
@@ -126,10 +126,10 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
 
     const result = await evaluator.evaluate('Clouds form when water evaporates and rises into the sky.', '5');
 
-    expect(result._internal).toEqual(mockData);
-    expect(result._internal?.conventionality_features).toEqual(['literal narrative', 'concrete actions']);
-    expect(result._internal?.grade_context).toBe('Text uses mostly literal, accessible language for Grade 5.');
-    expect(result._internal?.instructional_insights).toBe('No special scaffolding needed for conventionality.');
+    expect(result.result).toEqual(mockData);
+    expect(result.result.conventionality_features).toEqual(['literal narrative', 'concrete actions']);
+    expect(result.result.grade_context).toBe('Text uses mostly literal, accessible language for Grade 5.');
+    expect(result.result.instructional_insights).toBe('No special scaffolding needed for conventionality.');
   });
 
   it('should include fk_score in user prompt', async () => {

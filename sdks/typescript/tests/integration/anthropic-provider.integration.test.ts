@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Provider, type BaseEvaluatorConfig } from '../../src/evaluators/base.js';
 import type { EvaluationResult } from '../../src/schemas/index.js';
+import { readOutcome } from '../../src/schemas/index.js';
 import { GradeLevelAppropriatenessEvaluator } from '../../src/evaluators/grade-level-appropriateness.js';
 import { MeaningDirectnessEvaluator } from '../../src/evaluators/meaning-directness.js';
 import { BackgroundKnowledgeDemandsEvaluator } from '../../src/evaluators/background-knowledge-demands.js';
@@ -46,31 +47,35 @@ function anthropicConfig(): BaseEvaluatorConfig {
 
 /** Per-entry `run` so each evaluator is called with its real arity — GLA takes only `text`. */
 const EVALUATORS: Array<{
-  name: string;
-  run: (config: BaseEvaluatorConfig) => Promise<EvaluationResult<string, unknown>>;
+  metadata: { id: string; name: string };
+  run: (config: BaseEvaluatorConfig) => Promise<EvaluationResult<unknown>>;
 }> = [
   {
-    name: 'GradeLevelAppropriateness',
+    metadata: GradeLevelAppropriatenessEvaluator.metadata,
     run: (c) => new GradeLevelAppropriatenessEvaluator(c).evaluate(SAMPLE_TEXT),
   },
-  { name: 'Meaning Directness', run: (c) => new MeaningDirectnessEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { name: 'Background Knowledge Demands', run: (c) => new BackgroundKnowledgeDemandsEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { name: 'SentenceStructure', run: (c) => new SentenceStructureEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { name: 'Purpose', run: (c) => new PurposeClarityEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { name: 'Vocabulary', run: (c) => new VocabularyComplexityEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
+  { metadata: MeaningDirectnessEvaluator.metadata, run: (c) => new MeaningDirectnessEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
+  { metadata: BackgroundKnowledgeDemandsEvaluator.metadata, run: (c) => new BackgroundKnowledgeDemandsEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
+  { metadata: SentenceStructureEvaluator.metadata, run: (c) => new SentenceStructureEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
+  { metadata: PurposeClarityEvaluator.metadata, run: (c) => new PurposeClarityEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
+  { metadata: VocabularyComplexityEvaluator.metadata, run: (c) => new VocabularyComplexityEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
 ];
 
 describeIntegration('Anthropic provider — all text-complexity evaluators (live API)', () => {
-  for (const { name, run } of EVALUATORS) {
+  for (const { metadata, run } of EVALUATORS) {
     it(
-      `${name} completes on Anthropic and returns a structured result`,
+      `${metadata.name} completes on Anthropic and returns a structured result`,
       async () => {
         const result = await run(anthropicConfig());
 
-        expect(result.score).toBeDefined();
-        expect(typeof result.score).toBe('string');
-        expect((result.score as string).length).toBeGreaterThan(0);
-        expect(typeof result.reasoning).toBe('string');
+        // readOutcome is the only generic way to reach a verdict now that the
+        // envelope carries the payload as its contract declares it. Asserting
+        // through it here covers every evaluator's payload shape at once.
+        const outcome = readOutcome(result.evaluator, result.result);
+
+        expect(outcome.score.length).toBeGreaterThan(0);
+        expect(outcome.reasoning.length).toBeGreaterThan(0);
+        expect(result.evaluator).toBe(metadata.id);
         expect(result.metadata.model).toContain('anthropic');
         expect(result.metadata.model).toContain(ANTHROPIC_MODEL);
       },

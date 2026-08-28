@@ -2,6 +2,7 @@ export {
   TextComplexityLevel,
   type EvaluationResult,
   type EvaluationMetadata,
+  type EvaluationTokenUsage,
   type EvaluationFailure,
 } from './outputs.js';
 
@@ -15,3 +16,5 @@ export {
   PurposeClarityOutputSchema,
   type PurposeClarityInternal,
 } from './purpose-clarity.js';
+
+export { readOutcome, type Outcome } from './outcome.js';

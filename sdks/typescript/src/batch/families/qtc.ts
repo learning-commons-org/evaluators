@@ -11,6 +11,7 @@ import {
 import type { BaseEvaluatorConfig, ModelOverride } from '../../evaluators/base.js';
 import { Provider } from '../../evaluators/base.js';
 import type { EvaluationResult } from '../../schemas/index.js';
+import { readOutcome } from '../../schemas/outcome.js';
 import {
   type ColumnSpec,
   type EvaluatorFamily,
@@ -23,7 +24,7 @@ import {
 } from './family.js';
 
 interface SimpleEvaluator {
-  evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<string, unknown>>;
+  evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<unknown>>;
 }
 type EvaluatorConstructor = new (config: BaseEvaluatorConfig) => SimpleEvaluator;
 
@@ -98,7 +99,7 @@ class QtcRunner implements FamilyRunner {
 
   async runTask(row: FamilyRow, memberId: string): Promise<TaskOutcome> {
     const result = await this.getEvaluator(memberId).evaluate(row.columns.text, row.columns['grade_level']);
-    return { score: result.score, reasoning: result.reasoning };
+    return readOutcome(result.evaluator, result.result);
   }
 }
 
