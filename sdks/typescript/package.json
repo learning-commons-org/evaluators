@@ -28,9 +28,9 @@
     "src/batch/README.md"
   ],
   "scripts": {
-    "generate:schemas": "tsx scripts/generate-schema.ts ../../evals/prompts/purpose/config.json ../../evals/literacy/qualitative-text-complexity/intertextuality/config.json ../../evals/literacy/qualitative-text-complexity/organizational-structure/config.json",
+    "//generate:schemas": "Disabled: the output filename derives from evaluator.id, which the taxonomy rename changes, so this would emit purpose_clarity.ts alongside the committed purpose.ts. Re-enable when the generator is expanded to cover every config-contract evaluator. tsx scripts/generate-schema.ts ../../evals/student-facing-text/ela-reading/purpose-clarity/config.json",
+    "//generate:schemas:check": "Disabled with generate:schemas above. tsx scripts/generate-schema.ts --check ../../evals/student-facing-text/ela-reading/purpose-clarity/config.json",
     "generate:kg-types": "openapi-typescript https://docs.learningcommons.org/api-reference/knowledge-graph-api/openapi.yaml -o src/knowledge-graph/kg-api.d.ts",
-    "generate:schemas:check": "tsx scripts/generate-schema.ts --check ../../evals/prompts/purpose/config.json ../../evals/literacy/qualitative-text-complexity/intertextuality/config.json ../../evals/literacy/qualitative-text-complexity/organizational-structure/config.json",
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",

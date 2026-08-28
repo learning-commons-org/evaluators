@@ -77,7 +77,7 @@ type NormalizedTelemetryOptions = Required<Pick<TelemetryOptions, 'enabled' | 'r
  *   deliberately uses three models (Gemini 2.5 Pro for grade levels 3-4, GPT-4.1 for
  *   5-12, GPT-4o for background knowledge); an override collapses all three.
  * - `PurposeEvaluator` takes its model from the shared cross-language eval config
- *   (`evals/prompts/purpose/config.json`), so overriding it diverges from that
+ *   (`evals/student-facing-text/ela-reading/purpose-clarity/config.json`), so overriding it diverges from that
  *   rather than from a hardcoded default.
  */
 export interface ModelOverride {

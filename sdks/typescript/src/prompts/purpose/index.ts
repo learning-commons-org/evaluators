@@ -1,6 +1,6 @@
-import SYSTEM_PROMPT from '../../../../../evals/prompts/purpose/system.txt';
-import USER_PROMPT_TEMPLATE from '../../../../../evals/prompts/purpose/user.txt';
-import CONFIG from '../../../../../evals/prompts/purpose/config.json';
+import SYSTEM_PROMPT from '../../../../../evals/student-facing-text/ela-reading/purpose-clarity/system.txt';
+import USER_PROMPT_TEMPLATE from '../../../../../evals/student-facing-text/ela-reading/purpose-clarity/user.txt';
+import CONFIG from '../../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';
 
 const STEP_ID = `evaluate_${CONFIG.evaluator.id.split('.').pop()}`;
 const _step = CONFIG.steps.find(s => s.id === STEP_ID);

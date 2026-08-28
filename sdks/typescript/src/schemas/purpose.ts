@@ -1,5 +1,5 @@
 // GENERATED — do not edit directly.
-// Source: ../../evals/prompts/purpose/output_schema.json
+// Source: ../../evals/student-facing-text/ela-reading/purpose-clarity/output_schema.json
 // Regenerate: npm run generate:schemas
 
 import { z } from 'zod';

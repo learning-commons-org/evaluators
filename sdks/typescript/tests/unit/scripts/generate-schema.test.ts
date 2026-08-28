@@ -6,7 +6,7 @@ import { resolveRefs, toPascalCase, generateSchemaFile } from '../../../scripts/
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SDK_ROOT = resolve(__dirname, '../../..');
-const PURPOSE_CONFIG = resolve(__dirname, '../../../../../evals/prompts/purpose/config.json');
+const PURPOSE_CONFIG = resolve(__dirname, '../../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json');
 const SCRIPT_PATH = resolve(SDK_ROOT, 'scripts/generate-schema.ts');
 const TSX_BIN = resolve(SDK_ROOT, 'node_modules/.bin/tsx');
 
@@ -82,12 +82,12 @@ describe('toPascalCase', () => {
 describe('generateSchemaFile', () => {
   it('derives slug as the last dot-segment of evaluator.id', () => {
     const { slug } = generateSchemaFile(PURPOSE_CONFIG);
-    expect(slug).toBe('purpose');
+    expect(slug).toBe('purpose_clarity');
   });
 
-  it('writes output to src/schemas/purpose.ts', () => {
+  it('writes output to src/schemas/purpose_clarity.ts', () => {
     const { outPath } = generateSchemaFile(PURPOSE_CONFIG);
-    expect(outPath).toMatch(/src\/schemas\/purpose\.ts$/);
+    expect(outPath).toMatch(/src\/schemas\/purpose_clarity\.ts$/);
   });
 
   it('includes the GENERATED header', () => {
@@ -97,10 +97,10 @@ describe('generateSchemaFile', () => {
     expect(content).toContain('npm run generate:schemas');
   });
 
-  it('exports PurposeOutputSchema and PurposeInternal', () => {
+  it('exports PurposeClarityOutputSchema and PurposeClarityInternal', () => {
     const { content } = generateSchemaFile(PURPOSE_CONFIG);
-    expect(content).toContain('export const PurposeOutputSchema');
-    expect(content).toContain('export type PurposeInternal');
+    expect(content).toContain('export const PurposeClarityOutputSchema');
+    expect(content).toContain('export type PurposeClarityInternal');
     expect(content).not.toContain('export type PurposeComplexityLevel');
   });
 
@@ -151,12 +151,16 @@ describe('main() CLI', () => {
     expect(result.stderr).toContain('Usage');
   });
 
-  it('--check exits 0 and prints ✓ when schema is up to date', () => {
+  // Purpose Clarity's evaluator.id was renamed (purpose -> purpose_clarity), so the
+  // slug this script derives no longer matches the hand-maintained src/schemas/purpose.ts
+  // file -- that rename is a public-API-breaking change deferred to a separate SDK PR.
+  // Until it lands, --check honestly reports this config as out of sync.
+  it('--check exits 1 when the derived schema file has not been (re)generated', () => {
     const result = spawnSync(TSX_BIN, [SCRIPT_PATH, '--check', PURPOSE_CONFIG], {
       encoding: 'utf-8',
     });
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain('✓  purpose: up to date');
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('purpose_clarity');
   });
 
   it('--check exits 1 when schema file does not exist', () => {
