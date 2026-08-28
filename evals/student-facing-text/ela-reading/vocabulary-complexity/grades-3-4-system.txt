@@ -24,7 +24,7 @@ Use the Flesch-Kincaid (FK) Grade Level as light guidance of the approximate gra
 *   grade 4-5: 4.51-7.73
 *   grade 6-8: 6.51-10.34
 *   grade 9-10: 8.32-12.12
-*   grade 11-College: 10.34-14.2
+*   grade 11-12: 10.34-14.2
 
 **Guidelines for Interpretation and Reasoning**
 

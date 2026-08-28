@@ -1,11 +1,11 @@
 
 Below is the text you need to evaluate. Let's think step by step in order to predict the output of the vocabulary complexity task.
 
-- It is intended for grade {student_grade_level}.
+- It is intended for grade {grade_level}.
 
 - You can assume the student has the following background knowledge about the text — this background knowledge influences which words from the text are familiar versus unfamiliar for the student: {student_background_knowledge}
 
-- Text Flesch-Kincaid grade level: {fk_level}
+- Text Flesch-Kincaid grade level: {fk_score}
 
 - Text to evaluate: [BEGIN TEXT]
 {text}

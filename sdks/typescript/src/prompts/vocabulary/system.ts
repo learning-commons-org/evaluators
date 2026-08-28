@@ -1,5 +1,5 @@
-import SYSTEM_PROMPT_GRADES_3_4 from '../../../../../evals/prompts/vocabulary/grades-3-4-system.txt';
-import SYSTEM_PROMPT_OTHER_GRADES from '../../../../../evals/prompts/vocabulary/other-grades-system.txt';
+import SYSTEM_PROMPT_GRADES_3_4 from '../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/grades-3-4-system.txt';
+import SYSTEM_PROMPT_OTHER_GRADES from '../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/other-grades-system.txt';
 
 /**
  * Get the appropriate system prompt based on grade level
