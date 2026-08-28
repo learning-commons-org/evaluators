@@ -84,7 +84,7 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
 
       this.logger.debug('Evaluating conventionality complexity', {
         evaluator: MeaningDirectnessEvaluator.metadata.id,
-        operation: 'conventionality_evaluation',
+        operation: 'meaning_directness_evaluation',
       });
 
       const fkScore = calculateFleschKincaidGrade(text);

@@ -65,7 +65,7 @@ describe('TextComplexityEvaluator', () => {
           openaiApiKey: 'test-openai-key',
           telemetry: false,
         });
-      }).toThrow(`Google API key is required for ${TextComplexityEvaluator.metadata.name}.`);
+      }).toThrow(`Google API key is required for ${TextComplexityEvaluator.metadata.name}. Pass googleApiKey in config.`);
     });
 
     it('should throw error when OpenAI API key is missing', () => {
@@ -80,7 +80,7 @@ describe('TextComplexityEvaluator', () => {
           googleApiKey: 'test-google-key',
           telemetry: false,
         });
-      }).toThrow(`OpenAI API key is required for ${TextComplexityEvaluator.metadata.name}.`);
+      }).toThrow(`OpenAI API key is required for ${TextComplexityEvaluator.metadata.name}. Pass openaiApiKey in config.`);
     });
 
     it('should throw error when both API keys are missing', () => {

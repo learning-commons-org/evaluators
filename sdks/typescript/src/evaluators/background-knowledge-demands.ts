@@ -84,7 +84,7 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
 
       this.logger.debug('Evaluating subject matter knowledge complexity', {
         evaluator: BackgroundKnowledgeDemandsEvaluator.metadata.id,
-        operation: 'smk_evaluation',
+        operation: 'background_knowledge_demands_evaluation',
       });
 
       const fkScore = calculateFleschKincaidGrade(text);
