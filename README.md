@@ -3,186 +3,72 @@
 <img style="width:100%" alt="Evaluators project banner logo" src="https://raw.githubusercontent.com/learning-commons-org/.github/refs/heads/main/assets/evals_hero_2.jpg" />
 
 <p align="center">
-  <a href="https://platform.learningcommons.org/apps/evaluators/playground" target="_blank">Try it in the Playground </a>
+  <a href="https://platform.learningcommons.org/apps/evaluators/playground" target="_blank">Demo</a>
    •
-  <a href="https://docs.learningcommons.org/evaluators/getting-started/quickstart" target="_blank">Quickstart</a>
+  <a href="https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction" target="_blank">Introduction</a>
   •
-  <a href="https://docs.learningcommons.org/evaluators/understanding-evaluators/core-concepts" target="_blank">Core concepts</a>
+  <a href="https://docs.learningcommons.org/evaluators/getting-started/quickstart" target="_blank">Quickstart</a>
 </p>
 
-Evaluators help you to measure the attributes of LLM-generated text through the lens of learning science.
+Evaluators help you to measure the attributes of LLM-generated text through the lens of learning science:
 
-We build learning-science-backed systems that follow LLM-as-a-judge methodology and can be directly integrated to your product or evaluation stack.
+- **Optimize features**: Sharpen AI-generated content so it aligns with pedagogy and your goals.
+- **Maintain performance**: Use evaluators as product analytics to confirm LLM output stays on target.
+- **Select models**: Compare candidate models by testing their output against the evaluators.
 
-Use cases include:
+## Available evaluators
 
-- **Feature optimization**: Use fine-grained literacy evaluation to sharpen and consistently deliver a feature’s AI-generated content so it aligns with pedagogy and your goals.
-- **Maintaining performance**: Ensure content is generated as expected by using the evaluators as product analytics for your LLM output.
-- **Model selection**: Make a confident decision about which model is right for your product by testing the output of models you’re considering.
-
-Evaluators and the supporting datasets are built in collaboration with leading literacy experts from Student Achievement Partners and the Achievement Network.
+| Evaluator family                                                                                               | Evaluator                                                                                                                               | Schemas                                                                                                                                                                                                      | Python notebook                                                                                              | Prompts                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| :------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Student-Facing Text](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/introduction) | [Grade Level Appropriateness](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/grade-level-appropriateness)   | [Input](./evals/student-facing-text/ela-reading/grade-level-appropriateness/input_schema.json), [output](./evals/student-facing-text/ela-reading/grade-level-appropriateness/output_schema.json)             | [Notebook](./evals/student-facing-text/ela-reading/grade-level-appropriateness/example_notebook.ipynb)       | [system](./evals/student-facing-text/ela-reading/grade-level-appropriateness/system.txt), [user](./evals/student-facing-text/ela-reading/grade-level-appropriateness/user.txt)                                                                                                                                                                                                                                                         |
+|                                                                                                                | [Background Knowledge Demands](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/background-knowledge-demands) | [Input](./evals/student-facing-text/ela-reading/background-knowledge-demands/input_schema.json), [output](./evals/student-facing-text/ela-reading/background-knowledge-demands/output_schema.json)           | [Notebook](./evals/student-facing-text/ela-reading/background-knowledge-demands/example_notebook.ipynb)      | [system](./evals/student-facing-text/ela-reading/background-knowledge-demands/system.txt), [user](./evals/student-facing-text/ela-reading/background-knowledge-demands/user.txt)                                                                                                                                                                                                                                                       |
+|                                                                                                                | [Vocabulary Complexity](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/vocabulary-complexity)               | [Input](./evals/student-facing-text/ela-reading/vocabulary-complexity/input_schema.json), [output](./evals/student-facing-text/ela-reading/vocabulary-complexity/output_schema.json)                         | [Notebook](./evals/student-facing-text/ela-reading/vocabulary-complexity/example_notebook.ipynb)             | [grades 3–4 system](./evals/student-facing-text/ela-reading/vocabulary-complexity/grades-3-4-system.txt), [grades 3–4 user](./evals/student-facing-text/ela-reading/vocabulary-complexity/grades-3-4-user.txt), [other grades system](./evals/student-facing-text/ela-reading/vocabulary-complexity/other-grades-system.txt), [other grades user](./evals/student-facing-text/ela-reading/vocabulary-complexity/other-grades-user.txt) |
+|                                                                                                                | [Sentence Structure](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/sentence-structure)                     | [Input](./evals/student-facing-text/ela-reading/sentence-structure/input_schema.json), [output](./evals/student-facing-text/ela-reading/sentence-structure/output_schema.json)                               | [Notebook](./evals/student-facing-text/ela-reading/sentence-structure/example_notebook.ipynb)                | [analysis system](./evals/student-facing-text/ela-reading/sentence-structure/analysis-system.txt), [analysis user](./evals/student-facing-text/ela-reading/sentence-structure/analysis-user.txt), [complexity system](./evals/student-facing-text/ela-reading/sentence-structure/complexity-system.txt), [complexity user](./evals/student-facing-text/ela-reading/sentence-structure/complexity-user.txt)                             |
+|                                                                                                                | [Meaning Directness](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/meaning-directness)                     | [Input](./evals/student-facing-text/ela-reading/meaning-directness/input_schema.json), [output](./evals/student-facing-text/ela-reading/meaning-directness/output_schema.json)                               | [Notebook](./evals/student-facing-text/ela-reading/meaning-directness/example_notebook.ipynb)                | [system](./evals/student-facing-text/ela-reading/meaning-directness/system.txt), [user](./evals/student-facing-text/ela-reading/meaning-directness/user.txt)                                                                                                                                                                                                                                                                           |
+|                                                                                                                | [Purpose Clarity](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/purpose-clarity)                           | [Input](./evals/student-facing-text/ela-reading/purpose-clarity/input_schema.json), [output](./evals/student-facing-text/ela-reading/purpose-clarity/output_schema.json)                                     | [Notebook](./evals/student-facing-text/ela-reading/purpose-clarity/example_notebook.ipynb)                   | [system](./evals/student-facing-text/ela-reading/purpose-clarity/system.txt), [user](./evals/student-facing-text/ela-reading/purpose-clarity/user.txt)                                                                                                                                                                                                                                                                                 |
+|                                                                                                                | [Organizational Structure](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/organizational-structure)         | [Input](./evals/student-facing-text/ela-reading/organizational-structure/input_schema.json), [output](./evals/student-facing-text/ela-reading/organizational-structure/output_schema.json)                   | [Notebook](./evals/student-facing-text/ela-reading/organizational-structure/example_notebook.ipynb)          | [system](./evals/student-facing-text/ela-reading/organizational-structure/system.txt), [user](./evals/student-facing-text/ela-reading/organizational-structure/user.txt)                                                                                                                                                                                                                                                               |
+|                                                                                                                | [Reference Knowledge Demands](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/reference-knowledge-demands)   | [Input](./evals/student-facing-text/ela-reading/reference-knowledge-demands/input_schema.json), [output](./evals/student-facing-text/ela-reading/reference-knowledge-demands/output_schema.json)             | [Notebook](./evals/student-facing-text/ela-reading/reference-knowledge-demands/example_notebook.ipynb)       | [system](./evals/student-facing-text/ela-reading/reference-knowledge-demands/system.txt), [user](./evals/student-facing-text/ela-reading/reference-knowledge-demands/user.txt)                                                                                                                                                                                                                                                         |
+| [Feedback](https://docs.learningcommons.org/evaluators/feedback-evaluators/introduction)                       | [Strength Acknowledgement](https://docs.learningcommons.org/evaluators/feedback-evaluators/strength-acknowledgement)                    | [Input](./evals/feedback/ela-writing/strength-acknowledgment/input_schema.json), [output](./evals/feedback/ela-writing/strength-acknowledgment/output_schema.json)                                           | [Notebook](./evals/feedback/ela-writing/strength-acknowledgment/example_notebook.ipynb)                      | [system](./evals/feedback/ela-writing/strength-acknowledgment/system.txt), [user](./evals/feedback/ela-writing/strength-acknowledgment/user.txt)                                                                                                                                                                                                                                                                                       |
+|                                                                                                                | [Revision Actionability](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-actionability)                        | [Input](./evals/feedback/ela-writing/revision-actionability/input_schema.json), [output](./evals/feedback/ela-writing/revision-actionability/output_schema.json)                                             | [Notebook](./evals/feedback/ela-writing/revision-actionability/example_notebook.ipynb)                       | [system](./evals/feedback/ela-writing/revision-actionability/system.txt), [user](./evals/feedback/ela-writing/revision-actionability/user.txt)                                                                                                                                                                                                                                                                                         |
+|                                                                                                                | [Student Response Specificity](https://docs.learningcommons.org/evaluators/feedback-evaluators/student-response-specificity)            | [Input](./evals/feedback/ela-writing/student-response-specificity/input_schema.json), [output](./evals/feedback/ela-writing/student-response-specificity/output_schema.json)                                 | [Notebook](./evals/feedback/ela-writing/student-response-specificity/example_notebook.ipynb)                 | [system](./evals/feedback/ela-writing/student-response-specificity/system.txt), [user](./evals/feedback/ela-writing/student-response-specificity/user.txt)                                                                                                                                                                                                                                                                             |
+|                                                                                                                | [Revision Accuracy](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-accuracy)                                  | [Input](./evals/feedback/ela-writing/revision-accuracy/input_schema.json), [output](./evals/feedback/ela-writing/revision-accuracy/output_schema.json)                                                       | [Notebook](./evals/feedback/ela-writing/revision-accuracy/example_notebook.ipynb)                            | [system](./evals/feedback/ela-writing/revision-accuracy/system.txt), [user](./evals/feedback/ela-writing/revision-accuracy/user.txt)                                                                                                                                                                                                                                                                                                   |
+|                                                                                                                | [Revision Manageability](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-manageability)                        | [Input](./evals/feedback/ela-writing/revision-manageability/input_schema.json), [output](./evals/feedback/ela-writing/revision-manageability/output_schema.json)                                             | [Notebook](./evals/feedback/ela-writing/revision-manageability/example_notebook.ipynb)                       | [system](./evals/feedback/ela-writing/revision-manageability/system.txt), [user](./evals/feedback/ela-writing/revision-manageability/user.txt)                                                                                                                                                                                                                                                                                         |
+|                                                                                                                | [Withholding Answers](https://docs.learningcommons.org/evaluators/feedback-evaluators/withholding-answers)                              | [Input](./evals/feedback/ela-writing/withholding-answers/input_schema.json), [output](./evals/feedback/ela-writing/withholding-answers/output_schema.json)                                                   | [Notebook](./evals/feedback/ela-writing/withholding-answers/example_notebook.ipynb)                          | [system](./evals/feedback/ela-writing/withholding-answers/system.txt), [user](./evals/feedback/ela-writing/withholding-answers/user.txt)                                                                                                                                                                                                                                                                                               |
+|                                                                                                                | [Tone Appropriateness](https://docs.learningcommons.org/evaluators/feedback-evaluators/tone-appropriateness)                            | [Input](./evals/feedback/ela-writing/tone-appropriateness/input_schema.json), [output](./evals/feedback/ela-writing/tone-appropriateness/output_schema.json)                                                 | [Notebook](./evals/feedback/ela-writing/tone-appropriateness/example_notebook.ipynb)                         | [system](./evals/feedback/ela-writing/tone-appropriateness/system.txt), [user](./evals/feedback/ela-writing/tone-appropriateness/user.txt)                                                                                                                                                                                                                                                                                             |
+| [Academic Standards](https://docs.learningcommons.org/evaluators/academic-standards-evaluators/introduction)   | [Math Standards Alignment](https://docs.learningcommons.org/evaluators/academic-standards-evaluators/math-standards-alignment)          | [Input](./evals/academic-standards-alignment/mathematics/math-standards-alignment/input_schema.json), [output](./evals/academic-standards-alignment/mathematics/math-standards-alignment/output_schema.json) | [Notebook](./evals/academic-standards-alignment/mathematics/math-standards-alignment/example_notebook.ipynb) | [system](./evals/academic-standards-alignment/mathematics/math-standards-alignment/system.txt), [user](./evals/academic-standards-alignment/mathematics/math-standards-alignment/user.txt)                                                                                                                                                                                                                                             |
 
 ## Repository contents
 
-| Path                      | Description                                                      |
-| :------------------------ | :--------------------------------------------------------------- |
-| [`evals`](./evals/)       | Evaluators code and prompts                                      |
-| [`datasets`](./datasets/) | Expert annotated datasets used to create and validate evaluators |
-| [`scripts`](./scripts/)   | Repo check harness — run `python3 scripts/check.py --fix` before committing (see [scripts/README](./scripts/README.md)) |
-| [`LICENSE`](./LICENSE.md) | Open source license details                                      |
-
-Check out the [Evaluators docs](https://docs.learningcommons.org/evaluators) for complete setup instructions and usage examples.
-
-## Try the evaluators
-
-You can test the evaluators with your own text in the [Evaluators Playground](https://platform.learningcommons.org/apps/evaluators/playground) on the Learning Commons Platform.
+| Path                      | Description                                                                                                                                                                                                                                        |
+| :------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`evals`](./evals/)       | Evaluator prompts, schemas, fixtures, and Python notebooks, grouped by evaluator family: [student-facing text](./evals/student-facing-text/), [feedback](./evals/feedback/), [academic standards alignment](./evals/academic-standards-alignment/) |
+| [`sdks`](./sdks/)         | Python ([`learning-commons-evaluators`](./sdks/python/)) and TypeScript ([`@learning-commons/evaluators`](./sdks/typescript/)) SDKs                                                                                                                |
+| [`demos`](./demos/)       | Sample apps that demonstrate the published SDKs                                                                                                                                                                                                    |
+| [`datasets`](./datasets/) | Expert-annotated datasets used to create and validate evaluators                                                                                                                                                                                   |
+| [`scripts`](./scripts/)   | Repo check harness — run `python3 scripts/check.py --fix` before committing (see [scripts/README](./scripts/README.md))                                                                                                                            |
+| [`LICENSE`](./LICENSE.md) | Open source license details                                                                                                                                                                                                                        |
 
 ## Quickstart
 
-To use the evaluators, clone the repository and follow the instructions below.
+| Access method                                                                                              | When to use                                         | How to use                                                                                                                                                                                                                                                                                                                       |
+| :--------------------------------------------------------------------------------------------------------- | :-------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Evaluators playground](https://platform.learningcommons.org/apps/evaluators/playground)                   | For a quick demo of how evaluators work             | 1. Open the [Evaluators playground](https://platform.learningcommons.org/apps/evaluators/playground)<br>2. Choose an evaluator family and provide your inputs<br>3. Click **Evaluate**, then expand each result for its score and reasoning                                                                                      |
+| [SDK](https://docs.learningcommons.org/evaluators/getting-started/quickstart#sdk)                          | To integrate into your TypeScript or Python project | 1. Install: `npm install @learning-commons/evaluators` or `pip install learning-commons-evaluators`<br>2. Import an evaluator, pass your API key, and call `evaluate` / `evaluate_sync`<br>3. See the [TypeScript](./sdks/typescript/) and [Python](./sdks/python/) SDK READMEs for details                                      |
+| [Python notebook](https://docs.learningcommons.org/evaluators/getting-started/quickstart#python-notebooks) | For quick prototyping                               | 1. Start Jupyter Lab: `jupyter lab` (opens at `http://localhost:8888`)<br>2. Browse into `evals/` and open the evaluator you want to try<br>3. Copy your text into the last code cell and run it<br><br>You can also use an IDE with Python and Jupyter support, such as VS Code with Microsoft's Python and Jupyter extensions. |
+| Run evaluators locally                                                                                     | To run evaluators locally                           | Clone this repository and follow the directions for your platform:<br>- [Setup on Mac/Linux](./docs/setup-mac-linux.md)<br>- [Setup on Windows](./docs/setup-windows.md)                                                                                                                                                         |
 
-If you’d like to download or access our evaluators and datasets directly, follow the links below.
+Browse evaluator definitions and datasets:
 
-- Evaluators literacy package
-  - [Prompts](./evals/prompts)
-  - [Notebooks](./evals)
-- Datasets
-  - [Learning Commons annotations of CLEAR for qualitative text complexity v1.0 2025-09-02.csv](https://aidt-evaluators-files-public-prod.s3.us-west-2.amazonaws.com/Learning+Commons+annotations+of+CLEAR+for+qualitative+text+complexity+v1.0+2025-09-02.csv)
-
-## Requirements
-
-We rely on the Python interpreter to power the evaluators. All examples and tutorials are provided as Python code snippets.
-
-## Setup on Mac/Linux
-
-You’ll need Python 3.10 or newer. To verify your version of Python, run the following code in the terminal:
-
-```shell
-python3 --version
-```
-
-### 1. Create a virtual environment
-
-Creating an isolated environment is a best practice that prevents conflicts between Python packages used in this project and others on your system.
-
-```shell
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-Remember to activate the virtual environment for each new shell session when working with Evaluators.
-
-### 2. Install dependencies
-
-The required packages are listed in the `requirements.txt` file.
-
-```shell
-pip install -r evals/requirements.txt
-```
-
-### 3. Set your API keys
-
-We are using **both** OpenAI and Google Gemini for different evaluators. You need API keys from both platforms:
-
-- OpenAI: [https://platform.openai.com/](https://platform.openai.com/)
-- Gemini: [https://aistudio.google.com/](https://aistudio.google.com/)
-
-Set the key(s) as environment variables in your shell session:
-
-```shell
-export OPENAI_API_KEY="sk-your-key-here"
-export GOOGLE_API_KEY="your-key-here"
-```
-
-</details>
-<details>
-<summary>Setup on Windows</summary>
-
-## Setup on Windows
-
-You’ll need Python 3.10 or newer. To verify your version of python, run the following code in the terminal:
-
-```shell
-python --version
-```
-
-### 1. Create a virtual environment
-
-Open a Command Prompt and run:
-
-```cmd
-python -m venv .venv
-.venv\Scripts\activate
-```
-
-Or in PowerShell:
-
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-```
-
-Remember to activate the virtual environment for each new shell session when working with Evaluators.
-
-### 2. Install dependencies
-
-```cmd
-pip install -r evals/requirements.txt
-```
-
-### 3. Set your API keys
-
-Get your API keys from:
-
-- OpenAI: [https://platform.openai.com/](https://platform.openai.com/)
-- Gemini: [https://aistudio.google.com/](https://aistudio.google.com/)
-
-Set the key(s) as environment variables:
-
-In Command Prompt:
-
-```cmd
-set OPENAI_API_KEY=sk-your-key-here
-set GOOGLE_API_KEY=your-key-here
-```
-
-In PowerShell:
-
-```powershell
-$env:OPENAI_API_KEY="sk-your-key-here"
-$env:GOOGLE_API_KEY="your-key-here"
-```
-
-</details>
-
-## Run the Evaluators' code
-
-You are now ready to run the evaluator examples. We recommend using a Jupyter Notebook for interactive exploration.
-
-1. **Start Jupyter Notebooks Lab:**
-
-```shell
-jupyter lab
-```
-
-Jupyter will open in your web browser (usually at `http://localhost:8888`).
-
-2. Browse into the `evals` folder, then double click on the evaluator you want to try.
-3. You can now copy the text you want to evaluate into the last code cell of the notebook to run an evaluator on your text sample.
-
-If you prefer using an IDE with Python and Jupyter notebook support, such as VSCode with Microsoft's Python and Jupyter extensions, please refer to Microsoft's instructions for their installation and configuration.
+- Evaluator prompts, schemas, and notebooks — [`evals`](./evals/)
+- Expert-annotated datasets — [`datasets`](./datasets/), including the [Student-Facing Text annotations of CLEAR](https://aidt-evaluators-files-public-prod.s3.us-west-2.amazonaws.com/Learning+Commons+annotations+of+CLEAR+for+qualitative+text+complexity+v1.0+2025-09-02.csv)
 
 ## Support & feedback
 
-We want to hear from you. For questions or feedback, please [open an issue](https://github.com/learning-commons-org/evaluators/issues) or reach out to us at [support@learningcommons.org](mailto:support@learningcommons.org)
+For questions or feedback, [open an issue](https://github.com/learning-commons-org/evaluators/issues) or reach out to us at [support@learningcommons.org](mailto:support@learningcommons.org)
 
-## Stay up to date
+To stay up-to-date about the latest updates and releases, sign up for a <a href="https://platform.learningcommons.org" target="_blank">Learning Commons Platform account</a>.
 
-Sign up for a <a href="https://platform.learningcommons.org" target="_blank">Learning Commons account</a> to receive news about the latest Evaluators updates, and releases.
-
-## Reporting security issues
-
-If you believe you have found a security issue, please responsibly disclose by contacting us at [security@learningcommons.org](mailto:security@learningcommons.org).
+To report a security issue, please responsibly disclose by contacting us at [security@learningcommons.org](mailto:security@learningcommons.org).
 
 ## Disclaimer
 
