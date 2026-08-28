@@ -5,7 +5,7 @@ import { Provider } from '../../../src/batch/index.js';
 import { Jurisdiction } from '../../../src/knowledge-graph/index.js';
 import type { FamilyRow } from '../../../src/batch/families/family.js';
 
-const MEMBER = 'academic_standards_alignment.mathematics.math_alignment';
+const MEMBER = 'academic_standards_alignment.mathematics.math_standards_alignment';
 
 describe('STANDARDS_FAMILY.requiredKeys', () => {
   it('requires the Learning Commons key plus Anthropic by default', () => {

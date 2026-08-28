@@ -9,7 +9,7 @@ import {
 import { KnowledgeGraphClient, normalizeStatementCode, STANDARD_SEARCH_LIMIT } from './client.js';
 import { Jurisdiction, type AcademicStandard, type StandardInfo } from './types.js';
 
-/** From evals/academic-standards-alignment/Mathematics/math-alignment/input_schema.json. */
+/** From evals/academic-standards-alignment/mathematics/math-standards-alignment/input_schema.json. */
 const MAX_STATEMENT_CODE_LENGTH = 50;
 
 /** Rejects locally what the KG cannot usefully answer. Returns null when the code is plausible. */
