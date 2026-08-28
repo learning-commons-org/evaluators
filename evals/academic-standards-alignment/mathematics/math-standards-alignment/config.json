@@ -13,6 +13,20 @@
   },
   "preprocessing": [
     {
+      "id": "get_standards",
+      "type": "api",
+      "kind": "http_get",
+      "description": "Fetch each candidate standard's description, so the coarse filter judges relevance from wording rather than from codes alone. Called once per candidate code, and only on the many-to-many path -- a single evaluate() has one standard and no need to filter, so nothing here runs for it.",
+      "endpoint": "https://api.learningcommons.org/knowledge-graph/v0/academic-standards/search",
+      "params": {
+        "jurisdiction": "{jurisdiction}",
+        "statementCode": "{statementCode}"
+      },
+      "auth": "x-api-key",
+      "required_credentials": ["learning_commons_api_key"],
+      "output": "standards"
+    },
+    {
       "id": "get_standard_uuid",
       "type": "api",
       "kind": "http_get",
@@ -23,6 +37,7 @@
         "statementCode": "{statementCode}"
       },
       "auth": "x-api-key",
+      "required_credentials": ["learning_commons_api_key"],
       "output": "caseIdentifierUUID"
     },
     {
@@ -36,6 +51,7 @@
       },
       "pagination": "cursor",
       "auth": "x-api-key",
+      "required_credentials": ["learning_commons_api_key"],
       "output": "learningComponents"
     }
   ],
@@ -60,7 +76,7 @@
           },
           "standards": {
             "required": true,
-            "source": "preprocessing.get_standards",
+            "source": "preprocessing.standards",
             "note": "One `code: description` line per candidate standard"
           }
         }
@@ -95,7 +111,7 @@
         ],
         "placeholders": {
           "question": { "required": true, "source": "input" },
-          "learning_components": { "required": true, "source": "preprocessing.get_learning_components", "note": "Numbered list of LC descriptions with identifiers" }
+          "learning_components": { "required": true, "source": "preprocessing.learningComponents", "note": "Numbered list of LC descriptions with identifiers" }
         }
       },
       "model": {
