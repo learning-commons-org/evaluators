@@ -79,12 +79,12 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
 
     const result = await evaluator.evaluate(testText, testGrade);
 
-    expect(result.score).toBe('Very complex');
-    expect(result.reasoning).toContain('hydraulic systems');
+    expect(result.result.complexity_score).toBe('Very complex');
+    expect(result.result.reasoning).toContain('hydraulic systems');
     expect(result.metadata.model).toBe('google:gemini-3-flash-preview');
     expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
-    expect(result.metadata.inputTokens).toBe(200);
-    expect(result.metadata.outputTokens).toBe(100);
+    expect(result.metadata.tokenUsage.inputTokens).toBe(200);
+    expect(result.metadata.tokenUsage.outputTokens).toBe(100);
 
     expect(mockProvider.generateStructured).toHaveBeenCalledTimes(1);
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0];
@@ -155,6 +155,6 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
 
     const result = await evaluator.evaluate('The mitochondria is the powerhouse of the cell.', '5');
 
-    expect(result._internal).toEqual(mockData);
+    expect(result.result).toEqual(mockData);
   });
 });

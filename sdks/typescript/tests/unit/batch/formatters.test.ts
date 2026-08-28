@@ -66,6 +66,35 @@ function extractReportData(html: string): any {
   return JSON.parse(json);
 }
 
+describe('complexity aggregates accept the contract score values', () => {
+  // Payloads carry the contract's own value (`slightly_complex`), so a report that
+  // only recognises the spaced form silently drops those rows from every average
+  // and from the heatmap -- no error, just missing data.
+  it('counts snake_case scores in the complexity averages', () => {
+    const html = formatAsHTML(
+      makeOutput([
+        makeResult({ rowIndex: 1, evaluatorId: 'purpose_clarity', score: 'slightly_complex' }),
+        makeResult({ rowIndex: 2, evaluatorId: 'purpose_clarity', score: 'very_complex' }),
+      ]),
+      makeMeta(),
+    );
+    const [stats] = extractReportData(html).complexityStats;
+
+    expect(stats.average).toBe(2);
+    expect(stats.label).not.toBe('N/A');
+  });
+
+  it('still counts the spaced form, which four evaluators emit until their schemas are generated', () => {
+    const html = formatAsHTML(
+      makeOutput([makeResult({ rowIndex: 1, evaluatorId: 'v', score: 'Very complex' })]),
+      makeMeta(),
+    );
+    const [stats] = extractReportData(html).complexityStats;
+
+    expect(stats.average).toBe(3);
+  });
+});
+
 // ============================================================
 // Evaluator id -> column and label derivation
 // ============================================================

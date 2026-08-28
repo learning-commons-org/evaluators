@@ -2,7 +2,7 @@ import type { LLMProvider } from '../providers/index.js';
 import { MeaningDirectnessOutputSchema, type MeaningDirectnessInternal } from '../schemas/meaning-directness.js';
 import { calculateFleschKincaidGrade } from '../features/index.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/meaning-directness/index.js';
-import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
+import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
@@ -66,7 +66,7 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
   async evaluate(
     text: string,
     gradeLevel: string
-  ): Promise<EvaluationResult<TextComplexityLevel, MeaningDirectnessInternal>> {
+  ): Promise<EvaluationResult<MeaningDirectnessInternal>> {
     this.logger.info('Starting Meaning Directness evaluation', {
       evaluator: MeaningDirectnessEvaluator.metadata.id,
       operation: 'evaluate',
@@ -109,15 +109,16 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
       };
 
       const result = {
-        score: response.data.complexity_score,
-        reasoning: response.data.reasoning,
+        evaluator: MeaningDirectnessEvaluator.metadata.id,
+        result: response.data,
         metadata: {
           model: this.provider.label,
           processingTimeMs: latencyMs,
-          inputTokens: totalTokenUsage.input_tokens,
-          outputTokens: totalTokenUsage.output_tokens,
+          tokenUsage: {
+            inputTokens: totalTokenUsage.input_tokens,
+            outputTokens: totalTokenUsage.output_tokens,
+          },
         },
-        _internal: response.data,
       };
 
       // Send success telemetry (fire-and-forget)
@@ -140,7 +141,7 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
         evaluator: MeaningDirectnessEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
-        score: result.score,
+        score: response.data.complexity_score,
         processingTimeMs: latencyMs,
       });
 
@@ -225,7 +226,7 @@ export async function evaluateMeaningDirectness(
   text: string,
   gradeLevel: string,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<TextComplexityLevel, MeaningDirectnessInternal>> {
+): Promise<EvaluationResult<MeaningDirectnessInternal>> {
   const evaluator = new MeaningDirectnessEvaluator(config);
   return evaluator.evaluate(text, gradeLevel);
 }

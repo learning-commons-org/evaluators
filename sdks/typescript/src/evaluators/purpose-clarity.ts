@@ -2,7 +2,7 @@ import type { LLMProvider } from '../providers/index.js';
 import { PurposeClarityOutputSchema, type PurposeClarityInternal } from '../schemas/purpose-clarity.js';
 import { runPreprocessingStep } from '../features/preprocessing.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/purpose-clarity/index.js';
-import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
+import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
@@ -19,17 +19,6 @@ const STEP = _step;
 // module level. The enum is the declared set, so it is used verbatim rather than
 // reconstructed from bounds; that admits gaps and non-numeric tokens such as "K".
 const SUPPORTED_GRADES: readonly string[] = INPUT_SCHEMA.properties.grade_level.enum;
-
-export type PurposeClarityComplexityLevel = TextComplexityLevel | 'More context needed';
-
-// Maps snake_case LLM output → SDK-standard sentence case score.
-const COMPLEXITY_SCORE_DISPLAY: Record<PurposeClarityInternal['complexity_score'], PurposeClarityComplexityLevel> = {
-  'slightly_complex': 'Slightly complex',
-  'moderately_complex': 'Moderately complex',
-  'very_complex': 'Very complex',
-  'exceedingly_complex': 'Exceedingly complex',
-  'more_context_needed': 'More context needed',
-};
 
 export class PurposeClarityEvaluator extends BaseEvaluator {
   static readonly metadata = {
@@ -71,7 +60,7 @@ export class PurposeClarityEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<PurposeClarityComplexityLevel, PurposeClarityInternal>> {
+  async evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<PurposeClarityInternal>> {
     this.logger.info('Starting Purpose Clarity evaluation', {
       evaluator: PurposeClarityEvaluator.metadata.id,
       operation: 'evaluate',
@@ -107,16 +96,17 @@ export class PurposeClarityEvaluator extends BaseEvaluator {
         token_usage: tokenUsage,
       });
 
-      const result: EvaluationResult<PurposeClarityComplexityLevel, PurposeClarityInternal> = {
-        score: COMPLEXITY_SCORE_DISPLAY[response.data.complexity_score],
-        reasoning: response.data.reasoning,
+      const result: EvaluationResult<PurposeClarityInternal> = {
+        evaluator: PurposeClarityEvaluator.metadata.id,
+        result: response.data,
         metadata: {
           model: this.provider.label,
           processingTimeMs: latencyMs,
-          inputTokens: tokenUsage.input_tokens,
-          outputTokens: tokenUsage.output_tokens,
+          tokenUsage: {
+            inputTokens: tokenUsage.input_tokens,
+            outputTokens: tokenUsage.output_tokens,
+          },
         },
-        _internal: response.data,
       };
 
       this.sendTelemetry({
@@ -134,7 +124,7 @@ export class PurposeClarityEvaluator extends BaseEvaluator {
         evaluator: PurposeClarityEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
-        score: result.score,
+        score: response.data.complexity_score,
         processingTimeMs: latencyMs,
       });
 
@@ -194,6 +184,6 @@ export async function evaluatePurposeClarity(
   text: string,
   gradeLevel: string,
   config: BaseEvaluatorConfig,
-): Promise<EvaluationResult<PurposeClarityComplexityLevel, PurposeClarityInternal>> {
+): Promise<EvaluationResult<PurposeClarityInternal>> {
   return new PurposeClarityEvaluator(config).evaluate(text, gradeLevel);
 }

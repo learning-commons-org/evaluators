@@ -10,7 +10,7 @@ import {
   getSystemPrompt,
   getUserPrompt,
 } from '../prompts/vocabulary-complexity/index.js';
-import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
+import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
@@ -91,7 +91,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
   async evaluate(
     text: string,
     gradeLevel: string
-  ): Promise<EvaluationResult<TextComplexityLevel, VocabularyComplexityInternal>> {
+  ): Promise<EvaluationResult<VocabularyComplexityInternal>> {
     this.logger.info('Starting Vocabulary Complexity evaluation', {
       evaluator: VocabularyComplexityEvaluator.metadata.id,
       operation: 'evaluate',
@@ -163,15 +163,16 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
       };
 
       const result = {
-        score: complexityResponse.data.complexity_score,
-        reasoning: complexityResponse.data.reasoning,
+        evaluator: VocabularyComplexityEvaluator.metadata.id,
+        result: complexityResponse.data,
         metadata: {
           model: modelLabel,
           processingTimeMs: latencyMs,
-          inputTokens: totalTokenUsage.input_tokens,
-          outputTokens: totalTokenUsage.output_tokens,
+          tokenUsage: {
+            inputTokens: totalTokenUsage.input_tokens,
+            outputTokens: totalTokenUsage.output_tokens,
+          },
         },
-        _internal: complexityResponse.data,
       };
 
       // Send success telemetry (fire-and-forget)
@@ -194,7 +195,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
         evaluator: VocabularyComplexityEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
-        score: result.score,
+        score: complexityResponse.data.complexity_score,
         processingTimeMs: latencyMs,
       });
 
@@ -330,7 +331,7 @@ export async function evaluateVocabularyComplexity(
   text: string,
   gradeLevel: string,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<TextComplexityLevel, VocabularyComplexityInternal>> {
+): Promise<EvaluationResult<VocabularyComplexityInternal>> {
   const evaluator = new VocabularyComplexityEvaluator(config);
   return evaluator.evaluate(text, gradeLevel);
 }

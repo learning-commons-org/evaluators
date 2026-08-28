@@ -139,23 +139,22 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       const result = await evaluator.evaluate(testText, testGrade);
 
       // Verify result structure
-      expect(result.score).toBe('Slightly complex');
-      expect(result.reasoning).toContain('simple sentence structures');
+      expect(result.result.answer).toBe('Slightly complex');
+      expect(result.result.reasoning).toContain('simple sentence structures');
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe(EXPECTED_MODEL);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
       // Token usage is aggregated across both stages: stage 1 (150/100) + stage 2 (250/80)
-      expect(result.metadata.inputTokens).toBe(400);
-      expect(result.metadata.outputTokens).toBe(180);
+      expect(result.metadata.tokenUsage.inputTokens).toBe(400);
+      expect(result.metadata.tokenUsage.outputTokens).toBe(180);
 
       // Verify provider was called twice (once per stage)
       expect(mockProvider.generateStructured).toHaveBeenCalledTimes(2);
 
-      // Verify internal data structure
-      expect(result._internal).toBeDefined();
-      expect(result._internal?.sentenceAnalysis).toBeDefined();
-      expect(result._internal?.features).toBeDefined();
-      expect(result._internal?.complexity).toBeDefined();
+      // output_schema.json declares the classify step's output only, so the analysis
+      // step's ~30 grammatical counts are not surfaced.
+      expect(result.result).not.toHaveProperty('sentenceAnalysis');
+      expect(result.result).not.toHaveProperty('features');
     });
   });
 
@@ -223,10 +222,10 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       const result = await evaluator.evaluate('Test text here', '5');
 
       // Verify result structure
-      expect(result).toHaveProperty('score');
-      expect(result).toHaveProperty('reasoning');
+      expect(result).toHaveProperty('evaluator');
+      expect(result).toHaveProperty('result');
       expect(result).toHaveProperty('metadata');
-      expect(result).toHaveProperty('_internal');
+      expect(result).not.toHaveProperty('score');
 
       // Verify metadata structure
       expect(result.metadata).toHaveProperty('model');
@@ -235,8 +234,8 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       // Verify metadata values
       expect(result.metadata.model).toBe(EXPECTED_MODEL);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
-      expect(result.metadata.inputTokens).toBe(400);
-      expect(result.metadata.outputTokens).toBe(180);
+      expect(result.metadata.tokenUsage.inputTokens).toBe(400);
+      expect(result.metadata.tokenUsage.outputTokens).toBe(180);
     });
   });
 

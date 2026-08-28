@@ -35,7 +35,6 @@ export {
 export {
   PurposeClarityEvaluator,
   evaluatePurposeClarity,
-  type PurposeClarityComplexityLevel,
 } from './purpose-clarity.js';
 
 export {

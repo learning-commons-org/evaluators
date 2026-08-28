@@ -188,16 +188,16 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
 
     const result = await evaluator.evaluate('When going to the beach, find out which ones have lifeguards.', '3');
 
-    expect(result.score).toBe('Slightly complex');
-    expect(result.reasoning).toBe(MOCK_RESPONSE.data.reasoning);
+    expect(result.result.complexity_score).toBe('slightly_complex');
+    expect(result.result.reasoning).toBe(MOCK_RESPONSE.data.reasoning);
     expect(result.metadata.model).toBe(`${STEP.model.provider}:${STEP.model.name}`);
     expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
-    expect(result.metadata.inputTokens).toBe(200);
-    expect(result.metadata.outputTokens).toBe(120);
-    expect(result._internal).toEqual(MOCK_RESPONSE.data);
-    expect(result._internal?.details.detailed_summary).toBeInstanceOf(Array);
-    expect(result._internal?.details.adjustment_and_scaffolding).toBeInstanceOf(Array);
-    expect(result._internal?.details.recommended_use_cases).toBeInstanceOf(Array);
+    expect(result.metadata.tokenUsage.inputTokens).toBe(200);
+    expect(result.metadata.tokenUsage.outputTokens).toBe(120);
+    expect(result.result).toEqual(MOCK_RESPONSE.data);
+    expect(result.result.details.detailed_summary).toBeInstanceOf(Array);
+    expect(result.result.details.adjustment_and_scaffolding).toBeInstanceOf(Array);
+    expect(result.result.details.recommended_use_cases).toBeInstanceOf(Array);
   });
 
   it('reflects modelOverride in metadata.model', async () => {

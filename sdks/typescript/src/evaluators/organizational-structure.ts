@@ -5,7 +5,7 @@ import {
 } from '../schemas/organizational-structure.js';
 import { runPreprocessingStep } from '../features/preprocessing.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/organizational-structure/index.js';
-import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
+import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, InputValidationError, wrapProviderError } from '../errors.js';
@@ -22,14 +22,6 @@ const STEP = _step;
 // module level. The enum is the declared set, so it is used verbatim rather than
 // reconstructed from bounds; that also admits non-numeric tokens such as "K".
 const SUPPORTED_GRADES: readonly string[] = INPUT_SCHEMA.properties.grade_level.enum;
-
-// Maps snake_case LLM output → SDK-standard sentence case score.
-const COMPLEXITY_SCORE_DISPLAY: Record<OrganizationalStructureInternal['complexity_score'], TextComplexityLevel> = {
-  'slightly_complex': 'Slightly complex',
-  'moderately_complex': 'Moderately complex',
-  'very_complex': 'Very complex',
-  'exceedingly_complex': 'Exceedingly complex',
-};
 
 export class OrganizationalStructureEvaluator extends BaseEvaluator {
   static readonly metadata = {
@@ -71,7 +63,7 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<TextComplexityLevel, OrganizationalStructureInternal>> {
+  async evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<OrganizationalStructureInternal>> {
     this.logger.info('Starting Organizational Structure evaluation', {
       evaluator: OrganizationalStructureEvaluator.metadata.id,
       operation: 'evaluate',
@@ -107,16 +99,17 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
         token_usage: tokenUsage,
       });
 
-      const result: EvaluationResult<TextComplexityLevel, OrganizationalStructureInternal> = {
-        score: COMPLEXITY_SCORE_DISPLAY[response.data.complexity_score],
-        reasoning: response.data.reasoning,
+      const result: EvaluationResult<OrganizationalStructureInternal> = {
+        evaluator: OrganizationalStructureEvaluator.metadata.id,
+        result: response.data,
         metadata: {
           model: this.provider.label,
           processingTimeMs: latencyMs,
-          inputTokens: tokenUsage.input_tokens,
-          outputTokens: tokenUsage.output_tokens,
+          tokenUsage: {
+            inputTokens: tokenUsage.input_tokens,
+            outputTokens: tokenUsage.output_tokens,
+          },
         },
-        _internal: response.data,
       };
 
       this.sendTelemetry({
@@ -134,7 +127,7 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
         evaluator: OrganizationalStructureEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel: gradeNum,
-        score: result.score,
+        score: response.data.complexity_score,
         processingTimeMs: latencyMs,
       });
 
@@ -204,6 +197,6 @@ export async function evaluateOrganizationalStructure(
   text: string,
   gradeLevel: string,
   config: BaseEvaluatorConfig,
-): Promise<EvaluationResult<TextComplexityLevel, OrganizationalStructureInternal>> {
+): Promise<EvaluationResult<OrganizationalStructureInternal>> {
   return new OrganizationalStructureEvaluator(config).evaluate(text, gradeLevel);
 }

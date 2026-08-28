@@ -90,17 +90,17 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       const result = await evaluator.evaluate(testText);
 
       // Verify result structure
-      expect(result.score).toBe('6-8');
-      expect(result._internal).toBeDefined();
-      expect(result._internal!.grade).toBe('6-8');
-      expect(result._internal!.alternative_grade).toBe('4-5');
-      expect(result._internal!.scaffolding_needed).toContain('gravitational forces');
-      expect(result.reasoning).toContain('gravitational forces');
+      expect(result.result.grade).toBe('6-8');
+      expect(result.result).toBeDefined();
+      expect(result.result!.grade).toBe('6-8');
+      expect(result.result!.alternative_grade).toBe('4-5');
+      expect(result.result!.scaffolding_needed).toContain('gravitational forces');
+      expect(result.result.reasoning).toContain('gravitational forces');
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe('google:gemini-2.5-pro');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
-      expect(result.metadata.inputTokens).toBe(200);
-      expect(result.metadata.outputTokens).toBe(150);
+      expect(result.metadata.tokenUsage.inputTokens).toBe(200);
+      expect(result.metadata.tokenUsage.outputTokens).toBe(150);
 
       // Verify provider was called
       expect(mockProvider.generateStructured).toHaveBeenCalledTimes(1);
@@ -153,19 +153,19 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       const result = await evaluator.evaluate('Test text here');
 
       // Verify result structure
-      expect(result).toHaveProperty('score');
-      expect(result).toHaveProperty('reasoning');
+      expect(result).toHaveProperty('evaluator');
+      expect(result).toHaveProperty('result');
       expect(result).toHaveProperty('metadata');
-      expect(result).toHaveProperty('_internal');
+      expect(result).not.toHaveProperty('score');
 
       // Verify score is the grade string
-      expect(result.score).toBe('9-10');
+      expect(result.result.grade).toBe('9-10');
 
       // Verify _internal structure (GradeLevelAppropriateness)
-      expect(result._internal).toHaveProperty('grade');
-      expect(result._internal).toHaveProperty('alternative_grade');
-      expect(result._internal).toHaveProperty('scaffolding_needed');
-      expect(result._internal).toHaveProperty('reasoning');
+      expect(result.result).toHaveProperty('grade');
+      expect(result.result).toHaveProperty('alternative_grade');
+      expect(result.result).toHaveProperty('scaffolding_needed');
+      expect(result.result).toHaveProperty('reasoning');
 
       // Verify metadata structure
       expect(result.metadata).toHaveProperty('model');
@@ -174,13 +174,13 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       // Verify metadata values
       expect(result.metadata.model).toBe('google:gemini-2.5-pro');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
-      expect(result.metadata.inputTokens).toBe(200);
-      expect(result.metadata.outputTokens).toBe(150);
+      expect(result.metadata.tokenUsage.inputTokens).toBe(200);
+      expect(result.metadata.tokenUsage.outputTokens).toBe(150);
 
       // Verify _internal values
-      expect(result._internal!.grade).toBe('9-10');
-      expect(result._internal!.alternative_grade).toBe('6-8');
-      expect(result._internal!.scaffolding_needed).toBeTruthy();
+      expect(result.result!.grade).toBe('9-10');
+      expect(result.result!.alternative_grade).toBe('6-8');
+      expect(result.result!.scaffolding_needed).toBeTruthy();
     });
   });
 });

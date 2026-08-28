@@ -64,7 +64,7 @@ describe('llmProvider — bring-your-own-provider', () => {
     const result = await evaluator.evaluate(SAMPLE_TEXT);
 
     expect(generateStructured).toHaveBeenCalledTimes(1);
-    expect(result.score).toBe('6-8');
+    expect(result.result.grade).toBe('6-8');
     expect(result.metadata.model).toBe('vertex:gemini-2.5-pro');
     // The injected provider is the one in use, not a createProvider-built one.
     // @ts-expect-error accessing private property for testing

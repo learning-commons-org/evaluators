@@ -2,10 +2,12 @@
 export type {
   EvaluationResult,
   EvaluationMetadata,
+  EvaluationTokenUsage,
   EvaluationFailure,
 } from './schemas/index.js';
 
 export { TextComplexityLevel, GradeBand } from './schemas/index.js';
+export { readOutcome, type Outcome } from './schemas/index.js';
 
 // Error types
 export {
@@ -59,7 +61,6 @@ export type {
   SentenceAnalysis,
   ComplexityClassification,
   SentenceFeatures,
-  SentenceStructureInternal,
 } from './schemas/sentence-structure.js';
 
 export {
@@ -103,7 +104,6 @@ export {
   evaluateGradeLevelAppropriateness,
   PurposeClarityEvaluator,
   evaluatePurposeClarity,
-  type PurposeClarityComplexityLevel,
   ReferenceKnowledgeDemandsEvaluator,
   evaluateReferenceKnowledgeDemands,
   OrganizationalStructureEvaluator,

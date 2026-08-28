@@ -58,7 +58,10 @@ function getGLAStatus(inputGrade: string, glaBand: string): 'on-band' | 'adjacen
 }
 
 function complexityToNumeric(score: string): number | undefined {
-  return COMPLEXITY_SCORE_MAP[score.toLowerCase().trim()];
+  // Underscores are folded so the contract's `slightly_complex` and the spaced form
+  // the not-yet-generated schemas still return both resolve. An unrecognised score
+  // drops the row from every aggregate, so this must accept both spellings.
+  return COMPLEXITY_SCORE_MAP[score.toLowerCase().trim().replace(/_/g, ' ')];
 }
 
 function complexityScoreLabel(avg: number): string {
