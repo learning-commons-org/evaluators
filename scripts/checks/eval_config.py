@@ -76,6 +76,9 @@ class EvalConfig(Check):
             step_id = step.get("id", "?")
             template_vars = self._check_prompts(prompt, base, fail, step_id)
             self._check_placeholders(prompt, template_vars, fail, step_id)
+        self._check_placeholder_sources(config, base, fail)
+        self._check_supported_grades(config, base, fail)
+        self._check_outcome(config, base, fail)
         self._check_fixtures_path(config, base, fail)
 
     # --- Layer 1: schema -----------------------------------------------------
@@ -101,6 +104,112 @@ class EvalConfig(Check):
             fail(f"schema: {loc}: {err.message}")
 
     # --- Layer 2: cross-file -------------------------------------------------
+
+    def _check_placeholder_sources(self, config: dict, base: str, fail) -> None:
+        """Every placeholder `source` must resolve to something that exists.
+
+        The four forms are `input`, `input.<field>`, `preprocessing.<output>` and
+        `steps.<id>.output`. A source naming a preprocessing entry that does not exist
+        is undetectable any other way -- the placeholder name still matches the prompt
+        text, so every other rule passes.
+
+        Note `preprocessing.<X>` resolves against an entry's declared `output` key, not
+        its `id`; those differ, and only one of them is the value a step can read.
+        """
+        try:
+            input_props = set(
+                load_json(os.path.join(base, config["input_schema"]["$ref"]))
+                .get("properties", {})
+                .keys()
+            )
+        except (KeyError, TypeError, OSError, json.JSONDecodeError):
+            return  # _check_referenced_files already reported this
+
+        outputs = {
+            entry["output"]
+            for entry in config.get("preprocessing", [])
+            if entry.get("output")
+        }
+        step_ids: set[str] = set()
+
+        for step in config.get("steps", []):
+            placeholders = (step.get("prompt") or {}).get("placeholders") or {}
+            step_id = step.get("id", "?")
+            for name, spec in placeholders.items():
+                source = spec.get("source")
+                if not isinstance(source, str):
+                    continue
+                where = f"{step_id}.{name}: source {source!r}"
+
+                if source == "input":
+                    if name not in input_props:
+                        fail(f"{where} names no input; input_schema has no {name!r}")
+                elif source.startswith("input."):
+                    field = source.split(".", 1)[1]
+                    if field not in input_props:
+                        fail(f"{where} names no input; input_schema has no {field!r}")
+                elif source.startswith("preprocessing."):
+                    key = source.split(".", 1)[1]
+                    if key not in outputs:
+                        fail(
+                            f"{where} resolves to no preprocessing output; "
+                            f"declared outputs are {sorted(outputs) or 'none'}"
+                        )
+                elif source.startswith("steps."):
+                    producer = source.split(".")[1]
+                    if producer not in step_ids:
+                        fail(f"{where} names no earlier step; {producer!r} does not run before {step_id!r}")
+            step_ids.add(step_id)
+
+    @staticmethod
+    def _check_supported_grades(config: dict, base: str, fail) -> None:
+        """`supported_grades` must agree with the grades the evaluator actually accepts.
+
+        `supported_grades` states what the evaluator is built for and is declared even
+        when no grade is an input. Where a grade *is* an input, its enum is what
+        consumers validate against, so the two disagreeing means one of them is wrong.
+        """
+        try:
+            props = load_json(os.path.join(base, config["input_schema"]["$ref"])).get(
+                "properties", {}
+            )
+        except (KeyError, TypeError, OSError, json.JSONDecodeError):
+            return
+
+        accepted = props.get("grade_level", {}).get("enum")
+        if accepted is None:
+            return
+
+        declared = config.get("evaluator", {}).get("supported_grades")
+        if declared != accepted:
+            fail(
+                "evaluator.supported_grades does not match the grades accepted by "
+                f"input_schema.properties.grade_level.enum: {declared} vs {accepted}"
+            )
+
+    @staticmethod
+    def _check_outcome(config: dict, base: str, fail) -> None:
+        """`outcome` must name properties that the output schema actually declares."""
+        outcome = config.get("outcome")
+        if not outcome:
+            return
+
+        try:
+            declared = load_json(os.path.join(base, config["output_schema"]["$ref"]))
+        except (KeyError, TypeError, OSError, json.JSONDecodeError):
+            return
+
+        properties = declared.get("properties", {})
+        required = declared.get("required", [])
+        for role in ("score", "reasoning"):
+            field = outcome.get(role)
+            if field not in properties:
+                fail(f"outcome.{role} names {field!r}, which output_schema does not declare")
+            elif field not in required:
+                fail(
+                    f"outcome.{role} names {field!r}, which output_schema declares but "
+                    "does not require -- a verdict that may be absent is not a verdict"
+                )
 
     def _check_referenced_files(self, config: dict, base: str, fail) -> None:
         """The schema $refs for input/output must resolve to real files."""

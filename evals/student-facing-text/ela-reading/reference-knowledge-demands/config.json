@@ -82,6 +82,10 @@
   "output_schema": {
     "$ref": "output_schema.json"
   },
+  "outcome": {
+    "score": "complexity_score",
+    "reasoning": "reasoning"
+  },
   "fixtures": {
     "path": "fixtures.json",
     "tolerance": {

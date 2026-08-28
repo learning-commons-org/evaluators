@@ -11,14 +11,13 @@
     "evaluator": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "description", "supported_grades"],
-      "dependentRequired": { "id_history": ["stable_id"] },
+      "required": ["id", "stable_id", "name", "description", "supported_grades"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "stable_id": {
           "type": "string",
           "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
-          "description": "Permanent UUID, assigned once and never changed, even when `id` changes because the evaluator moves between taxonomy groupings. Optional for now while this is backfilled evaluator-by-evaluator; will become required once every evaluator has one."
+          "description": "Permanent UUID, assigned once and never changed, even when `id` changes because the evaluator moves between taxonomy groupings."
         },
         "id_history": {
           "type": "array",
@@ -32,12 +31,23 @@
           "minItems": 1,
           "items": {
             "enum": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
-          }
+          },
+          "description": "The grades this evaluator is built for. Declared for every evaluator, including those that take no grade as input -- for those it is the only record of what the evaluator targets. This is NOT what validates a caller's grade: when the evaluator accepts one, `input_schema.properties.grade_level.enum` is the accepted set and the two must agree. Consumers validate against that enum, never against this field."
         }
       }
     },
     "input_schema": { "type": "object" },
     "output_schema": { "type": "object" },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score", "reasoning"],
+      "properties": {
+        "score": { "type": "string", "minLength": 1 },
+        "reasoning": { "type": "string", "minLength": 1 }
+      },
+      "description": "Names the `output_schema` properties carrying the scalar verdict and its rationale, so consumers read one comparable value per evaluation instead of inferring which field holds it. Omitted by an evaluator whose output is not a single judgement."
+    },
     "preprocessing": {
       "type": "array",
       "items": {
@@ -52,6 +62,13 @@
           "description": { "type": "string" },
           "input": { "type": "string" },
           "output": { "type": "string" },
+          "required_credentials": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "enum": ["learning_commons_api_key"] },
+            "description": "Canonical config keys for non-LLM services this entry calls. LLM keys are not listed: those are derived from `model.provider`. Declared per entry so a step that does not run cannot demand a credential, and unaffected by a model override, which narrows only the LLM providers. `auth` names the header; this names what fills it."
+          },
           "implementation": {
             "type": "object",
             "minProperties": 1,
@@ -108,6 +125,13 @@
         "properties": {
           "id": { "type": "string", "minLength": 1 },
           "type": { "enum": ["llm", "api"] },
+          "required_credentials": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "enum": ["learning_commons_api_key"] },
+            "description": "Canonical config keys for non-LLM services this entry calls. LLM keys are not listed: those are derived from `model.provider`. Declared per entry so a step that does not run cannot demand a credential, and unaffected by a model override, which narrows only the LLM providers. `auth` names the header; this names what fills it."
+          },
           "optional": {
             "type": "boolean",
             "default": false,
@@ -141,7 +165,11 @@
                   "required": ["required", "source"],
                   "properties": {
                     "required": { "type": "boolean" },
-                    "source": { "type": "string" },
+                    "source": {
+                      "type": "string",
+                      "pattern": "^(input|input\\.[A-Za-z_][A-Za-z0-9_]*|preprocessing\\.[A-Za-z_][A-Za-z0-9_]*|steps\\.[A-Za-z_][A-Za-z0-9_]*\\.output)$",
+                      "description": "Where the value comes from. Exactly four forms: `input` (the caller input of the same name as the placeholder), `input.<field>` (a caller input under a different name), `preprocessing.<output>` (a preprocessing entry's declared `output` key, never its `id`), and `steps.<id>.output` (an earlier step's result). Constrained by pattern because an undeclared fifth form is unresolvable by any consumer."
+                    },
                     "note": { "type": "string" }
                   }
                 }
