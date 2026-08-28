@@ -67,6 +67,59 @@ function extractReportData(html: string): any {
 }
 
 // ============================================================
+// Evaluator id -> column and label derivation
+// ============================================================
+
+describe('deriving columns and labels from a registry id', () => {
+  // Registry ids are dotted and snake_case. Everything user-visible in the report is
+  // derived from the last segment, so a dotted id must not leak its namespace into a
+  // CSV header, an HTML row field, or a display label.
+  const DOTTED = 'student_facing_text.ela_reading.vocabulary_complexity';
+
+  it('uses only the last id segment for CSV column names', () => {
+    const csv = formatAsCSV(makeOutput([makeResult({ evaluatorId: DOTTED })]));
+    const header = csv.split('\n')[0];
+
+    expect(header).toContain('vocabulary_complexity_score');
+    expect(header).toContain('vocabulary_complexity_reasoning');
+    expect(header).toContain('vocabulary_complexity_status');
+    expect(header).not.toContain('student_facing_text');
+  });
+
+  it('uses only the last id segment for HTML row fields, one column per evaluator', () => {
+    const other = 'student_facing_text.ela_reading.meaning_directness';
+    const html = formatAsHTML(
+      makeOutput([
+        makeResult({ rowIndex: 1, evaluatorId: DOTTED, score: 'very complex' }),
+        makeResult({ rowIndex: 1, evaluatorId: other, score: 'slightly complex' }),
+      ]),
+      makeMeta(),
+    );
+    const row = extractReportData(html).fullResults.rows[0];
+
+    // Each evaluator's score lands under its own prefix, so neither can read as the other's.
+    expect(row['__vocabulary_complexity_score']).toBe('very complex');
+    expect(row['__meaning_directness_score']).toBe('slightly complex');
+    expect(Object.keys(row).some(k => k.includes('student_facing_text'))).toBe(false);
+  });
+
+  it('renders a display name from the last id segment', () => {
+    const html = formatAsHTML(makeOutput([makeResult({ evaluatorId: DOTTED })]), makeMeta());
+    const { complexityEvaluators } = extractReportData(html).fullResults;
+
+    expect(complexityEvaluators).toEqual([
+      { evaluatorId: DOTTED, name: 'Vocabulary Complexity', prefix: 'vocabulary_complexity' },
+    ]);
+  });
+
+  it('still handles a hyphenated id with no namespace', () => {
+    const csv = formatAsCSV(makeOutput([makeResult({ evaluatorId: 'sentence-structure' })]));
+
+    expect(csv.split('\n')[0]).toContain('sentence_structure_score');
+  });
+});
+
+// ============================================================
 // formatAsCSV
 // ============================================================
 
