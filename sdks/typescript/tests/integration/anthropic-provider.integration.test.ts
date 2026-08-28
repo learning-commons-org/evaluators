@@ -71,9 +71,9 @@ describeIntegration('Anthropic provider — all text-complexity evaluators (live
         // readOutcome is the only generic way to reach a verdict now that the
         // envelope carries the payload as its contract declares it. Asserting
         // through it here covers every evaluator's payload shape at once.
-        const outcome = readOutcome(result.evaluator, result.result);
+        const outcome = readOutcome(result);
 
-        expect(outcome.score.length).toBeGreaterThan(0);
+        expect(outcome.score).toBeTruthy();
         expect(outcome.reasoning.length).toBeGreaterThan(0);
         expect(result.evaluator).toBe(metadata.id);
         expect(result.metadata.model).toContain('anthropic');

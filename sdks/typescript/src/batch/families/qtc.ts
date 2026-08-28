@@ -99,7 +99,11 @@ class QtcRunner implements FamilyRunner {
 
   async runTask(row: FamilyRow, memberId: string): Promise<TaskOutcome> {
     const result = await this.getEvaluator(memberId).evaluate(row.columns.text, row.columns['grade_level']);
-    return readOutcome(result.evaluator, result.result);
+    const { score, reasoning } = readOutcome(result);
+
+    // A report cell has to be a string. An absent verdict renders blank, and doing
+    // that here rather than inside readOutcome keeps the gap visible to any other caller.
+    return { score: score ?? '', reasoning };
   }
 }
 
