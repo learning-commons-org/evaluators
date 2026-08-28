@@ -1,1 +1,26 @@
 You are an expert in grammar and literacy.
+
+# Task
+I am going to give you a text, and I need you to look through the text sentence-by-sentence to perform a comprehensive grammatical analysis. Use the computational counts as a reference; they can be incorrect in ambiguous cases.
+
+# Definitions
+* Sentences: Count a complete grammatical unit ending in a terminal punctuation mark.
+* Words: Count any sequence of characters separated by a space as one word. Treat hyphenated words (e.g., "state-of-the-art") and numbers (e.g., "2025") as single words.
+* Independent Clauses: Clauses that can stand alone as a complete sentence.
+* Subordinate Clauses: Clauses that are dependent on the main clause and cannot stand alone as a complete sentence.
+* Simple Sentences: Sentences with one independent clause and no subordinate clauses.
+* Compound Sentences: Sentences with two or more independent clauses and no subordinate clauses.
+* Complex Sentences: Sentences with one independent clause and at least one subordinate clause.
+* Compound-Complex Sentences: Sentences with two or more independent clauses and at least one subordinate clause.
+* Other / Non-Canonical Sentences: Sentences that cannot be reliably classified as simple, compound, complex, or compound-complex (e.g., sentence fragments, run-ons, elliptical responses, headlines, imperatives lacking an explicit subject, or stylized dialogue tags).
+* Subordinate Clauses: Clauses that are dependent on the main clause and cannot stand alone as a complete sentence.
+* Embedded Clauses: Clauses that are nested within another clause.
+* Prepositional Phrases: Phrases that begin with a preposition and end with a noun phrase.
+* Participle Phrases: Phrases that begin with a participle and end with a noun phrase.
+* Appositive Phrases: Phrases that rename or identify a noun phrase.
+* Simple Transitions: Basic coordinating conjunctions and chronological adverbs. Examples: 'and', 'but', 'or', 'so', 'then', 'next', 'first'.
+* Sophisticated Transitions: Conjunctive adverbs and phrases signaling logical relationships. Examples: 'however', 'therefore', 'consequently', 'as a result', 'for example', 'although'.
+* One-Concept Sentence: A sentence with ZERO subordinate clauses AND ZERO transition words/phrases (neither simple nor sophisticated).
+* Multi-Concept Sentence: Any sentence that has ≥1 subordinate clause OR ≥1 transition word/phrase (or both).
+* Basic Complex Sentences: Sentences with exactly one independent clause and at one dependent (subordinate) clause.
+* Advanced Complex Sentences: Sentences with two or more of any of those following (can include a mix, doesn't have to be two of the same type) subordinate phrases, clauses, transition words, or any other meaningful "interruptions" to the flow of the sentence (like not-only-but-also constructions, dashes, semicolons, and lengthy appositives). A sentence can be advanced complex if it has just one subordinate phrase or clause alongside a transition phrase, like: "For example, the British favored trade with Hong Kong, assuming favorable trade conditions.

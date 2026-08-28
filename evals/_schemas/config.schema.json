@@ -44,6 +44,7 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["id", "type", "kind"],
+        "dependentRequired": { "source_path": ["sha256"] },
         "properties": {
           "id": { "type": "string", "minLength": 1 },
           "type": { "enum": ["api", "computation"] },
@@ -77,6 +78,12 @@
           "params": { "type": "object" },
           "auth": { "type": "string" },
           "pagination": { "type": "string" },
+          "source_path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "File this step loads, relative to the config. Declared so the path is part of the contract and the file can be checksum-verified like a prompt -- text reaching the model must not drift unnoticed."
+          },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
           "condition": { "$ref": "#/$defs/Condition" }
         },
         "allOf": [

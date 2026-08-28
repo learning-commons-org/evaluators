@@ -15,7 +15,7 @@
     {
       "id": "ground_truth_counts",
       "type": "computation",
-      "kind": "sentence_ground_truth_counts",
+      "kind": "custom",
       "description": "Computes deterministic ground-truth counts (sentence/word/char/syllable counts and Flesch-Kincaid grade) for the input text and formats them into the {ground_truth_counts} block referenced by the sentence_analysis step. The LLM is instructed to use these as a reference, not a hard constraint.",
       "input": "text",
       "output": "ground_truth_counts",
@@ -37,6 +37,8 @@
       "description": "Selects the Grade 3 rubric text and binds it to {rubric} in the classify_complexity step.",
       "input": "grade_level",
       "output": "rubric",
+      "source_path": "rubric-grade-3.txt",
+      "sha256": "3ddacd7b3c80f1f8e85bfcddd01db945813fcf814d893e719f5ae48babdaf11f",
       "condition": { "input": "grade_level", "in": ["3"] },
       "implementation": {
         "python": {
@@ -56,6 +58,8 @@
       "description": "Selects the Grade 4 rubric text and binds it to {rubric} in the classify_complexity step.",
       "input": "grade_level",
       "output": "rubric",
+      "source_path": "rubric-grade-4.txt",
+      "sha256": "851c6afa4cd8a0ff0f599a38e96c96516dc2cccf0a4a7e945c982efebc89b6b7",
       "condition": { "input": "grade_level", "in": ["4"] },
       "implementation": {
         "python": {
@@ -75,6 +79,8 @@
       "description": "Selects the shared Grades 5-12 rubric text and binds it to {rubric} in the classify_complexity step.",
       "input": "grade_level",
       "output": "rubric",
+      "source_path": "rubric-grades-5-12.txt",
+      "sha256": "ae8ac191a5c8c0168e3866d0682c01f987a1b583272a0f6674e3881a84dccfab",
       "condition": { "input": "grade_level", "in": ["5", "6", "7", "8", "9", "10", "11", "12"] },
       "implementation": {
         "python": {
@@ -90,7 +96,7 @@
     {
       "id": "sentence_features",
       "type": "computation",
-      "kind": "engineered_sentence_features",
+      "kind": "custom",
       "description": "Derives ~30 percentage/ratio features (sentence-type distribution, subordination density, phrase density, transitions, sentence-length buckets) from the sentence_analysis step's raw counts, then binds the resulting JSON blob to {sentence_features} in the classify_complexity step.",
       "input": "steps.sentence_analysis.output",
       "output": "sentence_features",
@@ -116,12 +122,12 @@
           {
             "role": "system",
             "source_path": "analysis-system.txt",
-            "sha256": "186e7325d1c142945af99038013b96627e243d405b532d6f52f836a3b205a934"
+            "sha256": "0e7ad64016cb9767e9dcb60a0886c4a92bc497f0bcd819974059de2568844234"
           },
           {
             "role": "user",
             "source_path": "analysis-user.txt",
-            "sha256": "bbff16a6bb5f4d5112c026db1b324b2716468961f1de4ec967039f9ad3dee3af"
+            "sha256": "b09d7a2bf36c33c70afde69d5b91f059348def8e0060e7bc2429d9daf60c282c"
           }
         ],
         "placeholders": {
@@ -137,7 +143,7 @@
       },
       "model": {
         "provider": "openai",
-        "name": "gpt-4o"
+        "name": "gpt-4o-2024-08-06"
       },
       "generation": {
         "temperature": 0
@@ -184,7 +190,7 @@
       },
       "model": {
         "provider": "openai",
-        "name": "gpt-4o"
+        "name": "gpt-4o-2024-08-06"
       },
       "generation": {
         "temperature": 0
