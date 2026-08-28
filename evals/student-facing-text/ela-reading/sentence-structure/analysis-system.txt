@@ -1,3 +1,4 @@
+You are an expert in grammar and literacy.
 
 # Task
 I am going to give you a text, and I need you to look through the text sentence-by-sentence to perform a comprehensive grammatical analysis. Use the computational counts as a reference; they can be incorrect in ambiguous cases.
@@ -23,16 +24,3 @@ I am going to give you a text, and I need you to look through the text sentence-
 * Multi-Concept Sentence: Any sentence that has ≥1 subordinate clause OR ≥1 transition word/phrase (or both).
 * Basic Complex Sentences: Sentences with exactly one independent clause and at one dependent (subordinate) clause.
 * Advanced Complex Sentences: Sentences with two or more of any of those following (can include a mix, doesn't have to be two of the same type) subordinate phrases, clauses, transition words, or any other meaningful "interruptions" to the flow of the sentence (like not-only-but-also constructions, dashes, semicolons, and lengthy appositives). A sentence can be advanced complex if it has just one subordinate phrase or clause alongside a transition phrase, like: "For example, the British favored trade with Hong Kong, assuming favorable trade conditions.
-
-# Computational Counts
-Use these as reference, your internal heuristics can be more reliable.
-{ground_truth_counts}
-
-# Text to Analyze
-[BEGIN TEXT]
-{text}
-[END TEXT]
-
-IMPORTANT: Your response should be a single JSON object with the following structure. Do not produce anything outside of the JSON object.
-
-{format_instructions}

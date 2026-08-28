@@ -80,7 +80,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     super(config);
 
     // Both stages use the same model — share a single provider instance
-    this.provider = this.createConfiguredProvider(Provider.OpenAI, 'gpt-4o', config.openaiApiKey);
+    this.provider = this.createConfiguredProvider(Provider.OpenAI, 'gpt-4o-2024-08-06', config.openaiApiKey);
   }
 
   /**

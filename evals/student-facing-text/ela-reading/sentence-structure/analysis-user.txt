@@ -1,0 +1,8 @@
+# Computational Counts
+Use these as reference, your internal heuristics can be more reliable.
+{ground_truth_counts}
+
+# Text to Analyze
+[BEGIN TEXT]
+{text}
+[END TEXT]

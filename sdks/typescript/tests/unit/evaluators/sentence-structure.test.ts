@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SentenceStructureEvaluator } from '../../../src/evaluators/sentence-structure.js';
 import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
+import CONFIG from '../../../../../evals/student-facing-text/ela-reading/sentence-structure/config.json';
+
+// Derived from the contract rather than copied from it, so a model re-pin in
+// config.json surfaces here instead of the test quietly asserting a stale value.
+const EXPECTED_MODEL = `${CONFIG.steps[0].model.provider}:${CONFIG.steps[0].model.name}`;
 
 /**
  * Comprehensive unit tests for SentenceStructureEvaluator
@@ -137,7 +142,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       expect(result.score).toBe('Slightly complex');
       expect(result.reasoning).toContain('simple sentence structures');
       expect(result.metadata).toBeDefined();
-      expect(result.metadata.model).toBe('openai:gpt-4o');
+      expect(result.metadata.model).toBe(EXPECTED_MODEL);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
       // Token usage is aggregated across both stages: stage 1 (150/100) + stage 2 (250/80)
       expect(result.metadata.inputTokens).toBe(400);
@@ -228,10 +233,40 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toHaveProperty('processingTimeMs');
 
       // Verify metadata values
-      expect(result.metadata.model).toBe('openai:gpt-4o');
+      expect(result.metadata.model).toBe(EXPECTED_MODEL);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
       expect(result.metadata.inputTokens).toBe(400);
       expect(result.metadata.outputTokens).toBe(180);
     });
+  });
+
+  // A placeholder left unsubstituted reaches the model as literal "{grade_level}"
+  // and degrades the prompt silently — nothing else in the suite would notice.
+  describe('Prompt substitution', () => {
+    it('leaves no unsubstituted placeholder in either stage, system or user', async () => {
+      vi.mocked(mockProvider.generateStructured)
+        .mockResolvedValueOnce({
+          data: createMockSentenceAnalysis(),
+          model: 'gpt-4o',
+          usage: { inputTokens: 1, outputTokens: 1 },
+          latencyMs: 1,
+        })
+        .mockResolvedValueOnce({
+          data: { answer: 'Moderately complex', reasoning: 'why' },
+          model: 'gpt-4o',
+          usage: { inputTokens: 1, outputTokens: 1 },
+          latencyMs: 1,
+        });
+
+      await evaluator.evaluate('The cat sat on the mat. It was sleeping.', '7');
+
+      const sent = vi
+        .mocked(mockProvider.generateStructured)
+        .mock.calls.flatMap((call) => call[0].messages.map((m) => m.content))
+        .join('\n');
+
+      expect(sent).not.toMatch(/\{[a-z_]+\}/);
+    });
+
   });
 });

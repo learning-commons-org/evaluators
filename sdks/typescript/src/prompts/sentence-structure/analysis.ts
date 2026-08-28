@@ -1,5 +1,5 @@
-import SYSTEM_PROMPT_ANALYSIS_TEMPLATE from '../../../../../evals/prompts/sentence-structure/analysis-system.txt';
-import USER_PROMPT_ANALYSIS_TEMPLATE from '../../../../../evals/prompts/sentence-structure/analysis-user.txt';
+import SYSTEM_PROMPT_ANALYSIS_TEMPLATE from '../../../../../evals/student-facing-text/ela-reading/sentence-structure/analysis-system.txt';
+import USER_PROMPT_ANALYSIS_TEMPLATE from '../../../../../evals/student-facing-text/ela-reading/sentence-structure/analysis-user.txt';
 
 /**
  * Get the system prompt for sentence grammatical analysis
@@ -17,7 +17,6 @@ export function getSystemPromptAnalysis(): string {
  */
 export function getUserPromptAnalysis(text: string, groundTruthCounts: string): string {
   return USER_PROMPT_ANALYSIS_TEMPLATE
-    .replace('{text}', text)
-    .replace('{ground_truth_counts}', groundTruthCounts)
-    .replace('{format_instructions}', '');
+    .replaceAll('{text}', text)
+    .replaceAll('{ground_truth_counts}', groundTruthCounts);
 }
