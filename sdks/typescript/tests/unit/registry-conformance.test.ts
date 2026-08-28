@@ -110,9 +110,23 @@ const LIMIT_GAPS = new Set<string>([
   `${BKD_ID}::text`,
   `${MD_ID}::text`,
   `${SENTENCE_ID}::text`,
-  // An identifier, not prose: declares maxLength 50, which nothing enforces.
-  `${MATH_ID}::statementCode`,
 ]);
+
+/**
+ * Inputs the shared text-validation path does not govern, so the check below cannot
+ * speak for them.
+ *
+ * `statementCode` is an identifier with its own declared bound rather than prose, and
+ * nothing enforces it — a real gap, but not one this comparison can observe: it
+ * measures the declared bounds against the SDK's single global pair, which would keep
+ * differing even after per-field enforcement landed, so an entry here could never
+ * self-clean. Enforcement is verified by calling the evaluator, which becomes uniform
+ * once inputs are named.
+ *
+ * The underlying gap is in the contract schema: nothing distinguishes a prose input
+ * from an identifier, so this set cannot be derived.
+ */
+const NON_PROSE_INPUTS = new Set<string>([`${MATH_ID}::statementCode`]);
 
 /** Evaluators where a contract-shaped payload yields no verdict. */
 const VERDICT_GAPS = new Set<string>([
@@ -278,7 +292,10 @@ describe('text limits honour the contract', () => {
   it.each(cases)('$name', ({ E }) => {
     const { inputSchema } = contractFor(E.metadata.id);
     const textInputs = Object.entries(inputSchema.properties).filter(
-      ([, spec]) => spec.type === 'string' && spec.maxLength !== undefined,
+      ([field, spec]) =>
+        spec.type === 'string' &&
+        spec.maxLength !== undefined &&
+        !NON_PROSE_INPUTS.has(`${E.metadata.id}::${field}`),
     );
     if (textInputs.length === 0) return;
 
@@ -424,10 +441,16 @@ describe('the report can order every family member', () => {
   // typechecks it against the families. A member missing from it sorts to index 999
   // and lands in arbitrary order — visible only to someone reading the report.
   const template = readFileSync(join(process.cwd(), 'src/batch/report-template.html'), 'utf-8');
-  const declared = template.slice(
-    template.indexOf('const EVALUATOR_ORDER = ['),
-    template.indexOf(']', template.indexOf('const EVALUATOR_ORDER = [')),
-  );
+  const marker = 'const EVALUATOR_ORDER = [';
+  const at = template.indexOf(marker);
+
+  it('finds the ordering array in the template', () => {
+    // Without this, a moved or reformatted marker would surface as "every member is
+    // absent" and send the reader looking in the wrong place.
+    expect(at, `"${marker}" not found in report-template.html`).toBeGreaterThan(-1);
+  });
+
+  const declared = at === -1 ? '' : template.slice(at, template.indexOf(']', at));
 
   const members = getFamilies().flatMap((f) => f.members.map((m) => ({ family: f.id, id: m.id })));
 
