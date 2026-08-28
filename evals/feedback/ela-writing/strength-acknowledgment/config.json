@@ -1,10 +1,22 @@
 {
   "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "feedback.productive_coaching_writing_feedback.is_acknowledges_strength",
-    "name": "Acknowledges Strength Feedback-Quality Evaluator",
+    "id": "feedback.ela_writing.strength_acknowledgment",
+    "stable_id": "99370b62-6791-4535-a77e-dda6806c635c",
+    "id_history": [
+      "feedback.productive_coaching_writing_feedback.is_acknowledges_strength"
+    ],
+    "name": "Strength Acknowledgment Evaluator",
     "description": "Does the feedback identify what the student did well?",
-    "supported_grades": ["8", "9"]
+    "supported_grades": [
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12"
+    ]
   },
   "input_schema": {
     "$ref": "input_schema.json"
@@ -12,7 +24,7 @@
   "preprocessing": [],
   "steps": [
     {
-      "id": "evaluate_is_acknowledges_strength",
+      "id": "evaluate_strength_acknowledgment",
       "type": "llm",
       "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
       "prompt": {
@@ -55,6 +67,6 @@
     "$ref": "output_schema.json"
   },
   "fixtures": {
-    "path": "fixtures.json"  
+    "path": "fixtures.json"
   }
 }
