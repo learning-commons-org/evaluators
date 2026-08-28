@@ -1,10 +1,22 @@
 {
   "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "feedback.productive_coaching_writing_feedback.is_appropriate_feedback",
-    "name": "Appropriate Feedback Feedback-Quality Evaluator",
+    "id": "feedback.ela_writing.revision_accuracy",
+    "stable_id": "b4e21f35-650b-4699-aeab-bcfe3eac0466",
+    "id_history": [
+      "feedback.productive_coaching_writing_feedback.is_appropriate_feedback"
+    ],
+    "name": "Revision Accuracy Evaluator",
     "description": "Did the feedback correctly identify whether the student needed to revise? (Key features generated from rubric text; concept paper did not list explicit key feature items.)",
-    "supported_grades": ["8", "9"]
+    "supported_grades": [
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12"
+    ]
   },
   "input_schema": {
     "$ref": "input_schema.json"
@@ -12,7 +24,7 @@
   "preprocessing": [],
   "steps": [
     {
-      "id": "evaluate_is_appropriate_feedback",
+      "id": "evaluate_revision_accuracy",
       "type": "llm",
       "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
       "prompt": {
