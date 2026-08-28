@@ -1,13 +1,13 @@
-import SYSTEM_PROMPT from '../../../../../../evals/standards/math-question-alignment/system.txt';
-import USER_PROMPT_TEMPLATE from '../../../../../../evals/standards/math-question-alignment/user.txt';
-import COARSE_FILTER_PROMPT_TEMPLATE from '../../../../../../evals/standards/math-question-alignment/coarse-filter-user.txt';
-import CONFIG from '../../../../../../evals/standards/math-question-alignment/config.json';
-import INPUT_SCHEMA from '../../../../../../evals/standards/math-question-alignment/input_schema.json';
+import SYSTEM_PROMPT from '../../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/system.txt';
+import USER_PROMPT_TEMPLATE from '../../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/user.txt';
+import COARSE_FILTER_PROMPT_TEMPLATE from '../../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/coarse-filter-user.txt';
+import CONFIG from '../../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/config.json';
+import INPUT_SCHEMA from '../../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/input_schema.json';
 import { createHash } from 'node:crypto';
 
-const STEP_ID = 'evaluate_standards_alignment';
+const STEP_ID = 'evaluate_math_standards_alignment';
 const _step = CONFIG.steps.find((s) => s.id === STEP_ID);
-if (!_step) throw new Error(`Step "${STEP_ID}" not found in math-question-alignment config.json`);
+if (!_step) throw new Error(`Step "${STEP_ID}" not found in math-standards-alignment config.json`);
 export const STEP = _step;
 export const EVALUATOR_ID: string = CONFIG.evaluator.id;
 

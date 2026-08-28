@@ -108,6 +108,11 @@
         "properties": {
           "id": { "type": "string", "minLength": 1 },
           "type": { "enum": ["llm", "api"] },
+          "optional": {
+            "type": "boolean",
+            "default": false,
+            "description": "This step is dormant unless a caller opts in, so it is not part of the evaluator's default execution. Phase order and multi-provider model strings count non-optional steps only. Say in `description` what turns it on."
+          },
           "description": { "type": "string" },
           "prompt": {
             "type": "object",

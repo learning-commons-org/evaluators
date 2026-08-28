@@ -1,8 +1,10 @@
 {
-  "$schema": "../../_schemas/config.schema.json",
+  "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "math.standards-alignment",
-    "name": "Math Standards Alignment",
+    "id": "academic_standards_alignment.mathematics.math_standards_alignment",
+    "stable_id": "0b839a2d-39f0-40e6-bd37-77b94fea65c1",
+    "id_history": ["math.standards-alignment"],
+    "name": "Math Standards Alignment Evaluator",
     "description": "Evaluates whether an assessment question aligns to a math standard by checking alignment against each of the standard's learning components from the Learning Commons Knowledge Graph.",
     "supported_grades": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
   },
@@ -39,18 +41,56 @@
   ],
   "steps": [
     {
-      "id": "evaluate_standards_alignment",
+      "id": "coarse_filter",
+      "type": "llm",
+      "optional": true,
+      "description": "Dormant by default. Runs only in the many-to-many path (evaluateItems / evaluateByGradeLevel with useCoarseFilter), where it returns a relevant/not-relevant verdict per candidate standard so obviously unrelated pairs skip the evaluation below. Never runs for a single evaluate(), and never contributes to a verdict — it only decides what to skip. Biased toward relevant=true: a false negative silently drops a real alignment.",
+      "prompt": {
+        "messages": [
+          {
+            "role": "user",
+            "source_path": "coarse-filter-user.txt",
+            "sha256": "30dea05b120bf07ef4c8f7cb778f316435eb64fe85fa0b9968c0cdca9f5deb65"
+          }
+        ],
+        "placeholders": {
+          "question": {
+            "required": true,
+            "source": "input"
+          },
+          "standards": {
+            "required": true,
+            "source": "preprocessing.get_standards",
+            "note": "One `code: description` line per candidate standard"
+          }
+        }
+      },
+      "model": {
+        "provider": "anthropic",
+        "name": "claude-haiku-4-5-20251001"
+      },
+      "generation": {
+        "temperature": 0
+      },
+      "parser": {
+        "kind": "structured_output"
+      }
+    },
+    {
+      "id": "evaluate_math_standards_alignment",
       "type": "llm",
       "description": "Single LLM call that evaluates the question against all learning components for the standard at once, returning one result per LC.",
       "prompt": {
         "messages": [
           {
             "role": "system",
-            "source_path": "system.txt"
+            "source_path": "system.txt",
+            "sha256": "26c45e807f94c8a124b17110f074369f27c6a1282fcd789dbe9e66ed95624a49"
           },
           {
             "role": "user",
-            "source_path": "user.txt"
+            "source_path": "user.txt",
+            "sha256": "b3d821be1fc31194f0bb41bf699b88c8cf25316a9874e04a815fb721a4060bfc"
           }
         ],
         "placeholders": {

@@ -9,7 +9,7 @@ A *family* is a set of evaluators that share an input contract, credential needs
 | Family (`--family`) | Members | Required CSV columns | Keys |
 | --- | --- | --- | --- |
 | `text-complexity` | grade-level-appropriateness, subject-matter-knowledge, vocabulary, sentence-structure, conventionality, literacy.gla.purpose, literacy.gla.organizational_structure, literacy.gla.intertextuality | `text`, `grade_level` | Google + OpenAI |
-| `math-standards-alignment` | math.standards-alignment | `question`, `statementCode` (aliases: `ccss_standard`, `text`); optional `jurisdiction` (default `Multi-State`), `grade_level`, `id` | Anthropic + **learning-commons** (Knowledge Graph) |
+| `math-standards-alignment` | academic_standards_alignment.mathematics.math_standards_alignment | `question`, `statementCode` (aliases: `ccss_standard`, `text`); optional `jurisdiction` (default `Multi-State`), `grade`, `id` | Anthropic + **platform** (Knowledge Graph) |
 
 Column matching is case-insensitive and alias-aware; the canonical column wins when both it and an alias are present.
 

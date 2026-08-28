@@ -16,7 +16,7 @@ function standardsResult(over: Partial<BatchResult> = {}): BatchResult {
     rowIndex: 2,
     text: '2+2=?',
     gradeLevel: '4',
-    evaluatorId: 'math.standards-alignment',
+    evaluatorId: 'academic_standards_alignment.mathematics.math_standards_alignment',
     status: 'success',
     score: '1/2',
     reasoning: '1 of 2 learning components aligned',
