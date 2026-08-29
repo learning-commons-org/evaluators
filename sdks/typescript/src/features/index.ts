@@ -1,6 +1,7 @@
 export {
   calculateFleschKincaidGrade,
   calculateReadabilityMetrics,
+  formatGroundTruthCounts,
   type ReadabilityMetrics,
 } from './readability.js';
 
