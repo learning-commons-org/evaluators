@@ -20,6 +20,7 @@ sdks/typescript/src/schemas/feedback/ela-writing/student-response-specificity.ts
 sdks/typescript/src/schemas/feedback/ela-writing/tone-appropriateness.ts linguist-generated=true
 sdks/typescript/src/schemas/feedback/ela-writing/withholding-answers.ts linguist-generated=true
 sdks/typescript/src/schemas/student-facing-text/ela-reading/background-knowledge-demands.ts linguist-generated=true
+sdks/typescript/src/schemas/student-facing-text/ela-reading/grade-level-appropriateness.ts linguist-generated=true
 sdks/typescript/src/schemas/student-facing-text/ela-reading/meaning-directness.ts linguist-generated=true
 sdks/typescript/src/schemas/student-facing-text/ela-reading/organizational-structure.ts linguist-generated=true
 sdks/typescript/src/schemas/student-facing-text/ela-reading/purpose-clarity.ts linguist-generated=true

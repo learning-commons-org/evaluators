@@ -149,8 +149,7 @@ const SENTENCE_ID = SentenceStructureEvaluator.metadata.id;
 
 /** Evaluators whose constructed models or temperatures differ from their contract. */
 const MODEL_GAPS = new Set<string>([
-  // Ships gemini-2.5-pro @ 0.25; the contract declares gemini-3.6-flash @ 1.
-  GLA_ID,
+  // Empty: every evaluator constructs the model its contract declares.
 ]);
 
 /** Evaluators whose `supportedGrades` does not describe their declared inputs. */
@@ -171,8 +170,7 @@ const GRADE_GAPS = new Set<string>([
  * schema regenerated from its contract would silently mislabel every text in that band.
  */
 const BAND_GAPS = new Set<string>([
-  // The contract declares `11-12`; the SDK schema and the report both say `11-CCR`.
-  '11-12',
+  // Empty: the report recognises every band the contracts declare.
 ]);
 
 /**
@@ -193,8 +191,7 @@ const ORDER_GAPS = new Set<string>([
  * Evaluators sending a temperature their contract does not declare.
  */
 const TEMPERATURE_GAPS = new Set<string>([
-  // Sends 0.25; the contract declares 1.
-  GLA_ID,
+  // Empty: every evaluator sends the temperature its contract declares.
 ]);
 
 /**
@@ -206,6 +203,15 @@ const RESULT_NAME_GAPS = new Set<string>([
   SENTENCE_ID,
   // Assembles its payload from per-component results, so there is no single schema.
   MATH_ID,
+]);
+
+/**
+ * Evaluators whose schema offers different values than the contract declares.
+ */
+const ENUM_VALUE_GAPS = new Set<string>([
+  // Sends the shared Title Case TextComplexityLevel ('Slightly complex') where the
+  // contract declares 'slightly_complex'. Same divergence as FIXTURE_VALUE_GAPS.
+  SENTENCE_ID,
 ]);
 
 /**
@@ -513,6 +519,53 @@ describe('the schema the SDK sends matches the contract', () => {
     const declared = Object.keys(outputSchema.properties).sort();
 
     expect(sentFields, `${E.metadata.name} sent payload fields`).toEqual(declared);
+  });
+
+  // Field names are only half of it: a field can carry the right name and offer the model
+  // the wrong choices. `11-CCR` for a contract declaring `11-12` passed the check above.
+  it.each(withSchema)('$name enum values', ({ E }) => {
+    const { outputSchema } = contractFor(E.metadata.id);
+    const defs = (outputSchema.$defs ?? {}) as Record<string, { enum?: unknown[] }>;
+    const shape = SDK_OUTPUT_SCHEMAS[E.metadata.id].shape as Record<string, unknown>;
+
+    const mismatched = Object.entries(outputSchema.properties).flatMap(([field, spec]) => {
+      const ref = typeof spec.$ref === 'string' ? spec.$ref.replace('#/$defs/', '') : undefined;
+      const declared = (ref ? defs[ref]?.enum : (spec as { enum?: unknown[] }).enum) as
+        | unknown[]
+        | undefined;
+      if (!declared) return [];
+
+      const options = (shape[field] as { options?: unknown[] } | undefined)?.options;
+      if (!options) {
+        return [`${field}: schema offers no choices, contract declares ${declared.length}`];
+      }
+
+      // A string enum becomes z.enum, whose options are the values. An integer enum
+      // cannot — Zod enums are strings — so it becomes a union of z.literal, whose
+      // options are the literal schemas. Both have to compare against the contract.
+      const sent = options.map((option) => {
+        if (option === null || typeof option !== 'object') return option;
+        const literal = option as { value?: unknown; def?: { values?: unknown[] } };
+        return literal.value ?? literal.def?.values?.[0];
+      });
+
+      const same = sent.length === declared.length && sent.every((v, i) => v === declared[i]);
+      return same
+        ? []
+        : [`${field}: sent ${JSON.stringify(sent)}, declared ${JSON.stringify(declared)}`];
+    });
+
+    if (ENUM_VALUE_GAPS.has(E.metadata.id)) {
+      expect(
+        mismatched,
+        `${E.metadata.name} now offers the declared values — drop it from ENUM_VALUE_GAPS`,
+      ).not.toEqual([]);
+      return;
+    }
+
+    expect(mismatched, `${E.metadata.name} offers values its contract does not declare`).toEqual(
+      [],
+    );
   });
 });
 

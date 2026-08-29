@@ -9,7 +9,7 @@ import { GradeLevelAppropriatenessEvaluator } from '../evaluators/student-facing
 // column instead of failing.
 const GLA_EVALUATOR_ID = GradeLevelAppropriatenessEvaluator.metadata.id;
 
-const GRADE_BANDS = ['K-1', '2-3', '4-5', '6-8', '9-10', '11-CCR'] as const;
+const GRADE_BANDS = ['K-1', '2-3', '4-5', '6-8', '9-10', '11-12'] as const;
 type GradeBand = typeof GRADE_BANDS[number];
 
 // Complexity string scores → numeric

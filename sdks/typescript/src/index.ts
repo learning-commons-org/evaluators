@@ -6,7 +6,8 @@ export type {
   EvaluationFailure,
 } from './schemas/index.js';
 
-export { TextComplexityLevel, GradeBand } from './schemas/index.js';
+export { TextComplexityLevel } from './schemas/index.js';
+export type { GradeBand } from './schemas/index.js';
 export { readOutcome, type Outcome } from './schemas/index.js';
 
 // Error types

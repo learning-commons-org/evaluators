@@ -305,10 +305,10 @@ describe('formatAsHTML', () => {
       }
     });
 
-    it('maps grade 11, 12, and CCR to the same 11-CCR band', () => {
+    it('maps grade 11, 12, and CCR to the same 11-12 band', () => {
       for (const grade of ['11', '12', 'CCR']) {
         const { gradeLevelStats } = extractReportData(
-          formatAsHTML(glaOutput(grade, '11-CCR'), makeMeta())
+          formatAsHTML(glaOutput(grade, '11-12'), makeMeta())
         );
         expect(gradeLevelStats.onBand).toBe(1);
       }
