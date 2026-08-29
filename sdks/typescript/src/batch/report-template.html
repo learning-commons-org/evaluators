@@ -225,6 +225,7 @@
         csvPath: '/Users/designer/Documents/interventionhelper_content_batch_03-01.csv',
         evaluatorIds: ['student_facing_text.ela_reading.grade_level_appropriateness', 'student_facing_text.ela_reading.background_knowledge_demands', 'student_facing_text.ela_reading.vocabulary_complexity', 'student_facing_text.ela_reading.sentence_structure', 'student_facing_text.ela_reading.meaning_directness'],
         evaluatorNames: ['Grade Level Appropriateness Evaluator', 'Background Knowledge Demands Evaluator', 'Vocabulary Complexity Evaluator', 'Sentence Structure Evaluator', 'Meaning Directness Evaluator'],
+        evaluatorOrder: ['student_facing_text.ela_reading.grade_level_appropriateness', 'student_facing_text.ela_reading.background_knowledge_demands', 'student_facing_text.ela_reading.vocabulary_complexity', 'student_facing_text.ela_reading.sentence_structure', 'student_facing_text.ela_reading.meaning_directness'],
         totalRows: 300,
         processedRows: 287,
         erroredRows: 13,
@@ -419,16 +420,12 @@
     REPORT_DATA = REPORT_DATA || MOCK_REPORT_DATA;
 
     // ---------------------------------------------------------------------------
-    // Report column order. Ids absent from this list sort last — add new members here.
+    // Report column order, supplied by the formatter from the family definition. Kept out
+    // of this file so a member added to the family does not need a second edit here to
+    // avoid sorting last.
     // ---------------------------------------------------------------------------
 
-    const EVALUATOR_ORDER = [
-      'student_facing_text.ela_reading.grade_level_appropriateness',
-      'student_facing_text.ela_reading.background_knowledge_demands',
-      'student_facing_text.ela_reading.vocabulary_complexity',
-      'student_facing_text.ela_reading.sentence_structure',
-      'student_facing_text.ela_reading.meaning_directness',
-    ];
+    const EVALUATOR_ORDER = REPORT_DATA.meta.evaluatorOrder || [];
 
     function evalSortIndex(id) {
       const i = EVALUATOR_ORDER.indexOf(id);

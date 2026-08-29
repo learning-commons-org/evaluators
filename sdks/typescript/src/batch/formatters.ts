@@ -2,6 +2,8 @@ import type { BatchOutput, BatchResult } from './types.js';
 import reportTemplate from './report-template.html';
 import { injectReportData, toInlineJson } from './report-injection.js';
 import { GradeLevelAppropriatenessEvaluator } from '../evaluators/student-facing-text/ela-reading/grade-level-appropriateness.js';
+import { GradeLevelAppropriatenessOutputSchema } from '../schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
+import { QTC_FAMILY } from './families/qtc.js';
 
 // ---- Constants ----
 
@@ -10,8 +12,12 @@ import { GradeLevelAppropriatenessEvaluator } from '../evaluators/student-facing
 // column instead of failing.
 const GLA_EVALUATOR_ID = GradeLevelAppropriatenessEvaluator.metadata.id;
 
-const GRADE_BANDS = ['K-1', '2-3', '4-5', '6-8', '9-10', '11-12'] as const;
-type GradeBand = typeof GRADE_BANDS[number];
+// Read from GLA's generated schema, which is the contract that defines the bands. The
+// report indexes into this list to derive on-band/adjacent/off-target, so a band the
+// contract gains but this list lacks would index to -1 and render as "Off Target" — a
+// plausible-looking verdict rather than a failure.
+const GRADE_BANDS = GradeLevelAppropriatenessOutputSchema.shape.grade_band.options;
+type GradeBand = (typeof GRADE_BANDS)[number];
 
 // Complexity string scores → numeric
 const COMPLEXITY_SCORE_MAP: Record<string, number> = {
@@ -358,6 +364,9 @@ export function formatAsHTML(output: BatchOutput, meta: ReportMeta): string {
       groupId: meta.groupId,
       evaluatorIds: allEvaluatorIds,
       evaluatorNames: allEvaluatorIds.map(evaluatorDisplayName),
+      // The column order travels with the data rather than being restated in the
+      // template, so a member added to the family is ordered without a second edit.
+      evaluatorOrder: QTC_FAMILY.members.map((m) => m.id),
       totalRows: meta.totalInputRows,
       processedRows,
       erroredRows,
