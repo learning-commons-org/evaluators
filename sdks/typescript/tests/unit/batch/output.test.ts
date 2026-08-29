@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderOutputs } from '../../../src/batch/output.js';
-import { injectReportData } from '../../../src/batch/families/standards-output.js';
+import { injectReportData } from '../../../src/batch/report-injection.js';
 import type { BatchOutput, BatchResult, ReportMeta } from '../../../src/batch/index.js';
 
 const meta: ReportMeta = {
@@ -164,13 +164,17 @@ describe('renderOutputs — empty result sets', () => {
 
 describe('injectReportData', () => {
   it('replaces the marker with the payload assignment', () => {
-    const out = injectReportData('before var REPORT_DATA = null; // __REPLACED_BY_FORMATTER__ after', '{"a":1}');
+    const out = injectReportData(
+      'before var REPORT_DATA = null; // __REPLACED_BY_FORMATTER__ after',
+      '{"a":1}',
+      'Standards',
+    );
     expect(out).toContain('var REPORT_DATA = {"a":1};');
     expect(out).not.toContain('__REPLACED_BY_FORMATTER__');
   });
 
   it('throws rather than emitting a report with no data when the marker is missing', () => {
-    expect(() => injectReportData('<html>no marker here</html>', '{}')).toThrow(/marker not found/);
+    expect(() => injectReportData('<html>no marker here</html>', '{}', 'Standards')).toThrow(/marker not found/);
   });
 
   // As a replacement *string*, `$$`/`$&`/`$'` are substitution patterns: `$$x^2$$`
@@ -183,7 +187,7 @@ describe('injectReportData', () => {
     ['$` (prefix)', '{"q":"a $` b"}'],
   ])('inserts %s verbatim instead of expanding it', (_label, payload) => {
     const template = `<script>\nvar REPORT_DATA = null; // __REPLACED_BY_FORMATTER__\n</script>\n<div>TAIL</div>`;
-    const out = injectReportData(template, payload);
+    const out = injectReportData(template, payload, 'Standards');
 
     expect(out).toContain(`var REPORT_DATA = ${payload};`);
     // Exactly one closing script tag: the tail was not spliced into the script.
