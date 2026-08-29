@@ -6,6 +6,15 @@ const RUN = process.env['RUN_INTEGRATION_TESTS'] === 'true';
 const ANTHROPIC_KEY = process.env['ANTHROPIC_API_KEY'];
 const LEARNING_COMMONS_KEY = process.env['LEARNING_COMMONS_API_KEY'];
 
+// A missing key when integration tests were explicitly requested is a misconfiguration,
+// not a reason to quietly pass — matches batch/model-override.
+if (RUN) {
+  if (!ANTHROPIC_KEY) throw new Error('ANTHROPIC_API_KEY is required when RUN_INTEGRATION_TESTS=true');
+  if (!LEARNING_COMMONS_KEY) {
+    throw new Error('LEARNING_COMMONS_API_KEY is required when RUN_INTEGRATION_TESTS=true');
+  }
+}
+
 const itIf = (cond: boolean) => (cond ? it : it.skip);
 
 // ---------------------------------------------------------------------------
@@ -54,7 +63,7 @@ function makeInstrumentedEvaluator() {
 // ---------------------------------------------------------------------------
 
 describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, () => {
-  itIf(RUN && !!ANTHROPIC_KEY && !!LEARNING_COMMONS_KEY)(
+  itIf(RUN)(
     '3.MD.C.7 family: area L-shape question vs parent + all sub-standards',
     async () => {
       const questionItems = [
@@ -122,11 +131,15 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
 
       const find = (code: string) => areaGT.standards.find((s) => s.statementCode === code)!;
 
+      // Alignment per learning component is a model judgement and it moves between runs
+      // even at temperature 0 — for 3.MD.C.7.d runs have produced 1, 2 and 3 of 3. So the
+      // direction is asserted (does it align at all?) and never the count.
+      //
       // 3.MD.C.7 — parent standard: "use multiplication and addition to find area"
-      //   Area L-shape requires adding two rectangles → strongly aligned
+      //   Area L-shape requires adding two rectangles → aligned
       const s7 = find('3.MD.C.7');
       expect(s7.totalCount).toBeGreaterThan(0);
-      expect(s7.alignedCount, '3.MD.C.7 should align strongly (all LCs)').toBe(s7.totalCount);
+      expect(s7.alignedCount, '3.MD.C.7 should align').toBeGreaterThan(0);
 
       // 3.MD.C.7.a — "tiling" and "same result as multiplying side lengths"
       //   L-shape question does not ask students to tile or reason about tiling
@@ -135,11 +148,10 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
       expect(s7a.alignedCount, '3.MD.C.7.a should not align (about tiling, not decomposition)').toBe(0);
 
       // 3.MD.C.7.b — "multiply side lengths to find area of rectangles"
-      //   Computing 8×3 and 4×2 is multiplication of side lengths → partially aligned
+      //   Computing 8×3 and 4×2 is multiplication of side lengths → aligned
       const s7b = find('3.MD.C.7.b');
       expect(s7b.totalCount).toBeGreaterThan(0);
-      expect(s7b.alignedCount, '3.MD.C.7.b should partially align (multiplication of sides present)').toBeGreaterThan(0);
-      expect(s7b.alignedCount, '3.MD.C.7.b should not be fully aligned (distributive property LC not directly assessed)').toBeLessThan(s7b.totalCount);
+      expect(s7b.alignedCount, '3.MD.C.7.b should align (multiplication of sides present)').toBeGreaterThan(0);
 
       // 3.MD.C.7.c — "distributive property / a(b+c)"
       //   L-shape uses decomposition and addition but does not explicitly model a(b+c)
@@ -151,7 +163,7 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
       //   L-shape is the textbook example of rectilinear decomposition
       const s7d = find('3.MD.C.7.d');
       expect(s7d.totalCount).toBeGreaterThan(0);
-      expect(s7d.alignedCount, '3.MD.C.7.d should align strongly (all LCs)').toBe(s7d.totalCount);
+      expect(s7d.alignedCount, '3.MD.C.7.d should align').toBeGreaterThan(0);
 
       // Unrelated question must not align to any standard
       const unrelatedGT = groundTruth.find((q) => q.question === UNRELATED_QUESTION)!;
