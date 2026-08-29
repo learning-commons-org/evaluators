@@ -543,11 +543,11 @@ describe('the schema the SDK sends matches the contract', () => {
       // A string enum becomes z.enum, whose options are the values. An integer enum
       // cannot — Zod enums are strings — so it becomes a union of z.literal, whose
       // options are the literal schemas. Both have to compare against the contract.
-      const sent = options.map((option) => {
-        if (option === null || typeof option !== 'object') return option;
-        const literal = option as { value?: unknown; def?: { values?: unknown[] } };
-        return literal.value ?? literal.def?.values?.[0];
-      });
+      const sent = options.map((option) =>
+        option !== null && typeof option === 'object'
+          ? (option as { value: unknown }).value
+          : option,
+      );
 
       const same = sent.length === declared.length && sent.every((v, i) => v === declared[i]);
       return same
