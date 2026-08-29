@@ -14,6 +14,20 @@ import {
   VocabularyComplexityEvaluator,
   MathStandardsAlignmentEvaluator,
 } from '../../src/evaluators/index.js';
+import { RevisionAccuracyEvaluator } from '../../src/evaluators/feedback/ela-writing/revision-accuracy.js';
+import { RevisionActionabilityEvaluator } from '../../src/evaluators/feedback/ela-writing/revision-actionability.js';
+import { RevisionManageabilityEvaluator } from '../../src/evaluators/feedback/ela-writing/revision-manageability.js';
+import { StrengthAcknowledgmentEvaluator } from '../../src/evaluators/feedback/ela-writing/strength-acknowledgment.js';
+import { StudentResponseSpecificityEvaluator } from '../../src/evaluators/feedback/ela-writing/student-response-specificity.js';
+import { ToneAppropriatenessEvaluator } from '../../src/evaluators/feedback/ela-writing/tone-appropriateness.js';
+import { WithholdingAnswersEvaluator } from '../../src/evaluators/feedback/ela-writing/withholding-answers.js';
+import { RevisionAccuracyOutputSchema } from '../../src/schemas/feedback/ela-writing/revision-accuracy.js';
+import { RevisionActionabilityOutputSchema } from '../../src/schemas/feedback/ela-writing/revision-actionability.js';
+import { RevisionManageabilityOutputSchema } from '../../src/schemas/feedback/ela-writing/revision-manageability.js';
+import { StrengthAcknowledgmentOutputSchema } from '../../src/schemas/feedback/ela-writing/strength-acknowledgment.js';
+import { StudentResponseSpecificityOutputSchema } from '../../src/schemas/feedback/ela-writing/student-response-specificity.js';
+import { ToneAppropriatenessOutputSchema } from '../../src/schemas/feedback/ela-writing/tone-appropriateness.js';
+import { WithholdingAnswersOutputSchema } from '../../src/schemas/feedback/ela-writing/withholding-answers.js';
 import { InputValidationError } from '../../src/errors.js';
 import { readOutcome } from '../../src/schemas/outcome.js';
 import { runPreprocessingStep } from '../../src/features/preprocessing.js';
@@ -111,13 +125,9 @@ const EVALUATORS = (Object.values(exported) as unknown[])
  * unimplemented and unmentioned.
  */
 const UNIMPLEMENTED = new Set<string>([
-  'feedback.ela_writing.revision_accuracy',
-  'feedback.ela_writing.revision_actionability',
-  'feedback.ela_writing.revision_manageability',
-  'feedback.ela_writing.strength_acknowledgment',
-  'feedback.ela_writing.student_response_specificity',
-  'feedback.ela_writing.tone_appropriateness',
-  'feedback.ela_writing.withholding_answers',
+  // Every contract now has an implementation. A new contract lands here until its
+  // evaluator does, and the assertion below fails once it is implemented, so the entry
+  // cannot outlive its reason.
 ]);
 
 // ---------------------------------------------------------------------------
@@ -231,6 +241,13 @@ const FIXTURE_VALUE_GAPS = new Set<string>([
  * schema to compare.
  */
 const SDK_OUTPUT_SCHEMAS: Record<string, { shape: Record<string, unknown> }> = {
+  [RevisionAccuracyEvaluator.metadata.id]: RevisionAccuracyOutputSchema,
+  [RevisionActionabilityEvaluator.metadata.id]: RevisionActionabilityOutputSchema,
+  [RevisionManageabilityEvaluator.metadata.id]: RevisionManageabilityOutputSchema,
+  [StrengthAcknowledgmentEvaluator.metadata.id]: StrengthAcknowledgmentOutputSchema,
+  [StudentResponseSpecificityEvaluator.metadata.id]: StudentResponseSpecificityOutputSchema,
+  [ToneAppropriatenessEvaluator.metadata.id]: ToneAppropriatenessOutputSchema,
+  [WithholdingAnswersEvaluator.metadata.id]: WithholdingAnswersOutputSchema,
   [BackgroundKnowledgeDemandsEvaluator.metadata.id]: BackgroundKnowledgeDemandsOutputSchema,
   [GradeLevelAppropriatenessEvaluator.metadata.id]: GradeLevelAppropriatenessOutputSchema,
   [MeaningDirectnessEvaluator.metadata.id]: MeaningDirectnessOutputSchema,
@@ -322,6 +339,9 @@ const cases = EVALUATORS.map((E) => ({ name: E.metadata.name, E }));
  * Math is absent: its inputs are a question and a standard code, and it calls the
  * Knowledge Graph before any model. Naming inputs will make this map derivable.
  */
+/** Stands in for the teacher comment the feedback family judges. */
+const FEEDBACK_TEXT = 'Try adding a topic sentence so the reader knows your argument.';
+
 const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknown>> = {
   [GLA_ID]: (E, text) => construct(E).evaluate({ text }),
   [BKD_ID]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
@@ -332,6 +352,20 @@ const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknow
     construct(E).evaluate({ text, grade_level: '5' }),
   [SENTENCE_ID]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
   [VocabularyComplexityEvaluator.metadata.id]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
+  [RevisionAccuracyEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
+  [RevisionActionabilityEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
+  [RevisionManageabilityEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
+  [StrengthAcknowledgmentEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
+  [StudentResponseSpecificityEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
+  [ToneAppropriatenessEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
+  [WithholdingAnswersEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
 };
 
 /**
@@ -586,8 +620,16 @@ describe('every contract is implemented or explicitly listed as not', () => {
   )('$label', ({ dir }) => {
     const id = JSON.parse(readFileSync(join(dir, 'config.json'), 'utf-8')).evaluator.id;
 
+    if (contractIds.includes(id)) {
+      expect(
+        UNIMPLEMENTED.has(id),
+        `"${id}" is implemented — drop it from UNIMPLEMENTED`,
+      ).toBe(false);
+      return;
+    }
+
     expect(
-      contractIds.includes(id) || UNIMPLEMENTED.has(id),
+      UNIMPLEMENTED.has(id),
       `"${id}" has a contract but no implementation and is not in UNIMPLEMENTED`,
     ).toBe(true);
   });

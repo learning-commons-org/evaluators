@@ -48,6 +48,41 @@ export {
 } from './student-facing-text/ela-reading/organizational-structure.js';
 
 export {
+  RevisionAccuracyEvaluator,
+  evaluateRevisionAccuracy,
+} from './feedback/ela-writing/revision-accuracy.js';
+
+export {
+  RevisionActionabilityEvaluator,
+  evaluateRevisionActionability,
+} from './feedback/ela-writing/revision-actionability.js';
+
+export {
+  RevisionManageabilityEvaluator,
+  evaluateRevisionManageability,
+} from './feedback/ela-writing/revision-manageability.js';
+
+export {
+  StrengthAcknowledgmentEvaluator,
+  evaluateStrengthAcknowledgment,
+} from './feedback/ela-writing/strength-acknowledgment.js';
+
+export {
+  StudentResponseSpecificityEvaluator,
+  evaluateStudentResponseSpecificity,
+} from './feedback/ela-writing/student-response-specificity.js';
+
+export {
+  ToneAppropriatenessEvaluator,
+  evaluateToneAppropriateness,
+} from './feedback/ela-writing/tone-appropriateness.js';
+
+export {
+  WithholdingAnswersEvaluator,
+  evaluateWithholdingAnswers,
+} from './feedback/ela-writing/withholding-answers.js';
+
+export {
   MathStandardsAlignmentEvaluator,
   evaluateMathStandardsAlignment,
   type MathStandardsAlignmentEvaluatorConfig,

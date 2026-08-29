@@ -91,6 +91,22 @@ export type { ReferenceKnowledgeDemandsResult } from './schemas/student-facing-t
 // Organizational Structure exports
 export type { OrganizationalStructureResult } from './schemas/student-facing-text/ela-reading/organizational-structure.js';
 
+// Feedback exports
+export type { RevisionAccuracyResult } from './schemas/feedback/ela-writing/revision-accuracy.js';
+export { RevisionAccuracyOutputSchema } from './schemas/feedback/ela-writing/revision-accuracy.js';
+export type { RevisionActionabilityResult } from './schemas/feedback/ela-writing/revision-actionability.js';
+export { RevisionActionabilityOutputSchema } from './schemas/feedback/ela-writing/revision-actionability.js';
+export type { RevisionManageabilityResult } from './schemas/feedback/ela-writing/revision-manageability.js';
+export { RevisionManageabilityOutputSchema } from './schemas/feedback/ela-writing/revision-manageability.js';
+export type { StrengthAcknowledgmentResult } from './schemas/feedback/ela-writing/strength-acknowledgment.js';
+export { StrengthAcknowledgmentOutputSchema } from './schemas/feedback/ela-writing/strength-acknowledgment.js';
+export type { StudentResponseSpecificityResult } from './schemas/feedback/ela-writing/student-response-specificity.js';
+export { StudentResponseSpecificityOutputSchema } from './schemas/feedback/ela-writing/student-response-specificity.js';
+export type { ToneAppropriatenessResult } from './schemas/feedback/ela-writing/tone-appropriateness.js';
+export { ToneAppropriatenessOutputSchema } from './schemas/feedback/ela-writing/tone-appropriateness.js';
+export type { WithholdingAnswersResult } from './schemas/feedback/ela-writing/withholding-answers.js';
+export { WithholdingAnswersOutputSchema } from './schemas/feedback/ela-writing/withholding-answers.js';
+
 export {
   VocabularyComplexityEvaluator,
   evaluateVocabularyComplexity,
@@ -108,6 +124,20 @@ export {
   evaluateReferenceKnowledgeDemands,
   OrganizationalStructureEvaluator,
   evaluateOrganizationalStructure,
+  RevisionAccuracyEvaluator,
+  evaluateRevisionAccuracy,
+  RevisionActionabilityEvaluator,
+  evaluateRevisionActionability,
+  RevisionManageabilityEvaluator,
+  evaluateRevisionManageability,
+  StrengthAcknowledgmentEvaluator,
+  evaluateStrengthAcknowledgment,
+  StudentResponseSpecificityEvaluator,
+  evaluateStudentResponseSpecificity,
+  ToneAppropriatenessEvaluator,
+  evaluateToneAppropriateness,
+  WithholdingAnswersEvaluator,
+  evaluateWithholdingAnswers,
   MathStandardsAlignmentEvaluator,
   evaluateMathStandardsAlignment,
   type MathStandardsAlignmentEvaluatorConfig,
