@@ -32,7 +32,11 @@ import {
 interface SimpleEvaluator {
   evaluate(input: Record<string, string>): Promise<EvaluationResult<unknown>>;
 }
-type EvaluatorConstructor = new (config: BaseEvaluatorConfig) => SimpleEvaluator;
+type EvaluatorConstructor = (new (config: BaseEvaluatorConfig) => SimpleEvaluator) & {
+  // The declared outcome travels with the class, so the family reads which field holds
+  // the verdict from the contract rather than knowing it per member.
+  metadata: { outcome?: { score: string; reasoning: string } };
+};
 
 const EVALUATOR_MAP = new Map<string, EvaluatorConstructor>([
   [GradeLevelAppropriatenessEvaluator.metadata.id, GradeLevelAppropriatenessEvaluator],
@@ -112,7 +116,8 @@ class QtcRunner implements FamilyRunner {
     }
 
     const result = await this.getEvaluator(memberId).evaluate(inputs);
-    const { score, reasoning } = readOutcome(result);
+    const declared = EVALUATOR_MAP.get(memberId)?.metadata.outcome;
+    const { score, reasoning } = readOutcome(result, declared);
 
     // A report cell has to be a string. An absent verdict renders blank, and doing
     // that here rather than inside readOutcome keeps the gap visible to any other caller.

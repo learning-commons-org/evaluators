@@ -13,6 +13,7 @@ import {
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import { validateInputs, type InputsOf } from './inputs.js';
+import { declaredCredentials } from './credentials.js';
 import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/input_schema.json';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
@@ -54,6 +55,8 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     idHistory: CONFIG.evaluator.id_history,
     name: CONFIG.evaluator.name,
     description: CONFIG.evaluator.description,
+    outcome: CONFIG.outcome,
+    requiredCredentials: declaredCredentials(CONFIG),
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
     defaultProviders: [Provider.Google, Provider.OpenAI] as const,
   };
@@ -94,6 +97,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(input: VocabularyComplexityInput): Promise<EvaluationResult<VocabularyComplexityInternal>> {
+    validateInputs(input, INPUT_SCHEMA);
     const { text, grade_level: gradeLevel } = input;
 
     this.logger.info('Starting Vocabulary Complexity evaluation', {
@@ -118,7 +122,6 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     try {
       // Validate inputs — inside try so validation errors are telemetered.
       // If partners consistently pass invalid grade levels/text, telemetry will surface documentation gaps.
-      validateInputs(input, INPUT_SCHEMA);
       this.logger.debug('Stage 1: Generating background knowledge', {
         evaluator: VocabularyComplexityEvaluator.metadata.id,
         operation: 'background_knowledge',

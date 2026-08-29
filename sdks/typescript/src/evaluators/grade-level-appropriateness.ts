@@ -7,6 +7,7 @@ import { getSystemPrompt, getUserPrompt } from '../prompts/grade-level-appropria
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import { validateInputs, type InputsOf } from './inputs.js';
+import { declaredCredentials } from './credentials.js';
 import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/input_schema.json';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
 import CONFIG from '../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/config.json';
@@ -34,7 +35,7 @@ import CONFIG from '../../../../evals/student-facing-text/ela-reading/grade-leve
  *
  * const result = await evaluator.evaluate(input);
  * console.log(result.score); // "9-10"
- * console.log(result._internal.alternative_grade); // "6-8"
+ * console.log(result.result.alternative_grade_band); // "6-8"
  * console.log(result._internal.scaffolding_needed);
  * ```
  */
@@ -48,6 +49,8 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
     idHistory: CONFIG.evaluator.id_history,
     name: CONFIG.evaluator.name,
     description: CONFIG.evaluator.description,
+    outcome: CONFIG.outcome,
+    requiredCredentials: declaredCredentials(CONFIG),
     supportedGrades: [] as const, // No gradeLevel parameter required - evaluates what grade level the text is appropriate for
     defaultProviders: [Provider.Google] as const,
   };
@@ -74,6 +77,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(input: GradeLevelAppropriatenessInput): Promise<EvaluationResult<GradeLevelAppropriatenessInternal>> {
+    validateInputs(input, INPUT_SCHEMA);
     const { text } = input;
 
     this.logger.info('Starting grade level appropriateness evaluation', {
@@ -86,7 +90,6 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
 
     try {
       // Validate inputs — inside try so validation errors are telemetered.
-      validateInputs(input, INPUT_SCHEMA);
       this.logger.debug('Evaluating grade level appropriateness', {
         evaluator: GradeLevelAppropriatenessEvaluator.metadata.id,
         operation: 'grade_evaluation',
@@ -140,7 +143,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
       this.logger.info('Grade level appropriateness evaluation completed successfully', {
         evaluator: GradeLevelAppropriatenessEvaluator.metadata.id,
         operation: 'evaluate',
-        gradeLevel: response.data.grade,
+        gradeLevel: response.data.grade_band,
         processingTimeMs: latencyMs,
       });
 

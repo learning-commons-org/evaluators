@@ -17,8 +17,8 @@ import type { LLMProvider } from '../../../src/providers/base.js';
  */
 
 const GLA_DATA = {
-  grade: '6-8',
-  alternative_grade: '4-5',
+  grade_band: '6-8',
+  alternative_grade_band: '4-5',
   scaffolding_needed: 'Pre-teach vocabulary; use diagrams',
   reasoning: 'Middle-school-appropriate science prose.',
 };
@@ -64,7 +64,7 @@ describe('llmProvider — bring-your-own-provider', () => {
     const result = await evaluator.evaluate({ text: SAMPLE_TEXT });
 
     expect(generateStructured).toHaveBeenCalledTimes(1);
-    expect(result.result.grade).toBe('6-8');
+    expect(result.result.grade_band).toBe('6-8');
     expect(result.metadata.model).toBe('vertex:gemini-2.5-pro');
     // The injected provider is the one in use, not a createProvider-built one.
     // @ts-expect-error accessing private property for testing

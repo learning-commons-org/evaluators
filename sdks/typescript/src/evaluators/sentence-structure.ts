@@ -16,6 +16,7 @@ import {
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import { validateInputs, type InputsOf } from './inputs.js';
+import { declaredCredentials } from './credentials.js';
 import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/sentence-structure/input_schema.json';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, LLMOutputProcessingError, wrapProviderError } from '../errors.js';
@@ -76,6 +77,8 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     idHistory: CONFIG.evaluator.id_history,
     name: CONFIG.evaluator.name,
     description: CONFIG.evaluator.description,
+    outcome: CONFIG.outcome,
+    requiredCredentials: declaredCredentials(CONFIG),
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
     defaultProviders: [Provider.OpenAI] as const,
   };
@@ -102,6 +105,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(input: SentenceStructureInput): Promise<EvaluationResult<ComplexityClassification>> {
+    validateInputs(input, INPUT_SCHEMA);
     const { text, grade_level: gradeLevel } = input;
 
     this.logger.info('Starting sentence structure evaluation', {
@@ -116,7 +120,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
 
     try {
       // Validate inputs — inside try so validation errors are telemetered.
-      validateInputs(input, INPUT_SCHEMA);
       this.logger.debug('Stage 1: Analyzing sentence structure', {
         evaluator: SentenceStructureEvaluator.metadata.id,
         operation: 'sentence_analysis',
@@ -195,7 +198,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         evaluator: SentenceStructureEvaluator.metadata.id,
         operation: 'evaluate',
         gradeLevel,
-        score: complexityResponse.data.answer,
+        score: complexityResponse.data.complexity_score,
         processingTimeMs: latencyMs,
       });
 
@@ -306,20 +309,20 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     });
 
     // Normalize label to handle LLM output variations
-    const normalizedAnswer = normalizeLabel(response.data.answer);
+    const normalizedAnswer = normalizeLabel(response.data.complexity_score);
 
     if (!normalizedAnswer) {
       throw new LLMOutputProcessingError(
-        `Failed to normalize complexity label. Received unexpected value: "${response.data.answer}". ` +
+        `Failed to normalize complexity label. Received unexpected value: "${response.data.complexity_score}". ` +
         `Expected one of: Slightly Complex, Moderately Complex, Very Complex, Exceedingly Complex, Extremely Complex.`,
-        [{ path: 'answer', received: response.data.answer }]
+        [{ path: 'complexity_score', received: response.data.complexity_score }]
       );
     }
 
     return {
       data: {
         ...response.data,
-        answer: normalizedAnswer,
+        complexity_score: normalizedAnswer,
       },
       usage: response.usage,
       latencyMs: response.latencyMs,

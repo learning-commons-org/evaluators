@@ -17,8 +17,10 @@ export const GradeLevelAppropriatenessOutputSchema = z.object({
     .describe(
       'Your reasoning for your answer in numbered bullet points for 4 steps with a 4th bullet point for synthesis.'
     ),
-  grade: GradeBand.describe('The appropriate grade level for the text'),
-  alternative_grade: GradeBand.describe('An alternative grade level for the text'),
+  grade_band: GradeBand.describe('Target grade band for the text at independent reading.'),
+  alternative_grade_band: GradeBand.describe(
+    'A second grade band that could read and comprehend the text with the scaffolding named in scaffolding_needed, or as a read-aloud.',
+  ),
   scaffolding_needed: z
     .string()
     .describe('Scaffolding needed for the text to be appropriate for the alternative grade'),

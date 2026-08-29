@@ -5,6 +5,7 @@ import { getSystemPrompt, getUserPrompt } from '../prompts/meaning-directness/in
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import { validateInputs, type InputsOf } from './inputs.js';
+import { declaredCredentials } from './credentials.js';
 import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/meaning-directness/input_schema.json';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
@@ -43,6 +44,8 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
     idHistory: CONFIG.evaluator.id_history,
     name: CONFIG.evaluator.name,
     description: CONFIG.evaluator.description,
+    outcome: CONFIG.outcome,
+    requiredCredentials: declaredCredentials(CONFIG),
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
     defaultProviders: [Provider.Google] as const,
   };
@@ -69,6 +72,7 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(input: MeaningDirectnessInput): Promise<EvaluationResult<MeaningDirectnessInternal>> {
+    validateInputs(input, INPUT_SCHEMA);
     const { text, grade_level: gradeLevel } = input;
 
     this.logger.info('Starting Meaning Directness evaluation', {
@@ -83,7 +87,6 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
 
     try {
       // Validate inputs — inside try so validation errors are telemetered.
-      validateInputs(input, INPUT_SCHEMA);
 
       this.logger.debug('Evaluating conventionality complexity', {
         evaluator: MeaningDirectnessEvaluator.metadata.id,

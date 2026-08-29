@@ -58,7 +58,7 @@ const MOCK_RESPONSE = {
 describe('ReferenceKnowledgeDemandsEvaluator - Constructor', () => {
   it('throws when Google API key is missing', () => {
     expect(() => new ReferenceKnowledgeDemandsEvaluator({ googleApiKey: '' })).toThrow(
-      /Google API key is required/,
+      /Missing required credential: googleApiKey/,
     );
   });
 });

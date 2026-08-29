@@ -39,7 +39,7 @@ describeIntegration('modelOverride — model validity (live API)', () => {
     });
 
     const result = await evaluator.evaluate({ text: SAMPLE_TEXT, grade_level: '5' });
-    expect(result.result.answer).toBeDefined();
+    expect(result.result.complexity_score).toBeDefined();
     expect(result.metadata.model).toMatch(/^openai:gpt-4o-mini/);
   }, TEST_TIMEOUT_MS);
 

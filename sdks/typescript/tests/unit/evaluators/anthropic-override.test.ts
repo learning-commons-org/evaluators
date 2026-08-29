@@ -87,7 +87,7 @@ describe('Anthropic modelOverride — plumbing', () => {
           modelOverride: { provider: Provider.Anthropic, model: ANTHROPIC_MODEL },
           telemetry: false,
         }),
-    ).toThrow(/Anthropic API key is required/);
+    ).toThrow(/Missing required credential: anthropicApiKey/);
   });
 });
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { VocabularyComplexityEvaluator } from '../../../src/evaluators/vocabulary-complexity.js';
 import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/background-knowledge-demands.js';
+import { MeaningDirectnessEvaluator } from '../../../src/evaluators/meaning-directness.js';
 import { Provider, BaseEvaluator } from '../../../src/evaluators/base.js';
 import MD_INPUT_SCHEMA from '../../../../../evals/student-facing-text/ela-reading/meaning-directness/input_schema.json';
 
@@ -53,6 +54,21 @@ describe('Configuration Validation', () => {
       googleApiKey: 'test-google-key',
       openaiApiKey: '',
     })).toThrow(ConfigurationError);
+  });
+});
+
+describe('Input validation runs before anything reads the inputs', () => {
+  // Regression: the guard existed but every evaluator destructured `input` first, so a
+  // non-object raised a TypeError before validation ran. Testing validateInputs alone
+  // passed; nothing tested the path a caller actually takes.
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['a string', 'just some text'],
+  ])('rejects %s through evaluate() with a canonical error', async (_label, bad) => {
+    const evaluator = new MeaningDirectnessEvaluator({ googleApiKey: 'k', telemetry: false });
+
+    await expect(evaluator.evaluate(bad as never)).rejects.toThrow(InputValidationError);
   });
 });
 

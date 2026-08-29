@@ -73,8 +73,8 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       // Mock grade level response
       vi.mocked(mockProvider.generateStructured).mockResolvedValue({
         data: {
-          grade: '6-8',
-          alternative_grade: '4-5',
+          grade_band: '6-8',
+          alternative_grade_band: '4-5',
           scaffolding_needed: 'Pre-teach gravitational forces; Use visual diagrams of moon-sun-earth system',
           reasoning: 'The text discusses gravitational forces and celestial mechanics, which are appropriate for middle school science curriculum.',
         },
@@ -90,10 +90,10 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       const result = await evaluator.evaluate({ text: testText });
 
       // Verify result structure
-      expect(result.result.grade).toBe('6-8');
+      expect(result.result.grade_band).toBe('6-8');
       expect(result.result).toBeDefined();
-      expect(result.result!.grade).toBe('6-8');
-      expect(result.result!.alternative_grade).toBe('4-5');
+      expect(result.result!.grade_band).toBe('6-8');
+      expect(result.result!.alternative_grade_band).toBe('4-5');
       expect(result.result!.scaffolding_needed).toContain('gravitational forces');
       expect(result.result.reasoning).toContain('gravitational forces');
       expect(result.metadata).toBeDefined();
@@ -140,8 +140,8 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
     it('should return correct result structure', async () => {
       vi.mocked(mockProvider.generateStructured).mockResolvedValue({
         data: {
-          grade: '9-10',
-          alternative_grade: '6-8',
+          grade_band: '9-10',
+          alternative_grade_band: '6-8',
           scaffolding_needed: 'Pre-teach advanced vocabulary; Provide background context',
           reasoning: 'Detailed reasoning about grade appropriateness',
         },
@@ -159,11 +159,11 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result).not.toHaveProperty('score');
 
       // Verify score is the grade string
-      expect(result.result.grade).toBe('9-10');
+      expect(result.result.grade_band).toBe('9-10');
 
       // Verify _internal structure (GradeLevelAppropriateness)
-      expect(result.result).toHaveProperty('grade');
-      expect(result.result).toHaveProperty('alternative_grade');
+      expect(result.result).toHaveProperty('grade_band');
+      expect(result.result).toHaveProperty('alternative_grade_band');
       expect(result.result).toHaveProperty('scaffolding_needed');
       expect(result.result).toHaveProperty('reasoning');
 
@@ -178,8 +178,8 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result.metadata.tokenUsage.outputTokens).toBe(150);
 
       // Verify _internal values
-      expect(result.result!.grade).toBe('9-10');
-      expect(result.result!.alternative_grade).toBe('6-8');
+      expect(result.result!.grade_band).toBe('9-10');
+      expect(result.result!.alternative_grade_band).toBe('6-8');
       expect(result.result!.scaffolding_needed).toBeTruthy();
     });
   });

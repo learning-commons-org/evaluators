@@ -8,6 +8,7 @@ import { getSystemPrompt, getUserPrompt } from '../prompts/organizational-struct
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import { validateInputs, type InputsOf } from './inputs.js';
+import { declaredCredentials } from './credentials.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
 import CONFIG from '../../../../evals/student-facing-text/ela-reading/organizational-structure/config.json';
@@ -34,6 +35,8 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
     idHistory: CONFIG.evaluator.id_history,
     name: CONFIG.evaluator.name,
     description: CONFIG.evaluator.description,
+    outcome: CONFIG.outcome,
+    requiredCredentials: declaredCredentials(CONFIG),
     supportedGrades: SUPPORTED_GRADES,
     defaultProviders: [Provider.Google] as const,
   };
@@ -68,6 +71,7 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(input: OrganizationalStructureInput): Promise<EvaluationResult<OrganizationalStructureInternal>> {
+    validateInputs(input, INPUT_SCHEMA);
     const { text, grade_level: gradeLevel } = input;
 
     this.logger.info('Starting Organizational Structure evaluation', {
@@ -81,7 +85,6 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
     const stageDetails: StageDetail[] = [];
 
     try {
-      validateInputs(input, INPUT_SCHEMA);
 
       const fkScore = OrganizationalStructureEvaluator.computeFkScore(text);
       const promptInputs: Record<string, string> = {

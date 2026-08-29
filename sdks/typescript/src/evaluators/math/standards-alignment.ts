@@ -13,11 +13,12 @@ import {
   SUPPORTED_GRADES,
 } from '../../prompts/math/standards-alignment/index.js';
 import { KnowledgeGraphClient, Jurisdiction } from '../../knowledge-graph/index.js';
-import { EvaluatorError, DependencyError, ConfigurationError, InputValidationError, LLMOutputProcessingError, wrapProviderError } from '../../errors.js';
+import { EvaluatorError, DependencyError, InputValidationError, LLMOutputProcessingError, wrapProviderError } from '../../errors.js';
 import type { StageDetail } from '../../telemetry/index.js';
 import CONFIG from '../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/config.json';
 import INPUT_SCHEMA from '../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/input_schema.json';
 import { validateInputs, type InputsOf } from '../inputs.js';
+import { declaredCredentials } from '../credentials.js';
 
 const EVALUATOR_ID = CONFIG.evaluator.id;
 
@@ -188,7 +189,16 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     description: CONFIG.evaluator.description,
     supportedGrades: SUPPORTED_GRADES as string[],
     defaultProviders: [Provider.Anthropic] as const,
+    outcome: undefined,
+    requiredCredentials: declaredCredentials(CONFIG),
   };
+
+  /** An injected client carries its own auth, so the key it would have used is not required. */
+  protected override credentialsSatisfiedByInjection(
+    config: MathStandardsAlignmentEvaluatorConfig,
+  ): readonly string[] {
+    return config._kgClient ? ['learning_commons_api_key'] : [];
+  }
 
   private readonly kgClient: KnowledgeGraphClient;
   private readonly detailProvider: LLMProvider;
@@ -198,12 +208,6 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 
   constructor(config: MathStandardsAlignmentEvaluatorConfig) {
     super(config);
-
-    if (!config.learningCommonsApiKey && !config._kgClient) {
-      throw new ConfigurationError(
-        'MathStandardsAlignmentEvaluator requires a learningCommonsApiKey to access the Learning Commons Knowledge Graph.',
-      );
-    }
 
     this.kgClient =
       config._kgClient ??
