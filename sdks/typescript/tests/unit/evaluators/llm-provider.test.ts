@@ -61,7 +61,7 @@ describe('llmProvider — bring-your-own-provider', () => {
       telemetry: false,
     });
 
-    const result = await evaluator.evaluate(SAMPLE_TEXT);
+    const result = await evaluator.evaluate({ text: SAMPLE_TEXT });
 
     expect(generateStructured).toHaveBeenCalledTimes(1);
     expect(result.result.grade).toBe('6-8');

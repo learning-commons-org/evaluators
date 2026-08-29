@@ -38,7 +38,7 @@ describeIntegration('modelOverride — model validity (live API)', () => {
       telemetry: false,
     });
 
-    const result = await evaluator.evaluate(SAMPLE_TEXT, '5');
+    const result = await evaluator.evaluate({ text: SAMPLE_TEXT, grade_level: '5' });
     expect(result.result.answer).toBeDefined();
     expect(result.metadata.model).toMatch(/^openai:gpt-4o-mini/);
   }, TEST_TIMEOUT_MS);
@@ -50,6 +50,6 @@ describeIntegration('modelOverride — model validity (live API)', () => {
       telemetry: false,
     });
 
-    await expect(evaluator.evaluate(SAMPLE_TEXT, '5')).rejects.toThrow(ConfigurationError);
+    await expect(evaluator.evaluate({ text: SAMPLE_TEXT, grade_level: '5' })).rejects.toThrow(ConfigurationError);
   }, TEST_TIMEOUT_MS);
 });

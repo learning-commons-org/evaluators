@@ -184,7 +184,7 @@ export async function runEvaluatorTest(
   // Phase 1: Try to match expected value (short-circuit on match)
   for (let attemptNum = 1; attemptNum <= maxAttempts; attemptNum++) {
     const result = testCase.grade
-      ? await evaluator.evaluate(testCase.text, testCase.grade)
+      ? await evaluator.evaluate({ text: testCase.text, grade_level: testCase.grade })
       : await evaluator.evaluate(testCase.text);
 
     const actualValue = extractResult(result);

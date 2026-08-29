@@ -129,7 +129,7 @@ describe('MathStandardsAlignmentEvaluator - ambiguous statement codes', () => {
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo, logger }));
 
-    await evaluator.evaluate(QUESTION, STATEMENT_CODE, JURISDICTION);
+    await evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION });
 
     expect(logger.warn).toHaveBeenCalledTimes(1);
     const [message, context] = logger.warn.mock.calls[0];
@@ -145,7 +145,7 @@ describe('MathStandardsAlignmentEvaluator - ambiguous statement codes', () => {
     const logger = makeLogger();
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ logger }));
 
-    await evaluator.evaluate(QUESTION, STATEMENT_CODE, JURISDICTION);
+    await evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION });
 
     expect(logger.warn).not.toHaveBeenCalled();
   });
@@ -154,7 +154,7 @@ describe('MathStandardsAlignmentEvaluator - ambiguous statement codes', () => {
 describe('MathStandardsAlignmentEvaluator - evaluate', () => {
   it('returns StandardAlignmentResult with correct shape on happy path', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    const result = await evaluator.evaluate(QUESTION, STATEMENT_CODE, JURISDICTION);
+    const result = await evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION });
 
     expect(result.statementCode).toBe(STATEMENT_CODE);
     expect(result.totalCount).toBe(2);
@@ -171,7 +171,7 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
   it('passes jurisdiction and academicSubject to getLearningComponentsByCode', async () => {
     const kgClient = makeMockKgClient();
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: kgClient }));
-    await evaluator.evaluate(QUESTION, STATEMENT_CODE, Jurisdiction.California);
+    await evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: Jurisdiction.California });
 
     expect(kgClient.getLearningComponentsByCode).toHaveBeenCalledWith(
       STATEMENT_CODE,
@@ -183,7 +183,7 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
     const emptyRepo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [] }) });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: emptyRepo }));
 
-    const result = await evaluator.evaluate(QUESTION, STATEMENT_CODE, JURISDICTION);
+    const result = await evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION });
 
     expect(result.learningComponents).toHaveLength(0);
     expect(result.alignedCount).toBe(0);
@@ -197,25 +197,25 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
       data: { evaluations: [MOCK_BATCH_RESPONSE.data.evaluations[0]] }, // only lc-001, missing lc-002
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    await expect(evaluator.evaluate(QUESTION, STATEMENT_CODE, JURISDICTION)).rejects.toThrow(
+    await expect(evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION })).rejects.toThrow(
       LLMOutputProcessingError,
     );
-    await expect(evaluator.evaluate(QUESTION, STATEMENT_CODE, JURISDICTION)).rejects.toThrow('missing verified evaluations for LC identifiers');
+    await expect(evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION })).rejects.toThrow('missing verified evaluations for LC identifiers');
   });
 
   it('throws InputValidationError for empty question', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    await expect(evaluator.evaluate('', STATEMENT_CODE, JURISDICTION)).rejects.toThrow(InputValidationError);
+    await expect(evaluator.evaluate({ question: '', statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION })).rejects.toThrow(InputValidationError);
   });
 
   it('throws InputValidationError for question exceeding max length', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    await expect(evaluator.evaluate('x'.repeat(10_001), STATEMENT_CODE, JURISDICTION)).rejects.toThrow(InputValidationError);
+    await expect(evaluator.evaluate({ question: 'x'.repeat(10_001), statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION })).rejects.toThrow(InputValidationError);
   });
 
   it('throws InputValidationError for empty statementCode', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    await expect(evaluator.evaluate(QUESTION, '', JURISDICTION)).rejects.toThrow(InputValidationError);
+    await expect(evaluator.evaluate({ question: QUESTION, statementCode: '', jurisdiction: JURISDICTION })).rejects.toThrow(InputValidationError);
   });
 
   it('correctly handles kindergarten standard', async () => {
@@ -227,7 +227,7 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
       data: { evaluations: [{ lc_id: 'lc-k01', reasoning: 'ok', answer: 'Yes', feedback: '' }] },
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: kRepo }));
-    const result = await evaluator.evaluate(QUESTION, 'K.CC.A.1', JURISDICTION);
+    const result = await evaluator.evaluate({ question: QUESTION, statementCode: 'K.CC.A.1', jurisdiction: JURISDICTION });
     expect(result.statementCode).toBe('K.CC.A.1');
   });
 
@@ -239,7 +239,7 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
       },
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    const result = await evaluator.evaluate(QUESTION, STATEMENT_CODE, JURISDICTION);
+    const result = await evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION });
     expect(result.alignedCount).toBe(1);
     expect(result.totalCount).toBe(2);
     expect(result.learningComponents[1].aligned).toBe(false);
@@ -738,7 +738,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
       getLearningComponentsByCode: vi.fn().mockRejectedValue(new KnowledgeGraphError('nope')),
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo }));
-    await expect(evaluator.evaluate(QUESTION, STATEMENT_CODE, JURISDICTION)).rejects.toThrow();
+    await expect(evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION })).rejects.toThrow();
   });
 
   it('isolates a validation failure to the offending item', async () => {

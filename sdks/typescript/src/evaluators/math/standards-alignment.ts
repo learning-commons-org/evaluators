@@ -11,14 +11,31 @@ import {
   getCoarseFilterPrompt,
   STEP,
   SUPPORTED_GRADES,
-  MAX_QUESTION_LENGTH,
 } from '../../prompts/math/standards-alignment/index.js';
 import { KnowledgeGraphClient, Jurisdiction } from '../../knowledge-graph/index.js';
 import { EvaluatorError, DependencyError, ConfigurationError, InputValidationError, LLMOutputProcessingError, wrapProviderError } from '../../errors.js';
 import type { StageDetail } from '../../telemetry/index.js';
 import CONFIG from '../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/config.json';
+import INPUT_SCHEMA from '../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/input_schema.json';
+import { validateInputs, type InputsOf } from '../inputs.js';
 
 const EVALUATOR_ID = CONFIG.evaluator.id;
+
+/**
+ * What this evaluator accepts, taken from its `input_schema.json`.
+ *
+ * `jurisdiction` keeps the narrow union: the schema supplies the key set, and the
+ * SDK has a stronger type for that field than an imported JSON can carry.
+ */
+/** The question alone, for validating one item of a bulk request. */
+const QUESTION_ONLY_SCHEMA = {
+  properties: { question: INPUT_SCHEMA.properties.question },
+  required: ['question'],
+};
+
+export type MathStandardsAlignmentInput = InputsOf<typeof INPUT_SCHEMA> & {
+  jurisdiction: Jurisdiction;
+};
 
 export { Jurisdiction } from '../../knowledge-graph/index.js';
 
@@ -199,12 +216,9 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
   // evaluate — single question × single standard (the primitive)
   // -------------------------------------------------------------------------
 
-  async evaluate(
-    question: string,
-    statementCode: string,
-    jurisdiction: Jurisdiction,
-  ): Promise<StandardAlignmentResult> {
-    return this._evaluateCore(question, statementCode, jurisdiction);
+  async evaluate(input: MathStandardsAlignmentInput): Promise<StandardAlignmentResult> {
+    validateInputs(input, INPUT_SCHEMA);
+    return this._evaluateCore(input.question, input.statementCode, input.jurisdiction);
   }
 
   // -------------------------------------------------------------------------
@@ -230,7 +244,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     const dedupedItems = items.map((item) => {
       let validationError: EvaluatorError | undefined;
       try {
-        this.validateQuestion(item.question);
+        validateInputs({ question: item.question }, QUESTION_ONLY_SCHEMA);
       } catch (err) {
         // Only a domain error is a per-item validation failure. Anything else is a
         // bug here, and turning it into a InputValidationError would report it as bad
@@ -441,8 +455,6 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     statementCode: string,
     jurisdiction: Jurisdiction,
   ): Promise<StandardAlignmentResult> {
-    this.validateQuestion(question);
-    this.validateStatementCode(statementCode);
 
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
@@ -650,29 +662,11 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     }
   }
 
-  private validateQuestion(question: string): void {
-    if (question.trim().length === 0) {
-      throw new InputValidationError('question must not be empty');
-    }
-    if (question.length > MAX_QUESTION_LENGTH) {
-      throw new InputValidationError(
-        `question exceeds maximum length of ${MAX_QUESTION_LENGTH} characters (got ${question.length})`,
-      );
-    }
-  }
-
-  private validateStatementCode(code: string): void {
-    if (code.trim().length === 0) {
-      throw new InputValidationError('statementCode must not be empty');
-    }
-  }
 }
 
 export async function evaluateMathStandardsAlignment(
-  question: string,
-  statementCode: string,
-  jurisdiction: Jurisdiction,
+  input: MathStandardsAlignmentInput,
   config: MathStandardsAlignmentEvaluatorConfig,
 ): Promise<StandardAlignmentResult> {
-  return new MathStandardsAlignmentEvaluator(config).evaluate(question, statementCode, jurisdiction);
+  return new MathStandardsAlignmentEvaluator(config).evaluate(input);
 }

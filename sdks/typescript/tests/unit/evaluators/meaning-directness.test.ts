@@ -78,7 +78,7 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
       latencyMs: 900,
     });
 
-    const result = await evaluator.evaluate(testText, testGrade);
+    const result = await evaluator.evaluate({ text: testText, grade_level: testGrade });
 
     expect(result.result.complexity_score).toBe('Very complex');
     expect(result.result.reasoning).toContain('irony');
@@ -99,12 +99,12 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
     vi.mocked(mockProvider.generateStructured).mockRejectedValue(new Error('API timeout'));
 
     await expect(
-      evaluator.evaluate('The cat sat on the mat outside.', '5')
+      evaluator.evaluate({ text: 'The cat sat on the mat outside.', grade_level: '5' })
     ).rejects.toThrow('API timeout');
   });
 
   it('should not call provider when input validation fails', async () => {
-    await expect(evaluator.evaluate('', '5')).rejects.toThrow();
+    await expect(evaluator.evaluate({ text: '', grade_level: '5' })).rejects.toThrow();
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
@@ -124,7 +124,7 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
       latencyMs: 700,
     });
 
-    const result = await evaluator.evaluate('Clouds form when water evaporates and rises into the sky.', '5');
+    const result = await evaluator.evaluate({ text: 'Clouds form when water evaporates and rises into the sky.', grade_level: '5' });
 
     expect(result.result).toEqual(mockData);
     expect(result.result.conventionality_features).toEqual(['literal narrative', 'concrete actions']);
@@ -147,7 +147,7 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
     });
 
     const testText = 'The minutes crept by as the castle grew into its place in the fog-shrouded distance.';
-    await evaluator.evaluate(testText, '7');
+    await evaluator.evaluate({ text: testText, grade_level: '7' });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0];
     // The user prompt should contain the FK score (a number)

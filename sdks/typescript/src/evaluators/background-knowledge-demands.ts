@@ -4,6 +4,8 @@ import { calculateFleschKincaidGrade } from '../features/index.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/background-knowledge-demands/index.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
+import { validateInputs, type InputsOf } from './inputs.js';
+import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/background-knowledge-demands/input_schema.json';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
 import CONFIG from '../../../../evals/student-facing-text/ela-reading/background-knowledge-demands/config.json';
@@ -31,6 +33,9 @@ import CONFIG from '../../../../evals/student-facing-text/ela-reading/background
  * console.log(result.reasoning);
  * ```
  */
+/** What this evaluator accepts, taken from its `input_schema.json`. */
+export type BackgroundKnowledgeDemandsInput = InputsOf<typeof INPUT_SCHEMA>;
+
 export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
   static readonly metadata = {
     id: CONFIG.evaluator.id,
@@ -63,10 +68,9 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(
-    text: string,
-    gradeLevel: string
-  ): Promise<EvaluationResult<BackgroundKnowledgeDemandsInternal>> {
+  async evaluate(input: BackgroundKnowledgeDemandsInput): Promise<EvaluationResult<BackgroundKnowledgeDemandsInternal>> {
+    const { text, grade_level: gradeLevel } = input;
+
     this.logger.info('Starting Background Knowledge Demands evaluation', {
       evaluator: BackgroundKnowledgeDemandsEvaluator.metadata.id,
       operation: 'evaluate',
@@ -79,8 +83,7 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
 
     try {
       // Validate inputs — inside try so validation errors are telemetered.
-      this.validateText(text);
-      this.validateGradeLevel(gradeLevel, new Set(BackgroundKnowledgeDemandsEvaluator.metadata.supportedGrades));
+      validateInputs(input, INPUT_SCHEMA);
 
       this.logger.debug('Evaluating subject matter knowledge complexity', {
         evaluator: BackgroundKnowledgeDemandsEvaluator.metadata.id,
@@ -223,10 +226,9 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
  * ```
  */
 export async function evaluateBackgroundKnowledgeDemands(
-  text: string,
-  gradeLevel: string,
+  input: BackgroundKnowledgeDemandsInput,
   config: BaseEvaluatorConfig
 ): Promise<EvaluationResult<BackgroundKnowledgeDemandsInternal>> {
   const evaluator = new BackgroundKnowledgeDemandsEvaluator(config);
-  return evaluator.evaluate(text, gradeLevel);
+  return evaluator.evaluate(input);
 }

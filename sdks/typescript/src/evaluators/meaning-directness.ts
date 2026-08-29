@@ -4,6 +4,8 @@ import { calculateFleschKincaidGrade } from '../features/index.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/meaning-directness/index.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
+import { validateInputs, type InputsOf } from './inputs.js';
+import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/meaning-directness/input_schema.json';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
 import CONFIG from '../../../../evals/student-facing-text/ela-reading/meaning-directness/config.json';
@@ -31,6 +33,9 @@ import CONFIG from '../../../../evals/student-facing-text/ela-reading/meaning-di
  * console.log(result.reasoning);
  * ```
  */
+/** What this evaluator accepts, taken from its `input_schema.json`. */
+export type MeaningDirectnessInput = InputsOf<typeof INPUT_SCHEMA>;
+
 export class MeaningDirectnessEvaluator extends BaseEvaluator {
   static readonly metadata = {
     id: CONFIG.evaluator.id,
@@ -63,10 +68,9 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(
-    text: string,
-    gradeLevel: string
-  ): Promise<EvaluationResult<MeaningDirectnessInternal>> {
+  async evaluate(input: MeaningDirectnessInput): Promise<EvaluationResult<MeaningDirectnessInternal>> {
+    const { text, grade_level: gradeLevel } = input;
+
     this.logger.info('Starting Meaning Directness evaluation', {
       evaluator: MeaningDirectnessEvaluator.metadata.id,
       operation: 'evaluate',
@@ -79,8 +83,7 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
 
     try {
       // Validate inputs — inside try so validation errors are telemetered.
-      this.validateText(text);
-      this.validateGradeLevel(gradeLevel, new Set(MeaningDirectnessEvaluator.metadata.supportedGrades));
+      validateInputs(input, INPUT_SCHEMA);
 
       this.logger.debug('Evaluating conventionality complexity', {
         evaluator: MeaningDirectnessEvaluator.metadata.id,
@@ -223,10 +226,9 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
  * ```
  */
 export async function evaluateMeaningDirectness(
-  text: string,
-  gradeLevel: string,
+  input: MeaningDirectnessInput,
   config: BaseEvaluatorConfig
 ): Promise<EvaluationResult<MeaningDirectnessInternal>> {
   const evaluator = new MeaningDirectnessEvaluator(config);
-  return evaluator.evaluate(text, gradeLevel);
+  return evaluator.evaluate(input);
 }

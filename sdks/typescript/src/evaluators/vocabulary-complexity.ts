@@ -12,6 +12,8 @@ import {
 } from '../prompts/vocabulary-complexity/index.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
+import { validateInputs, type InputsOf } from './inputs.js';
+import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/input_schema.json';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
 import CONFIG from '../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/config.json';
@@ -42,6 +44,9 @@ import CONFIG from '../../../../evals/student-facing-text/ela-reading/vocabulary
  * console.log(result.reasoning);
  * ```
  */
+/** What this evaluator accepts, taken from its `input_schema.json`. */
+export type VocabularyComplexityInput = InputsOf<typeof INPUT_SCHEMA>;
+
 export class VocabularyComplexityEvaluator extends BaseEvaluator {
   static readonly metadata = {
     id: CONFIG.evaluator.id,
@@ -88,10 +93,9 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(
-    text: string,
-    gradeLevel: string
-  ): Promise<EvaluationResult<VocabularyComplexityInternal>> {
+  async evaluate(input: VocabularyComplexityInput): Promise<EvaluationResult<VocabularyComplexityInternal>> {
+    const { text, grade_level: gradeLevel } = input;
+
     this.logger.info('Starting Vocabulary Complexity evaluation', {
       evaluator: VocabularyComplexityEvaluator.metadata.id,
       operation: 'evaluate',
@@ -114,8 +118,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     try {
       // Validate inputs — inside try so validation errors are telemetered.
       // If partners consistently pass invalid grade levels/text, telemetry will surface documentation gaps.
-      this.validateText(text);
-      this.validateGradeLevel(gradeLevel, new Set(VocabularyComplexityEvaluator.metadata.supportedGrades));
+      validateInputs(input, INPUT_SCHEMA);
       this.logger.debug('Stage 1: Generating background knowledge', {
         evaluator: VocabularyComplexityEvaluator.metadata.id,
         operation: 'background_knowledge',
@@ -328,10 +331,9 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
  * ```
  */
 export async function evaluateVocabularyComplexity(
-  text: string,
-  gradeLevel: string,
+  input: VocabularyComplexityInput,
   config: BaseEvaluatorConfig
 ): Promise<EvaluationResult<VocabularyComplexityInternal>> {
   const evaluator = new VocabularyComplexityEvaluator(config);
-  return evaluator.evaluate(text, gradeLevel);
+  return evaluator.evaluate(input);
 }

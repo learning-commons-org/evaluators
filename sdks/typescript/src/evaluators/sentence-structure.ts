@@ -15,6 +15,8 @@ import {
 } from '../prompts/sentence-structure/index.js';
 import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
+import { validateInputs, type InputsOf } from './inputs.js';
+import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/sentence-structure/input_schema.json';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, LLMOutputProcessingError, wrapProviderError } from '../errors.js';
 import CONFIG from '../../../../evals/student-facing-text/ela-reading/sentence-structure/config.json';
@@ -64,6 +66,9 @@ function normalizeLabel(label: string | null | undefined): TextComplexityLevel |
  * console.log(result.reasoning);
  * ```
  */
+/** What this evaluator accepts, taken from its `input_schema.json`. */
+export type SentenceStructureInput = InputsOf<typeof INPUT_SCHEMA>;
+
 export class SentenceStructureEvaluator extends BaseEvaluator {
   static readonly metadata = {
     id: CONFIG.evaluator.id,
@@ -96,10 +101,9 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(
-    text: string,
-    gradeLevel: string
-  ): Promise<EvaluationResult<ComplexityClassification>> {
+  async evaluate(input: SentenceStructureInput): Promise<EvaluationResult<ComplexityClassification>> {
+    const { text, grade_level: gradeLevel } = input;
+
     this.logger.info('Starting sentence structure evaluation', {
       evaluator: SentenceStructureEvaluator.metadata.id,
       operation: 'evaluate',
@@ -112,8 +116,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
 
     try {
       // Validate inputs — inside try so validation errors are telemetered.
-      this.validateText(text);
-      this.validateGradeLevel(gradeLevel, new Set(SentenceStructureEvaluator.metadata.supportedGrades));
+      validateInputs(input, INPUT_SCHEMA);
       this.logger.debug('Stage 1: Analyzing sentence structure', {
         evaluator: SentenceStructureEvaluator.metadata.id,
         operation: 'sentence_analysis',
@@ -339,10 +342,9 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
  * ```
  */
 export async function evaluateSentenceStructure(
-  text: string,
-  gradeLevel: string,
+  input: SentenceStructureInput,
   config: BaseEvaluatorConfig
 ): Promise<EvaluationResult<ComplexityClassification>> {
   const evaluator = new SentenceStructureEvaluator(config);
-  return evaluator.evaluate(text, gradeLevel);
+  return evaluator.evaluate(input);
 }

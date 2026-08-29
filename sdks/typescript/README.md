@@ -29,8 +29,8 @@ const evaluator = new GradeLevelAppropriatenessEvaluator({
   googleApiKey: process.env.GOOGLE_API_KEY,
 });
 
-const result = await evaluator.evaluate("The cat's out of the bag now.");
-console.log(result.score); // 4-5
+const result = await evaluator.evaluate({ text: "The cat's out of the bag now." });
+console.log(result.result.grade); // 4-5
 ```
 
 ## Documentation

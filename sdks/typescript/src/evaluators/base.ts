@@ -16,16 +16,6 @@ import { createProvider } from '../providers/index.js';
 import type { LLMProvider } from '../providers/index.js';
 
 /**
- * Validation constants for input text
- */
-export const VALIDATION_LIMITS = {
-  /** Minimum text length in characters */
-  MIN_TEXT_LENGTH: 1,
-  /** Maximum text length in characters */
-  MAX_TEXT_LENGTH: 10_000,
-} as const;
-
-/**
  * Supported LLM providers
  */
 export enum Provider {
@@ -471,37 +461,6 @@ export abstract class BaseEvaluator {
     // which is also the right answer when there is no model id to strip.
     const model = label.slice(separator + 1);
     return { dependency: prefix as DependencyId, model: model === '' ? label : model };
-  }
-
-  /**
-   * Validate text meets requirements
-   * Default implementation - can be overridden by concrete evaluators
-   *
-   * @throws {InputValidationError} If text is invalid
-   */
-  protected validateText(text: string): void {
-    this.logger.debug('Validating text input', {
-      evaluator: this.getEvaluatorType(),
-      operation: 'validateText',
-      textLength: text.length,
-    });
-
-    // Rejected, not repaired — the bounds below measure the text as sent.
-    if (!text.trim()) {
-      throw new InputValidationError('Text cannot be empty or contain only whitespace');
-    }
-
-    if (text.length < VALIDATION_LIMITS.MIN_TEXT_LENGTH) {
-      throw new InputValidationError(
-        `Text is too short. Minimum length is ${VALIDATION_LIMITS.MIN_TEXT_LENGTH} characters, received ${text.length} characters`
-      );
-    }
-
-    if (text.length > VALIDATION_LIMITS.MAX_TEXT_LENGTH) {
-      throw new InputValidationError(
-        `Text is too long. Maximum length is ${VALIDATION_LIMITS.MAX_TEXT_LENGTH.toLocaleString()} characters, received ${text.length.toLocaleString()} characters`
-      );
-    }
   }
 
   /**

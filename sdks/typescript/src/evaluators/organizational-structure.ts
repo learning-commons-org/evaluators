@@ -7,8 +7,9 @@ import { runPreprocessingStep } from '../features/preprocessing.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/organizational-structure/index.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
+import { validateInputs, type InputsOf } from './inputs.js';
 import type { StageDetail } from '../telemetry/index.js';
-import { EvaluatorError, InputValidationError, wrapProviderError } from '../errors.js';
+import { EvaluatorError, wrapProviderError } from '../errors.js';
 import CONFIG from '../../../../evals/student-facing-text/ela-reading/organizational-structure/config.json';
 import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/organizational-structure/input_schema.json';
 
@@ -22,6 +23,9 @@ const STEP = _step;
 // module level. The enum is the declared set, so it is used verbatim rather than
 // reconstructed from bounds; that also admits non-numeric tokens such as "K".
 const SUPPORTED_GRADES: readonly string[] = INPUT_SCHEMA.properties.grade_level.enum;
+
+/** What this evaluator accepts, taken from its `input_schema.json`. */
+export type OrganizationalStructureInput = InputsOf<typeof INPUT_SCHEMA>;
 
 export class OrganizationalStructureEvaluator extends BaseEvaluator {
   static readonly metadata = {
@@ -63,7 +67,9 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<OrganizationalStructureInternal>> {
+  async evaluate(input: OrganizationalStructureInput): Promise<EvaluationResult<OrganizationalStructureInternal>> {
+    const { text, grade_level: gradeLevel } = input;
+
     this.logger.info('Starting Organizational Structure evaluation', {
       evaluator: OrganizationalStructureEvaluator.metadata.id,
       operation: 'evaluate',
@@ -75,16 +81,14 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
     const stageDetails: StageDetail[] = [];
 
     try {
-      this.validateText(text);
-      const gradeNum = this.parseAndValidateGrade(gradeLevel);
+      validateInputs(input, INPUT_SCHEMA);
 
       const fkScore = OrganizationalStructureEvaluator.computeFkScore(text);
-      const inputs: Record<string, string> = {
-        text,
-        grade_level: String(gradeNum),
+      const promptInputs: Record<string, string> = {
+        ...input,
         fk_score: String(fkScore),
       };
-      const response = await this.callLLM(inputs);
+      const response = await this.callLLM(promptInputs);
 
       const latencyMs = Date.now() - startTime;
       const tokenUsage = {
@@ -116,7 +120,7 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
         status: 'success',
         latencyMs,
         textLength: text.length,
-        gradeLevel: String(gradeNum),
+        gradeLevel,
         provider: this.provider.label,
         tokenUsage,
         metadata: { stage_details: stageDetails },
@@ -126,7 +130,7 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
       this.logger.info('Organizational Structure evaluation completed successfully', {
         evaluator: OrganizationalStructureEvaluator.metadata.id,
         operation: 'evaluate',
-        gradeLevel: gradeNum,
+        gradeLevel,
         score: response.data.complexity_score,
         processingTimeMs: latencyMs,
       });
@@ -167,16 +171,6 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
     }
   }
 
-  private parseAndValidateGrade(gradeLevel: string): number {
-    const trimmed = gradeLevel.trim();
-    if (!SUPPORTED_GRADES.includes(trimmed)) {
-      throw new InputValidationError(
-        `Invalid grade level "${gradeLevel}". Organizational Structure evaluator supports grade levels ${SUPPORTED_GRADES.join(', ')}.`,
-      );
-    }
-    return Number(trimmed);
-  }
-
   private async callLLM(
     inputs: Record<string, string>,
   ): Promise<{ data: OrganizationalStructureInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
@@ -194,9 +188,8 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
 }
 
 export async function evaluateOrganizationalStructure(
-  text: string,
-  gradeLevel: string,
+  input: OrganizationalStructureInput,
   config: BaseEvaluatorConfig,
 ): Promise<EvaluationResult<OrganizationalStructureInternal>> {
-  return new OrganizationalStructureEvaluator(config).evaluate(text, gradeLevel);
+  return new OrganizationalStructureEvaluator(config).evaluate(input);
 }

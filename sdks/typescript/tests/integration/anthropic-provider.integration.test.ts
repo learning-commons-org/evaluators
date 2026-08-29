@@ -52,13 +52,13 @@ const EVALUATORS: Array<{
 }> = [
   {
     metadata: GradeLevelAppropriatenessEvaluator.metadata,
-    run: (c) => new GradeLevelAppropriatenessEvaluator(c).evaluate(SAMPLE_TEXT),
+    run: (c) => new GradeLevelAppropriatenessEvaluator(c).evaluate({ text: SAMPLE_TEXT }),
   },
-  { metadata: MeaningDirectnessEvaluator.metadata, run: (c) => new MeaningDirectnessEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { metadata: BackgroundKnowledgeDemandsEvaluator.metadata, run: (c) => new BackgroundKnowledgeDemandsEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { metadata: SentenceStructureEvaluator.metadata, run: (c) => new SentenceStructureEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { metadata: PurposeClarityEvaluator.metadata, run: (c) => new PurposeClarityEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { metadata: VocabularyComplexityEvaluator.metadata, run: (c) => new VocabularyComplexityEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
+  { metadata: MeaningDirectnessEvaluator.metadata, run: (c) => new MeaningDirectnessEvaluator(c).evaluate({ text: SAMPLE_TEXT, grade_level: GRADE }) },
+  { metadata: BackgroundKnowledgeDemandsEvaluator.metadata, run: (c) => new BackgroundKnowledgeDemandsEvaluator(c).evaluate({ text: SAMPLE_TEXT, grade_level: GRADE }) },
+  { metadata: SentenceStructureEvaluator.metadata, run: (c) => new SentenceStructureEvaluator(c).evaluate({ text: SAMPLE_TEXT, grade_level: GRADE }) },
+  { metadata: PurposeClarityEvaluator.metadata, run: (c) => new PurposeClarityEvaluator(c).evaluate({ text: SAMPLE_TEXT, grade_level: GRADE }) },
+  { metadata: VocabularyComplexityEvaluator.metadata, run: (c) => new VocabularyComplexityEvaluator(c).evaluate({ text: SAMPLE_TEXT, grade_level: GRADE }) },
 ];
 
 describeIntegration('Anthropic provider — all text-complexity evaluators (live API)', () => {

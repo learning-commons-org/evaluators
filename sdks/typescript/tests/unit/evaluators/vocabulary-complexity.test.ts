@@ -111,7 +111,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       });
 
       // Execute evaluation
-      const result = await evaluator.evaluate(testText, testGrade);
+      const result = await evaluator.evaluate({ text: testText, grade_level: testGrade });
 
       // Verify result structure
       expect(result.result.complexity_score).toBe('Moderately complex');
@@ -152,7 +152,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       );
 
       // Should propagate the error
-      await expect(evaluator.evaluate(testText, testGrade))
+      await expect(evaluator.evaluate({ text: testText, grade_level: testGrade }))
         .rejects.toThrow('API timeout');
 
       // Verify complexity provider was never called
@@ -176,7 +176,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       );
 
       // Should propagate the error
-      await expect(evaluator.evaluate(testText, testGrade))
+      await expect(evaluator.evaluate({ text: testText, grade_level: testGrade }))
         .rejects.toThrow('Schema validation failed');
 
       // Verify background provider was called (stage 1 completed)
@@ -204,7 +204,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
         latencyMs: 800,
       });
 
-      const result = await evaluator.evaluate('Test text here', '5');
+      const result = await evaluator.evaluate({ text: 'Test text here', grade_level: '5' });
 
       // Verify result structure
       expect(result).toHaveProperty('evaluator');
@@ -246,7 +246,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
         latencyMs: 400,
       });
 
-      const result = await overrideEvaluator.evaluate('Test text here', '5');
+      const result = await overrideEvaluator.evaluate({ text: 'Test text here', grade_level: '5' });
 
       // All providers resolve to the same model under override — label is a single entry
       expect(result.metadata.model).toBe('openai:gpt-4o-mini');
@@ -273,7 +273,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
         latencyMs: 800,
       });
 
-      const result = await evaluator.evaluate('Test text here', '5');
+      const result = await evaluator.evaluate({ text: 'Test text here', grade_level: '5' });
 
       // Verify internal data is included
       expect(result.result).toEqual(mockComplexityData);
