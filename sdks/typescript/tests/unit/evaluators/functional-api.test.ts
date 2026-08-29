@@ -8,6 +8,13 @@ import {
   evaluateSentenceStructure,
   evaluateBackgroundKnowledgeDemands,
   evaluateVocabularyComplexity,
+  evaluateRevisionAccuracy,
+  evaluateRevisionActionability,
+  evaluateRevisionManageability,
+  evaluateStrengthAcknowledgment,
+  evaluateStudentResponseSpecificity,
+  evaluateToneAppropriateness,
+  evaluateWithholdingAnswers,
 } from '../../../src/evaluators/index.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
@@ -78,6 +85,8 @@ const RESPONSE = {
     num_multi_concept_sentences: 1,
     num_cleft_sentences: 0,
     max_clauses_in_any_sentence: 2,
+    // The feedback family's verdict.
+    quality_score: 1,
   },
   model: 'gemini-3-flash-preview',
   usage: { inputTokens: 10, outputTokens: 5 },
@@ -142,5 +151,38 @@ describe('functional API wrappers', () => {
     await expect(
       evaluateMeaningDirectness({ text: '', grade_level: GRADE_LEVEL }, CONFIG),
     ).rejects.toThrow(/empty|whitespace/i);
+  });
+});
+
+describe('functional API wrappers — feedback family', () => {
+  const STUDENT_TEXT = 'My dog is brown. He runs fast. I like him a lot.';
+  const FEEDBACK_TEXT = 'Try adding a topic sentence so the reader knows your argument.';
+
+  // These take (student_text, feedback_text, config): two texts and no grade, so a
+  // wrapper that dropped or swapped one would still produce a result.
+  it.each([
+    ['evaluateRevisionAccuracy', evaluateRevisionAccuracy],
+    ['evaluateRevisionActionability', evaluateRevisionActionability],
+    ['evaluateRevisionManageability', evaluateRevisionManageability],
+    ['evaluateStrengthAcknowledgment', evaluateStrengthAcknowledgment],
+    ['evaluateStudentResponseSpecificity', evaluateStudentResponseSpecificity],
+    ['evaluateToneAppropriateness', evaluateToneAppropriateness],
+    ['evaluateWithholdingAnswers', evaluateWithholdingAnswers],
+  ])('%s forwards both texts and returns a result', async (_name, fn) => {
+    const result = await (
+      fn as (
+        i: { student_text: string; feedback_text: string },
+        c: typeof CONFIG,
+      ) => Promise<unknown>
+    )({ student_text: STUDENT_TEXT, feedback_text: FEEDBACK_TEXT }, CONFIG);
+
+    expect(result).toBeDefined();
+
+    const prompts = vi
+      .mocked(mockProvider.generateStructured)
+      .mock.calls.flatMap((call) => call[0].messages.map((m) => m.content))
+      .join('\n');
+    expect(prompts).toContain(STUDENT_TEXT);
+    expect(prompts).toContain(FEEDBACK_TEXT);
   });
 });

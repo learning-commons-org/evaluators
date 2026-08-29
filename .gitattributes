@@ -12,6 +12,13 @@ sdks/python/src/learning_commons_evaluators/settings/_generated_*.py linguist-ge
 sdks/python/src/learning_commons_evaluators/settings/**/contracts.toml linguist-generated=true
 sdks/settings/**/contracts.toml linguist-generated=true
 sdks/typescript/src/knowledge-graph/kg-api.d.ts linguist-generated=true
+sdks/typescript/src/schemas/feedback/ela-writing/revision-accuracy.ts linguist-generated=true
+sdks/typescript/src/schemas/feedback/ela-writing/revision-actionability.ts linguist-generated=true
+sdks/typescript/src/schemas/feedback/ela-writing/revision-manageability.ts linguist-generated=true
+sdks/typescript/src/schemas/feedback/ela-writing/strength-acknowledgment.ts linguist-generated=true
+sdks/typescript/src/schemas/feedback/ela-writing/student-response-specificity.ts linguist-generated=true
+sdks/typescript/src/schemas/feedback/ela-writing/tone-appropriateness.ts linguist-generated=true
+sdks/typescript/src/schemas/feedback/ela-writing/withholding-answers.ts linguist-generated=true
 sdks/typescript/src/schemas/student-facing-text/ela-reading/background-knowledge-demands.ts linguist-generated=true
 sdks/typescript/src/schemas/student-facing-text/ela-reading/meaning-directness.ts linguist-generated=true
 sdks/typescript/src/schemas/student-facing-text/ela-reading/organizational-structure.ts linguist-generated=true
