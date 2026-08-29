@@ -15,4 +15,5 @@ export {
   type RetryTestOptions,
   type BaseTestCase,
   type EvaluatorTestConfig,
+  type TestableEvaluator,
 } from './test-helpers.js';

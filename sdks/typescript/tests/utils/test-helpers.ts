@@ -115,9 +115,18 @@ export interface BaseTestCase {
 }
 
 /**
+ * The only surface the harness uses: a single `evaluate` call. Narrower than the evaluator
+ * classes themselves, so any evaluator satisfies it without the harness depending on which
+ * one it was handed.
+ */
+export interface TestableEvaluator {
+  evaluate(input: Record<string, unknown>): Promise<EvaluationResult<Record<string, unknown>>>;
+}
+
+/**
  * Configuration for running evaluator tests
  */
-export interface EvaluatorTestConfig<TEvaluator = any> {
+export interface EvaluatorTestConfig<TEvaluator extends TestableEvaluator = TestableEvaluator> {
   /** The evaluator instance to test */
   evaluator: TEvaluator;
 
