@@ -150,21 +150,6 @@ const GRADE_GAPS = new Set<string>([
   MATH_ID,
 ]);
 
-/**
- * `evaluatorId::field` pairs whose declared bounds the SDK does not enforce.
- *
- * §4.1 requires each text input to be validated against its own registry-declared
- * limits; the SDK applies one global pair to every input, so a contract asking for
- * anything narrower is silently ignored.
- */
-const LIMIT_GAPS = new Set<string>([
-  // Declare `text.minLength: 10`; the SDK enforces 1, so it accepts input these
-  // contracts reject. The other four ela-reading evaluators declare 1 and agree.
-  `${GLA_ID}::text`,
-  `${BKD_ID}::text`,
-  `${MD_ID}::text`,
-  `${SENTENCE_ID}::text`,
-]);
 
 
 
@@ -301,15 +286,15 @@ const cases = EVALUATORS.map((E) => ({ name: E.metadata.name, E }));
  * Knowledge Graph before any model. Naming inputs will make this map derivable.
  */
 const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknown>> = {
-  [GLA_ID]: (E, text) => construct(E).evaluate(text),
-  [BKD_ID]: (E, text) => construct(E).evaluate(text, '5'),
-  [MD_ID]: (E, text) => construct(E).evaluate(text, '5'),
-  [OrganizationalStructureEvaluator.metadata.id]: (E, text) => construct(E).evaluate(text, '5'),
-  [PurposeClarityEvaluator.metadata.id]: (E, text) => construct(E).evaluate(text, '5'),
+  [GLA_ID]: (E, text) => construct(E).evaluate({ text }),
+  [BKD_ID]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
+  [MD_ID]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
+  [OrganizationalStructureEvaluator.metadata.id]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
+  [PurposeClarityEvaluator.metadata.id]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
   [ReferenceKnowledgeDemandsEvaluator.metadata.id]: (E, text) =>
-    construct(E).evaluate(text, '5'),
-  [SENTENCE_ID]: (E, text) => construct(E).evaluate(text, '5'),
-  [VocabularyComplexityEvaluator.metadata.id]: (E, text) => construct(E).evaluate(text, '5'),
+    construct(E).evaluate({ text, grade_level: '5' }),
+  [SENTENCE_ID]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
+  [VocabularyComplexityEvaluator.metadata.id]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
 };
 
 /**
@@ -639,16 +624,9 @@ describe('a declared minimum length is enforced', () => {
 
     // Asserting on the error type, not on whether the call resolved: a stubbed provider
     // can fail an evaluation for reasons that have nothing to do with validation.
-    if (LIMIT_GAPS.has(`${E.metadata.id}::text`)) {
-      expect(
-        rejectedForLength,
-        `${E.metadata.name} now enforces its declared minLength ${min} — delete its LIMIT_GAPS entry`,
-      ).toBe(false);
-    } else {
-      expect(
-        rejectedForLength,
-        `${E.metadata.name} accepts text shorter than the minLength ${min} its contract declares`,
-      ).toBe(true);
-    }
+    expect(
+      rejectedForLength,
+      `${E.metadata.name} accepts text shorter than the minLength ${min} its contract declares`,
+    ).toBe(true);
   });
 });

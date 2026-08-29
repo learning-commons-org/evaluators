@@ -23,8 +23,14 @@ import {
   resolveMembers,
 } from './family.js';
 
+/**
+ * The shape this family needs from an evaluator: named inputs in, envelope out.
+ *
+ * Typed loosely on purpose -- members declare different input keys (GLA takes no
+ * grade), and the family builds each object from the evaluator's own schema below.
+ */
 interface SimpleEvaluator {
-  evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<unknown>>;
+  evaluate(input: Record<string, string>): Promise<EvaluationResult<unknown>>;
 }
 type EvaluatorConstructor = new (config: BaseEvaluatorConfig) => SimpleEvaluator;
 
@@ -98,7 +104,14 @@ class QtcRunner implements FamilyRunner {
   }
 
   async runTask(row: FamilyRow, memberId: string): Promise<TaskOutcome> {
-    const result = await this.getEvaluator(memberId).evaluate(row.columns.text, row.columns['grade_level']);
+    // Built explicitly rather than passed through: a row carries every column in the
+    // CSV, and an evaluator rejects keys its schema does not declare.
+    const inputs: Record<string, string> = { text: row.columns.text };
+    if (memberId !== GradeLevelAppropriatenessEvaluator.metadata.id) {
+      inputs.grade_level = row.columns['grade_level'];
+    }
+
+    const result = await this.getEvaluator(memberId).evaluate(inputs);
     const { score, reasoning } = readOutcome(result);
 
     // A report cell has to be a string. An absent verdict renders blank, and doing

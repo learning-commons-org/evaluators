@@ -87,7 +87,7 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       });
 
       // Execute evaluation (no grade parameter needed)
-      const result = await evaluator.evaluate(testText);
+      const result = await evaluator.evaluate({ text: testText });
 
       // Verify result structure
       expect(result.result.grade).toBe('6-8');
@@ -110,12 +110,12 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
 
   describe('Input Validation', () => {
     it('should throw InputValidationError for empty text', async () => {
-      await expect(evaluator.evaluate(''))
+      await expect(evaluator.evaluate({ text: '' }))
         .rejects.toThrow(InputValidationError);
     });
 
     it('should throw InputValidationError for whitespace-only text', async () => {
-      await expect(evaluator.evaluate('   '))
+      await expect(evaluator.evaluate({ text: '   ' }))
         .rejects.toThrow(InputValidationError);
     });
   });
@@ -130,7 +130,7 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       );
 
       // Should propagate the error
-      await expect(evaluator.evaluate(testText))
+      await expect(evaluator.evaluate({ text: testText }))
         .rejects.toThrow('API timeout');
     });
 
@@ -150,7 +150,7 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
         latencyMs: 800,
       });
 
-      const result = await evaluator.evaluate('Test text here');
+      const result = await evaluator.evaluate({ text: 'Test text here' });
 
       // Verify result structure
       expect(result).toHaveProperty('evaluator');

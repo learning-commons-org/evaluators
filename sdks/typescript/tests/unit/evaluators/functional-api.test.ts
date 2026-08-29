@@ -114,12 +114,10 @@ describe('functional API wrappers', () => {
     ['evaluateSentenceStructure', evaluateSentenceStructure],
     ['evaluateBackgroundKnowledgeDemands', evaluateBackgroundKnowledgeDemands],
     ['evaluateVocabularyComplexity', evaluateVocabularyComplexity],
-  ])('%s forwards text and gradeLevel and returns a result', async (_name, fn) => {
-    const result = await (fn as (t: string, g: string, c: typeof CONFIG) => Promise<unknown>)(
-      TEXT,
-      GRADE_LEVEL,
-      CONFIG
-    );
+  ])('%s forwards its inputs and returns a result', async (_name, fn) => {
+    const result = await (
+      fn as (i: { text: string; grade_level: string }, c: typeof CONFIG) => Promise<unknown>
+    )({ text: TEXT, grade_level: GRADE_LEVEL }, CONFIG);
 
     expect(result).toBeDefined();
     expect(mockProvider.generateStructured).toHaveBeenCalled();
@@ -134,15 +132,15 @@ describe('functional API wrappers', () => {
 
   // Grade-free by design: it decides the grade level rather than being told one.
   it('evaluateGradeLevelAppropriateness takes no gradeLevel', async () => {
-    const result = await evaluateGradeLevelAppropriateness(TEXT, CONFIG);
+    const result = await evaluateGradeLevelAppropriateness({ text: TEXT }, CONFIG);
 
     expect(result.result.grade).toBe('6-8');
     expect(mockProvider.generateStructured).toHaveBeenCalledTimes(1);
   });
 
   it('propagates a validation failure rather than swallowing it', async () => {
-    await expect(evaluateMeaningDirectness('', GRADE_LEVEL, CONFIG)).rejects.toThrow(
-      /empty|whitespace/i
-    );
+    await expect(
+      evaluateMeaningDirectness({ text: '', grade_level: GRADE_LEVEL }, CONFIG),
+    ).rejects.toThrow(/empty|whitespace/i);
   });
 });

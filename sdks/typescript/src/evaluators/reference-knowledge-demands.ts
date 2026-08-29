@@ -4,6 +4,7 @@ import { runPreprocessingStep } from '../features/preprocessing.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/reference-knowledge-demands/index.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
+import { validateInputs, type InputsOf } from './inputs.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
 import CONFIG from '../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/config.json';
@@ -19,6 +20,9 @@ const STEP = _step;
 // module level. The enum is the declared set, so it is used verbatim rather than
 // reconstructed from bounds; that admits gaps and non-numeric tokens such as "K".
 const SUPPORTED_GRADES: readonly string[] = INPUT_SCHEMA.properties.grade_level.enum;
+
+/** What this evaluator accepts, taken from its `input_schema.json`. */
+export type ReferenceKnowledgeDemandsInput = InputsOf<typeof INPUT_SCHEMA>;
 
 export class ReferenceKnowledgeDemandsEvaluator extends BaseEvaluator {
   static readonly metadata = {
@@ -60,7 +64,9 @@ export class ReferenceKnowledgeDemandsEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<ReferenceKnowledgeDemandsInternal>> {
+  async evaluate(input: ReferenceKnowledgeDemandsInput): Promise<EvaluationResult<ReferenceKnowledgeDemandsInternal>> {
+    const { text, grade_level: gradeLevel } = input;
+
     this.logger.info('Starting Reference Knowledge Demands evaluation', {
       evaluator: ReferenceKnowledgeDemandsEvaluator.metadata.id,
       operation: 'evaluate',
@@ -72,16 +78,14 @@ export class ReferenceKnowledgeDemandsEvaluator extends BaseEvaluator {
     const stageDetails: StageDetail[] = [];
 
     try {
-      this.validateText(text);
-      this.validateGradeLevel(gradeLevel, new Set(SUPPORTED_GRADES));
+      validateInputs(input, INPUT_SCHEMA);
 
       const fkScore = ReferenceKnowledgeDemandsEvaluator.computeFkScore(text);
-      const inputs: Record<string, string> = {
-        text,
-        grade_level: gradeLevel,
+      const promptInputs: Record<string, string> = {
+        ...input,
         fk_score: String(fkScore),
       };
-      const response = await this.callLLM(inputs);
+      const response = await this.callLLM(promptInputs);
 
       const latencyMs = Date.now() - startTime;
       const tokenUsage = {
@@ -181,9 +185,8 @@ export class ReferenceKnowledgeDemandsEvaluator extends BaseEvaluator {
 }
 
 export async function evaluateReferenceKnowledgeDemands(
-  text: string,
-  gradeLevel: string,
+  input: ReferenceKnowledgeDemandsInput,
   config: BaseEvaluatorConfig,
 ): Promise<EvaluationResult<ReferenceKnowledgeDemandsInternal>> {
-  return new ReferenceKnowledgeDemandsEvaluator(config).evaluate(text, gradeLevel);
+  return new ReferenceKnowledgeDemandsEvaluator(config).evaluate(input);
 }

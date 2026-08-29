@@ -105,7 +105,11 @@ describe('STANDARDS_FAMILY.runTask', () => {
       MEMBER,
     );
 
-    expect(evaluate).toHaveBeenCalledWith('What is the area?', '3.MD.C.7.d', Jurisdiction.Utah);
+    expect(evaluate).toHaveBeenCalledWith({
+      question: 'What is the area?',
+      statementCode: '3.MD.C.7.d',
+      jurisdiction: Jurisdiction.Utah,
+    });
     expect(outcome.score).toBe('1/2');
     expect(outcome.reasoning).toContain('1 of 2');
     expect(outcome.payload).toMatchObject({
@@ -120,7 +124,11 @@ describe('STANDARDS_FAMILY.runTask', () => {
     const evaluate = vi.fn().mockResolvedValue(ALIGNMENT);
     await runnerWithStub(evaluate).runTask(row({ question: 'q', statementCode: '3.MD.C.7.d' }), MEMBER);
 
-    expect(evaluate).toHaveBeenCalledWith('q', '3.MD.C.7.d', Jurisdiction.MultiState);
+    expect(evaluate).toHaveBeenCalledWith({
+      question: 'q',
+      statementCode: '3.MD.C.7.d',
+      jurisdiction: Jurisdiction.MultiState,
+    });
   });
 
   it('rejects an unrecognised jurisdiction instead of passing it to the Knowledge Graph', async () => {

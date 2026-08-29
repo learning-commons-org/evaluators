@@ -136,7 +136,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
         });
 
       // Execute evaluation
-      const result = await evaluator.evaluate(testText, testGrade);
+      const result = await evaluator.evaluate({ text: testText, grade_level: testGrade });
 
       // Verify result structure
       expect(result.result.answer).toBe('Slightly complex');
@@ -169,7 +169,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       );
 
       // Should propagate the error
-      await expect(evaluator.evaluate(testText, testGrade))
+      await expect(evaluator.evaluate({ text: testText, grade_level: testGrade }))
         .rejects.toThrow('API timeout');
 
       // Provider called once (stage 1 only)
@@ -191,7 +191,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
         .mockRejectedValueOnce(new Error('Schema validation failed'));
 
       // Should propagate the error
-      await expect(evaluator.evaluate(testText, testGrade))
+      await expect(evaluator.evaluate({ text: testText, grade_level: testGrade }))
         .rejects.toThrow('Schema validation failed');
 
       // Provider called twice (stage 1 completed, stage 2 failed)
@@ -219,7 +219,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
           latencyMs: 500,
         });
 
-      const result = await evaluator.evaluate('Test text here', '5');
+      const result = await evaluator.evaluate({ text: 'Test text here', grade_level: '5' });
 
       // Verify result structure
       expect(result).toHaveProperty('evaluator');
@@ -257,7 +257,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
           latencyMs: 1,
         });
 
-      await evaluator.evaluate('The cat sat on the mat. It was sleeping.', '7');
+      await evaluator.evaluate({ text: 'The cat sat on the mat. It was sleeping.', grade_level: '7' });
 
       const sent = vi
         .mocked(mockProvider.generateStructured)

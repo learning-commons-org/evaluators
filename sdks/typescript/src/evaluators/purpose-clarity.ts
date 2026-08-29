@@ -4,6 +4,7 @@ import { runPreprocessingStep } from '../features/preprocessing.js';
 import { getSystemPrompt, getUserPrompt } from '../prompts/purpose-clarity/index.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
+import { validateInputs, type InputsOf } from './inputs.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
 import CONFIG from '../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';
@@ -19,6 +20,9 @@ const STEP = _step;
 // module level. The enum is the declared set, so it is used verbatim rather than
 // reconstructed from bounds; that admits gaps and non-numeric tokens such as "K".
 const SUPPORTED_GRADES: readonly string[] = INPUT_SCHEMA.properties.grade_level.enum;
+
+/** What this evaluator accepts, taken from its `input_schema.json`. */
+export type PurposeClarityInput = InputsOf<typeof INPUT_SCHEMA>;
 
 export class PurposeClarityEvaluator extends BaseEvaluator {
   static readonly metadata = {
@@ -52,36 +56,35 @@ export class PurposeClarityEvaluator extends BaseEvaluator {
   /**
    * Evaluate purpose complexity for a given text and grade level
    *
-   * @param text - The text to evaluate
-   * @param gradeLevel - The target grade level (3-12)
+   * @param input - The inputs declared in this evaluator's `input_schema.json`
    * @returns Evaluation result with complexity score and detailed analysis
-   * @throws {InputValidationError} If text is empty, too short/long, or gradeLevel is invalid
+   * @throws {InputValidationError} If an input is missing, unknown, or outside the bounds its schema declares
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(text: string, gradeLevel: string): Promise<EvaluationResult<PurposeClarityInternal>> {
+  async evaluate(input: PurposeClarityInput): Promise<EvaluationResult<PurposeClarityInternal>> {
+    const { text, grade_level: gradeLevel } = input;
+
     this.logger.info('Starting Purpose Clarity evaluation', {
       evaluator: PurposeClarityEvaluator.metadata.id,
       operation: 'evaluate',
       gradeLevel,
-      textLength: text.length,
+      textLength: text?.length,
     });
 
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
 
     try {
-      this.validateText(text);
-      this.validateGradeLevel(gradeLevel, new Set(SUPPORTED_GRADES));
+      validateInputs(input, INPUT_SCHEMA);
 
       const fkScore = PurposeClarityEvaluator.computeFkScore(text);
-      const inputs: Record<string, string> = {
-        text,
-        grade_level: gradeLevel,
+      const promptInputs: Record<string, string> = {
+        ...input,
         fk_score: String(fkScore),
       };
-      const response = await this.callLLM(inputs);
+      const response = await this.callLLM(promptInputs);
 
       const latencyMs = Date.now() - startTime;
       const tokenUsage = {
@@ -181,9 +184,8 @@ export class PurposeClarityEvaluator extends BaseEvaluator {
 }
 
 export async function evaluatePurposeClarity(
-  text: string,
-  gradeLevel: string,
+  input: PurposeClarityInput,
   config: BaseEvaluatorConfig,
 ): Promise<EvaluationResult<PurposeClarityInternal>> {
-  return new PurposeClarityEvaluator(config).evaluate(text, gradeLevel);
+  return new PurposeClarityEvaluator(config).evaluate(input);
 }

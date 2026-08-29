@@ -139,7 +139,7 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
   it('calls provider once with model from config.json', async () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
 
-    await evaluator.evaluate('When going to the beach, find out which ones have lifeguards.', '3');
+    await evaluator.evaluate({ text: 'When going to the beach, find out which ones have lifeguards.', grade_level: '3' });
 
     expect(mockProvider.generateStructured).toHaveBeenCalledTimes(1);
   });
@@ -147,7 +147,7 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
   it('passes temperature from config.json', async () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
 
-    await evaluator.evaluate('When going to the beach, find out which ones have lifeguards.', '3');
+    await evaluator.evaluate({ text: 'When going to the beach, find out which ones have lifeguards.', grade_level: '3' });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
     expect(call.temperature).toBe(STEP.generation.temperature);
@@ -158,7 +158,7 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
     const text = 'Pins are made of either brass or iron wire.';
 
-    await evaluator.evaluate(text, '4');
+    await evaluator.evaluate({ text: text, grade_level: '4' });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
     expect(call.messages[1].content).toContain(text);
@@ -167,7 +167,7 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
   it('includes grade_level (not grade) in user prompt', async () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
 
-    await evaluator.evaluate('Some sample text for testing purposes.', '7');
+    await evaluator.evaluate({ text: 'Some sample text for testing purposes.', grade_level: '7' });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
     expect(call.messages[1].content).toContain('7');
@@ -177,7 +177,7 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
   it('includes computed fk_score in user prompt', async () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
 
-    await evaluator.evaluate('The quick brown fox jumps over the lazy dog.', '5');
+    await evaluator.evaluate({ text: 'The quick brown fox jumps over the lazy dog.', grade_level: '5' });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
     expect(call.messages[1].content).toMatch(/\d+(\.\d+)?/);
@@ -186,7 +186,7 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
   it('maps LLM response to result shape', async () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
 
-    const result = await evaluator.evaluate('When going to the beach, find out which ones have lifeguards.', '3');
+    const result = await evaluator.evaluate({ text: 'When going to the beach, find out which ones have lifeguards.', grade_level: '3' });
 
     expect(result.result.complexity_score).toBe('slightly_complex');
     expect(result.result.reasoning).toBe(MOCK_RESPONSE.data.reasoning);
@@ -224,9 +224,7 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
       latencyMs: 300,
     });
 
-    const result = await overrideEvaluator.evaluate(
-      'When going to the beach, find out which ones have lifeguards.', '3'
-    );
+    const result = await overrideEvaluator.evaluate({ text: 'When going to the beach, find out which ones have lifeguards.', grade_level: '3' });
 
     expect(result.metadata.model).toBe('anthropic:claude-haiku-4-5-20251001');
   });
@@ -235,7 +233,7 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
 
     await expect(
-      evaluator.evaluate('Some text long enough to evaluate.', '5'),
+      evaluator.evaluate({ text: 'Some text long enough to evaluate.', grade_level: '5' }),
     ).resolves.toBeDefined();
   });
 });
@@ -254,22 +252,22 @@ describe('PurposeClarityEvaluator - Validation', () => {
   });
 
   it('rejects grade below 3', async () => {
-    await expect(evaluator.evaluate('Some text.', '2')).rejects.toThrow(/Invalid grade/);
+    await expect(evaluator.evaluate({ text: 'Some text.', grade_level: '2' })).rejects.toThrow(/Invalid grade/);
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
   it('rejects grade above 12', async () => {
-    await expect(evaluator.evaluate('Some text.', '13')).rejects.toThrow(/Invalid grade/);
+    await expect(evaluator.evaluate({ text: 'Some text.', grade_level: '13' })).rejects.toThrow(/Invalid grade/);
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
   it('rejects empty text', async () => {
-    await expect(evaluator.evaluate('', '5')).rejects.toThrow();
+    await expect(evaluator.evaluate({ text: '', grade_level: '5' })).rejects.toThrow();
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
   it('rejects whitespace-only text', async () => {
-    await expect(evaluator.evaluate('   ', '5')).rejects.toThrow(/empty or contain only whitespace/);
+    await expect(evaluator.evaluate({ text: '   ', grade_level: '5' })).rejects.toThrow(/empty or contain only whitespace/);
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
@@ -277,7 +275,7 @@ describe('PurposeClarityEvaluator - Validation', () => {
     vi.mocked(mockProvider.generateStructured).mockRejectedValue(new Error('API timeout'));
 
     await expect(
-      evaluator.evaluate('The beach is a fun place to swim and play in the sun.', '4'),
+      evaluator.evaluate({ text: 'The beach is a fun place to swim and play in the sun.', grade_level: '4' }),
     ).rejects.toThrow('API timeout');
   });
 });

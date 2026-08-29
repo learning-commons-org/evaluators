@@ -38,7 +38,7 @@ async function telemetryHeaders(
     googleApiKey: 'k',
     learningCommonsApiKey: 'lc-key',
     telemetry,
-  }).evaluate(TEXT, '10');
+  }).evaluate({ text: TEXT, grade_level: '10' });
 
   // Telemetry is fire-and-forget, so let the microtask queue drain.
   await new Promise((resolve) => setImmediate(resolve));

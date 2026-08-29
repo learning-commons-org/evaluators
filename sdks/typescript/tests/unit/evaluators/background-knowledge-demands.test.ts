@@ -77,7 +77,7 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
       latencyMs: 800,
     });
 
-    const result = await evaluator.evaluate(testText, testGrade);
+    const result = await evaluator.evaluate({ text: testText, grade_level: testGrade });
 
     expect(result.result.complexity_score).toBe('Very complex');
     expect(result.result.reasoning).toContain('hydraulic systems');
@@ -117,9 +117,7 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
       latencyMs: 400,
     });
 
-    const result = await overrideEvaluator.evaluate(
-      'The mitochondria is the powerhouse of the cell.', '5'
-    );
+    const result = await overrideEvaluator.evaluate({ text: 'The mitochondria is the powerhouse of the cell.', grade_level: '5' });
 
     expect(result.metadata.model).toBe('anthropic:claude-haiku-4-5-20251001');
   });
@@ -127,12 +125,12 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
   it('should propagate LLM API errors', async () => {
     vi.mocked(mockProvider.generateStructured).mockRejectedValue(new Error('API timeout'));
 
-    await expect(evaluator.evaluate('The mitochondria is the powerhouse of the cell.', '5'))
+    await expect(evaluator.evaluate({ text: 'The mitochondria is the powerhouse of the cell.', grade_level: '5' }))
       .rejects.toThrow('API timeout');
   });
 
   it('should not call provider when input validation fails', async () => {
-    await expect(evaluator.evaluate('', '5')).rejects.toThrow();
+    await expect(evaluator.evaluate({ text: '', grade_level: '5' })).rejects.toThrow();
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
@@ -153,7 +151,7 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
       latencyMs: 800,
     });
 
-    const result = await evaluator.evaluate('The mitochondria is the powerhouse of the cell.', '5');
+    const result = await evaluator.evaluate({ text: 'The mitochondria is the powerhouse of the cell.', grade_level: '5' });
 
     expect(result.result).toEqual(mockData);
   });
