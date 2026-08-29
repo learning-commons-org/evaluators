@@ -1,9 +1,10 @@
 import { OrganizationalStructureOutputSchema, type OrganizationalStructureResult } from '../../../schemas/student-facing-text/ela-reading/organizational-structure.js';
-import { getSystemPrompt, getUserPrompt } from '../../../prompts/organizational-structure/index.js';
 import type { EvaluationResult } from '../../../schemas/index.js';
 import type { BaseEvaluatorConfig } from '../../base.js';
 import { defineSingleStepEvaluator } from '../../single-step.js';
 import type { InputsOf } from '../../inputs.js';
+import SYSTEM_PROMPT from '../../../../../../evals/student-facing-text/ela-reading/organizational-structure/system.txt';
+import USER_PROMPT_TEMPLATE from '../../../../../../evals/student-facing-text/ela-reading/organizational-structure/user.txt';
 import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/organizational-structure/config.json';
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/organizational-structure/input_schema.json';
 
@@ -26,7 +27,8 @@ export class OrganizationalStructureEvaluator extends defineSingleStepEvaluator<
   contract: CONFIG,
   inputSchema: INPUT_SCHEMA,
   outputSchema: OrganizationalStructureOutputSchema,
-  prompts: { getSystemPrompt, getUserPrompt },
+  systemPrompt: SYSTEM_PROMPT,
+  userPrompt: USER_PROMPT_TEMPLATE,
 }) {}
 
 export async function evaluateOrganizationalStructure(

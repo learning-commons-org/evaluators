@@ -1,44 +1,36 @@
 import { describe, it, expect } from 'vitest';
 import { createPromptRenderers } from '../../../src/prompts/create-prompts.js';
 
-const CONFIG = {
-  evaluator: { id: 'literacy.gla.example' },
-  steps: [
-    {
-      id: 'evaluate_example',
-      prompt: { placeholders: { text: {}, grade_level: {} } },
-    },
-  ],
-};
+const KEYS = ['text', 'grade_level'];
 
 describe('createPromptRenderers', () => {
-  it('substitutes only placeholders declared in the config', () => {
+  it('substitutes only the placeholders it was given', () => {
     const { getUserPrompt } = createPromptRenderers(
       'system',
       'Read {text} for grade {grade_level}. Leave {undeclared} alone.',
-      CONFIG,
+      KEYS,
     );
-    expect(getUserPrompt({ text: 'a passage', grade_level: '5', undeclared: 'nope' }))
-      .toBe('Read a passage for grade 5. Leave {undeclared} alone.');
+
+    expect(getUserPrompt({ text: 'a passage', grade_level: '5', undeclared: 'nope' })).toBe(
+      'Read a passage for grade 5. Leave {undeclared} alone.',
+    );
   });
 
-  it('leaves declared placeholders intact when no input is provided', () => {
-    const { getSystemPrompt } = createPromptRenderers('Grade: {grade_level}', 'user', CONFIG);
+  it('leaves a declared placeholder intact when no input is provided', () => {
+    const { getSystemPrompt } = createPromptRenderers('Grade: {grade_level}', 'user', KEYS);
+
     expect(getSystemPrompt({})).toBe('Grade: {grade_level}');
   });
 
-  it('replaces repeated occurrences of a placeholder', () => {
-    const { getUserPrompt } = createPromptRenderers('system', '{text} and {text}', CONFIG);
+  it('replaces every occurrence of a placeholder', () => {
+    const { getUserPrompt } = createPromptRenderers('system', '{text} and {text}', KEYS);
+
     expect(getUserPrompt({ text: 'x' })).toBe('x and x');
   });
 
-  it('throws when the conventional evaluate_{slug} step is missing', () => {
-    const badConfig = {
-      evaluator: { id: 'literacy.gla.example' },
-      steps: [{ id: 'evaluate_other', prompt: { placeholders: {} } }],
-    };
-    expect(() => createPromptRenderers('system', 'user', badConfig)).toThrow(
-      'Step "evaluate_example" not found in literacy.gla.example config.json',
-    );
+  it('substitutes nothing when no placeholders are declared', () => {
+    const { getUserPrompt } = createPromptRenderers('system', 'Read {text}.', []);
+
+    expect(getUserPrompt({ text: 'a passage' })).toBe('Read {text}.');
   });
 });
