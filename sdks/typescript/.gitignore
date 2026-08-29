@@ -12,10 +12,11 @@ build/
 coverage/
 .nyc_output/
 
-# Environment variables
-.env
-.env.local
-.env.*.local
+# Environment variables. `.env*` catches .env.test, which holds real provider keys for
+# the integration suite and was previously committable — `.env.*.local` does not match it.
+# The checked-in template is negated so it keeps travelling with the repo.
+.env*
+!.env*.example
 
 # IDE
 .vscode/

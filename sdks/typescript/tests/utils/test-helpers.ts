@@ -2,6 +2,9 @@
  * Streamlined test utilities for evaluator testing
  */
 
+import { readOutcome, type DeclaredOutcome } from '../../src/schemas/outcome.js';
+import type { EvaluationResult } from '../../src/schemas/index.js';
+
 export interface TestAttempt<T> {
   attempt: number;
   result: T;
@@ -118,8 +121,16 @@ export interface EvaluatorTestConfig<TEvaluator = any> {
   /** The evaluator instance to test */
   evaluator: TEvaluator;
 
-  /** Function to extract the result to compare from evaluation output */
-  extractResult: (evalResult: any) => string;
+  /**
+   * How to read the value being compared. Defaults to the field the evaluator's contract
+   * names in `outcome.score`, which is what a caller reads and what the batch report shows.
+   * Pass this only to assert on something other than the declared verdict.
+   *
+   * Typed as the envelope rather than `any` so an extractor reaching for a field the
+   * envelope does not carry is a compile error instead of a run that silently compares
+   * `undefined` against every expected value.
+   */
+  extractResult?: (evalResult: EvaluationResult<Record<string, unknown>>) => string;
 
   /** Maximum retry attempts (default: 3) */
   maxAttempts?: number;
@@ -139,10 +150,7 @@ export interface EvaluatorTestConfig<TEvaluator = any> {
  *     grade: '3',
  *     expected: 'very complex'
  *   },
- *   {
- *     evaluator: vocabularyEvaluator,
- *     extractResult: (r) => r.score
- *   }
+ *   { evaluator: vocabularyEvaluator }
  * );
  *
  * // Grade level evaluator
@@ -152,10 +160,7 @@ export interface EvaluatorTestConfig<TEvaluator = any> {
  *     text: 'Sample text...',
  *     expected: '6-8'
  *   },
- *   {
- *     evaluator: gradeLevelEvaluator,
- *     extractResult: (r) => r.score.grade
- *   }
+ *   { evaluator: gradeLevelEvaluator }
  * );
  * ```
  */
@@ -163,8 +168,18 @@ export async function runEvaluatorTest(
   testCase: BaseTestCase,
   config: EvaluatorTestConfig
 ): Promise<TestResult<string>> {
-  const { evaluator, extractResult, maxAttempts = 3 } = config;
+  const { evaluator, maxAttempts = 3 } = config;
   const compareFn = defaultCompareFn;
+
+  // The declared outcome travels with the class, so the verdict field comes from the
+  // contract rather than being named per suite.
+  const declaredOutcome = (
+    evaluator.constructor as { metadata?: { outcome?: DeclaredOutcome } }
+  ).metadata?.outcome;
+  const extractResult =
+    config.extractResult ??
+    ((evalResult: EvaluationResult<Record<string, unknown>>) =>
+      readOutcome(evalResult, declaredOutcome).score ?? 'undefined');
 
   // Buffer logs to print atomically at the end (prevents interleaving in parallel tests)
   const logBuffer: string[] = [];

@@ -35,7 +35,7 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
-    "test:integration": "RUN_INTEGRATION_TESTS=true vitest run tests/integration",
+    "test:integration": "RUN_INTEGRATION_TESTS=true vitest run --dir tests/integration",
     "test:integration:dist": "npm run build && RUN_INTEGRATION_TESTS=true vitest run --config vitest.ci.config.ts",
     "test:all": "RUN_INTEGRATION_TESTS=true vitest run",
     "test:watch": "vitest",
