@@ -8,8 +8,8 @@ import {
   Hyphenator,
   listWords,
   stripPunctuation,
-} from '../src/index.js';
-import { HYPHENATION_PATTERNS } from '../src/data/hyphenation-patterns.js';
+} from '../../../../src/features/flesch-kincaid/index.js';
+import { HYPHENATION_PATTERNS } from '../../../../src/features/flesch-kincaid/data/hyphenation-patterns.js';
 
 describe('listWords', () => {
   it('keeps apostrophes but drops other punctuation, as textstat does', () => {

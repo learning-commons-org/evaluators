@@ -16,6 +16,8 @@ export { Hyphenator } from './hyphenation.js';
  *
  * Unrounded, as textstat returns it — textstat's own rounding is off by default. Use
  * {@link roundGrade} for the 2dp value the evaluator contracts specify.
+ *
+ * See `docs/flesch-kincaid-parity.md` for how this is verified and what it cost to match.
  */
 export function fleschKincaidGrade(text: string): number {
   const words = countWords(text);

@@ -2,7 +2,7 @@
 """Record textstat's answers for a corpus, so the parity tests need no Python to run.
 
     pip install textstat
-    python scripts/generate-parity-corpus.py
+    npm run generate:fk-corpus
 
 The corpus is deliberately three things at once:
 
@@ -26,7 +26,7 @@ from textstat.backend.counts._count_words import count_words
 
 HERE = Path(__file__).resolve().parent
 EVALS = HERE.parent.parent.parent / 'evals'
-OUT = HERE.parent / 'tests' / 'parity-corpus.json'
+OUT = HERE.parent / 'tests' / 'unit' / 'features' / 'flesch-kincaid' / 'parity-corpus.json'
 
 VOCAB = (
     "the quick brown fox jumps over a lazy dog photosynthesis mitochondria naïve café "
@@ -101,10 +101,15 @@ def random_texts() -> list[str]:
 
 
 def main() -> None:
-    texts = fixture_texts() + EDGE + random_texts()
+    groups = (
+        [('fixture-prose', text) for text in fixture_texts()]
+        + [('edge-case', text) for text in EDGE]
+        + [('adversarial', text) for text in random_texts()]
+    )
 
     records = [
         {
+            'group': group,
             'text': text,
             'words': count_words(text),
             'sentences': count_sentences(text),
@@ -112,11 +117,17 @@ def main() -> None:
             'fk': textstat.flesch_kincaid_grade(text),
             'fkRounded': round(textstat.flesch_kincaid_grade(text), 2),
         }
-        for text in texts
+        for group, text in groups
     ]
 
     OUT.write_text(json.dumps({'textstatVersion': textstat.__version__, 'cases': records}))
+
+    counts: dict[str, int] = {}
+    for record in records:
+        counts[record['group']] = counts.get(record['group'], 0) + 1
     print(f'cases: {len(records)} -> {OUT}')
+    for group, n in counts.items():
+        print(f'  {group:<16} {n}')
 
 
 if __name__ == '__main__':

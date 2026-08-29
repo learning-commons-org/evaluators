@@ -7,7 +7,7 @@ import {
   fleschKincaidGrade,
   roundGrade,
   textStatistics,
-} from '../src/index.js';
+} from '../../../../src/features/flesch-kincaid/index.js';
 
 interface Case {
   text: string;
@@ -32,7 +32,7 @@ describe('parity with textstat', () => {
     expect(corpus.cases.length).toBeGreaterThan(600);
     expect(corpus.cases.some((c) => c.text === '')).toBe(true);
     expect(corpus.cases.some((c) => c.text.length > 1000)).toBe(true);
-    expect(corpus.cases.some((c) => /[^\x00-\x7F]/.test(c.text))).toBe(true);
+    expect(corpus.cases.some((c) => /[^\p{ASCII}]/u.test(c.text))).toBe(true);
     // `textstat.__version__` is a tuple, so this arrives as [0, 7, 13]. It is the
     // provenance of every expectation in the file and should not silently disappear.
     expect(corpus.textstatVersion.every((part) => typeof part === 'number')).toBe(true);

@@ -43,7 +43,10 @@
     "test:ci": "npm run test:unit && npm run test:integration:dist",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "generate:fk-data": "python3 scripts/generate-flesch-kincaid-data.py",
+    "generate:fk-corpus": "python3 scripts/generate-flesch-kincaid-corpus.py",
+    "benchmark:fk": "tsx scripts/benchmark-flesch-kincaid.ts"
   },
   "keywords": [
     "education",
@@ -95,9 +98,9 @@
     "@ai-sdk/anthropic": "^4.0.2",
     "@ai-sdk/google": "^4.0.2",
     "@ai-sdk/openai": "^4.0.3",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^26.0.0",
     "@types/prompts": "^2.4.9",
-    "@eslint/js": "^10.0.1",
     "@typescript-eslint/eslint-plugin": "^8.59.4",
     "@typescript-eslint/parser": "^8.59.4",
     "@vitest/coverage-v8": "^4.0.17",
@@ -106,6 +109,8 @@
     "globals": "^17.6.0",
     "json-schema-to-zod": "^2.8.1",
     "openapi-typescript": "^7.13.0",
+    "readability-scores": "^1.0.8",
+    "textstat-ts": "^1.0.2",
     "tsup": "^8.0.1",
     "tsx": "^4.21.0",
     "typescript": "^5.3.3",
