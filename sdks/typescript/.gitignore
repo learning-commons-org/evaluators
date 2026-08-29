@@ -16,7 +16,7 @@ coverage/
 # the integration suite and was previously committable — `.env.*.local` does not match it.
 # The checked-in template is negated so it keeps travelling with the repo.
 .env*
-!.env.test.example
+!.env*.example
 
 # IDE
 .vscode/

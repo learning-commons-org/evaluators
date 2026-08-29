@@ -98,7 +98,7 @@ describe('the integration harness reads the declared verdict', () => {
 
     const result = await runEvaluatorTest(
       { ...CASE, expected: 'picked' },
-      { evaluator, maxAttempts: 1, extractResult: (r) => r.result.other },
+      { evaluator, maxAttempts: 1, extractResult: (r) => String(r.result.other) },
     );
 
     expect(result.allResults).toEqual(['picked']);

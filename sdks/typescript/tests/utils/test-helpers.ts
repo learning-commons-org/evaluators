@@ -125,8 +125,12 @@ export interface EvaluatorTestConfig<TEvaluator = any> {
    * How to read the value being compared. Defaults to the field the evaluator's contract
    * names in `outcome.score`, which is what a caller reads and what the batch report shows.
    * Pass this only to assert on something other than the declared verdict.
+   *
+   * Typed as the envelope rather than `any` so an extractor reaching for a field the
+   * envelope does not carry is a compile error instead of a run that silently compares
+   * `undefined` against every expected value.
    */
-  extractResult?: (evalResult: any) => string;
+  extractResult?: (evalResult: EvaluationResult<Record<string, unknown>>) => string;
 
   /** Maximum retry attempts (default: 3) */
   maxAttempts?: number;
@@ -173,7 +177,9 @@ export async function runEvaluatorTest(
     evaluator.constructor as { metadata?: { outcome?: DeclaredOutcome } }
   ).metadata?.outcome;
   const extractResult =
-    config.extractResult ?? ((evalResult: EvaluationResult) => readOutcome(evalResult, declaredOutcome).score ?? 'undefined');
+    config.extractResult ??
+    ((evalResult: EvaluationResult<Record<string, unknown>>) =>
+      readOutcome(evalResult, declaredOutcome).score ?? 'undefined');
 
   // Buffer logs to print atomically at the end (prevents interleaving in parallel tests)
   const logBuffer: string[] = [];
