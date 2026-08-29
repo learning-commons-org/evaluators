@@ -70,6 +70,12 @@ jobs:
       - name: 🔎 Type check
         run: npm run typecheck
 
+      # The committed Zod schemas are generated from the evaluator contracts. Editing a
+      # contract's descriptions changes what the model is asked for, and nothing else
+      # fails when the generated file drifts behind.
+      - name: 🧬 Generated schemas match their contracts
+        run: npm run generate:schemas:check
+
   test:
     name: ⚡ Unit Tests (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest

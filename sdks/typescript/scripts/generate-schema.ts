@@ -4,17 +4,22 @@
  *
  * Each evaluator's config.json declares `output_schema.$ref` pointing to a JSON Schema.
  * This script resolves internal $refs, converts to Zod, and writes a typed TypeScript
- * file to src/schemas/{slug}.ts.
+ * file to src/schemas/{domain}/{skill}/{evaluator}.ts, derived from the evaluator id.
  *
  * Usage:
- *   tsx scripts/generate-schema.ts <config.json> [<config.json> ...]
- *   tsx scripts/generate-schema.ts --check <config.json> [<config.json> ...]
+ *   tsx scripts/generate-schema.ts --all                  every already-generated module
+ *   tsx scripts/generate-schema.ts <config.json> [...]     named contracts
+ *   tsx scripts/generate-schema.ts --check <...>            verify instead of write
  *
  * The --check flag exits 1 if any generated file is out of sync (for CI).
+ *
+ * `--all` regenerates the modules that are already generated, identified by the marker
+ * this script writes into them. To convert a hand-written module, run the generator on
+ * its contract by name once; it gains the marker and `--all` picks it up from then on.
  */
 
 import { parseSchema } from 'json-schema-to-zod';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { resolve, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,6 +27,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const SDK_ROOT = resolve(__dirname, '..');
 const SRC_SCHEMAS = join(SDK_ROOT, 'src', 'schemas');
+const EVALS_ROOT = resolve(SDK_ROOT, '..', '..', 'evals');
+
+/** Written into every generated module, and the only record of which modules are generated. */
+export const GENERATED_MARKER = '// GENERATED — do not edit directly.';
 
 type JsonValue = string | number | boolean | null | JsonValue[] | JsonObject;
 type JsonObject = { [key: string]: JsonValue };
@@ -40,6 +49,11 @@ interface GeneratedSchema {
 /**
  * Recursively resolves all internal $ref nodes using the schema's $defs map.
  * Strips $defs from the output — the resolved schema is self-contained.
+ *
+ * Keys sitting beside a `$ref` override the definition's own. That is what carries the
+ * per-field meaning: several contracts point two or more fields at one definition and
+ * distinguish them by a sibling `description`, which reaches the model as the field's
+ * `.describe()`. Returning the bare definition makes those fields say the same thing.
  */
 export function resolveRefs(node: JsonValue, defs: Record<string, JsonObject>): JsonValue {
   if (typeof node !== 'object' || node === null) return node;
@@ -49,7 +63,10 @@ export function resolveRefs(node: JsonValue, defs: Record<string, JsonObject>): 
     const key = node['$ref'].replace('#/$defs/', '');
     const def = defs[key];
     if (!def) throw new Error(`Cannot resolve $ref "${node['$ref']}": key "${key}" not found in $defs`);
-    return resolveRefs(def, defs);
+    const siblings = Object.fromEntries(
+      Object.entries(node).filter(([name]) => name !== '$ref'),
+    );
+    return resolveRefs({ ...def, ...siblings }, defs);
   }
 
   const result: JsonObject = {};
@@ -84,8 +101,11 @@ export function generateSchemaFile(configPath: string): GeneratedSchema {
   if (!config.evaluator?.id) throw new Error(`config.json missing evaluator.id: ${configPath}`);
   if (!config.output_schema?.$ref) throw new Error(`config.json missing output_schema.$ref: ${configPath}`);
 
-  // Slug is the last dot-segment of the evaluator ID (e.g. "literacy.gla.purpose" → "purpose")
-  const slug = config.evaluator.id.split('.').pop()!;
+  // The path comes from the whole id, matching where the evaluator's own module lives,
+  // so two evaluators sharing a last segment cannot overwrite each other. The exported
+  // names come from the last segment alone, which is what reads well at a call site.
+  const segments = config.evaluator.id.split('.').map((part) => part.replace(/_/g, '-'));
+  const slug = segments[segments.length - 1];
   const className = toPascalCase(slug);
 
   const schemaPath = resolve(configDir, config.output_schema.$ref);
@@ -93,12 +113,17 @@ export function generateSchemaFile(configPath: string): GeneratedSchema {
 
   const defs = (rawSchema['$defs'] ?? {}) as Record<string, JsonObject>;
   const resolved = resolveRefs(rawSchema, defs) as JsonObject;
+
+  // A root `description` describes the contract, not a field the model fills in, and
+  // several are notes to maintainers. Per-field descriptions are kept.
+  delete resolved['description'];
+
   const zodCode = parseSchema(resolved);
 
   const relSchemaPath = relative(SDK_ROOT, schemaPath);
 
   const content = [
-    `// GENERATED — do not edit directly.`,
+    GENERATED_MARKER,
     `// Source: ${relSchemaPath}`,
     `// Regenerate: npm run generate:schemas`,
     ``,
@@ -113,18 +138,54 @@ export function generateSchemaFile(configPath: string): GeneratedSchema {
 
   return {
     slug,
-    outPath: join(SRC_SCHEMAS, `${slug}.ts`),
+    outPath: join(SRC_SCHEMAS, ...segments) + '.ts',
     content,
   };
+}
+
+/**
+ * Every evaluator contract in the repo. Sorted so console output and the order files are
+ * written stay stable across platforms, whatever order the directory walk returns.
+ */
+export function discoverContracts(): string[] {
+  return readdirSync(EVALS_ROOT, { recursive: true, encoding: 'utf-8' })
+    .filter((entry) => entry.endsWith('config.json'))
+    .map((entry) => join(EVALS_ROOT, entry))
+    .sort();
+}
+
+/**
+ * The contracts whose committed module is generated. Modules still hand-written are
+ * skipped: the generator's output for them differs wholesale, so including them would
+ * report drift that no one can act on without converting them first.
+ */
+export function generatedContracts(): string[] {
+  return discoverContracts().filter((configPath) => {
+    let outPath: string;
+    try {
+      ({ outPath } = generateSchemaFile(configPath));
+    } catch {
+      return false;
+    }
+    return existsSync(outPath) && readFileSync(outPath, 'utf-8').startsWith(GENERATED_MARKER);
+  });
 }
 
 function main(): void {
   const args = process.argv.slice(2);
   const checkMode = args.includes('--check');
-  const configPaths = args.filter((a) => a !== '--check');
+  const allMode = args.includes('--all');
+  const named = args.filter((a) => a !== '--check' && a !== '--all');
+
+  if (allMode && named.length > 0) {
+    console.error('Pass either --all or explicit config paths, not both.');
+    process.exit(1);
+  }
+
+  const configPaths = allMode ? generatedContracts() : named;
 
   if (configPaths.length === 0) {
-    console.error('Usage: generate-schema.ts [--check] <config.json> [<config.json> ...]');
+    console.error('Usage: generate-schema.ts [--check] (--all | <config.json> [...])');
     process.exit(1);
   }
 
@@ -148,6 +209,7 @@ function main(): void {
           console.log(`✓  ${slug}: up to date`);
         }
       } else {
+        mkdirSync(dirname(outPath), { recursive: true });
         writeFileSync(outPath, content, 'utf-8');
         console.log(`Generated ${outPath}`);
       }
