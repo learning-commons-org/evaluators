@@ -12,6 +12,7 @@ import {
 } from './base.js';
 import { declaredCredentials, type CredentialDeclaringConfig } from './credentials.js';
 import { validateInputs, primaryTextField, type DeclaredInputSchema } from './inputs.js';
+import { createPromptRenderers } from '../prompts/create-prompts.js';
 
 /**
  * The parts of a contract a single-step evaluator runs on. Everything the flow needs is
@@ -29,6 +30,7 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
     id: string;
     model: { provider: string; name: string };
     generation?: { temperature?: number };
+    prompt: { placeholders: Record<string, unknown> };
     required_credentials?: string[];
     optional?: boolean;
   }>;
@@ -44,10 +46,10 @@ export interface SingleStepDefinition<TResult> {
   contract: SingleStepContract;
   inputSchema: DeclaredInputSchema;
   outputSchema: ZodType<TResult>;
-  prompts: {
-    getSystemPrompt(inputs: Record<string, string>): string;
-    getUserPrompt(inputs: Record<string, string>): string;
-  };
+  /** The contract's `system.txt`, verbatim. Placeholders are substituted per call. */
+  systemPrompt: string;
+  /** The contract's `user.txt`, verbatim. */
+  userPrompt: string;
 }
 
 /**
@@ -101,19 +103,25 @@ function vendorOf(step: { model: { provider: string } }, name: string): Provider
  *   contract: CONFIG,
  *   inputSchema: INPUT_SCHEMA,
  *   outputSchema: PurposeClarityOutputSchema,
- *   prompts: { getSystemPrompt, getUserPrompt },
+ *   systemPrompt: SYSTEM_PROMPT,
+ *   userPrompt: USER_PROMPT_TEMPLATE,
  * }) {}
  * ```
  */
 export function defineSingleStepEvaluator<TInput extends Record<string, string>, TResult>(
   definition: SingleStepDefinition<TResult>,
 ): SingleStepEvaluatorClass<TInput, TResult> {
-  const { contract, inputSchema, outputSchema, prompts } = definition;
+  const { contract, inputSchema, outputSchema, systemPrompt, userPrompt } = definition;
 
   const STEP = stepFor(contract);
   const VENDOR = vendorOf(STEP, contract.evaluator.name);
   const PREPROCESSING = contract.preprocessing ?? [];
   const TEXT_FIELD = primaryTextField(inputSchema);
+  const PROMPTS = createPromptRenderers(
+    systemPrompt,
+    userPrompt,
+    Object.keys(STEP.prompt.placeholders),
+  );
 
   // The contract names every evaluator "<Thing> Evaluator"; logs read as "<Thing>".
   const LABEL = contract.evaluator.name.replace(/ Evaluator$/, '');
@@ -179,8 +187,8 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string>,
 
         const response = await this.provider.generateStructured({
           messages: [
-            { role: 'system', content: prompts.getSystemPrompt(promptInputs) },
-            { role: 'user', content: prompts.getUserPrompt(promptInputs) },
+            { role: 'system', content: PROMPTS.getSystemPrompt(promptInputs) },
+            { role: 'user', content: PROMPTS.getUserPrompt(promptInputs) },
           ],
           schema: outputSchema,
           temperature: STEP.generation?.temperature,

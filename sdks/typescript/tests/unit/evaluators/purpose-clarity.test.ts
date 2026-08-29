@@ -1,11 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { runPreprocessingStep } from '../../../src/features/preprocessing.js';
 import CONFIG from '../../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';
-import { createHash } from 'node:crypto';
 import { PurposeClarityEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/purpose-clarity.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
-import { getSystemPrompt, getUserPrompt } from '../../../src/prompts/purpose-clarity/index.js';
 
 const STEP = CONFIG.steps[0];
 
@@ -96,32 +94,6 @@ describe('PurposeClarityEvaluator - Metadata', () => {
   });
 });
 
-// --- Prompt integrity (contract test) ---
-
-describe('PurposeClarityEvaluator - Prompt contract', () => {
-  it('system prompt SHA256 matches config.json declaration', () => {
-    const expectedSha = CONFIG.steps[0].prompt.messages[0].sha256;
-    const actualSha = createHash('sha256').update(getSystemPrompt({})).digest('hex');
-    expect(actualSha).toBe(expectedSha);
-  });
-
-  it('user prompt SHA256 matches config.json declaration', () => {
-    const expectedSha = CONFIG.steps[0].prompt.messages[1].sha256;
-    const actualSha = createHash('sha256').update(getUserPrompt({})).digest('hex');
-    expect(actualSha).toBe(expectedSha);
-  });
-
-  it('user prompt substitutes {text}, {grade_level}, and {fk_score}', () => {
-    const prompt = getUserPrompt({ text: 'Sample text here.', grade_level: '5', fk_score: '3.14' });
-    expect(prompt).toContain('Sample text here.');
-    expect(prompt).toContain('5');
-    expect(prompt).toContain('3.14');
-    expect(prompt).not.toContain('{text}');
-    expect(prompt).not.toContain('{grade_level}');
-    expect(prompt).not.toContain('{fk_score}');
-  });
-});
-
 // --- LLM call contract ---
 
 describe('PurposeClarityEvaluator - LLM call contract', () => {
@@ -190,6 +162,10 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
 
     expect(call.messages[1].content).toContain(expected);
     expect(call.messages[1].content).not.toContain('{fk_score}');
+    // The declared inputs, at the point they reach the model.
+    expect(call.messages[1].content).toContain(FK_TEXT);
+    expect(call.messages[1].content).not.toContain('{text}');
+    expect(call.messages[1].content).not.toContain('{grade_level}');
   });
 
   it('maps LLM response to result shape', async () => {

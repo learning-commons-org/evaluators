@@ -8,6 +8,7 @@ import {
   LLMOutputProcessingError,
 } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
+import { runPreprocessingStep } from '../../../src/features/preprocessing.js';
 
 const sent = vi.fn();
 const created: Array<{ type: string; model: string; apiKey?: string }> = [];
@@ -67,6 +68,7 @@ function contract(overrides: Record<string, unknown> = {}) {
         id: 'evaluate_thing',
         model: { provider: 'google', name: 'gemini-3-flash-preview' },
         generation: { temperature: 0.5 },
+        prompt: { placeholders: { text: {}, grade_level: {}, fk_score: {} } },
         required_credentials: ['google_api_key'],
       },
     ],
@@ -75,17 +77,15 @@ function contract(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function define(overrides: Record<string, unknown> = {}, prompts?: Parameters<typeof defineSingleStepEvaluator>[0]['prompts']) {
+function define(overrides: Record<string, unknown> = {}) {
   return defineSingleStepEvaluator<{ text: string; grade_level: string }, Output>({
     // The synthetic contract is structurally what a real one is; the cast keeps the test
     // from restating every optional field the interface allows.
     contract: contract(overrides) as never,
     inputSchema: INPUT_SCHEMA as never,
     outputSchema: OUTPUT_SCHEMA,
-    prompts: prompts ?? {
-      getSystemPrompt: (i) => `system ${JSON.stringify(i)}`,
-      getUserPrompt: (i) => `user ${JSON.stringify(i)}`,
-    },
+    systemPrompt: 'system: {text} at {grade_level} with {fk_score}',
+    userPrompt: 'user: {text} at {grade_level} with {fk_score}',
   });
 }
 
@@ -107,20 +107,20 @@ const INPUT = { text: 'The cat sat on the mat.', grade_level: '4' };
 
 describe('defineSingleStepEvaluator rejects a contract it cannot run', () => {
   it('names the step it expected when the convention is not met', () => {
-    expect(() => define({ steps: [{ id: 'not_the_convention', model: { provider: 'google', name: 'm' } }] })).toThrow(
+    expect(() => define({ steps: [{ id: 'not_the_convention', model: { provider: 'google', name: 'm' }, prompt: { placeholders: {} } }] })).toThrow(
       'evaluate_thing',
     );
   });
 
   it('names the evaluator whose contract is wrong', () => {
-    expect(() => define({ steps: [{ id: 'wrong', model: { provider: 'google', name: 'm' } }] })).toThrow(
+    expect(() => define({ steps: [{ id: 'wrong', model: { provider: 'google', name: 'm' }, prompt: { placeholders: {} } }] })).toThrow(
       'Thing Evaluator',
     );
   });
 
   it('rejects a provider the SDK has no adapter for, listing the ones it has', () => {
     expect(() =>
-      define({ steps: [{ id: 'evaluate_thing', model: { provider: 'cohere', name: 'm' } }] }),
+      define({ steps: [{ id: 'evaluate_thing', model: { provider: 'cohere', name: 'm' }, prompt: { placeholders: {} } }] }),
     ).toThrow(/Unsupported provider "cohere".*google/s);
   });
 });
@@ -159,7 +159,7 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
   it('sends no temperature when the step declares none', async () => {
     const provider = fakeProvider();
     const E = define({
-      steps: [{ id: 'evaluate_thing', model: { provider: 'google', name: 'm' } }],
+      steps: [{ id: 'evaluate_thing', model: { provider: 'google', name: 'm' }, prompt: { placeholders: {} } }],
     });
     await new E({ llmProvider: provider, telemetry: false }).evaluate(INPUT);
 
@@ -186,10 +186,22 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
     await new E({ llmProvider: provider, telemetry: false }).evaluate(INPUT);
 
     const messages = vi.mocked(provider.generateStructured).mock.calls[0][0].messages;
+    const expected = String(
+      runPreprocessingStep(INPUT.text, {
+        library: 'text-readability',
+        function: 'fleschKincaidGrade',
+        post_transform: { type: 'round', precision: 2 },
+      }),
+    );
+
     expect(messages.map((m) => m.role)).toEqual(['system', 'user']);
-    expect(messages[0].content).toContain('fk_score');
-    expect(messages[1].content).toContain('fk_score');
+    // Both templates carry the placeholder, so both must be rendered.
+    expect(messages[0].content).toContain(expected);
+    expect(messages[1].content).toContain(expected);
     expect(messages[1].content).not.toContain('{fk_score}');
+    // The declared inputs are substituted too, not only the preprocessed one.
+    expect(messages[1].content).toContain(INPUT.text);
+    expect(messages[1].content).toContain(INPUT.grade_level);
   });
 
   it('refuses a preprocessing library it has no adapter for', async () => {
@@ -299,6 +311,7 @@ describe('defineSingleStepEvaluator picks the key for the declared vendor', () =
         {
           id: 'evaluate_thing',
           model: { provider: 'openai', name: 'gpt-4.1' },
+          prompt: { placeholders: {} },
           required_credentials: ['openai_api_key'],
         },
       ],

@@ -1,9 +1,10 @@
 import { ReferenceKnowledgeDemandsOutputSchema, type ReferenceKnowledgeDemandsResult } from '../../../schemas/student-facing-text/ela-reading/reference-knowledge-demands.js';
-import { getSystemPrompt, getUserPrompt } from '../../../prompts/reference-knowledge-demands/index.js';
 import type { EvaluationResult } from '../../../schemas/index.js';
 import type { BaseEvaluatorConfig } from '../../base.js';
 import { defineSingleStepEvaluator } from '../../single-step.js';
 import type { InputsOf } from '../../inputs.js';
+import SYSTEM_PROMPT from '../../../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/system.txt';
+import USER_PROMPT_TEMPLATE from '../../../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/user.txt';
 import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/config.json';
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/input_schema.json';
 
@@ -26,7 +27,8 @@ export class ReferenceKnowledgeDemandsEvaluator extends defineSingleStepEvaluato
   contract: CONFIG,
   inputSchema: INPUT_SCHEMA,
   outputSchema: ReferenceKnowledgeDemandsOutputSchema,
-  prompts: { getSystemPrompt, getUserPrompt },
+  systemPrompt: SYSTEM_PROMPT,
+  userPrompt: USER_PROMPT_TEMPLATE,
 }) {}
 
 export async function evaluateReferenceKnowledgeDemands(

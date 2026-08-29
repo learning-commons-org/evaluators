@@ -1,9 +1,10 @@
 import { PurposeClarityOutputSchema, type PurposeClarityResult } from '../../../schemas/student-facing-text/ela-reading/purpose-clarity.js';
-import { getSystemPrompt, getUserPrompt } from '../../../prompts/purpose-clarity/index.js';
 import type { EvaluationResult } from '../../../schemas/index.js';
 import type { BaseEvaluatorConfig } from '../../base.js';
 import { defineSingleStepEvaluator } from '../../single-step.js';
 import type { InputsOf } from '../../inputs.js';
+import SYSTEM_PROMPT from '../../../../../../evals/student-facing-text/ela-reading/purpose-clarity/system.txt';
+import USER_PROMPT_TEMPLATE from '../../../../../../evals/student-facing-text/ela-reading/purpose-clarity/user.txt';
 import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/purpose-clarity/input_schema.json';
 
@@ -26,7 +27,8 @@ export class PurposeClarityEvaluator extends defineSingleStepEvaluator<PurposeCl
   contract: CONFIG,
   inputSchema: INPUT_SCHEMA,
   outputSchema: PurposeClarityOutputSchema,
-  prompts: { getSystemPrompt, getUserPrompt },
+  systemPrompt: SYSTEM_PROMPT,
+  userPrompt: USER_PROMPT_TEMPLATE,
 }) {}
 
 export async function evaluatePurposeClarity(
