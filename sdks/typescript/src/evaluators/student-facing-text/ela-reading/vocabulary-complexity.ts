@@ -2,7 +2,6 @@ import type { LLMProvider } from '../../../providers/index.js';
 import {
   VocabularyComplexityOutputSchema,
   type VocabularyComplexityResult,
-  type BackgroundKnowledge,
 } from '../../../schemas/student-facing-text/ela-reading/vocabulary-complexity.js';
 import { calculateFleschKincaidGrade } from '../../../features/index.js';
 import {
@@ -47,6 +46,12 @@ import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/voca
  */
 /** What this evaluator accepts, taken from its `input_schema.json`. */
 export type VocabularyComplexityInput = InputsOf<typeof INPUT_SCHEMA>;
+
+/** The vocabulary evaluator's stage-1 output, fed to stage 2 as prompt input. */
+export interface BackgroundKnowledge {
+  assumption: string;
+  gradeLevel: string;
+}
 
 export class VocabularyComplexityEvaluator extends BaseEvaluator {
   static readonly metadata = {

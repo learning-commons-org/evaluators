@@ -98,7 +98,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       // Mock complexity evaluation response
       vi.mocked(mockComplexityProvider.generateStructured).mockResolvedValue({
         data: {
-          complexity_score: 'Moderately complex',
+          complexity_score: 'moderately_complex',
           reasoning: 'The text uses grade-appropriate vocabulary.',
           factors: ['Academic terminology', 'Clear structure'],
         },
@@ -114,7 +114,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       const result = await evaluator.evaluate({ text: testText, grade_level: testGrade });
 
       // Verify result structure
-      expect(result.result.complexity_score).toBe('Moderately complex');
+      expect(result.result.complexity_score).toBe('moderately_complex');
       expect(result.result.reasoning).toContain('grade-appropriate vocabulary');
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20+openai:gpt-4.1-2025-04-14');
@@ -195,7 +195,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
 
       vi.mocked(mockComplexityProvider.generateStructured).mockResolvedValue({
         data: {
-          complexity_score: 'Moderately complex',
+          complexity_score: 'moderately_complex',
           reasoning: 'Detailed reasoning here',
           factors: ['Factor 1', 'Factor 2'],
         },
@@ -240,7 +240,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
         latencyMs: 300,
       });
       vi.mocked(complexityProvider.generateStructured).mockResolvedValue({
-        data: { complexity_score: 'Slightly complex', reasoning: 'Simple.', factors: [] },
+        data: { complexity_score: 'slightly_complex', reasoning: 'Simple.', factors: [] },
         model: 'gpt-4o-mini',
         usage: { inputTokens: 200, outputTokens: 80 },
         latencyMs: 400,
@@ -260,7 +260,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       });
 
       const mockComplexityData = {
-        complexity_score: 'Moderately complex',
+        complexity_score: 'moderately_complex',
         reasoning: 'Detailed reasoning',
         factors: ['Factor 1', 'Factor 2'],
         analysis: 'Deep analysis',

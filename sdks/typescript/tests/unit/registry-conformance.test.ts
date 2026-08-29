@@ -198,6 +198,15 @@ const RESULT_NAME_GAPS = new Set<string>([
 ]);
 
 /**
+ * Evaluators whose schema rejects the values its own contract fixtures record.
+ */
+const FIXTURE_VALUE_GAPS = new Set<string>([
+  // Still sends the shared Title Case TextComplexityLevel ('Slightly complex') where the
+  // contract, and so its fixtures, say 'slightly_complex'.
+  SENTENCE_ID,
+]);
+
+/**
  * The Zod schema each evaluator actually sends to the model.
  *
  * This is the side of the comparison the suite was missing: the contract says what the
@@ -446,6 +455,52 @@ describe('the schema the SDK sends matches the contract', () => {
     const declared = Object.keys(outputSchema.properties).sort();
 
     expect(sentFields, `${E.metadata.name} sent payload fields`).toEqual(declared);
+  });
+});
+
+describe('the schema accepts the values the contract fixtures record', () => {
+  // The comparison above matches field *names*. This checks the values: a fixture's
+  // `expected` is what the model returned for a real input, so a schema that rejects it
+  // is a schema the model cannot satisfy.
+  //
+  // Unit tests cannot catch this — they mock the provider, so the payload is passed
+  // through without ever meeting the schema.
+  const withSchema = cases.filter(({ E }) => SDK_OUTPUT_SCHEMAS[E.metadata.id]);
+
+  it.each(withSchema)('$name', ({ E }) => {
+    const { dir } = contractFor(E.metadata.id);
+    const fixtures = JSON.parse(readFileSync(join(dir, 'fixtures.json'), 'utf-8')) as Array<{
+      id: string;
+      expected: Record<string, unknown>;
+    }>;
+    const shape = SDK_OUTPUT_SCHEMAS[E.metadata.id].shape as Record<
+      string,
+      { safeParse(value: unknown): { success: boolean } }
+    >;
+
+    // A field the schema does not have is a failure, not something to skip: the contract
+    // recorded the model returning it. Whole-object parsing is not an option here — every
+    // `expected` is a partial assertion, missing between one and five required fields.
+    const rejected = fixtures.flatMap(({ id, expected }) =>
+      Object.entries(expected).flatMap(([field, value]) => {
+        const fieldSchema = shape[field];
+        if (!fieldSchema) return [`${id}: ${field} is absent from the schema`];
+        if (!fieldSchema.safeParse(value).success) {
+          return [`${id}: ${field}=${JSON.stringify(value)}`];
+        }
+        return [];
+      }),
+    );
+
+    if (FIXTURE_VALUE_GAPS.has(E.metadata.id)) {
+      expect(
+        rejected,
+        `${E.metadata.name} now accepts its fixtures — drop it from FIXTURE_VALUE_GAPS`,
+      ).not.toEqual([]);
+      return;
+    }
+
+    expect(rejected, `${E.metadata.name} rejects its own contract fixtures`).toEqual([]);
   });
 });
 

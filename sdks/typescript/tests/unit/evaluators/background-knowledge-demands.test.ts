@@ -69,7 +69,7 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
         curriculum_check: 'Specialized high school level — hydraulics is not standard K-8 curriculum.',
         assumptions_and_scaffolding: 'Author assumes knowledge of fluid dynamics and mechanical engineering.',
         friction_analysis: 'Difficulty comes from actual knowledge demands, not just vocabulary.',
-        complexity_score: 'Very complex',
+        complexity_score: 'very_complex',
         reasoning: 'The text requires specialized knowledge of hydraulic systems.',
       },
       model: 'gemini-3-flash-preview',
@@ -79,7 +79,7 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
 
     const result = await evaluator.evaluate({ text: testText, grade_level: testGrade });
 
-    expect(result.result.complexity_score).toBe('Very complex');
+    expect(result.result.complexity_score).toBe('very_complex');
     expect(result.result.reasoning).toContain('hydraulic systems');
     expect(result.metadata.model).toBe('google:gemini-3-flash-preview');
     expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
@@ -109,7 +109,7 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
         curriculum_check: 'Standard.',
         assumptions_and_scaffolding: 'None.',
         friction_analysis: 'Low.',
-        complexity_score: 'Slightly complex',
+        complexity_score: 'slightly_complex',
         reasoning: 'Simple text.',
       },
       model: 'claude-haiku-4-5-20251001',
@@ -140,7 +140,7 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
       curriculum_check: 'Standard K-8 curriculum.',
       assumptions_and_scaffolding: 'Assumes basic biology knowledge.',
       friction_analysis: 'Difficulty mainly from vocabulary.',
-      complexity_score: 'Moderately complex' as const,
+      complexity_score: 'moderately_complex' as const,
       reasoning: 'Detailed reasoning here.',
     };
 
