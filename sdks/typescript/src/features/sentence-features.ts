@@ -1,4 +1,4 @@
-import type { SentenceAnalysis, SentenceFeatures } from '../schemas/student-facing-text/ela-reading/sentence-structure.js';
+import type { SentenceAnalysis, SentenceFeatures } from '../schemas/student-facing-text/ela-reading/sentence-structure-steps.js';
 
 /**
  * Safe division helper (avoids division by zero)

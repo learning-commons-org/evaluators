@@ -1,11 +1,13 @@
 import type { LLMProvider } from '../../../providers/index.js';
 import {
+  SentenceStructureOutputSchema,
+  type SentenceStructureResult,
+} from '../../../schemas/student-facing-text/ela-reading/sentence-structure.js';
+import {
   SentenceAnalysisSchema,
-  ComplexityClassificationSchema,
   type SentenceAnalysis,
   type SentenceFeatures,
-  type ComplexityClassification,
-} from '../../../schemas/student-facing-text/ela-reading/sentence-structure.js';
+} from '../../../schemas/student-facing-text/ela-reading/sentence-structure-steps.js';
 import { calculateReadabilityMetrics, addEngineeredFeatures, featuresToJSON } from '../../../features/index.js';
 import {
   getSystemPromptAnalysis,
@@ -13,63 +15,45 @@ import {
   getSystemPromptComplexity,
   getUserPromptComplexity,
 } from '../../../prompts/sentence-structure/index.js';
-import type { EvaluationResult, TextComplexityLevel } from '../../../schemas/index.js';
+import type { EvaluationResult } from '../../../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../../base.js';
 import { validateInputs, type InputsOf } from '../../inputs.js';
+import { requireStep } from '../../single-step.js';
 import { declaredCredentials } from '../../credentials.js';
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/sentence-structure/input_schema.json';
 import type { StageDetail } from '../../../telemetry/index.js';
-import { EvaluatorError, LLMOutputProcessingError, wrapProviderError } from '../../../errors.js';
+import { EvaluatorError, wrapProviderError } from '../../../errors.js';
 import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/sentence-structure/config.json';
 
-/**
- * Normalize complexity label to handle LLM output variations
- */
-function normalizeLabel(label: string | null | undefined): TextComplexityLevel | null {
-  if (!label) {
-    return null;
-  }
 
-  const normalized = label.trim().toLowerCase().replace(/_/g, ' ');
-  const mapping: Record<string, TextComplexityLevel> = {
-    'slightly complex': 'Slightly complex',
-    'moderately complex': 'Moderately complex',
-    'very complex': 'Very complex',
-    'exceedingly complex': 'Exceedingly complex',
-    'extremely complex': 'Exceedingly complex',
-  };
+/** The two declared steps, so each stage's temperature comes from the contract. */
+const ANALYSIS_STEP = requireStep(CONFIG.steps, 'sentence_analysis', CONFIG.evaluator.name);
+const CLASSIFY_STEP = requireStep(CONFIG.steps, 'classify_complexity', CONFIG.evaluator.name);
 
-  return mapping[normalized] ?? null;
-}
+/** What this evaluator accepts, taken from its `input_schema.json`. */
+export type SentenceStructureInput = InputsOf<typeof INPUT_SCHEMA>;
 
 /**
  * Sentence Structure Evaluator
  *
- * Evaluates sentence structure complexity of educational texts relative to grade level.
- * Uses a 2-stage process:
- * 1. Analyze grammatical structure (sentence types, clauses, phrases, etc.)
- * 2. Classify complexity using features and grade-level-specific rubric
+ * Judges how demanding a text's sentence construction is for a target grade, in two
+ * stages: the first analyses grammatical structure, and the second classifies complexity
+ * from those features against the rubric its grade selects.
  *
- * Based on Qualitative Text Complexity rubric with 4 levels:
- * - Slightly complex
- * - Moderately complex
- * - Very complex
- * - Exceedingly complex
+ * The complexity levels are whatever `output_schema.json` declares — currently
+ * `slightly_complex` through `exceedingly_complex` — and are returned verbatim.
  *
  * @example
  * ```typescript
  * const evaluator = new SentenceStructureEvaluator({
- *   openaiApiKey: process.env.OPENAI_API_KEY
+ *   openaiApiKey: process.env.OPENAI_API_KEY,
  * });
  *
- * const result = await evaluator.evaluate(text, "3");
- * console.log(result.result.complexity_score); // "Moderately complex"
+ * const result = await evaluator.evaluate({ text, grade_level: '3' });
+ * console.log(result.result.complexity_score); // "moderately_complex"
  * console.log(result.result.reasoning);
  * ```
  */
-/** What this evaluator accepts, taken from its `input_schema.json`. */
-export type SentenceStructureInput = InputsOf<typeof INPUT_SCHEMA>;
-
 export class SentenceStructureEvaluator extends BaseEvaluator {
   static readonly metadata = {
     id: CONFIG.evaluator.id,
@@ -79,7 +63,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     description: CONFIG.evaluator.description,
     outcome: CONFIG.outcome,
     requiredCredentials: declaredCredentials(CONFIG),
-    supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
+    supportedGrades: INPUT_SCHEMA.properties.grade_level.enum,
     defaultProviders: [Provider.OpenAI] as const,
   };
 
@@ -94,17 +78,16 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
   }
 
   /**
-   * Evaluate sentence structure complexity for a given text and grade level
+   * Evaluate sentence structure complexity.
    *
-   * @param text - The text to evaluate
-   * @param gradeLevel - The target grade level (3-12)
-   * @returns Evaluation result with complexity score and detailed analysis
-   * @throws {InputValidationError} If text is empty, too short/long, or gradeLevel is invalid
+   * @param input - The inputs declared in this evaluator's `input_schema.json`
+   * @returns Evaluation result with the complexity level and its reasoning
+   * @throws {InputValidationError} If an input is missing, unknown, or outside the bounds its schema declares
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(input: SentenceStructureInput): Promise<EvaluationResult<ComplexityClassification>> {
+  async evaluate(input: SentenceStructureInput): Promise<EvaluationResult<SentenceStructureResult>> {
     let text = '';
     let gradeLevel = '';
     const startTime = Date.now();
@@ -277,7 +260,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         { role: 'user', content: userPrompt },
       ],
       schema: SentenceAnalysisSchema,
-      temperature: 0,
+      temperature: ANALYSIS_STEP.generation.temperature,
     });
 
     return {
@@ -296,7 +279,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     features: SentenceFeatures,
     gradeLevel: string,
     excerpt: string
-  ): Promise<{ data: ComplexityClassification; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
+  ): Promise<{ data: SentenceStructureResult; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     // Convert features to JSON string (cast to int by default, matching Python)
     const featuresJSON = featuresToJSON(features, 1, true);
 
@@ -307,26 +290,12 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         { role: 'system', content: getSystemPromptComplexity() },
         { role: 'user', content: userPrompt },
       ],
-      schema: ComplexityClassificationSchema,
-      temperature: 0,
+      schema: SentenceStructureOutputSchema,
+      temperature: CLASSIFY_STEP.generation.temperature,
     });
 
-    // Normalize label to handle LLM output variations
-    const normalizedAnswer = normalizeLabel(response.data.complexity_score);
-
-    if (!normalizedAnswer) {
-      throw new LLMOutputProcessingError(
-        `Failed to normalize complexity label. Received unexpected value: "${response.data.complexity_score}". ` +
-        `Expected one of: Slightly Complex, Moderately Complex, Very Complex, Exceedingly Complex, Extremely Complex.`,
-        [{ path: 'complexity_score', received: response.data.complexity_score }]
-      );
-    }
-
     return {
-      data: {
-        ...response.data,
-        complexity_score: normalizedAnswer,
-      },
+      data: response.data,
       usage: response.usage,
       latencyMs: response.latencyMs,
     };
@@ -350,7 +319,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
 export async function evaluateSentenceStructure(
   input: SentenceStructureInput,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<ComplexityClassification>> {
+): Promise<EvaluationResult<SentenceStructureResult>> {
   const evaluator = new SentenceStructureEvaluator(config);
   return evaluator.evaluate(input);
 }

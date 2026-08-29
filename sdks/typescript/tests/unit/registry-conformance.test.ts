@@ -40,7 +40,7 @@ import { OrganizationalStructureOutputSchema } from '../../src/schemas/student-f
 import { PurposeClarityOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/purpose-clarity.js';
 import { ReferenceKnowledgeDemandsOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/reference-knowledge-demands.js';
 import { VocabularyComplexityOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/vocabulary-complexity.js';
-import { ComplexityClassificationSchema } from '../../src/schemas/student-facing-text/ela-reading/sentence-structure.js';
+import { SentenceStructureOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/sentence-structure.js';
 
 interface EvaluatorClass {
   metadata: {
@@ -198,8 +198,6 @@ const TEMPERATURE_GAPS = new Set<string>([
  * `<Evaluator>Result` for a caller to name the payload with.
  */
 const RESULT_NAME_GAPS = new Set<string>([
-  // Exports its two step schemas instead: SentenceAnalysisSchema, ComplexityClassificationSchema.
-  SENTENCE_ID,
   // Assembles its payload from per-component results, so there is no single schema.
   MATH_ID,
 ]);
@@ -208,9 +206,7 @@ const RESULT_NAME_GAPS = new Set<string>([
  * Evaluators whose schema offers different values than the contract declares.
  */
 const ENUM_VALUE_GAPS = new Set<string>([
-  // Sends the shared Title Case TextComplexityLevel ('Slightly complex') where the
-  // contract declares 'slightly_complex'. Same divergence as FIXTURE_VALUE_GAPS.
-  SENTENCE_ID,
+  // Empty: every evaluator offers exactly the values its contract declares.
 ]);
 
 /**
@@ -230,9 +226,7 @@ const PREPROCESSING_GAPS = new Set<string>([
  * Evaluators whose schema rejects the values its own contract fixtures record.
  */
 const FIXTURE_VALUE_GAPS = new Set<string>([
-  // Still sends the shared Title Case TextComplexityLevel ('Slightly complex') where the
-  // contract, and so its fixtures, say 'slightly_complex'.
-  SENTENCE_ID,
+  // Empty: every schema accepts the values its own fixtures record.
 ]);
 
 /**
@@ -260,7 +254,7 @@ const SDK_OUTPUT_SCHEMAS: Record<string, { shape: Record<string, unknown> }> = {
   [PurposeClarityEvaluator.metadata.id]: PurposeClarityOutputSchema,
   [ReferenceKnowledgeDemandsEvaluator.metadata.id]: ReferenceKnowledgeDemandsOutputSchema,
   [VocabularyComplexityEvaluator.metadata.id]: VocabularyComplexityOutputSchema,
-  [SentenceStructureEvaluator.metadata.id]: ComplexityClassificationSchema,
+  [SentenceStructureEvaluator.metadata.id]: SentenceStructureOutputSchema,
 };
 
 

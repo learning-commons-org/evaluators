@@ -25,4 +25,5 @@ sdks/typescript/src/schemas/student-facing-text/ela-reading/meaning-directness.t
 sdks/typescript/src/schemas/student-facing-text/ela-reading/organizational-structure.ts linguist-generated=true
 sdks/typescript/src/schemas/student-facing-text/ela-reading/purpose-clarity.ts linguist-generated=true
 sdks/typescript/src/schemas/student-facing-text/ela-reading/reference-knowledge-demands.ts linguist-generated=true
+sdks/typescript/src/schemas/student-facing-text/ela-reading/sentence-structure.ts linguist-generated=true
 sdks/typescript/src/schemas/student-facing-text/ela-reading/vocabulary-complexity.ts linguist-generated=true

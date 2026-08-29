@@ -43,7 +43,6 @@ vi.mock('../../../src/telemetry/client.js', () => ({
 // Superset of every evaluator's output shape, so one stub serves all of them.
 const RESPONSE = {
   data: {
-    complexity_level: 'Very complex',
     complexity_score: 'very_complex',
     grade_band: '6-8',
     alternative_grade_band: '9-10',
@@ -52,8 +51,6 @@ const RESPONSE = {
     grade_context: 'above grade',
     details: { detailed_summary: [], adjustment_and_scaffolding: [], recommended_use_cases: [] },
     assumption: 'students know this',
-    // Sentence Structure's second stage reports its verdict as `answer`.
-    answer: 'Very Complex',
     // Sentence Structure computes engineered features from its first-stage
     // output, so every count it divides by has to be present and non-zero.
     num_sentences: 2,
