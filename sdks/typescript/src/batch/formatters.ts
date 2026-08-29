@@ -1,6 +1,6 @@
 import type { BatchOutput, BatchResult } from './types.js';
 import reportTemplate from './report-template.html';
-import { GradeLevelAppropriatenessEvaluator } from '../evaluators/grade-level-appropriateness.js';
+import { GradeLevelAppropriatenessEvaluator } from '../evaluators/student-facing-text/ela-reading/grade-level-appropriateness.js';
 
 // ---- Constants ----
 

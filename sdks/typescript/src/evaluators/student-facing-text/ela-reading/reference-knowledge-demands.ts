@@ -1,15 +1,15 @@
-import type { LLMProvider } from '../providers/index.js';
-import { ReferenceKnowledgeDemandsOutputSchema, type ReferenceKnowledgeDemandsInternal } from '../schemas/reference-knowledge-demands.js';
-import { runPreprocessingStep } from '../features/preprocessing.js';
-import { getSystemPrompt, getUserPrompt } from '../prompts/reference-knowledge-demands/index.js';
-import type { EvaluationResult } from '../schemas/index.js';
-import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
-import { validateInputs, type InputsOf } from './inputs.js';
-import { declaredCredentials } from './credentials.js';
-import type { StageDetail } from '../telemetry/index.js';
-import { EvaluatorError, wrapProviderError } from '../errors.js';
-import CONFIG from '../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/config.json';
-import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/input_schema.json';
+import type { LLMProvider } from '../../../providers/index.js';
+import { ReferenceKnowledgeDemandsOutputSchema, type ReferenceKnowledgeDemandsInternal } from '../../../schemas/student-facing-text/ela-reading/reference-knowledge-demands.js';
+import { runPreprocessingStep } from '../../../features/preprocessing.js';
+import { getSystemPrompt, getUserPrompt } from '../../../prompts/reference-knowledge-demands/index.js';
+import type { EvaluationResult } from '../../../schemas/index.js';
+import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../../base.js';
+import { validateInputs, type InputsOf } from '../../inputs.js';
+import { declaredCredentials } from '../../credentials.js';
+import type { StageDetail } from '../../../telemetry/index.js';
+import { EvaluatorError, wrapProviderError } from '../../../errors.js';
+import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/config.json';
+import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/input_schema.json';
 
 // Step ID convention: "evaluate_{slug}" where slug is the last segment of evaluator.id.
 const STEP_ID = `evaluate_${CONFIG.evaluator.id.split('.').pop()}`;

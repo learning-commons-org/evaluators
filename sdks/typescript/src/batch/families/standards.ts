@@ -1,7 +1,7 @@
 import {
   MathStandardsAlignmentEvaluator,
   type StandardAlignmentResult,
-} from '../../evaluators/math/standards-alignment.js';
+} from '../../evaluators/academic-standards-alignment/mathematics/math-standards-alignment.js';
 import { Jurisdiction } from '../../knowledge-graph/index.js';
 import { Provider } from '../../evaluators/base.js';
 import type { ModelOverride } from '../../evaluators/base.js';

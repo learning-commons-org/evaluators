@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { VocabularyComplexityEvaluator } from '../../../src/evaluators/vocabulary-complexity.js';
+import { VocabularyComplexityEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/vocabulary-complexity.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 

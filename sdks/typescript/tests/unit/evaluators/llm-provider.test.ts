@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/grade-level-appropriateness.js';
+import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/grade-level-appropriateness.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';

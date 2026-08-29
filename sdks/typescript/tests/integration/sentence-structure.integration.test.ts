@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { SentenceStructureEvaluator } from '../../src/evaluators/sentence-structure.js';
+import { SentenceStructureEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/sentence-structure.js';
 import {
   runEvaluatorTest,
   type BaseTestCase,

@@ -1,15 +1,15 @@
-import type { LLMProvider } from '../providers/index.js';
-import { BackgroundKnowledgeDemandsOutputSchema, type BackgroundKnowledgeDemandsInternal } from '../schemas/background-knowledge-demands.js';
-import { calculateFleschKincaidGrade } from '../features/index.js';
-import { getSystemPrompt, getUserPrompt } from '../prompts/background-knowledge-demands/index.js';
-import type { EvaluationResult } from '../schemas/index.js';
-import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
-import { validateInputs, type InputsOf } from './inputs.js';
-import { declaredCredentials } from './credentials.js';
-import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/background-knowledge-demands/input_schema.json';
-import type { StageDetail } from '../telemetry/index.js';
-import { EvaluatorError, wrapProviderError } from '../errors.js';
-import CONFIG from '../../../../evals/student-facing-text/ela-reading/background-knowledge-demands/config.json';
+import type { LLMProvider } from '../../../providers/index.js';
+import { BackgroundKnowledgeDemandsOutputSchema, type BackgroundKnowledgeDemandsInternal } from '../../../schemas/student-facing-text/ela-reading/background-knowledge-demands.js';
+import { calculateFleschKincaidGrade } from '../../../features/index.js';
+import { getSystemPrompt, getUserPrompt } from '../../../prompts/background-knowledge-demands/index.js';
+import type { EvaluationResult } from '../../../schemas/index.js';
+import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../../base.js';
+import { validateInputs, type InputsOf } from '../../inputs.js';
+import { declaredCredentials } from '../../credentials.js';
+import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/background-knowledge-demands/input_schema.json';
+import type { StageDetail } from '../../../telemetry/index.js';
+import { EvaluatorError, wrapProviderError } from '../../../errors.js';
+import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/background-knowledge-demands/config.json';
 
 /**
  * Background Knowledge Demands Evaluator

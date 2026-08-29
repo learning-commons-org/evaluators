@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { Provider, type BaseEvaluatorConfig } from '../../src/evaluators/base.js';
 import type { EvaluationResult } from '../../src/schemas/index.js';
 import { readOutcome } from '../../src/schemas/index.js';
-import { GradeLevelAppropriatenessEvaluator } from '../../src/evaluators/grade-level-appropriateness.js';
-import { MeaningDirectnessEvaluator } from '../../src/evaluators/meaning-directness.js';
-import { BackgroundKnowledgeDemandsEvaluator } from '../../src/evaluators/background-knowledge-demands.js';
-import { SentenceStructureEvaluator } from '../../src/evaluators/sentence-structure.js';
-import { PurposeClarityEvaluator } from '../../src/evaluators/purpose-clarity.js';
-import { VocabularyComplexityEvaluator } from '../../src/evaluators/vocabulary-complexity.js';
+import { GradeLevelAppropriatenessEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/grade-level-appropriateness.js';
+import { MeaningDirectnessEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/meaning-directness.js';
+import { BackgroundKnowledgeDemandsEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/background-knowledge-demands.js';
+import { SentenceStructureEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/sentence-structure.js';
+import { PurposeClarityEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/purpose-clarity.js';
+import { VocabularyComplexityEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/vocabulary-complexity.js';
 
 /**
  * Anthropic provider integration tests (live API). Structured output on Anthropic is

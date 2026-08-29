@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MathStandardsAlignmentEvaluator, Jurisdiction } from '../../src/evaluators/math/standards-alignment.js';
+import { MathStandardsAlignmentEvaluator, Jurisdiction } from '../../src/evaluators/academic-standards-alignment/mathematics/math-standards-alignment.js';
 import { KnowledgeGraphClient } from '../../src/knowledge-graph/client.js';
 
 const RUN = process.env['RUN_INTEGRATION_TESTS'] === 'true';

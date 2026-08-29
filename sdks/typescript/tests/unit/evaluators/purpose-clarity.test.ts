@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'node:crypto';
-import { PurposeClarityEvaluator } from '../../../src/evaluators/purpose-clarity.js';
+import { PurposeClarityEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/purpose-clarity.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import CONFIG from '../../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';

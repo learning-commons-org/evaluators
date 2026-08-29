@@ -17,14 +17,14 @@ import {
 import { InputValidationError } from '../../src/errors.js';
 import { readOutcome } from '../../src/schemas/outcome.js';
 import type { EvaluationResult } from '../../src/schemas/index.js';
-import { BackgroundKnowledgeDemandsOutputSchema } from '../../src/schemas/background-knowledge-demands.js';
-import { GradeLevelAppropriatenessOutputSchema } from '../../src/schemas/grade-level-appropriateness.js';
-import { MeaningDirectnessOutputSchema } from '../../src/schemas/meaning-directness.js';
-import { OrganizationalStructureOutputSchema } from '../../src/schemas/organizational-structure.js';
-import { PurposeClarityOutputSchema } from '../../src/schemas/purpose-clarity.js';
-import { ReferenceKnowledgeDemandsOutputSchema } from '../../src/schemas/reference-knowledge-demands.js';
-import { VocabularyComplexityOutputSchema } from '../../src/schemas/vocabulary-complexity.js';
-import { ComplexityClassificationSchema } from '../../src/schemas/sentence-structure.js';
+import { BackgroundKnowledgeDemandsOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/background-knowledge-demands.js';
+import { GradeLevelAppropriatenessOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
+import { MeaningDirectnessOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/meaning-directness.js';
+import { OrganizationalStructureOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/organizational-structure.js';
+import { PurposeClarityOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/purpose-clarity.js';
+import { ReferenceKnowledgeDemandsOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/reference-knowledge-demands.js';
+import { VocabularyComplexityOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/vocabulary-complexity.js';
+import { ComplexityClassificationSchema } from '../../src/schemas/student-facing-text/ela-reading/sentence-structure.js';
 
 interface EvaluatorClass {
   metadata: {
@@ -321,6 +321,24 @@ describe('every evaluator has a contract at the derived path', () => {
     );
 
     expect(existsSync(join(dir, 'config.json')), `no contract at ${dir}`).toBe(true);
+  });
+});
+
+describe('every evaluator module sits at the derived path', () => {
+  // The module's location is derived from its id by the same rule as its contract's, so
+  // a contract that moves takes its module with it and neither can drift from the other.
+  // It also removes a collision: two evaluators can share a last id segment.
+  //
+  // Not covered by the compiler: a module moved *with* its imports fixed typechecks
+  // cleanly, and only this notices.
+  it.each(cases)('$name', ({ E }) => {
+    const relative = E.metadata.id.split('.').map((s) => s.replace(/_/g, '-'));
+
+    for (const kind of ['evaluators', 'schemas']) {
+      const module = join(process.cwd(), 'src', kind, ...relative) + '.ts';
+
+      expect(existsSync(module), `no ${kind} module at ${module}`).toBe(true);
+    }
   });
 });
 

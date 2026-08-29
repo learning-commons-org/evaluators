@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TextComplexityLevel } from './outputs.js';
+import { TextComplexityLevel } from '../../outputs.js';
 
 /**
  * Stage 1: Detailed sentence analysis output (40+ metrics)

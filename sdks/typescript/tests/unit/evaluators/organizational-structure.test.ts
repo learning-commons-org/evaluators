@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'node:crypto';
-import { OrganizationalStructureEvaluator } from '../../../src/evaluators/organizational-structure.js';
+import { OrganizationalStructureEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/organizational-structure.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import CONFIG from '../../../../../evals/student-facing-text/ela-reading/organizational-structure/config.json';

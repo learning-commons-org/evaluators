@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { VocabularyComplexityEvaluator } from '../../../src/evaluators/vocabulary-complexity.js';
-import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/background-knowledge-demands.js';
-import { MeaningDirectnessEvaluator } from '../../../src/evaluators/meaning-directness.js';
+import { VocabularyComplexityEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/vocabulary-complexity.js';
+import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/background-knowledge-demands.js';
+import { MeaningDirectnessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/meaning-directness.js';
 import { Provider, BaseEvaluator } from '../../../src/evaluators/base.js';
 import MD_INPUT_SCHEMA from '../../../../../evals/student-facing-text/ela-reading/meaning-directness/input_schema.json';
 

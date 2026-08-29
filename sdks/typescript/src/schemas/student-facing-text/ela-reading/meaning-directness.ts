@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TextComplexityLevel } from './outputs.js';
+import { TextComplexityLevel } from '../../outputs.js';
 
 /**
  * Meaning Directness evaluation output schema

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SentenceStructureEvaluator } from '../../src/evaluators/sentence-structure.js';
+import { SentenceStructureEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/sentence-structure.js';
 import { ConfigurationError } from '../../src/errors.js';
 import { Provider } from '../../src/evaluators/base.js';
 
