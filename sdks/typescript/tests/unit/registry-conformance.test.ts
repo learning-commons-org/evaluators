@@ -702,9 +702,29 @@ describe('constructed models match the contract', () => {
 });
 
 /**
- * The `meta` the text-complexity report actually ships, parsed back out of the generated
- * HTML. Read from the emitted file rather than from the formatter's inputs, so the
- * assertion covers the injection too.
+ * The report data a generated HTML file ships, parsed back out of it.
+ *
+ * The marker is asserted rather than assumed: absent, `indexOf` gives -1 and the slice
+ * reaches `JSON.parse` as garbage, so the failure would name a syntax error instead of the
+ * marker that moved. `injectReportData` names it on the write side for the same reason.
+ */
+interface ParsedReport {
+  meta: Record<string, string[] | undefined>;
+  fullResults: { rows: Record<string, unknown>[] };
+}
+
+function parseReportData(html: string): ParsedReport {
+  const marker = 'var REPORT_DATA = ';
+  const at = html.indexOf(marker);
+  expect(at, `"${marker}" not found in the generated report`).toBeGreaterThan(-1);
+
+  const line = html.slice(at + marker.length, html.indexOf('\n', at));
+  return JSON.parse(line.endsWith(';') ? line.slice(0, -1) : line);
+}
+
+/**
+ * The `meta` the text-complexity report actually ships. Read from the emitted file rather
+ * than from the formatter's inputs, so the assertion covers the injection too.
  */
 function reportMetaFor(evaluatorIds: string[]): Record<string, string[] | undefined> {
   const output = {
@@ -722,11 +742,7 @@ function reportMetaFor(evaluatorIds: string[]): Record<string, string[] | undefi
     evaluatorNames: evaluatorIds,
   } as unknown as ReportMeta;
 
-  const html = formatAsHTML(output, meta);
-  const marker = 'var REPORT_DATA = ';
-  const start = html.indexOf(marker) + marker.length;
-  const line = html.slice(start, html.indexOf('\n', start));
-  return JSON.parse(line.endsWith(';') ? line.slice(0, -1) : line).meta;
+  return parseReportData(formatAsHTML(output, meta)).meta;
 }
 
 describe('the report recognises every grade band the contract declares', () => {
@@ -768,11 +784,7 @@ describe('the report recognises every grade band the contract declares', () => {
       evaluatorNames: ['GLA'],
     } as unknown as ReportMeta;
 
-    const html = formatAsHTML(output, meta);
-    const marker = 'var REPORT_DATA = ';
-    const start = html.indexOf(marker) + marker.length;
-    const line = html.slice(start, html.indexOf('\n', start));
-    const data = JSON.parse(line.endsWith(';') ? line.slice(0, -1) : line);
+    const data = parseReportData(formatAsHTML(output, meta));
 
     // A grade inside the band must read as on-band. An unresolved band indexes to -1,
     // which the report renders as the verdict "Off Target" — a plausible-looking answer.
