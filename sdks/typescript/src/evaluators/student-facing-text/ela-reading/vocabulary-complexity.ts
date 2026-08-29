@@ -70,6 +70,16 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
   private otherGradesComplexityProvider: LLMProvider;
   private backgroundKnowledgeProvider: LLMProvider;
 
+  /**
+   * The complexity model for a grade. Grades 3-4 and 5-12 use different models, so
+   * every caller must agree on the choice — including the one that reports it.
+   */
+  private complexityProviderFor(gradeLevel: string): LLMProvider {
+    return gradeLevel === '3' || gradeLevel === '4'
+      ? this.grades34ComplexityProvider
+      : this.otherGradesComplexityProvider;
+  }
+
   constructor(config: BaseEvaluatorConfig) {
     // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
@@ -106,21 +116,21 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     let gradeLevel = '';
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
-    const complexityProvider = (gradeLevel === '3' || gradeLevel === '4')
-      ? this.grades34ComplexityProvider
-      : this.otherGradesComplexityProvider;
-    const complexityProviderLabel = complexityProvider.label;
     const backgroundProviderLabel = this.backgroundKnowledgeProvider.label;
-    // When override is active all providers resolve to the same model — show a single label.
-    const modelLabel = this.config.modelOverride
-      ? backgroundProviderLabel
-      : `${backgroundProviderLabel}+${complexityProviderLabel}`;
+    // Only the background model is known before the grade is read; if validation fails
+    // no complexity model runs, so the error event reports just this one.
+    let modelLabel = backgroundProviderLabel;
 
     try {
       // Inside the try so a validation failure is telemetered as an error event,
       // and before the inputs are read so a non-object is reported as one.
       validateInputs(input, INPUT_SCHEMA);
       ({ text, grade_level: gradeLevel } = input);
+
+      // When override is active all providers resolve to the same model — show a single label.
+      modelLabel = this.config.modelOverride
+        ? backgroundProviderLabel
+        : `${backgroundProviderLabel}+${this.complexityProviderFor(gradeLevel).label}`;
 
       this.logger.info('Starting Vocabulary Complexity evaluation', {
         evaluator: VocabularyComplexityEvaluator.metadata.id,
@@ -159,7 +169,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
 
       stageDetails.push({
         stage: 'complexity_evaluation',
-        provider: complexityProviderLabel,
+        provider: this.complexityProviderFor(gradeLevel).label,
         latency_ms: complexityResponse.latencyMs,
         token_usage: {
           input_tokens: complexityResponse.usage.inputTokens,
@@ -256,7 +266,9 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
       // failed; otherwise it completed and stage 2 (complexity) did. Attribute
       // to the provider that actually failed rather than a combined label.
       const failed =
-        stageDetails.length === 0 ? this.backgroundKnowledgeProvider : complexityProvider;
+        stageDetails.length === 0
+          ? this.backgroundKnowledgeProvider
+          : this.complexityProviderFor(gradeLevel);
       throw wrapProviderError(error, this.providerContext(failed));
     }
   }
@@ -303,9 +315,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     const systemPrompt = getSystemPrompt(gradeLevel);
     const userPrompt = getUserPrompt(text, gradeLevel, backgroundKnowledge, fkLevel);
 
-    const provider = (gradeLevel === '3' || gradeLevel === '4')
-      ? this.grades34ComplexityProvider
-      : this.otherGradesComplexityProvider;
+    const provider = this.complexityProviderFor(gradeLevel);
 
     const response = await provider.generateStructured({
       messages: [

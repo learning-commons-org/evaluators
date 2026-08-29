@@ -688,6 +688,48 @@ describe('the report can order every family member', () => {
   });
 });
 
+describe('the reported model matches the contract steps that apply', () => {
+  // A step can be conditional on an input, so which model runs depends on that input and
+  // the reported model has to follow. Every other invocation in this suite passes
+  // grade_level '5', which is why a conditional branch reporting the wrong model survived.
+  //
+  // Derived from the contract, so an evaluator that gains a conditional step is covered
+  // without touching this test.
+  const perGrade = cases.flatMap(({ name, E }) => {
+    if (!INVOKE[E.metadata.id]) return [];
+    const { config } = contractFor(E.metadata.id);
+    const grades = [
+      ...new Set(config.steps.flatMap((step) => (step.condition?.in ?? []).map(String))),
+    ];
+    return grades.map((grade) => ({ name, E, grade }));
+  });
+
+  it('finds at least one conditional step to exercise', () => {
+    // If this fails the suite below is vacuous — either the contracts lost their
+    // conditions or the derivation above stopped matching them.
+    expect(perGrade.length).toBeGreaterThan(0);
+  });
+
+  it.each(perGrade)('$name at grade $grade', async ({ E, grade }) => {
+    const { config } = contractFor(E.metadata.id);
+    const applies = (step: (typeof config.steps)[number]) =>
+      !step.condition ||
+      (step.condition.input === 'grade_level' && step.condition.in.map(String).includes(grade));
+
+    const expected = config.steps
+      .filter(applies)
+      .map((step) => `${step.model.provider}:${step.model.name}`)
+      .join('+');
+
+    const result = (await construct(E).evaluate({
+      text: 'The storm gathered offshore and the harbour emptied before dusk.',
+      grade_level: grade,
+    })) as { metadata: { model: string } };
+
+    expect(result.metadata.model, `${E.metadata.name} at grade ${grade}`).toBe(expected);
+  });
+});
+
 describe('the temperature sent matches the contract', () => {
   beforeEach(() => {
     llmCalls.length = 0;

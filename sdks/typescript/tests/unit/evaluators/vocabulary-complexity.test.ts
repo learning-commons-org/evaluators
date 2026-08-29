@@ -280,3 +280,65 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
     });
   });
 });
+
+describe('VocabularyComplexityEvaluator - complexity model per grade', () => {
+  // The grade picks the complexity model, and the reported label has to name the one that
+  // ran. Every other test in this file uses grade 5+, so the grades 3-4 branch went
+  // unexercised and reported the grade 5-12 model for a year.
+  const BACKGROUND = 'openai:gpt-4o-2024-11-20';
+
+  const CASES = [
+    { grade: '3', provider: 'grades34ComplexityProvider', model: 'google:gemini-2.5-pro' },
+    { grade: '4', provider: 'grades34ComplexityProvider', model: 'google:gemini-2.5-pro' },
+    { grade: '5', provider: 'otherGradesComplexityProvider', model: 'openai:gpt-4.1-2025-04-14' },
+    { grade: '12', provider: 'otherGradesComplexityProvider', model: 'openai:gpt-4.1-2025-04-14' },
+  ] as const;
+
+  it.each(CASES)(
+    'grade $grade runs $model and reports it',
+    async ({ grade, provider, model }) => {
+      const evaluator = new VocabularyComplexityEvaluator({
+        googleApiKey: 'test-google-key',
+        openaiApiKey: 'test-openai-key',
+        telemetry: false,
+      });
+
+      const providers = evaluator as unknown as Record<string, LLMProvider>;
+      const background = providers.backgroundKnowledgeProvider;
+      const complexity = providers[provider];
+      const unused =
+        providers[
+          provider === 'grades34ComplexityProvider'
+            ? 'otherGradesComplexityProvider'
+            : 'grades34ComplexityProvider'
+        ];
+
+      vi.mocked(background.generateText).mockResolvedValue({
+        text: 'Students know weather words.',
+        usage: { inputTokens: 10, outputTokens: 5 },
+        latencyMs: 1,
+      });
+      vi.mocked(complexity.generateStructured).mockResolvedValue({
+        data: {
+          tier_2_words: 'gather',
+          tier_3_words: 'none',
+          archaic_words: 'none',
+          other_complex_words: 'none',
+          complexity_score: 'moderately_complex',
+          reasoning: 'Grade-appropriate vocabulary.',
+        },
+        model: 'whatever-the-provider-says',
+        usage: { inputTokens: 20, outputTokens: 10 },
+        latencyMs: 1,
+      });
+
+      const result = await evaluator.evaluate({ text: 'The storm gathered offshore.', grade_level: grade });
+
+      // The model that ran.
+      expect(complexity.generateStructured).toHaveBeenCalledTimes(1);
+      expect(unused.generateStructured).not.toHaveBeenCalled();
+      // The model that is reported. These two disagreeing is the bug.
+      expect(result.metadata.model).toBe(`${BACKGROUND}+${model}`);
+    },
+  );
+});
