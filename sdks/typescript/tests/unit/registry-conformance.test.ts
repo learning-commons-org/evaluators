@@ -55,7 +55,6 @@ interface EvaluatorClass {
 }
 import {
   formatAsHTML,
-  getFamilies,
   type BatchOutput,
   type ReportMeta,
 } from '../../src/batch/index.js';
@@ -170,18 +169,6 @@ const GRADE_GAPS = new Set<string>([
  */
 const BAND_GAPS = new Set<string>([
   // Empty: the report recognises every band the contracts declare.
-]);
-
-/**
- * Family members absent from the report's `EVALUATOR_ORDER`.
- *
- * An absent member sorts to index 999, so its column appears in arbitrary order rather
- * than failing.
- */
-const ORDER_GAPS = new Set<string>([
-  PurposeClarityEvaluator.metadata.id,
-  OrganizationalStructureEvaluator.metadata.id,
-  ReferenceKnowledgeDemandsEvaluator.metadata.id,
 ]);
 
 /**
@@ -714,6 +701,50 @@ describe('constructed models match the contract', () => {
   });
 });
 
+/**
+ * The report data a generated HTML file ships, parsed back out of it.
+ *
+ * The marker is asserted rather than assumed: absent, `indexOf` gives -1 and the slice
+ * reaches `JSON.parse` as garbage, so the failure would name a syntax error instead of the
+ * marker that moved. `injectReportData` names it on the write side for the same reason.
+ */
+interface ParsedReport {
+  meta: Record<string, string[] | undefined>;
+  fullResults: { rows: Record<string, unknown>[] };
+}
+
+function parseReportData(html: string): ParsedReport {
+  const marker = 'var REPORT_DATA = ';
+  const at = html.indexOf(marker);
+  expect(at, `"${marker}" not found in the generated report`).toBeGreaterThan(-1);
+
+  const line = html.slice(at + marker.length, html.indexOf('\n', at));
+  return JSON.parse(line.endsWith(';') ? line.slice(0, -1) : line);
+}
+
+/**
+ * The `meta` the text-complexity report actually ships. Read from the emitted file rather
+ * than from the formatter's inputs, so the assertion covers the injection too.
+ */
+function reportMetaFor(evaluatorIds: string[]): Record<string, string[] | undefined> {
+  const output = {
+    results: [],
+    summary: { totalTasks: 0, successful: 0, failed: 0, durationMs: 1, resultsPerEvaluator: {} },
+  } as unknown as BatchOutput;
+
+  const meta = {
+    reportId: 'r',
+    generatedAt: 'now',
+    csvPath: '/tmp/in.csv',
+    totalInputRows: 0,
+    groupId: QTC_FAMILY.id,
+    evaluatorIds,
+    evaluatorNames: evaluatorIds,
+  } as unknown as ReportMeta;
+
+  return parseReportData(formatAsHTML(output, meta)).meta;
+}
+
 describe('the report recognises every grade band the contract declares', () => {
   const glaContract = contractFor(GLA_ID);
   const bands = ((glaContract.outputSchema.$defs?.GradeBand as { enum?: string[] })?.enum ??
@@ -753,11 +784,7 @@ describe('the report recognises every grade band the contract declares', () => {
       evaluatorNames: ['GLA'],
     } as unknown as ReportMeta;
 
-    const html = formatAsHTML(output, meta);
-    const marker = 'var REPORT_DATA = ';
-    const start = html.indexOf(marker) + marker.length;
-    const line = html.slice(start, html.indexOf('\n', start));
-    const data = JSON.parse(line.endsWith(';') ? line.slice(0, -1) : line);
+    const data = parseReportData(formatAsHTML(output, meta));
 
     // A grade inside the band must read as on-band. An unresolved band indexes to -1,
     // which the report renders as the verdict "Off Target" — a plausible-looking answer.
@@ -771,34 +798,36 @@ describe('the report recognises every grade band the contract declares', () => {
 });
 
 describe('the report can order every family member', () => {
-  // EVALUATOR_ORDER lives in the report template as a plain JS literal, so nothing
-  // typechecks it against the families. A member missing from it sorts to index 999
-  // and lands in arbitrary order — visible only to someone reading the report.
+  // The order now travels with the report data, derived from the family definition, so
+  // membership cannot drift. What can still break is the wiring: the template reading a
+  // literal again, or the formatter not emitting the field. A member the report cannot
+  // order sorts to index 999 and lands in arbitrary order — visible only to someone
+  // reading the report, which is why this is asserted rather than left to review.
   const template = readFileSync(join(process.cwd(), 'src/batch/report-template.html'), 'utf-8');
-  const marker = 'const EVALUATOR_ORDER = [';
-  const at = template.indexOf(marker);
 
-  it('finds the ordering array in the template', () => {
-    // Without this, a moved or reformatted marker would surface as "every member is
-    // absent" and send the reader looking in the wrong place.
-    expect(at, `"${marker}" not found in report-template.html`).toBeGreaterThan(-1);
+  it('takes its ordering from the report data, not a literal in the template', () => {
+    expect(template).toContain('REPORT_DATA.meta.evaluatorOrder');
   });
 
-  const declared = at === -1 ? '' : template.slice(at, template.indexOf(']', at));
+  it('has no second copy of the order to fall out of step', () => {
+    // A literal list of ids next to EVALUATOR_ORDER is what this change removed; the
+    // mock's own copy is exempt because it stands in for absent data, not for the order.
+    const at = template.indexOf('const EVALUATOR_ORDER');
+    const declaration = template.slice(at, template.indexOf(';', at));
+    expect(declaration).not.toMatch(/student_facing_text\./);
+  });
 
   // Only the text-complexity family renders this template: standards has its own report
   // and the feedback family has none yet, so neither consults this ordering.
-  const members = getFamilies()
-    .filter((f) => f.id === QTC_FAMILY.id)
-    .flatMap((f) => f.members.map((m) => ({ family: f.id, id: m.id })));
+  //
+  // Asserted once, not per member: the emitted order and the family definition are the
+  // same list, so there is no independent expectation to compare a member against. What
+  // this does catch is the formatter omitting or truncating the field, which is what
+  // would put a member back at index 999.
+  it('ships every family member in the order the family declares', () => {
+    const emitted = reportMetaFor(QTC_FAMILY.members.map((m) => m.id)).evaluatorOrder;
 
-  it.each(members)('$family / $id', ({ id }) => {
-    expectAgainstContract(
-      ORDER_GAPS.has(id),
-      declared.includes(`'${id}'`),
-      true,
-      `"${id}" is absent from the report's EVALUATOR_ORDER`,
-    );
+    expect(emitted).toEqual(QTC_FAMILY.members.map((m) => m.id));
   });
 });
 
