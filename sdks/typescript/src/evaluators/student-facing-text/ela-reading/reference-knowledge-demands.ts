@@ -1,5 +1,5 @@
 import type { LLMProvider } from '../../../providers/index.js';
-import { ReferenceKnowledgeDemandsOutputSchema, type ReferenceKnowledgeDemandsInternal } from '../../../schemas/student-facing-text/ela-reading/reference-knowledge-demands.js';
+import { ReferenceKnowledgeDemandsOutputSchema, type ReferenceKnowledgeDemandsResult } from '../../../schemas/student-facing-text/ela-reading/reference-knowledge-demands.js';
 import { runPreprocessingStep } from '../../../features/preprocessing.js';
 import { getSystemPrompt, getUserPrompt } from '../../../prompts/reference-knowledge-demands/index.js';
 import type { EvaluationResult } from '../../../schemas/index.js';
@@ -67,7 +67,7 @@ export class ReferenceKnowledgeDemandsEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(input: ReferenceKnowledgeDemandsInput): Promise<EvaluationResult<ReferenceKnowledgeDemandsInternal>> {
+  async evaluate(input: ReferenceKnowledgeDemandsInput): Promise<EvaluationResult<ReferenceKnowledgeDemandsResult>> {
     let text = '';
     let gradeLevel = '';
     const startTime = Date.now();
@@ -106,7 +106,7 @@ export class ReferenceKnowledgeDemandsEvaluator extends BaseEvaluator {
         token_usage: tokenUsage,
       });
 
-      const result: EvaluationResult<ReferenceKnowledgeDemandsInternal> = {
+      const result: EvaluationResult<ReferenceKnowledgeDemandsResult> = {
         evaluator: ReferenceKnowledgeDemandsEvaluator.metadata.id,
         result: response.data,
         metadata: {
@@ -176,7 +176,7 @@ export class ReferenceKnowledgeDemandsEvaluator extends BaseEvaluator {
 
   private async callLLM(
     inputs: Record<string, string>,
-  ): Promise<{ data: ReferenceKnowledgeDemandsInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
+  ): Promise<{ data: ReferenceKnowledgeDemandsResult; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const response = await this.provider.generateStructured({
       messages: [
         { role: 'system', content: getSystemPrompt(inputs) },
@@ -193,6 +193,6 @@ export class ReferenceKnowledgeDemandsEvaluator extends BaseEvaluator {
 export async function evaluateReferenceKnowledgeDemands(
   input: ReferenceKnowledgeDemandsInput,
   config: BaseEvaluatorConfig,
-): Promise<EvaluationResult<ReferenceKnowledgeDemandsInternal>> {
+): Promise<EvaluationResult<ReferenceKnowledgeDemandsResult>> {
   return new ReferenceKnowledgeDemandsEvaluator(config).evaluate(input);
 }

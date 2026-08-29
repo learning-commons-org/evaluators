@@ -1,5 +1,5 @@
 import type { LLMProvider } from '../../../providers/index.js';
-import { BackgroundKnowledgeDemandsOutputSchema, type BackgroundKnowledgeDemandsInternal } from '../../../schemas/student-facing-text/ela-reading/background-knowledge-demands.js';
+import { BackgroundKnowledgeDemandsOutputSchema, type BackgroundKnowledgeDemandsResult } from '../../../schemas/student-facing-text/ela-reading/background-knowledge-demands.js';
 import { calculateFleschKincaidGrade } from '../../../features/index.js';
 import { getSystemPrompt, getUserPrompt } from '../../../prompts/background-knowledge-demands/index.js';
 import type { EvaluationResult } from '../../../schemas/index.js';
@@ -71,7 +71,7 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(input: BackgroundKnowledgeDemandsInput): Promise<EvaluationResult<BackgroundKnowledgeDemandsInternal>> {
+  async evaluate(input: BackgroundKnowledgeDemandsInput): Promise<EvaluationResult<BackgroundKnowledgeDemandsResult>> {
     let text = '';
     let gradeLevel = '';
     const startTime = Date.now();
@@ -200,7 +200,7 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
     text: string,
     gradeLevel: string,
     fkScore: number
-  ): Promise<{ data: BackgroundKnowledgeDemandsInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
+  ): Promise<{ data: BackgroundKnowledgeDemandsResult; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const response = await this.provider.generateStructured({
       messages: [
         { role: 'system', content: getSystemPrompt() },
@@ -233,7 +233,7 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
 export async function evaluateBackgroundKnowledgeDemands(
   input: BackgroundKnowledgeDemandsInput,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<BackgroundKnowledgeDemandsInternal>> {
+): Promise<EvaluationResult<BackgroundKnowledgeDemandsResult>> {
   const evaluator = new BackgroundKnowledgeDemandsEvaluator(config);
   return evaluator.evaluate(input);
 }

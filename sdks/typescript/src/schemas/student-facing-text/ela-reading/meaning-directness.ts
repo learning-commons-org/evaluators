@@ -12,4 +12,4 @@ export const MeaningDirectnessOutputSchema = z.object({
   reasoning: z.string().describe('A detailed explanation of the rating, citing specific features in the text and referencing the expert guardrails.'),
 });
 
-export type MeaningDirectnessInternal = z.infer<typeof MeaningDirectnessOutputSchema>;
+export type MeaningDirectnessResult = z.infer<typeof MeaningDirectnessOutputSchema>;

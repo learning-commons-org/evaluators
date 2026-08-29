@@ -1,5 +1,5 @@
 import type { LLMProvider } from '../../../providers/index.js';
-import { MeaningDirectnessOutputSchema, type MeaningDirectnessInternal } from '../../../schemas/student-facing-text/ela-reading/meaning-directness.js';
+import { MeaningDirectnessOutputSchema, type MeaningDirectnessResult } from '../../../schemas/student-facing-text/ela-reading/meaning-directness.js';
 import { calculateFleschKincaidGrade } from '../../../features/index.js';
 import { getSystemPrompt, getUserPrompt } from '../../../prompts/meaning-directness/index.js';
 import type { EvaluationResult } from '../../../schemas/index.js';
@@ -71,7 +71,7 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(input: MeaningDirectnessInput): Promise<EvaluationResult<MeaningDirectnessInternal>> {
+  async evaluate(input: MeaningDirectnessInput): Promise<EvaluationResult<MeaningDirectnessResult>> {
     let text = '';
     let gradeLevel = '';
     const startTime = Date.now();
@@ -200,7 +200,7 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
     text: string,
     gradeLevel: string,
     fkScore: number
-  ): Promise<{ data: MeaningDirectnessInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
+  ): Promise<{ data: MeaningDirectnessResult; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const response = await this.provider.generateStructured({
       messages: [
         { role: 'system', content: getSystemPrompt() },
@@ -233,7 +233,7 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
 export async function evaluateMeaningDirectness(
   input: MeaningDirectnessInput,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<MeaningDirectnessInternal>> {
+): Promise<EvaluationResult<MeaningDirectnessResult>> {
   const evaluator = new MeaningDirectnessEvaluator(config);
   return evaluator.evaluate(input);
 }

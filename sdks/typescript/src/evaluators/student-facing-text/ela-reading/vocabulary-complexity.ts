@@ -1,7 +1,7 @@
 import type { LLMProvider } from '../../../providers/index.js';
 import {
   VocabularyComplexityOutputSchema,
-  type VocabularyComplexityInternal,
+  type VocabularyComplexityResult,
   type BackgroundKnowledge,
 } from '../../../schemas/student-facing-text/ela-reading/vocabulary-complexity.js';
 import { calculateFleschKincaidGrade } from '../../../features/index.js';
@@ -96,7 +96,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(input: VocabularyComplexityInput): Promise<EvaluationResult<VocabularyComplexityInternal>> {
+  async evaluate(input: VocabularyComplexityInput): Promise<EvaluationResult<VocabularyComplexityResult>> {
     let text = '';
     let gradeLevel = '';
     const startTime = Date.now();
@@ -294,7 +294,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     gradeLevel: string,
     backgroundKnowledge: string,
     fkLevel: number
-  ): Promise<{ data: VocabularyComplexityInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
+  ): Promise<{ data: VocabularyComplexityResult; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const systemPrompt = getSystemPrompt(gradeLevel);
     const userPrompt = getUserPrompt(text, gradeLevel, backgroundKnowledge, fkLevel);
 
@@ -338,7 +338,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
 export async function evaluateVocabularyComplexity(
   input: VocabularyComplexityInput,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<VocabularyComplexityInternal>> {
+): Promise<EvaluationResult<VocabularyComplexityResult>> {
   const evaluator = new VocabularyComplexityEvaluator(config);
   return evaluator.evaluate(input);
 }

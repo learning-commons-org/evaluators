@@ -1,7 +1,7 @@
 import type { LLMProvider } from '../../../providers/index.js';
 import {
   GradeLevelAppropriatenessOutputSchema,
-  type GradeLevelAppropriatenessInternal,
+  type GradeLevelAppropriatenessResult,
 } from '../../../schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
 import { getSystemPrompt, getUserPrompt } from '../../../prompts/grade-level-appropriateness/index.js';
 import type { EvaluationResult } from '../../../schemas/index.js';
@@ -76,7 +76,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(input: GradeLevelAppropriatenessInput): Promise<EvaluationResult<GradeLevelAppropriatenessInternal>> {
+  async evaluate(input: GradeLevelAppropriatenessInput): Promise<EvaluationResult<GradeLevelAppropriatenessResult>> {
     let text = '';
     const startTime = Date.now();
 
@@ -200,7 +200,7 @@ export class GradeLevelAppropriatenessEvaluator extends BaseEvaluator {
 export async function evaluateGradeLevelAppropriateness(
   input: GradeLevelAppropriatenessInput,
   config: BaseEvaluatorConfig
-): Promise<EvaluationResult<GradeLevelAppropriatenessInternal>> {
+): Promise<EvaluationResult<GradeLevelAppropriatenessResult>> {
   const evaluator = new GradeLevelAppropriatenessEvaluator(config);
   return evaluator.evaluate(input);
 }

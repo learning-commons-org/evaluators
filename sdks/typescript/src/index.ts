@@ -69,27 +69,27 @@ export {
 } from './schemas/student-facing-text/ela-reading/sentence-structure.js';
 
 // Vocabulary Complexity exports
-export type { VocabularyComplexityInternal } from './schemas/student-facing-text/ela-reading/vocabulary-complexity.js';
+export type { VocabularyComplexityResult } from './schemas/student-facing-text/ela-reading/vocabulary-complexity.js';
 
 // Background Knowledge Demands exports
-export type { BackgroundKnowledgeDemandsInternal } from './schemas/student-facing-text/ela-reading/background-knowledge-demands.js';
+export type { BackgroundKnowledgeDemandsResult } from './schemas/student-facing-text/ela-reading/background-knowledge-demands.js';
 
 // Meaning Directness exports
-export type { MeaningDirectnessInternal } from './schemas/student-facing-text/ela-reading/meaning-directness.js';
+export type { MeaningDirectnessResult } from './schemas/student-facing-text/ela-reading/meaning-directness.js';
 
 // Grade Level Appropriateness exports
-export type { GradeLevelAppropriatenessInternal } from './schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
+export type { GradeLevelAppropriatenessResult } from './schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
 
 export { GradeLevelAppropriatenessOutputSchema } from './schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
 
 // Purpose Clarity exports
-export type { PurposeClarityInternal } from './schemas/student-facing-text/ela-reading/purpose-clarity.js';
+export type { PurposeClarityResult } from './schemas/student-facing-text/ela-reading/purpose-clarity.js';
 
 // Reference Knowledge Demands exports
-export type { ReferenceKnowledgeDemandsInternal } from './schemas/student-facing-text/ela-reading/reference-knowledge-demands.js';
+export type { ReferenceKnowledgeDemandsResult } from './schemas/student-facing-text/ela-reading/reference-knowledge-demands.js';
 
 // Organizational Structure exports
-export type { OrganizationalStructureInternal } from './schemas/student-facing-text/ela-reading/organizational-structure.js';
+export type { OrganizationalStructureResult } from './schemas/student-facing-text/ela-reading/organizational-structure.js';
 
 export {
   VocabularyComplexityEvaluator,

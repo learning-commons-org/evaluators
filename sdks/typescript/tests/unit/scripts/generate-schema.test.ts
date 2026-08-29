@@ -143,10 +143,10 @@ describe('generateSchemaFile', () => {
     expect(content).toContain('npm run generate:schemas');
   });
 
-  it('exports PurposeClarityOutputSchema and PurposeClarityInternal', () => {
+  it('exports PurposeClarityOutputSchema and PurposeClarityResult', () => {
     const { content } = generateSchemaFile(PURPOSE_CONFIG);
     expect(content).toContain('export const PurposeClarityOutputSchema');
-    expect(content).toContain('export type PurposeClarityInternal');
+    expect(content).toContain('export type PurposeClarityResult');
     expect(content).not.toContain('export type PurposeClarityComplexityLevel');
   });
 

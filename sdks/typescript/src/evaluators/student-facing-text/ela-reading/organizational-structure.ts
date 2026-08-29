@@ -1,7 +1,7 @@
 import type { LLMProvider } from '../../../providers/index.js';
 import {
   OrganizationalStructureOutputSchema,
-  type OrganizationalStructureInternal,
+  type OrganizationalStructureResult,
 } from '../../../schemas/student-facing-text/ela-reading/organizational-structure.js';
 import { runPreprocessingStep } from '../../../features/preprocessing.js';
 import { getSystemPrompt, getUserPrompt } from '../../../prompts/organizational-structure/index.js';
@@ -70,7 +70,7 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(input: OrganizationalStructureInput): Promise<EvaluationResult<OrganizationalStructureInternal>> {
+  async evaluate(input: OrganizationalStructureInput): Promise<EvaluationResult<OrganizationalStructureResult>> {
     let text = '';
     let gradeLevel = '';
     const startTime = Date.now();
@@ -109,7 +109,7 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
         token_usage: tokenUsage,
       });
 
-      const result: EvaluationResult<OrganizationalStructureInternal> = {
+      const result: EvaluationResult<OrganizationalStructureResult> = {
         evaluator: OrganizationalStructureEvaluator.metadata.id,
         result: response.data,
         metadata: {
@@ -179,7 +179,7 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
 
   private async callLLM(
     inputs: Record<string, string>,
-  ): Promise<{ data: OrganizationalStructureInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
+  ): Promise<{ data: OrganizationalStructureResult; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const response = await this.provider.generateStructured({
       messages: [
         { role: 'system', content: getSystemPrompt(inputs) },
@@ -196,6 +196,6 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
 export async function evaluateOrganizationalStructure(
   input: OrganizationalStructureInput,
   config: BaseEvaluatorConfig,
-): Promise<EvaluationResult<OrganizationalStructureInternal>> {
+): Promise<EvaluationResult<OrganizationalStructureResult>> {
   return new OrganizationalStructureEvaluator(config).evaluate(input);
 }

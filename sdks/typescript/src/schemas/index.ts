@@ -9,12 +9,12 @@ export {
 export {
   GradeBand,
   GradeLevelAppropriatenessOutputSchema,
-  type GradeLevelAppropriatenessInternal,
+  type GradeLevelAppropriatenessResult,
 } from './student-facing-text/ela-reading/grade-level-appropriateness.js';
 
 export {
   PurposeClarityOutputSchema,
-  type PurposeClarityInternal,
+  type PurposeClarityResult,
 } from './student-facing-text/ela-reading/purpose-clarity.js';
 
 export { readOutcome, type Outcome } from './outcome.js';

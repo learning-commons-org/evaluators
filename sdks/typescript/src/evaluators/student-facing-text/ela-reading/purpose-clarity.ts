@@ -1,5 +1,5 @@
 import type { LLMProvider } from '../../../providers/index.js';
-import { PurposeClarityOutputSchema, type PurposeClarityInternal } from '../../../schemas/student-facing-text/ela-reading/purpose-clarity.js';
+import { PurposeClarityOutputSchema, type PurposeClarityResult } from '../../../schemas/student-facing-text/ela-reading/purpose-clarity.js';
 import { runPreprocessingStep } from '../../../features/preprocessing.js';
 import { getSystemPrompt, getUserPrompt } from '../../../prompts/purpose-clarity/index.js';
 import type { EvaluationResult } from '../../../schemas/index.js';
@@ -66,7 +66,7 @@ export class PurposeClarityEvaluator extends BaseEvaluator {
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
-  async evaluate(input: PurposeClarityInput): Promise<EvaluationResult<PurposeClarityInternal>> {
+  async evaluate(input: PurposeClarityInput): Promise<EvaluationResult<PurposeClarityResult>> {
     let text = '';
     let gradeLevel = '';
     const startTime = Date.now();
@@ -105,7 +105,7 @@ export class PurposeClarityEvaluator extends BaseEvaluator {
         token_usage: tokenUsage,
       });
 
-      const result: EvaluationResult<PurposeClarityInternal> = {
+      const result: EvaluationResult<PurposeClarityResult> = {
         evaluator: PurposeClarityEvaluator.metadata.id,
         result: response.data,
         metadata: {
@@ -175,7 +175,7 @@ export class PurposeClarityEvaluator extends BaseEvaluator {
 
   private async callLLM(
     inputs: Record<string, string>,
-  ): Promise<{ data: PurposeClarityInternal; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
+  ): Promise<{ data: PurposeClarityResult; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const response = await this.provider.generateStructured({
       messages: [
         { role: 'system', content: getSystemPrompt(inputs) },
@@ -192,6 +192,6 @@ export class PurposeClarityEvaluator extends BaseEvaluator {
 export async function evaluatePurposeClarity(
   input: PurposeClarityInput,
   config: BaseEvaluatorConfig,
-): Promise<EvaluationResult<PurposeClarityInternal>> {
+): Promise<EvaluationResult<PurposeClarityResult>> {
   return new PurposeClarityEvaluator(config).evaluate(input);
 }
