@@ -106,10 +106,10 @@ describe('the feedback family runs a row', () => {
     expect(outcome.score).toBe('0');
   });
 
-  it('names an unknown member rather than failing obscurely', () => {
+  it('names an unknown member rather than failing obscurely', async () => {
     const runner = FEEDBACK_FAMILY.createRunner({ llmProvider: llmProvider(), telemetry: false });
 
-    expect(runner.runTask(row, 'feedback.ela_writing.not_a_member')).rejects.toThrow(
+    await expect(runner.runTask(row, 'feedback.ela_writing.not_a_member')).rejects.toThrow(
       /Unknown feedback evaluator/,
     );
   });

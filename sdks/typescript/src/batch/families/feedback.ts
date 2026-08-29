@@ -13,6 +13,7 @@ import { readOutcome } from '../../schemas/outcome.js';
 import {
   type ColumnSpec,
   type EvaluatorFamily,
+  type FamilyMember,
   type FamilyRow,
   type FamilyRunContext,
   type FamilyRunner,
@@ -58,7 +59,7 @@ export const FEEDBACK_COLUMNS: ColumnSpec[] = [
 ];
 
 class FeedbackRunner implements FamilyRunner {
-  readonly members;
+  readonly members: FamilyMember[];
   private readonly instances = new Map<string, FeedbackEvaluator>();
 
   constructor(
