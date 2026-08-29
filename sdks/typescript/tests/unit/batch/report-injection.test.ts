@@ -89,10 +89,10 @@ describe('the text-complexity report survives hostile evaluated text', () => {
 
   it('keeps the payload parseable when text carries a line separator', () => {
     // U+2028 is valid JSON but a line terminator to a pre-ES2019 parser.
-    const html = reportFor('A passage with   inside.');
+    const html = reportFor('A passage with \u2028 inside.');
 
     expect(html).toContain('\\u2028');
-    expect(html).not.toContain(' ');
+    expect(html).not.toContain('\u2028');
   });
 });
 
