@@ -28,6 +28,7 @@ import { StrengthAcknowledgmentOutputSchema } from '../../src/schemas/feedback/e
 import { StudentResponseSpecificityOutputSchema } from '../../src/schemas/feedback/ela-writing/student-response-specificity.js';
 import { ToneAppropriatenessOutputSchema } from '../../src/schemas/feedback/ela-writing/tone-appropriateness.js';
 import { WithholdingAnswersOutputSchema } from '../../src/schemas/feedback/ela-writing/withholding-answers.js';
+import { QTC_FAMILY } from '../../src/batch/families/qtc.js';
 import { InputValidationError } from '../../src/errors.js';
 import { readOutcome } from '../../src/schemas/outcome.js';
 import { runPreprocessingStep } from '../../src/features/preprocessing.js';
@@ -183,8 +184,6 @@ const ORDER_GAPS = new Set<string>([
   PurposeClarityEvaluator.metadata.id,
   OrganizationalStructureEvaluator.metadata.id,
   ReferenceKnowledgeDemandsEvaluator.metadata.id,
-  // The standards family has its own report, which does not use this ordering.
-  MathStandardsAlignmentEvaluator.metadata.id,
 ]);
 
 /**
@@ -795,7 +794,11 @@ describe('the report can order every family member', () => {
 
   const declared = at === -1 ? '' : template.slice(at, template.indexOf(']', at));
 
-  const members = getFamilies().flatMap((f) => f.members.map((m) => ({ family: f.id, id: m.id })));
+  // Only the text-complexity family renders this template: standards has its own report
+  // and the feedback family has none yet, so neither consults this ordering.
+  const members = getFamilies()
+    .filter((f) => f.id === QTC_FAMILY.id)
+    .flatMap((f) => f.members.map((m) => ({ family: f.id, id: m.id })));
 
   it.each(members)('$family / $id', ({ id }) => {
     expectAgainstContract(
