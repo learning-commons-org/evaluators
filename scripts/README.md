@@ -82,3 +82,160 @@ evaluators with a `config.json` are covered, same as every check above.
 ```bash
 python3 scripts/notebook_ci/find_affected.py --changed-files-from <(git diff --name-only main)
 ```
+
+## `scripts/prompt_diff.py` — review what actually changed in a prompt
+
+A plain `git diff` is a poor review tool for prompt changes, for two reasons:
+files move (so everything reads as delete + add), and content moves *between*
+files (rubric text relocated from a user prompt to a system prompt reads as a
+large deletion plus a large addition, when nothing the model sees changed).
+
+This renders each side into one normalized blob — every message concatenated in
+the order `config.json` declares — and word-diffs that. A pure restructure
+produces an empty diff; only real wording changes surface. Word granularity
+matters for prose: a reflowed paragraph is a whole-line change to a line
+differ but a no-op to a word differ.
+
+Diffs are **per LLM call** (one `steps[]` entry in `config.json`) by default —
+the unit that maps to an actual API request.
+
+```bash
+python3 scripts/prompt_diff.py --list                   # evaluators + calls, by family
+python3 scripts/prompt_diff.py --all                    # verdict per LLM call
+python3 scripts/prompt_diff.py --all --family feedback  # just one family
+python3 scripts/prompt_diff.py vocabulary-complexity    # one diff per call
+python3 scripts/prompt_diff.py --all --emit /tmp/pd     # dump every pair to disk
+```
+
+Two families are registered, each with its own destination root:
+
+| Family | Destination | Evaluators |
+|---|---|---|
+| `student-facing-text` | `evals/student-facing-text/ela-reading/` | 8 (11 LLM calls) |
+| `feedback` | `evals/feedback/ela-writing/` | 7 (7 LLM calls) |
+
+It runs `git fetch origin` first, because both sides are read from refs rather
+than the working tree. Skipping that would mean a prompt you just pushed to a
+PR is invisible, and the tool would report a confident verdict on stale
+content. Pass `--no-fetch` when offline.
+
+That same fetch also pulls each PR head from `refs/pull/<N>/head` into
+`refs/prompt-diff/pr-<N>`, so **the tool works on any clone** — the person
+running it needs no local branches, no worktrees, and no knowledge of branch
+names. It's been verified against a `--single-branch` clone that only knew
+`origin/main`. GitHub keeps those refs after a PR merges and its branch is
+deleted, so old comparisons stay reproducible.
+
+### Seeing what changed
+
+```bash
+python3 scripts/prompt_diff.py --all --changed-only     # terminal, only what moved
+python3 scripts/prompt_diff.py <evaluator> --difftool   # your configured diff tool
+python3 scripts/prompt_diff.py <evaluator> --difftool=opendiff   # pick one explicitly
+```
+
+`--difftool` renders each side to a file and hands the pair to
+`git difftool --no-index`, so it uses whatever you've set as `diff.tool` and
+supports everything git does — `git difftool --tool-help` lists what's
+installed. No bespoke launcher and no extra config of its own. Only calls that
+actually changed are opened.
+
+`--emit DIR` writes the pairs without opening anything, if you'd rather drive
+the comparison yourself. It finishes by printing ready-to-run commands for
+exactly what it just wrote — a one-liner for all of them, then one per call —
+so there's nothing to remember or retype:
+
+```bash
+$ python3 scripts/prompt_diff.py --all --changed-only --emit /tmp/pd
+...
+All pairs written to /tmp/pd/
+
+Review all 8 in one go:
+  for f in /tmp/pd/*.BEFORE.txt; do git diff --no-index "$f" "${f%.BEFORE.txt}.AFTER.txt"; done
+
+Or one at a time:
+  git diff --no-index /tmp/pd/background-knowledge-demands....BEFORE.txt /tmp/pd/...AFTER.txt
+  ...
+```
+
+With delta configured as your pager, each of those opens side-by-side; `q`
+moves to the next.
+
+### Recommended: delta
+
+Prompts are prose, and stock `git diff` is weak on prose — it marks a whole
+line as changed when one word moved.
+[delta](https://github.com/dandavison/delta) fixes that with side-by-side
+panes and word-level highlighting *within* a line, so a one-word edit inside a
+200-word paragraph shows as exactly that one word.
+
+```bash
+brew install git-delta
+
+git config --global core.pager delta
+git config --global interactive.diffFilter 'delta --color-only'
+git config --global delta.side-by-side true
+git config --global delta.navigate true      # n / N to jump between hunks
+```
+
+That's it — delta is a pager, so every `git diff` in every repo improves,
+including the `git diff --no-index` line this tool prints. Nothing here
+depends on it.
+
+For a GUI instead, set `diff.tool` (`opendiff` ships with Xcode CLT on macOS)
+and use `--difftool`.
+
+delta has no HTML export of its own. If you ever need a diff as a file to send
+someone, pipe its ANSI output through [`aha`](https://github.com/theZiz/aha)
+(`brew install aha`) rather than reaching for a bespoke generator:
+
+```bash
+git diff --no-index BEFORE.txt AFTER.txt | delta --side-by-side | aha > diff.html
+```
+
+| Flag | Purpose |
+|------|---------|
+| `--family NAME` | Restrict `--all` to one family (`student-facing-text`, `feedback`). |
+| `--changed-only` | Skip calls whose prompt is unchanged. |
+| `--difftool [TOOL]` | Open each changed call via `git difftool --no-index`, using your configured `diff.tool` unless you name one. |
+| `--combined` | Concatenate all of an evaluator's calls into one diff. Off by default: condition-gated branches (Vocabulary Complexity's grade bands) can cancel out when flattened, so a real change to one branch could read as `IDENTICAL`. |
+| `--no-fetch` | Skip the automatic `git fetch origin`. |
+| `--emit DIR` | Write each rendered `BEFORE`/`AFTER` pair to `DIR` and print a `code --diff` line for each, instead of printing the diff inline. Use this to review in VS Code, Meld, Beyond Compare, or any visual difftool. |
+| `--mode content` | *(default)* Ignore role and file boundaries. Answers "did the instruction set change at all?" |
+| `--mode roles` | Keep `===== SYSTEM =====` markers. Answers "what moved between the system and user prompts?" |
+| `--mode files` | File inventory per call, no diff. Answers "which files went where?" |
+| `--normalize` | Canonicalize already-agreed renames (`{grade}`→`{grade_level}`, drop `{format_instructions}`) so only *unexpected* changes remain. Reports which substitutions fired, so nothing hides silently. |
+| `--base` / `--head` | Diff any two refs. Defaults: `origin/main` → the evaluator's PR branch. |
+
+Both sides are read with `git show`, so no checkout or worktree is needed. You
+can run it without checking out the branch it lives on:
+
+```bash
+git fetch origin worktree-prompt-diff-tool
+git show FETCH_HEAD:scripts/prompt_diff.py > /tmp/prompt_diff.py
+python3 /tmp/prompt_diff.py --all      # from anywhere in the repo, any branch
+```
+
+To hand it to someone else while it's still unmerged, that snippet is the
+whole handoff — it needs only clone access, and bootstraps every ref it
+compares.
+
+It survives the migration merging. When a PR branch is deleted the head falls
+back to `--fallback-head` (default `origin/main`); and because the base-side
+files are *also* gone from `main` by then — they were `git mv`d away — each
+base path is resolved back to the last commit where it still existed, rather
+than erroring out.
+
+`EVALUATORS` in the script maps each LLM call (a `steps[]` entry in
+`config.json`) to the base-side files it came from, before the migration that
+moved it. That mapping is inherently historical — `git` can't infer it once
+files move and merge — so it's maintained by hand as new evaluators land. Add
+an entry with its `family`, `pr`, `head_ref`, and per-step `old` paths;
+`FAMILIES` supplies the destination root.
+
+A step's `head_extra` lists files that call depends on but `config.json`
+cannot name: Sentence Structure's grade-band rubrics are `preprocessing`
+entries interpolated into `{rubric}`, and `config.schema.json` has no
+`source_path` field for preprocessing entries. Worth fixing at the schema
+level — `notebook_ci/find_affected.py` derives its dependency closure from
+the same data, so those rubrics are currently outside it too.
