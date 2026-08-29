@@ -430,6 +430,48 @@ describe('defineMultiStepEvaluator — contract failures', () => {
     expect(event.token_usage?.input_tokens).toBe(7);
   });
 
+  it('rejects a provider the SDK does not support', () => {
+    const alien = contract();
+    alien.steps[0].model.provider = 'some-other-vendor';
+
+    expect(() => defineFrom(alien)).toThrow(/Unsupported provider "some-other-vendor"/);
+  });
+
+  it('fails when a placeholder reads a step that has not run', async () => {
+    // A forward reference: the first step cannot read the second one's output.
+    const forward = contract();
+    forward.steps[0].prompt.placeholders.counts = {
+      required: true,
+      source: 'steps.classify.output',
+    };
+
+    await expect(
+      construct(defineFrom(forward)).evaluate({ text: 'a b', grade_level: '3' }),
+    ).rejects.toThrow(/reads step "classify", which has not run/);
+  });
+
+  it('still returns a result when telemetry fails on success', async () => {
+    // Telemetry is fire-and-forget: a failing collector must not fail an evaluation.
+    sent.mockRejectedValueOnce(new Error('collector down'));
+
+    const evaluator = new (define())({ openaiApiKey: 'k' });
+    const result = await evaluator.evaluate({ text: 'a b', grade_level: '3' });
+
+    expect(result.result).toEqual({ verdict: 'clear', reasoning: 'because' });
+  });
+
+  it('still throws the original error when telemetry fails on error', async () => {
+    // The provider's failure is what the caller needs to see, not the collector's.
+    RESPONSES['gpt-analyse'] = new Error('provider exploded');
+    sent.mockRejectedValueOnce(new Error('collector down'));
+
+    const evaluator = new (define())({ openaiApiKey: 'k' });
+
+    await expect(evaluator.evaluate({ text: 'a b', grade_level: '3' })).rejects.toThrow(
+      /provider exploded/,
+    );
+  });
+
   it('validates inputs before running any step', async () => {
     await expect(
       construct(define()).evaluate({ text: '', grade_level: '3' }),
