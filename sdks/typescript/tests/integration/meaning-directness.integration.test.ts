@@ -170,7 +170,6 @@ describeIntegration.concurrent('Meaning Directness Evaluator - Comprehensive Tes
       const maxAttempts = 3;
       const result = await runEvaluatorTest(testCase, {
         evaluator,
-        extractResult: (r) => r.score,
         maxAttempts,
       });
 
