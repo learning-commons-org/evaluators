@@ -42,6 +42,15 @@ export function validateInputs(
   inputs: Record<string, unknown>,
   schema: DeclaredInputSchema,
 ): void {
+  // A JS caller, or an `any`, can hand over something that is not an object at all.
+  // Reaching Object.keys with it would raise a TypeError, which is neither diagnosable
+  // nor part of the taxonomy.
+  if (inputs === null || typeof inputs !== 'object' || Array.isArray(inputs)) {
+    throw new InputValidationError(
+      `Expected an object of inputs, received ${inputs === null ? 'null' : typeof inputs}.`,
+    );
+  }
+
   const declared = Object.keys(schema.properties);
 
   // Contracts declare `additionalProperties: false`, so an unexpected key is a caller

@@ -185,7 +185,7 @@ export async function runEvaluatorTest(
   for (let attemptNum = 1; attemptNum <= maxAttempts; attemptNum++) {
     const result = testCase.grade
       ? await evaluator.evaluate({ text: testCase.text, grade_level: testCase.grade })
-      : await evaluator.evaluate(testCase.text);
+      : await evaluator.evaluate({ text: testCase.text });
 
     const actualValue = extractResult(result);
     const isExpectedMatch = compareFn(actualValue, testCase.expected);

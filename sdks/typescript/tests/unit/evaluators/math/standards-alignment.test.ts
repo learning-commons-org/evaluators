@@ -774,6 +774,21 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
     expect(results[0].error).toMatchObject({ name: 'InputValidationError' });
   });
 
+  it('reports a blank statement code as invalid input, not a dependency failure', async () => {
+    // The bulk paths call the core directly rather than through evaluate(), so without
+    // a per-code check a blank code reaches the Knowledge Graph and comes back as an
+    // upstream error -- blaming the service for the caller's input.
+    const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
+
+    const results = await evaluator.evaluateItems(
+      [{ question: 'What is the area?', statementCodes: ['3.MD.C.7.d', '  '] }],
+      JURISDICTION,
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0].error).toMatchObject({ name: 'InputValidationError' });
+  });
+
   it('excludes an invalid item from the progress denominator', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
     const onProgress = vi.fn();

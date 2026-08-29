@@ -84,6 +84,18 @@ describe('validateInputs — rejected', () => {
     );
   });
 
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['a string', 'text'],
+    ['a number', 7],
+    ['an array', ['text']],
+  ])('rejects %s in place of an inputs object', (_label, bad) => {
+    // A JS caller or an `any` can hand over anything. Reaching Object.keys with it
+    // would raise a TypeError, which is neither diagnosable nor in the taxonomy.
+    expect(() => validateInputs(bad as never, SCHEMA)).toThrow(InputValidationError);
+  });
+
   it('throws InputValidationError, not a bare Error', () => {
     expect(() => validateInputs({}, SCHEMA)).toThrow(InputValidationError);
   });

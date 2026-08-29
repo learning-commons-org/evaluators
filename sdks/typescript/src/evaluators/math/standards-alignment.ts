@@ -27,10 +27,21 @@ const EVALUATOR_ID = CONFIG.evaluator.id;
  * `jurisdiction` keeps the narrow union: the schema supplies the key set, and the
  * SDK has a stronger type for that field than an imported JSON can carry.
  */
-/** The question alone, for validating one item of a bulk request. */
-const QUESTION_ONLY_SCHEMA = {
+/**
+ * One item of a bulk request: its question and one of its statement codes.
+ *
+ * The bulk paths call `_evaluateCore` directly rather than through `evaluate()`, so
+ * without this an empty code would reach the Knowledge Graph and be reported as a
+ * dependency failure rather than as the caller's invalid input.
+ */
+const QUESTION_SCHEMA = {
   properties: { question: INPUT_SCHEMA.properties.question },
   required: ['question'],
+};
+
+const CODE_SCHEMA = {
+  properties: { statementCode: INPUT_SCHEMA.properties.statementCode },
+  required: ['statementCode'],
 };
 
 export type MathStandardsAlignmentInput = InputsOf<typeof INPUT_SCHEMA> & {
@@ -244,7 +255,12 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     const dedupedItems = items.map((item) => {
       let validationError: EvaluatorError | undefined;
       try {
-        validateInputs({ question: item.question }, QUESTION_ONLY_SCHEMA);
+        // The question is checked whether or not the item carries codes: an item with
+        // an empty list still has a question the caller may have got wrong.
+        validateInputs({ question: item.question }, QUESTION_SCHEMA);
+        for (const code of item.statementCodes) {
+          validateInputs({ statementCode: code }, CODE_SCHEMA);
+        }
       } catch (err) {
         // Only a domain error is a per-item validation failure. Anything else is a
         // bug here, and turning it into a InputValidationError would report it as bad
