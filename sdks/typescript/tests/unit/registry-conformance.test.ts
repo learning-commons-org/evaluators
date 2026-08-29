@@ -324,7 +324,7 @@ describe('every evaluator has a contract at the derived path', () => {
   });
 });
 
-describe('every evaluator module sits at the derived path', () => {
+describe('evaluator and schema modules sit at the derived path', () => {
   // The module's location is derived from its id by the same rule as its contract's, so
   // a contract that moves takes its module with it and neither can drift from the other.
   // It also removes a collision: two evaluators can share a last id segment.
