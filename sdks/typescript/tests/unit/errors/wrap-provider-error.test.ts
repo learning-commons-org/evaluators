@@ -608,3 +608,120 @@ describe('wrapProviderError — provider errors without response headers', () =>
     expect((wrapProviderError(bad, CONTEXT) as RateLimitError).retryAfterMs).toBeNull();
   });
 });
+
+describe('wrapProviderError — a rejected model is the caller\'s configuration', () => {
+  // Verbatim from a live OpenAI 400 for `modelOverride: { model: 'gpt-this-model-does-not-exist-9999' }`.
+  // The status ladder alone put this in the catch-all, so a wrong model id surfaced as a
+  // provider fault — the wrong fault domain, and in the retryable-by-status family.
+  const OPENAI_BODY = JSON.stringify({
+    error: {
+      message: "The requested model 'gpt-this-model-does-not-exist-9999' does not exist.",
+      type: 'invalid_request_error',
+      param: 'model',
+      code: 'model_not_found',
+    },
+  });
+
+  const withBody = (statusCode: number, responseBody: string, data?: unknown) =>
+    new APICallError({
+      message: 'The requested model does not exist.',
+      url: 'https://api.openai.com/v1/responses',
+      requestBodyValues: {},
+      statusCode,
+      responseHeaders: {},
+      responseBody,
+      data,
+    });
+
+  it('classifies a 400 model_not_found from the raw body', () => {
+    const wrapped = wrapProviderError(withBody(400, OPENAI_BODY), CONTEXT);
+
+    expect(wrapped).toBeInstanceOf(ConfigurationError);
+    expect(wrapped.message).toMatch(/Check the model ID/);
+  });
+
+  it('classifies it from the parsed data when the client provides it', () => {
+    // The AI SDK populates `data` as well; only one of the two is guaranteed.
+    const wrapped = wrapProviderError(
+      withBody(400, 'not json', JSON.parse(OPENAI_BODY)),
+      CONTEXT,
+    );
+
+    expect(wrapped).toBeInstanceOf(ConfigurationError);
+  });
+
+  it('still classifies a 404 model rejection, as Google and Anthropic send', () => {
+    expect(wrapProviderError(makeAPICallError(404, 'model not found'), CONTEXT)).toBeInstanceOf(
+      ConfigurationError,
+    );
+  });
+
+  it('leaves an unrelated 400 as a provider fault', () => {
+    // A 400 that is not about the model is our malformed request, not the caller's config.
+    const body = JSON.stringify({
+      error: { message: 'Invalid value for temperature', type: 'invalid_request_error', param: 'temperature', code: 'invalid_value' },
+    });
+
+    const wrapped = wrapProviderError(withBody(400, body), CONTEXT);
+
+    expect(wrapped).toBeInstanceOf(LLMProviderError);
+    expect(wrapped).not.toBeInstanceOf(ConfigurationError);
+  });
+
+  it('leaves a 400 with no verdict alone', () => {
+    expect(wrapProviderError(makeAPICallError(400, 'Bad Request'), CONTEXT)).toBeInstanceOf(
+      LLMProviderError,
+    );
+  });
+
+  it('classifies on the code alone, when the body names no param', () => {
+    const body = JSON.stringify({ error: { message: 'no such model', code: 'model_not_found' } });
+
+    expect(wrapProviderError(withBody(400, body), CONTEXT)).toBeInstanceOf(ConfigurationError);
+  });
+
+  it('classifies on the param alone, when the code is one we do not know', () => {
+    // A malformed id rather than an unknown one: same fault domain, different code.
+    const body = JSON.stringify({
+      error: { message: 'invalid model id', param: 'model', code: 'invalid_value' },
+    });
+
+    expect(wrapProviderError(withBody(400, body), CONTEXT)).toBeInstanceOf(ConfigurationError);
+  });
+
+  it('ignores a non-string param', () => {
+    // Strict comparison against the literal is what excludes this, rather than a typeof guard.
+    const body = JSON.stringify({ error: { message: 'bad request', param: 0 } });
+
+    expect(wrapProviderError(withBody(400, body), CONTEXT)).not.toBeInstanceOf(ConfigurationError);
+  });
+
+  it('finds the verdict when it is wrapped further down the cause chain', () => {
+    // Provider clients re-throw, so the APICallError is rarely the outermost error.
+    const wrapper = new Error('Failed to generate object', { cause: withBody(400, OPENAI_BODY) });
+
+    expect(wrapProviderError(wrapper, CONTEXT)).toBeInstanceOf(ConfigurationError);
+  });
+
+  it('survives a body that is not JSON', () => {
+    expect(() =>
+      wrapProviderError(withBody(400, '<html>502 Bad Gateway</html>'), CONTEXT),
+    ).not.toThrow();
+  });
+
+  // A status with a definite policy keeps it, even when the body blames the model — an
+  // expired key or an exhausted quota is not something the caller fixes by changing models,
+  // and a 429 misread as ConfigurationError would also lose its retry semantics.
+  it.each([
+    [401, AuthenticationError],
+    [403, AuthenticationError],
+    [429, RateLimitError],
+    [408, RequestTimeoutError],
+    [500, LLMProviderError],
+  ])('leaves a %i carrying a model verdict as %s', (statusCode, expected) => {
+    const wrapped = wrapProviderError(withBody(statusCode, OPENAI_BODY), CONTEXT);
+
+    expect(wrapped).toBeInstanceOf(expected);
+    expect(wrapped).not.toBeInstanceOf(ConfigurationError);
+  });
+});
