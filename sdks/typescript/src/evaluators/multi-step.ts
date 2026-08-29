@@ -365,6 +365,12 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
       } catch (error) {
         const latencyMs = Date.now() - startTime;
 
+        // The step that was running is the one after the last completed stage. Attributing
+        // to `this.provider` instead would name the final step's provider, which is the
+        // wrong vendor whenever the steps do not share one.
+        const failedStep = STEPS[Math.min(stageDetails.length, STEPS.length - 1)];
+        const failedProvider = this.providers.get(failedStep.id) ?? this.provider;
+
         this.logger.error(`${LABEL} evaluation failed`, {
           evaluator: METADATA.id,
           operation: 'evaluate',
@@ -387,7 +393,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
           latencyMs,
           textLength: text.length,
           gradeLevel,
-          provider: this.provider.label,
+          provider: failedProvider.label,
           tokenUsage,
           errorCode: error instanceof Error ? error.name : 'UnknownError',
           metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,
@@ -395,7 +401,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
         }).catch(() => undefined);
 
         if (error instanceof EvaluatorError) throw error;
-        throw wrapProviderError(error, this.providerContext(this.provider));
+        throw wrapProviderError(error, this.providerContext(failedProvider));
       }
     }
 
@@ -480,18 +486,23 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
       }
 
       // An entry's own input may itself be a step output, which is what orders the run.
-      const source = entry.input.startsWith('steps.') ? entry.input : `input.${entry.input}`;
-      const resolved =
-        source === entry.input
-          ? stepOutputs.get(entry.input.slice('steps.'.length).replace(/\.output$/, ''))
-          : fields[entry.input];
-
-      if (entry.kind === 'custom') {
-        if (resolved === undefined) {
+      // Checked for every kind: a library computation would otherwise run on the empty
+      // string and hide a forward reference, or a typo in the step id, behind a plausible
+      // number.
+      let resolved: unknown;
+      if (entry.input.startsWith('steps.')) {
+        const stepId = entry.input.slice('steps.'.length).replace(/\.output$/, '');
+        if (!stepOutputs.has(stepId)) {
           throw new Error(
             `Preprocessing "${entry.id}" reads "${entry.input}", which is not available yet.`,
           );
         }
+        resolved = stepOutputs.get(stepId);
+      } else {
+        resolved = fields[entry.input];
+      }
+
+      if (entry.kind === 'custom') {
         return computations[entry.implementation.typescript.function](resolved);
       }
 

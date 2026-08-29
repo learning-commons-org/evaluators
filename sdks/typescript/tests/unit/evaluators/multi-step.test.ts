@@ -472,6 +472,42 @@ describe('defineMultiStepEvaluator — contract failures', () => {
     );
   });
 
+  it('attributes a failure to the step that was running, not the last one', async () => {
+    // The steps here use different vendors, which is the case that exposes it — with one
+    // shared provider the wrong attribution is indistinguishable from the right one.
+    const twoVendors = contract();
+    twoVendors.steps[1].model = { provider: 'google', name: 'gemini-classify' };
+    RESPONSES['gpt-analyse'] = new Error('first step exploded');
+
+    const evaluator = new (defineFrom(twoVendors))({
+      openaiApiKey: 'k',
+      googleApiKey: 'k',
+    });
+    await expect(evaluator.evaluate({ text: 'a b', grade_level: '3' })).rejects.toThrow();
+
+    const event = sent.mock.calls[0][0] as { provider?: string };
+    expect(event.provider).toBe('openai:gpt-analyse');
+  });
+
+  it('fails a library preprocessing entry that reads an unavailable step', async () => {
+    // The guard used to sit inside the `custom` branch only, so this ran the computation on
+    // the empty string and produced a plausible number instead of an error.
+    const forwardLibrary = contract();
+    forwardLibrary.preprocessing[0] = {
+      id: 'fk',
+      kind: 'flesch_kincaid_grade',
+      input: 'steps.classify.output',
+      output: 'counts',
+      implementation: {
+        typescript: { library: 'text-readability', function: 'fleschKincaidGrade' },
+      },
+    } as never;
+
+    await expect(
+      construct(defineFrom(forwardLibrary)).evaluate({ text: 'a b', grade_level: '3' }),
+    ).rejects.toThrow(/reads "steps.classify.output", which is not available yet/);
+  });
+
   it('validates inputs before running any step', async () => {
     await expect(
       construct(define()).evaluate({ text: '', grade_level: '3' }),
