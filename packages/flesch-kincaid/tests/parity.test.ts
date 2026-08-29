@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import {
   countSentences,
   countSyllables,
@@ -19,8 +18,10 @@ interface Case {
   fkRounded: number;
 }
 
+// Located from `import.meta.url` rather than `__dirname`: the package is ESM, and
+// `__dirname` only resolves here because Vitest supplies it.
 const corpus = JSON.parse(
-  readFileSync(join(__dirname, 'parity-corpus.json'), 'utf-8')
+  readFileSync(new URL('./parity-corpus.json', import.meta.url), 'utf-8')
 ) as { textstatVersion: number[]; cases: Case[] };
 
 const label = (text: string) => JSON.stringify(text.slice(0, 48));
@@ -32,6 +33,9 @@ describe('parity with textstat', () => {
     expect(corpus.cases.some((c) => c.text === '')).toBe(true);
     expect(corpus.cases.some((c) => c.text.length > 1000)).toBe(true);
     expect(corpus.cases.some((c) => /[^\x00-\x7F]/.test(c.text))).toBe(true);
+    // `textstat.__version__` is a tuple, so this arrives as [0, 7, 13]. It is the
+    // provenance of every expectation in the file and should not silently disappear.
+    expect(corpus.textstatVersion.every((part) => typeof part === 'number')).toBe(true);
   });
 
   // Asserted per component as well as on the grade: all three counts feed one formula, so
