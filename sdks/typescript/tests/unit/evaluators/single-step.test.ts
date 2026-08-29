@@ -352,3 +352,53 @@ describe('defineSingleStepEvaluator telemetry', () => {
     });
   });
 });
+
+// --- observability must not break the evaluation ---
+
+describe('defineSingleStepEvaluator survives its own reporting failing', () => {
+  beforeEach(() => {
+    created.length = 0;
+    sent.mockClear();
+  });
+
+  it('returns the result when telemetry cannot be sent', async () => {
+    // Telemetry is fire-and-forget; a collector being down is not the caller's problem.
+    sent.mockRejectedValue(new Error('collector unreachable'));
+
+    const result = await new (define())({ googleApiKey: 'k' }).evaluate(INPUT);
+
+    expect(result.result).toEqual({ verdict: 'clear', reasoning: 'because' });
+  });
+
+  it('propagates the original failure when error telemetry cannot be sent', async () => {
+    sent.mockRejectedValue(new Error('collector unreachable'));
+
+    // The caller must see the validation error, not the telemetry one.
+    await expect(
+      new (define())({ googleApiKey: 'k' }).evaluate({ text: '', grade_level: '4' }),
+    ).rejects.toThrow(InputValidationError);
+  });
+
+  it('reports the tokens already spent when a failure follows a completed step', async () => {
+    // The only way past the model call and into the catch: a caller-supplied logger that
+    // throws. Contrived, but it is what makes the token aggregation in the catch reachable
+    // — and a caller that loses spend data on failure would have a real complaint.
+    sent.mockResolvedValue(undefined);
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn((message: string) => {
+        if (message.includes('completed successfully')) throw new Error('logger blew up');
+      }),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+
+    await expect(new (define())({ googleApiKey: 'k', logger }).evaluate(INPUT)).rejects.toThrow();
+
+    // Success telemetry is sent before the completion log, so this evaluation reports
+    // twice — a success then an error. Pre-existing ordering, noted rather than changed.
+    const events = sent.mock.calls.map(([e]) => e as { status: string; token_usage?: unknown });
+    expect(events.map((e) => e.status)).toEqual(['success', 'error']);
+    expect(events[1].token_usage).toEqual({ input_tokens: 7, output_tokens: 3 });
+  });
+});
