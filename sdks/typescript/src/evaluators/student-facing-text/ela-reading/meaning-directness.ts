@@ -12,10 +12,8 @@ import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-readin
 export type MeaningDirectnessInput = InputsOf<typeof INPUT_SCHEMA>;
 
 /**
- * Evaluates meaning directness in student-facing text.
- *
-* Evaluates how directly a text states its meaning, as against relying on inference,
-* relative to its grade level. Based on the Qualitative Text Complexity rubric.
+ * Evaluates how directly a text states its meaning, as against relying on inference,
+ * relative to its grade level. Based on the Qualitative Text Complexity rubric.
  *
  * One model call, so the flow comes from {@link defineSingleStepEvaluator} and
  * model, temperature, preprocessing and prompt inputs come from `config.json`; the

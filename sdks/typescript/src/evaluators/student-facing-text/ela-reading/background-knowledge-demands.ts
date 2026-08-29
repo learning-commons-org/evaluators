@@ -12,10 +12,8 @@ import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-readin
 export type BackgroundKnowledgeDemandsInput = InputsOf<typeof INPUT_SCHEMA>;
 
 /**
- * Evaluates background knowledge demands in student-facing text.
- *
-* Evaluates how much prior subject knowledge a student needs to comprehend a text,
-* relative to its grade level. Based on the Qualitative Text Complexity rubric.
+ * Evaluates how much prior subject knowledge a student needs to comprehend a text,
+ * relative to its grade level. Based on the Qualitative Text Complexity rubric.
  *
  * One model call, so the flow comes from {@link defineSingleStepEvaluator} and
  * model, temperature, preprocessing and prompt inputs come from `config.json`; the
