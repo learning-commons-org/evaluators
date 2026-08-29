@@ -329,11 +329,15 @@ describe('standards CSV — escaping, header contract, and blank handling', () =
 
 describe('standards HTML — payload escaping', () => {
   function htmlFor(question: string): string {
-    return renderOutputs(
+    const { html } = renderOutputs(
       'math-standards-alignment',
       output([standardsResult({ payload: { statementCode: '4.OA.A.1', question, jurisdiction: 'Multi-State', alignedCount: 1, totalCount: 2, learningComponents: [] } })]),
       meta,
-    ).html;
+    );
+    // The standards family has a report of its own; a bundle without one here would mean
+    // the dispatch stopped finding it, which the assertions below could not distinguish.
+    if (!html) throw new Error('standards family emitted no HTML report');
+    return html;
   }
 
   it('escapes angle brackets and ampersands so the payload cannot close the script tag', () => {

@@ -355,7 +355,9 @@ async function main() {
           } }, reportMeta);
           fs.writeFileSync(path.join(outputDir, 'results-partial.csv'), bundle.csv);
           fs.writeFileSync(path.join(outputDir, 'results-partial.json'), bundle.json);
-          fs.writeFileSync(path.join(outputDir, 'results-partial.html'), bundle.html);
+          if (bundle.html) {
+            fs.writeFileSync(path.join(outputDir, 'results-partial.html'), bundle.html);
+          }
           console.log(`✓ Saved ${partial.length} partial results to ${outputDir}/\n`);
         } catch (error) {
           console.error('❌ Error saving partial results:', error instanceof Error ? error.message : String(error));
@@ -386,13 +388,18 @@ async function main() {
       const bundle = renderOutputs(family.id, output, reportMeta);
       fs.writeFileSync(path.join(outputDir, 'results.csv'), bundle.csv);
       fs.writeFileSync(path.join(outputDir, 'results.json'), bundle.json);
-      fs.writeFileSync(path.join(outputDir, 'results.html'), bundle.html);
+      if (bundle.html) {
+        fs.writeFileSync(path.join(outputDir, 'results.html'), bundle.html);
+      }
+
       console.log('\n📄 Output files:');
       console.log(`  ${outputDir}/`);
       console.log('    ├── results.csv');
-      console.log('    ├── results.json');
-      console.log('    └── results.html');
-      console.log(`\nOpen the report: ${path.join(outputDir, 'results.html')}`);
+      console.log(bundle.html ? '    ├── results.json' : '    └── results.json');
+      if (bundle.html) {
+        console.log('    └── results.html');
+        console.log(`\nOpen the report: ${path.join(outputDir, 'results.html')}`);
+      }
     } catch (error) {
       console.error('\n❌ Error writing output files:');
       if (error instanceof Error) console.error(`  ${error.message}`);

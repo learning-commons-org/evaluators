@@ -1,8 +1,9 @@
 import type { EvaluatorFamily } from './family.js';
 import { QTC_FAMILY } from './qtc.js';
 import { STANDARDS_FAMILY } from './standards.js';
+import { FEEDBACK_FAMILY } from './feedback.js';
 
-const FAMILIES: EvaluatorFamily[] = [QTC_FAMILY, STANDARDS_FAMILY];
+const FAMILIES: EvaluatorFamily[] = [QTC_FAMILY, STANDARDS_FAMILY, FEEDBACK_FAMILY];
 
 /** All evaluator families available to the batch tool. */
 export function getFamilies(): EvaluatorFamily[] {
