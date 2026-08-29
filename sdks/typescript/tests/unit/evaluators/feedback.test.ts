@@ -9,7 +9,7 @@ import {
   WithholdingAnswersEvaluator,
 } from '../../../src/evaluators/index.js';
 import { InputValidationError } from '../../../src/errors.js';
-import type { LLMProvider } from '../../../src/providers/base.js';
+import type { LLMProvider, LLMResponse } from '../../../src/providers/base.js';
 
 /**
  * The feedback family is the first to take two texts and no grade level, so what is worth
@@ -30,14 +30,18 @@ const EVALUATORS = [
 const STUDENT_TEXT = 'My dog is brown. He runs fast. I like him a lot because he is fun.';
 const FEEDBACK_TEXT = 'Try adding a topic sentence so the reader knows your argument.';
 
+/** Annotated, so a field the provider interface requires cannot be left out. */
+const RESPONSE: LLMResponse<{ quality_score: number; reasoning: string }> = {
+  data: { quality_score: 1, reasoning: 'Meets the criterion.' },
+  model: 'gpt-5.4-2026-03-05',
+  usage: { inputTokens: 11, outputTokens: 4 },
+  latencyMs: 9,
+};
+
 function provider(): LLMProvider {
   return {
     label: 'openai:gpt-5.4-2026-03-05',
-    generateStructured: vi.fn().mockResolvedValue({
-      data: { quality_score: 1, reasoning: 'Meets the criterion.' },
-      usage: { inputTokens: 11, outputTokens: 4 },
-      latencyMs: 9,
-    }),
+    generateStructured: vi.fn().mockResolvedValue(RESPONSE),
     generateText: vi.fn(),
   };
 }

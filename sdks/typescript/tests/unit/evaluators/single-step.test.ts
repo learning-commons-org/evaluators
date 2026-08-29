@@ -7,7 +7,7 @@ import {
   InputValidationError,
   LLMOutputProcessingError,
 } from '../../../src/errors.js';
-import type { LLMProvider } from '../../../src/providers/base.js';
+import type { LLMProvider, LLMResponse } from '../../../src/providers/base.js';
 import { runPreprocessingStep } from '../../../src/features/preprocessing.js';
 
 const sent = vi.fn();
@@ -29,6 +29,7 @@ vi.mock('../../../src/providers/index.js', async (importOriginal) => {
         label: `${config.type}:${config.model}`,
         generateStructured: vi.fn().mockResolvedValue({
           data: { verdict: 'clear', reasoning: 'because' },
+          model: config.model,
           usage: { inputTokens: 7, outputTokens: 3 },
           latencyMs: 12,
         }),
@@ -89,14 +90,18 @@ function define(overrides: Record<string, unknown> = {}) {
   });
 }
 
+/** Annotated, so a field the provider interface requires cannot be left out. */
+const RESPONSE: LLMResponse<Output> = {
+  data: { verdict: 'clear', reasoning: 'because' },
+  model: 'gemini-3-flash-preview',
+  usage: { inputTokens: 7, outputTokens: 3 },
+  latencyMs: 12,
+};
+
 function fakeProvider(): LLMProvider {
   return {
     label: 'google:gemini-3-flash-preview',
-    generateStructured: vi.fn().mockResolvedValue({
-      data: { verdict: 'clear', reasoning: 'because' },
-      usage: { inputTokens: 7, outputTokens: 3 },
-      latencyMs: 12,
-    }),
+    generateStructured: vi.fn().mockResolvedValue(RESPONSE),
     generateText: vi.fn(),
   };
 }
