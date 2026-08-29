@@ -15,8 +15,13 @@ const INJECTION_MARKER = 'var REPORT_DATA = null; // __REPLACED_BY_FORMATTER__';
  * `<`, `>` and `&` are escaped so evaluated text cannot close the script element, and
  * U+2028/U+2029 — valid in JSON but line terminators to a pre-ES2019 parser — are escaped
  * so they cannot break the script.
+ *
+ * Takes an object rather than `unknown` because `JSON.stringify` returns `undefined` for
+ * `undefined`, a function or a symbol, which would make the chained `.replace` throw. A
+ * report payload is always an object, so the compiler enforces that instead of a runtime
+ * guard on a path no caller can reach.
  */
-export function toInlineJson(data: unknown): string {
+export function toInlineJson(data: Record<string, unknown>): string {
   return JSON.stringify(data)
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e')
