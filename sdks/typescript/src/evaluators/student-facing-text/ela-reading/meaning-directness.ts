@@ -108,7 +108,6 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
 
       const latencyMs = Date.now() - startTime;
 
-      // Aggregate token usage
       const totalTokenUsage = {
         input_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.input_tokens || 0), 0),
         output_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.output_tokens || 0), 0),
@@ -127,7 +126,6 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
         },
       };
 
-      // Send success telemetry (fire-and-forget)
       this.sendTelemetry({
         status: 'success',
         latencyMs,
@@ -140,7 +138,6 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
         },
         inputText: text,
       }).catch(() => {
-        // Ignore telemetry errors
       });
 
       this.logger.info('Meaning Directness evaluation completed successfully', {
@@ -180,7 +177,6 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,
         inputText: text,
       }).catch(() => {
-        // Ignore telemetry errors
       });
 
       if (error instanceof EvaluatorError) {

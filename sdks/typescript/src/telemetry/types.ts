@@ -47,10 +47,6 @@ export interface TelemetryMetadata {
   /** Detailed breakdown by stage (for multi-stage evaluations) */
   stage_details?: StageDetail[];
 
-  // Future fields can be added here:
-  // cache_hit?: boolean;
-  // prompt_tokens_breakdown?: {...};
-  // etc.
 }
 
 /**

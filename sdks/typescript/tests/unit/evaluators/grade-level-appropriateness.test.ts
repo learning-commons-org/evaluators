@@ -9,17 +9,6 @@ import CONFIG from '../../../../../evals/student-facing-text/ela-reading/grade-l
 const DECLARED = CONFIG.steps[0].model;
 const MODEL_LABEL = `${DECLARED.provider}:${DECLARED.name}`;
 
-/**
- * Comprehensive unit tests for GradeLevelAppropriatenessEvaluator
- *
- * These tests verify:
- * - Constructor validation
- * - Successful evaluation flow (single stage)
- * - Error handling (LLM failures)
- * - Telemetry behavior
- * - Response structure
- */
-
 // Mock providers
 const createMockProvider = (config?: { type?: string; model?: string }): LLMProvider => ({
   label: config?.type && config?.model ? `${config.type}:${config.model}` : 'mock:model',

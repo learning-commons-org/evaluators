@@ -22,7 +22,6 @@ export class TelemetryClient {
    * Fire-and-forget: Errors are logged but don't throw.
    */
   async send(event: TelemetryEvent): Promise<void> {
-    // Skip if telemetry disabled
     if (!this.config.enabled) {
       return;
     }
@@ -52,7 +51,6 @@ export class TelemetryClient {
         );
       }
     } catch (error) {
-      // Log error but never throw (fire-and-forget)
       if (error instanceof Error) {
         // Don't log timeout errors (expected on slow networks)
         if (error.name !== 'TimeoutError' && error.name !== 'AbortError') {

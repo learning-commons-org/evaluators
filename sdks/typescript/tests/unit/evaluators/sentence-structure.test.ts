@@ -8,17 +8,6 @@ import CONFIG from '../../../../../evals/student-facing-text/ela-reading/sentenc
 // config.json surfaces here instead of the test quietly asserting a stale value.
 const EXPECTED_MODEL = `${CONFIG.steps[0].model.provider}:${CONFIG.steps[0].model.name}`;
 
-/**
- * Comprehensive unit tests for SentenceStructureEvaluator
- *
- * These tests verify:
- * - Constructor validation
- * - Successful evaluation flow (both stages)
- * - Error handling (LLM failures)
- * - Telemetry behavior
- * - Response structure
- */
-
 // Helper to create minimal valid sentence analysis mock
 const createMockSentenceAnalysis = () => ({
   reasoning: 'Mock analysis',

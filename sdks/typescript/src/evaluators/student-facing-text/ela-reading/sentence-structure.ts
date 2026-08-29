@@ -70,7 +70,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
   private provider: LLMProvider;
 
   constructor(config: BaseEvaluatorConfig) {
-    // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
 
     // Both stages use the same model — share a single provider instance
@@ -145,7 +144,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
 
       const latencyMs = Date.now() - startTime;
 
-      // Aggregate token usage
       const totalTokenUsage = {
         input_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.input_tokens || 0), 0),
         output_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.output_tokens || 0), 0),
@@ -164,7 +162,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         },
       };
 
-      // Send success telemetry (fire-and-forget)
       this.sendTelemetry({
         status: 'success',
         latencyMs,
@@ -177,7 +174,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         },
         inputText: text,
       }).catch(() => {
-        // Ignore telemetry errors
       });
 
       this.logger.info('Sentence structure evaluation completed successfully', {
@@ -192,7 +188,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
     } catch (error) {
       const latencyMs = Date.now() - startTime;
 
-      // Log the error
       this.logger.error('Sentence structure evaluation failed', {
         evaluator: SentenceStructureEvaluator.metadata.id,
         operation: 'evaluate',
@@ -208,7 +203,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         output_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.output_tokens || 0), 0),
       } : undefined;
 
-      // Send failure telemetry (fire-and-forget)
       this.sendTelemetry({
         status: 'error',
         latencyMs,
@@ -220,7 +214,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,
         inputText: text,
       }).catch(() => {
-        // Ignore telemetry errors
       });
 
       if (error instanceof EvaluatorError) {

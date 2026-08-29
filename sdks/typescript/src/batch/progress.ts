@@ -16,9 +16,6 @@ export class ProgressTracker {
     this.startTime = Date.now();
   }
 
-  /**
-   * Update progress with a new result
-   */
   update(result: BatchResult): void {
     this.completed++;
 
@@ -42,23 +39,14 @@ export class ProgressTracker {
     }
   }
 
-  /**
-   * Get current progress percentage
-   */
   getPercentage(): number {
     return Math.round((this.completed / this.totalTasks) * 100);
   }
 
-  /**
-   * Get elapsed time in seconds
-   */
   getElapsedSeconds(): number {
     return Math.round((Date.now() - this.startTime) / 1000);
   }
 
-  /**
-   * Estimate remaining time in seconds
-   */
   getEstimatedRemainingSeconds(): number {
     if (this.completed === 0) return 0;
 
@@ -69,9 +57,6 @@ export class ProgressTracker {
     return Math.round((avgTimePerTask * remaining) / 1000);
   }
 
-  /**
-   * Format elapsed time as human-readable string
-   */
   formatElapsed(): string {
     const seconds = this.getElapsedSeconds();
     if (seconds < 60) return `${seconds}s`;
@@ -81,9 +66,6 @@ export class ProgressTracker {
     return `${minutes}m ${remainingSeconds}s`;
   }
 
-  /**
-   * Format estimated remaining time as human-readable string
-   */
   formatEstimatedRemaining(): string {
     const seconds = this.getEstimatedRemainingSeconds();
     if (seconds < 60) return `${seconds}s`;
@@ -93,9 +75,6 @@ export class ProgressTracker {
     return `${minutes}m ${remainingSeconds}s`;
   }
 
-  /**
-   * Generate progress bar
-   */
   getProgressBar(width = 20): string {
     const percentage = this.getPercentage();
     const filled = Math.round((percentage / 100) * width);
@@ -104,11 +83,10 @@ export class ProgressTracker {
     return '█'.repeat(filled) + '░'.repeat(empty);
   }
 
-  /**
-   * Display progress in terminal
-   */
   display(): void {
-    // Clear previous lines (move cursor up and clear)
+    // Rewind exactly what the previous display() printed: bar, blank, timing, then one
+    // line per evaluator. Adding or removing a line below means changing this count here
+    // and the +1 in displaySummary(), or the redraw eats real output.
     if (this.completed > 1) {
       const linesToClear = 3 + this.perEvaluator.size;
       process.stdout.write(`\x1b[${linesToClear}A`); // Move cursor up
@@ -137,11 +115,8 @@ export class ProgressTracker {
     );
   }
 
-  /**
-   * Display final summary
-   */
   displaySummary(): void {
-    // Clear progress display
+    // display()'s lines plus the blank line it ends on.
     const linesToClear = 3 + this.perEvaluator.size + 1;
     process.stdout.write(`\x1b[${linesToClear}A`);
     process.stdout.write('\x1b[J');

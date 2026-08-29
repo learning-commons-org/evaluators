@@ -80,20 +80,16 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
   }
 
   constructor(config: BaseEvaluatorConfig) {
-    // Call base constructor for common setup (telemetry, API key validation, etc.)
     super(config);
 
-    // Create Google Gemini provider for complexity evaluation (grade levels 3-4)
     this.grades34ComplexityProvider = this.createConfiguredProvider(
       Provider.Google, 'gemini-2.5-pro', config.googleApiKey
     );
 
-    // Create OpenAI GPT-4.1 provider for complexity evaluation (grade levels 5-12)
     this.otherGradesComplexityProvider = this.createConfiguredProvider(
       Provider.OpenAI, 'gpt-4.1-2025-04-14', config.openaiApiKey
     );
 
-    // Create OpenAI GPT-4o provider for background knowledge generation
     this.backgroundKnowledgeProvider = this.createConfiguredProvider(
       Provider.OpenAI, 'gpt-4o-2024-11-20', config.openaiApiKey
     );
@@ -136,7 +132,6 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
         gradeLevel,
         textLength: text.length,
       });
-      // If partners consistently pass invalid grade levels/text, telemetry will surface documentation gaps.
       this.logger.debug('Stage 1: Generating background knowledge', {
         evaluator: VocabularyComplexityEvaluator.metadata.id,
         operation: 'background_knowledge',
@@ -177,7 +172,6 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
 
       const latencyMs = Date.now() - startTime;
 
-      // Aggregate token usage
       const totalTokenUsage = {
         input_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.input_tokens || 0), 0),
         output_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.output_tokens || 0), 0),
@@ -196,7 +190,6 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
         },
       };
 
-      // Send success telemetry (fire-and-forget)
       this.sendTelemetry({
         status: 'success',
         latencyMs,
@@ -209,7 +202,6 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
         },
         inputText: text,
       }).catch(() => {
-        // Ignore telemetry errors
       });
 
       this.logger.info('Vocabulary Complexity evaluation completed successfully', {
@@ -224,7 +216,6 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     } catch (error) {
       const latencyMs = Date.now() - startTime;
 
-      // Log the error
       this.logger.error('Vocabulary Complexity evaluation failed', {
         evaluator: VocabularyComplexityEvaluator.metadata.id,
         operation: 'evaluate',
@@ -240,7 +231,6 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
         output_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.output_tokens || 0), 0),
       } : undefined;
 
-      // Send failure telemetry (fire-and-forget)
       this.sendTelemetry({
         status: 'error',
         latencyMs,
@@ -252,7 +242,6 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,
         inputText: text,
       }).catch(() => {
-        // Ignore telemetry errors
       });
 
       if (error instanceof EvaluatorError) {
