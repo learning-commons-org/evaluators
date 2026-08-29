@@ -127,7 +127,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
         })
         .mockResolvedValueOnce({
           data: {
-            complexity_score: 'Slightly complex',
+            complexity_score: 'slightly_complex',
             reasoning: 'The text uses simple sentence structures appropriate for third grade.',
           },
           model: 'gpt-4o',
@@ -139,7 +139,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       const result = await evaluator.evaluate({ text: testText, grade_level: testGrade });
 
       // Verify result structure
-      expect(result.result.complexity_score).toBe('Slightly complex');
+      expect(result.result.complexity_score).toBe('slightly_complex');
       expect(result.result.reasoning).toContain('simple sentence structures');
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe(EXPECTED_MODEL);
@@ -211,7 +211,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
         })
         .mockResolvedValueOnce({
           data: {
-            complexity_score: 'Moderately complex',
+            complexity_score: 'moderately_complex',
             reasoning: 'Detailed reasoning here',
           },
           model: 'gpt-4o',
@@ -251,7 +251,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
           latencyMs: 1,
         })
         .mockResolvedValueOnce({
-          data: { complexity_score: 'Moderately complex', reasoning: 'why' },
+          data: { complexity_score: 'moderately_complex', reasoning: 'why' },
           model: 'gpt-4o',
           usage: { inputTokens: 1, outputTokens: 1 },
           latencyMs: 1,

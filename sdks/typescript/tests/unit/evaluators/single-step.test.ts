@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { z } from 'zod';
-import { defineSingleStepEvaluator } from '../../../src/evaluators/single-step.js';
+import { defineSingleStepEvaluator, requireStep } from '../../../src/evaluators/single-step.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import {
   EvaluatorError,
@@ -418,5 +418,23 @@ describe('defineSingleStepEvaluator survives its own reporting failing', () => {
     const events = sent.mock.calls.map(([e]) => e as { status: string; token_usage?: unknown });
     expect(events.map((e) => e.status)).toEqual(['success', 'error']);
     expect(events[1].token_usage).toEqual({ input_tokens: 7, output_tokens: 3 });
+  });
+});
+
+// --- the shared step lookup ---
+
+describe('requireStep', () => {
+  // Both the factory and Sentence Structure resolve steps through this, so a missing step
+  // has to fail the same way for either.
+  const steps = [{ id: 'first' }, { id: 'second' }];
+
+  it('returns the step declared under the id', () => {
+    expect(requireStep(steps, 'second', 'Thing Evaluator')).toBe(steps[1]);
+  });
+
+  it('names the step it wanted and the evaluator whose contract lacks it', () => {
+    expect(() => requireStep(steps, 'third', 'Thing Evaluator')).toThrow(
+      'Step "third" not found in Thing Evaluator config.json',
+    );
   });
 });

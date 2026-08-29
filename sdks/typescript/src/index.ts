@@ -58,16 +58,18 @@ export type {
 export { Providers } from './providers/index.js';
 
 // Sentence structure exports
-export type {
-  SentenceAnalysis,
-  ComplexityClassification,
-  SentenceFeatures,
+export {
+  SentenceStructureOutputSchema,
+  type SentenceStructureResult,
 } from './schemas/student-facing-text/ela-reading/sentence-structure.js';
 
+// Its intermediate types: the first step's analysis, and the features computed from it.
+// `ComplexityClassification` is gone — the final output is `SentenceStructureResult`.
 export {
   SentenceAnalysisSchema,
-  ComplexityClassificationSchema,
-} from './schemas/student-facing-text/ela-reading/sentence-structure.js';
+  type SentenceAnalysis,
+  type SentenceFeatures,
+} from './schemas/student-facing-text/ela-reading/sentence-structure-steps.js';
 
 // Vocabulary Complexity exports
 export type { VocabularyComplexityResult } from './schemas/student-facing-text/ela-reading/vocabulary-complexity.js';

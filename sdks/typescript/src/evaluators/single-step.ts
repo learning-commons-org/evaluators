@@ -65,14 +65,28 @@ export interface SingleStepEvaluatorClass<TInput, TResult> {
   readonly metadata: EvaluatorMetadata;
 }
 
+/**
+ * The step a contract declares under `id`, or a failure naming the one that was expected.
+ *
+ * Shared because a multi-step evaluator needs the same lookup for each of its steps, and a
+ * second copy is a second thing that can disagree about what a missing step means.
+ */
+export function requireStep<T extends { id: string }>(
+  steps: readonly T[],
+  id: string,
+  evaluatorName: string,
+): T {
+  const step = steps.find((s) => s.id === id);
+  if (!step) {
+    throw new Error(`Step "${id}" not found in ${evaluatorName} config.json`);
+  }
+  return step;
+}
+
 /** Step id convention: `evaluate_{slug}`, where slug is the last segment of the id. */
 function stepFor(contract: SingleStepContract) {
   const id = `evaluate_${contract.evaluator.id.split('.').pop()}`;
-  const step = contract.steps.find((s) => s.id === id);
-  if (!step) {
-    throw new Error(`Step "${id}" not found in ${contract.evaluator.name} config.json`);
-  }
-  return step;
+  return requireStep(contract.steps, id, contract.evaluator.name);
 }
 
 function vendorOf(step: { model: { provider: string } }, name: string): Provider {
