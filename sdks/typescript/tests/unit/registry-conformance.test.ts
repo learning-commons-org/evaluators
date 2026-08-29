@@ -478,11 +478,18 @@ describe('the schema accepts the values the contract fixtures record', () => {
       { safeParse(value: unknown): { success: boolean } }
     >;
 
+    // A field the schema does not have is a failure, not something to skip: the contract
+    // recorded the model returning it. Whole-object parsing is not an option here — every
+    // `expected` is a partial assertion, missing between one and five required fields.
     const rejected = fixtures.flatMap(({ id, expected }) =>
-      Object.entries(expected)
-        .filter(([field]) => shape[field])
-        .filter(([field, value]) => !shape[field].safeParse(value).success)
-        .map(([field, value]) => `${id}: ${field}=${JSON.stringify(value)}`),
+      Object.entries(expected).flatMap(([field, value]) => {
+        const fieldSchema = shape[field];
+        if (!fieldSchema) return [`${id}: ${field} is absent from the schema`];
+        if (!fieldSchema.safeParse(value).success) {
+          return [`${id}: ${field}=${JSON.stringify(value)}`];
+        }
+        return [];
+      }),
     );
 
     if (FIXTURE_VALUE_GAPS.has(E.metadata.id)) {
