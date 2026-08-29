@@ -2,6 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/grade-level-appropriateness.js';
 import { ConfigurationError, InputValidationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
+import CONFIG from '../../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/config.json';
+
+// Read from the contract, not restated: hardcoding it here is how the SDK came to ship
+// a different model from the one declared without any test objecting.
+const DECLARED = CONFIG.steps[0].model;
+const MODEL_LABEL = `${DECLARED.provider}:${DECLARED.name}`;
 
 /**
  * Comprehensive unit tests for GradeLevelAppropriatenessEvaluator
@@ -78,7 +84,7 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
           scaffolding_needed: 'Pre-teach gravitational forces; Use visual diagrams of moon-sun-earth system',
           reasoning: 'The text discusses gravitational forces and celestial mechanics, which are appropriate for middle school science curriculum.',
         },
-        model: 'gemini-2.5-pro',
+        model: DECLARED.name,
         usage: {
           inputTokens: 200,
           outputTokens: 150,
@@ -97,7 +103,7 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result.result!.scaffolding_needed).toContain('gravitational forces');
       expect(result.result.reasoning).toContain('gravitational forces');
       expect(result.metadata).toBeDefined();
-      expect(result.metadata.model).toBe('google:gemini-2.5-pro');
+      expect(result.metadata.model).toBe(MODEL_LABEL);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
       expect(result.metadata.tokenUsage.inputTokens).toBe(200);
       expect(result.metadata.tokenUsage.outputTokens).toBe(150);
@@ -145,7 +151,7 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
           scaffolding_needed: 'Pre-teach advanced vocabulary; Provide background context',
           reasoning: 'Detailed reasoning about grade appropriateness',
         },
-        model: 'gemini-2.5-pro',
+        model: DECLARED.name,
         usage: { inputTokens: 200, outputTokens: 150 },
         latencyMs: 800,
       });
@@ -172,7 +178,7 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toHaveProperty('processingTimeMs');
 
       // Verify metadata values
-      expect(result.metadata.model).toBe('google:gemini-2.5-pro');
+      expect(result.metadata.model).toBe(MODEL_LABEL);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
       expect(result.metadata.tokenUsage.inputTokens).toBe(200);
       expect(result.metadata.tokenUsage.outputTokens).toBe(150);

@@ -256,7 +256,7 @@
         },
       ],
       gradeBandDistribution: {
-        bands: ['K-1', '2-3', '4-5', '6-8', '9-10', '11-CCR'],
+        bands: ['K-1', '2-3', '4-5', '6-8', '9-10', '11-12'],
         data: [
           { onBand: 0,  adjacent: 0,  offTarget: 0,  total: 0  },
           { onBand: 32, adjacent: 18, offTarget: 5,  total: 55 },
@@ -267,7 +267,7 @@
         ],
       },
       complexityHeatmap: {
-        bands: ['K-1', '2-3', '4-5', '6-8', '9-10', '11-CCR'],
+        bands: ['K-1', '2-3', '4-5', '6-8', '9-10', '11-12'],
         evaluators: ['Background Knowledge Demands Evaluator', 'Vocabulary Complexity Evaluator', 'Sentence Structure Evaluator', 'Meaning Directness Evaluator'],
         evaluatorIds: ['student_facing_text.ela_reading.background_knowledge_demands', 'student_facing_text.ela_reading.vocabulary_complexity', 'student_facing_text.ela_reading.sentence_structure', 'student_facing_text.ela_reading.meaning_directness'],
         values: [
@@ -325,7 +325,7 @@
           {
             row_id: '3', grade: '8', source: 'biology_unit_2',
             text: 'The mitochondria, often described as the powerhouse of the cell, are organelles found in the cytoplasm of eukaryotic cells, where they generate most of the adenosine triphosphate used for cellular energy.',
-            __gla_status: 'Off Target', __gla_band: '11-CCR',
+            __gla_status: 'Off Target', __gla_band: '11-12',
             __gla_reasoning: 'Text uses advanced biochemical terminology (adenosine triphosphate, eukaryotic) more appropriate for upper secondary or college-level readers.',
             __subject_matter_knowledge_score: 'Very complex',
             __subject_matter_knowledge_reasoning: 'Assumes familiarity with cell biology, organelle function, and biochemical energy systems well beyond typical grade 8 expectations.',
@@ -381,8 +381,8 @@
           {
             row_id: '7', grade: '11', source: 'lit_unit_4',
             text: 'Shakespeare\'s use of dramatic irony in Othello functions as a mechanism of tragic inevitability, positioning the audience as unwilling witnesses to the protagonist\'s epistemological collapse.',
-            __gla_status: 'On Band', __gla_band: '11-CCR',
-            __gla_reasoning: 'Sophisticated literary analysis vocabulary and complex syntax are well-suited to grades 11–CCR.',
+            __gla_status: 'On Band', __gla_band: '11-12',
+            __gla_reasoning: 'Sophisticated literary analysis vocabulary and complex syntax are well-suited to grades 11–12.',
             __subject_matter_knowledge_score: 'Exceedingly complex',
             __subject_matter_knowledge_reasoning: 'Requires familiarity with Shakespearean drama, literary theory, and epistemological concepts; assumes high prior exposure to canonical literature.',
             __vocabulary_score: 'Exceedingly complex',
