@@ -3,7 +3,15 @@
 #   _generated_*.py  →  make generate-settings
 #   contracts.toml   →  notebook/contract capture + make sync-settings (bundled copy)
 #   kg-api.d.ts      →  npm run generate:kg-types (sdks/typescript)
+#   src/schemas/...  →  npm run generate:schemas (sdks/typescript)
+#
+# The schema modules are listed one by one because generated and hand-written ones share
+# a directory during the migration; a glob would collapse the hand-written ones too. A
+# unit test keeps this list equal to the set of modules carrying the GENERATED marker.
 sdks/python/src/learning_commons_evaluators/settings/_generated_*.py linguist-generated=true
 sdks/python/src/learning_commons_evaluators/settings/**/contracts.toml linguist-generated=true
 sdks/settings/**/contracts.toml linguist-generated=true
 sdks/typescript/src/knowledge-graph/kg-api.d.ts linguist-generated=true
+sdks/typescript/src/schemas/student-facing-text/ela-reading/organizational-structure.ts linguist-generated=true
+sdks/typescript/src/schemas/student-facing-text/ela-reading/purpose-clarity.ts linguist-generated=true
+sdks/typescript/src/schemas/student-facing-text/ela-reading/reference-knowledge-demands.ts linguist-generated=true

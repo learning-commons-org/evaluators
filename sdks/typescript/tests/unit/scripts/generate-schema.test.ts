@@ -1,10 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync, execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { resolve, dirname, join } from 'node:path';
+import { resolve, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveRefs, toPascalCase, generateSchemaFile } from '../../../scripts/generate-schema.js';
+import {
+  resolveRefs,
+  toPascalCase,
+  generateSchemaFile,
+  discoverContracts,
+  generatedContracts,
+  GENERATED_MARKER,
+} from '../../../scripts/generate-schema.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SDK_ROOT = resolve(__dirname, '../../..');
@@ -270,5 +277,81 @@ describe('generateSchemaFile against real contracts', () => {
     );
 
     expect(content).toContain('export const PurposeClarityOutputSchema');
+  });
+});
+
+// --- discovery ---
+//
+// `--all` replaces a hand-maintained list of contracts, so what it finds is worth
+// pinning: a contract it silently skips is a file CI stops checking.
+
+describe('discovery', () => {
+  const REPO_ROOT = resolve(SDK_ROOT, '../..');
+
+  it('finds every contract in the repo, and only contracts', () => {
+    // Compared against an independent walk rather than a count: the wrong set of paths
+    // with the right length would otherwise pass.
+    const expected = execFileSync(
+      'find',
+      ['evals', '-mindepth', '4', '-maxdepth', '4', '-name', 'config.json'],
+      { cwd: REPO_ROOT, encoding: 'utf-8' },
+    )
+      .trim()
+      .split('\n')
+      .map((p) => resolve(REPO_ROOT, p))
+      .sort();
+
+    expect(discoverContracts()).toEqual(expected);
+  });
+
+  it('selects exactly the modules carrying the generated marker', () => {
+    // The marker is the only record of which modules are generated. If this drifts,
+    // --all either skips a generated file or reports drift nobody can act on.
+    const selected = generatedContracts().map((configPath) =>
+      readFileSync(generateSchemaFile(configPath).outPath, 'utf-8'),
+    );
+
+    expect(selected.length).toBeGreaterThan(0);
+    expect(selected.every((content) => content.startsWith(GENERATED_MARKER))).toBe(true);
+  });
+
+  it('skips every contract whose module is hand-written', () => {
+    const generated = new Set(generatedContracts());
+    const skipped = discoverContracts().filter((p) => !generated.has(p));
+
+    for (const configPath of skipped) {
+      let outPath: string;
+      try {
+        ({ outPath } = generateSchemaFile(configPath));
+      } catch {
+        continue;
+      }
+      if (!existsSync(outPath)) continue;
+      expect(readFileSync(outPath, 'utf-8').startsWith(GENERATED_MARKER)).toBe(false);
+    }
+  });
+
+  it('writes the marker it discovers by', () => {
+    const { content } = generateSchemaFile(PURPOSE_CONFIG);
+
+    expect(content.startsWith(GENERATED_MARKER)).toBe(true);
+  });
+
+  it('marks every generated module as generated in .gitattributes', () => {
+    // Two lists that must agree: git reads .gitattributes statically, so it cannot be
+    // derived. This makes a missing entry fail instead of quietly showing in diffs.
+    const attributes = readFileSync(resolve(REPO_ROOT, '.gitattributes'), 'utf-8');
+    const marked = new Set(
+      attributes
+        .split('\n')
+        .filter((line) => line.includes('src/schemas/') && line.includes('linguist-generated=true'))
+        .map((line) => line.split(' ')[0]),
+    );
+
+    const expected = generatedContracts().map((configPath) =>
+      relative(REPO_ROOT, generateSchemaFile(configPath).outPath),
+    );
+
+    expect([...marked].sort()).toEqual([...expected].sort());
   });
 });

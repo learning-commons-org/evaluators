@@ -28,8 +28,8 @@
     "src/batch/README.md"
   ],
   "scripts": {
-    "generate:schemas": "tsx scripts/generate-schema.ts ../../evals/student-facing-text/ela-reading/organizational-structure/config.json ../../evals/student-facing-text/ela-reading/purpose-clarity/config.json ../../evals/student-facing-text/ela-reading/reference-knowledge-demands/config.json",
-    "generate:schemas:check": "tsx scripts/generate-schema.ts --check ../../evals/student-facing-text/ela-reading/organizational-structure/config.json ../../evals/student-facing-text/ela-reading/purpose-clarity/config.json ../../evals/student-facing-text/ela-reading/reference-knowledge-demands/config.json",
+    "generate:schemas": "tsx scripts/generate-schema.ts --all",
+    "generate:schemas:check": "tsx scripts/generate-schema.ts --all --check",
     "generate:kg-types": "openapi-typescript https://docs.learningcommons.org/api-reference/knowledge-graph-api/openapi.yaml -o src/knowledge-graph/kg-api.d.ts",
     "build": "tsup",
     "dev": "tsup --watch",
