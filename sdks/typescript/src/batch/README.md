@@ -27,13 +27,13 @@ evaluators-batch corpus.csv \
   --output-dir ./out --yes
 
 # Run only some members of a family (avoids paying for evaluators you don't need)
-evaluators-batch texts.csv --family text-complexity --evaluator vocabulary,conventionality --yes
+evaluators-batch texts.csv --family text-complexity --evaluator student_facing_text.ela_reading.vocabulary_complexity --yes
 
 # Model override: a shortcode (haiku, opus) or provider:model
 evaluators-batch texts.csv --family text-complexity --model anthropic:claude-opus-4-8 --yes
 ```
 
-`-y`/`--yes` (or the absence of a TTY, e.g. CI) enables non-interactive mode: no prompts, and a clear error on any missing required input. Each run writes `results.csv`, `results.json`, and `results.html` to the output directory. The `math-standards-alignment` report is a verdict browser (per-item aligned/total with expandable per-component reasoning); the JSON carries full per-component detail plus each row's original columns so results join back to the source corpus.
+`-y`/`--yes` (or the absence of a TTY, e.g. CI) enables non-interactive mode: no prompts, and a clear error on any missing required input. Each run writes `results.csv` and `results.json`; `text-complexity` and `math-standards-alignment` also write `results.html`. The `math-standards-alignment` report is a verdict browser (per-item aligned/total with expandable per-component reasoning); the JSON carries full per-component detail plus each row's original columns so results join back to the source corpus.
 
 Run `evaluators-batch --help` for the full flag list.
 

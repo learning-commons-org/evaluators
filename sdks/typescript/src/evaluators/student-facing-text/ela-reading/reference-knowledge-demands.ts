@@ -15,8 +15,8 @@ export type ReferenceKnowledgeDemandsInput = InputsOf<typeof INPUT_SCHEMA>;
  * Evaluates reference knowledge demands in student-facing text.
  *
  * One model call, so the flow comes from {@link defineSingleStepEvaluator} and
- * everything that varies — model, temperature, grades, preprocessing, prompt inputs —
- * is read from `config.json`.
+ * model, temperature, preprocessing and prompt inputs come from `config.json`; the
+ * accepted inputs and grades come from `input_schema.json`.
  *
  * @throws {InputValidationError} If an input is missing, unknown, or outside the bounds its schema declares
  * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects

@@ -91,7 +91,8 @@ API Keys (flag > env var; prompted when interactive, required otherwise):
 
 Output:
   --output-dir <path>        Write results here (default: ./batch-results-<timestamp>)
-                             Produces results.csv, results.json, results.html
+                             Produces results.csv and results.json, plus results.html
+                             for families with a report (text-complexity, standards)
 
 Evaluation:
   --concurrency <n>          Max parallel evaluations (default: 3)

@@ -67,9 +67,9 @@ type NormalizedTelemetryOptions = Required<Pick<TelemetryOptions, 'enabled' | 'r
  * - The override is evaluator-wide, not per call site. `VocabularyComplexityEvaluator`
  *   deliberately uses three models (Gemini 2.5 Pro for grade levels 3-4, GPT-4.1 for
  *   5-12, GPT-4o for background knowledge); an override collapses all three.
- * - `PurposeClarityEvaluator` takes its model from the shared cross-language eval config
- *   (`evals/student-facing-text/ela-reading/purpose-clarity/config.json`), so overriding it diverges from that
- *   rather than from a hardcoded default.
+ * - Every evaluator on `defineSingleStepEvaluator` takes its model from its own contract
+ *   (`evals/<domain>/<skill>/<evaluator>/config.json`), so an override diverges from the
+ *   shared cross-language config rather than from an SDK default.
  */
 export interface ModelOverride {
   provider: Provider;
@@ -129,7 +129,7 @@ export interface BaseEvaluatorConfig {
   maxRetries?: number;
 
   /**
-   * Telemetry configuration (default: all enabled)
+   * Telemetry configuration (default: enabled, without input recording)
    *
    * Can be:
    * - `true`: Enable with defaults (recordInputs: false)
@@ -200,11 +200,11 @@ export interface EvaluatorMetadata {
 /**
  * Abstract base class for all evaluators
  *
- * Provides common functionality:
- * - Telemetry setup and event sending
- * - Text validation
- * - Grade validation (with overridable default)
- * - Metadata creation
+ * Provides credential and modelOverride validation, provider construction, telemetry, and
+ * grade-level validation for the bulk math paths that still need it.
+ *
+ * Input validation lives in `inputs.ts` (`validateInputs`), driven by each contract's
+ * `input_schema.json`; metadata is a static block each evaluator declares.
  *
  * Concrete evaluators must implement:
  * - static metadata: Provide evaluator metadata (see EvaluatorMetadata interface)
@@ -230,7 +230,9 @@ export abstract class BaseEvaluator {
    * ```typescript
    * class MyEvaluator extends BaseEvaluator {
    *   static readonly metadata = {
-   *     id: 'my-evaluator',
+   *     id: 'student_facing_text.ela_reading.my_evaluator',
+   *     stableId: '00000000-0000-0000-0000-000000000000',
+   *     idHistory: [],
    *     name: 'My Evaluator',
    *     description: 'Does something useful',
    *     supportedGrades: ['3', '4', '5'],
@@ -451,7 +453,7 @@ export abstract class BaseEvaluator {
 
   /**
    * Get the evaluator type identifier from metadata
-   * @returns The evaluator type ID (e.g., "vocabulary", "sentence-structure")
+   * @returns The dotted registry id, e.g. "student_facing_text.ela_reading.sentence_structure"
    */
   protected getEvaluatorType(): string {
     return this.metadata.id;

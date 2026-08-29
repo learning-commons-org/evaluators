@@ -215,7 +215,8 @@
     // ---------------------------------------------------------------------------
     // MOCK DATA — used when the template is opened directly in a browser so
     // designers can see a realistic preview without running the CLI.
-    // This constant is never referenced when real data has been injected.
+    // Still referenced by the `REPORT_DATA || MOCK_REPORT_DATA` fallback below, so a
+    // null payload would render this mock as if it were results.
     // ---------------------------------------------------------------------------
     const MOCK_REPORT_DATA = {
       meta: {
@@ -418,7 +419,7 @@
     REPORT_DATA = REPORT_DATA || MOCK_REPORT_DATA;
 
     // ---------------------------------------------------------------------------
-    // Canonical evaluator order
+    // Report column order. Ids absent from this list sort last — add new members here.
     // ---------------------------------------------------------------------------
 
     const EVALUATOR_ORDER = [

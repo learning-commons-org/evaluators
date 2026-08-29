@@ -111,7 +111,7 @@ beforeEach(() => {
 });
 
 describe('functional API wrappers', () => {
-  // Each takes (text, gradeLevel, config) and must reach the LLM with both.
+  // Each takes ({ text, grade_level }, config); both inputs must reach the LLM.
   it.each([
     ['evaluateMeaningDirectness', evaluateMeaningDirectness],
     ['evaluateReferenceKnowledgeDemands', evaluateReferenceKnowledgeDemands],
@@ -155,7 +155,7 @@ describe('functional API wrappers — feedback family', () => {
   const STUDENT_TEXT = 'My dog is brown. He runs fast. I like him a lot.';
   const FEEDBACK_TEXT = 'Try adding a topic sentence so the reader knows your argument.';
 
-  // These take (student_text, feedback_text, config): two texts and no grade, so a
+  // These take ({ student_text, feedback_text }, config): two texts and no grade, so a
   // wrapper that dropped or swapped one would still produce a result.
   it.each([
     ['evaluateRevisionAccuracy', evaluateRevisionAccuracy],

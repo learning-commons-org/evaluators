@@ -25,7 +25,7 @@ export enum LogLevel {
  * Context object for structured logging
  */
 export interface LogContext {
-  /** Evaluator type (vocabulary, sentence-structure, etc.) */
+  /** The evaluator's registry id, e.g. "student_facing_text.ela_reading.sentence_structure" */
   evaluator?: string;
   /** Current operation or stage */
   operation?: string;
@@ -58,28 +58,12 @@ export interface LogContext {
  * ```
  */
 export interface Logger {
-  /**
-   * Log debug message
-   * Used for detailed debugging information
-   */
   debug(message: string, context?: LogContext): void;
 
-  /**
-   * Log informational message
-   * Used for normal operations
-   */
   info(message: string, context?: LogContext): void;
 
-  /**
-   * Log warning message
-   * Used for potentially problematic situations
-   */
   warn(message: string, context?: LogContext): void;
 
-  /**
-   * Log error message
-   * Used for errors that need attention
-   */
   error(message: string, context?: LogContext): void;
 }
 
@@ -132,17 +116,14 @@ class SilentLogger implements Logger {
  * @returns Logger instance
  */
 export function createLogger(customLogger?: Logger, level: LogLevel = LogLevel.WARN): Logger {
-  // Use custom logger if provided
   if (customLogger) {
     return customLogger;
   }
 
-  // Use silent logger if level is SILENT
   if (level === LogLevel.SILENT) {
     return new SilentLogger();
   }
 
-  // Use console logger with specified level
   return new ConsoleLogger(level);
 }
 

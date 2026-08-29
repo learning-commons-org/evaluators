@@ -103,10 +103,9 @@ function vendorOf(step: { model: { provider: string } }, name: string): Provider
 /**
  * Builds the evaluator class for a contract with one model call.
  *
- * The flow below — validate, preprocess, render, call, envelope, telemetry, error wrap —
- * was written out once per evaluator, which is how two copies of it came to disagree.
- * Anything that varies is read from the contract rather than passed in, so an evaluator
- * cannot drift from what its contract declares.
+ * The flow: validate, preprocess, render, call, envelope, telemetry, error wrap. Anything
+ * that varies is read from the contract rather than passed in, so an evaluator cannot
+ * drift from what its contract declares.
  *
  * @example
  * ```typescript

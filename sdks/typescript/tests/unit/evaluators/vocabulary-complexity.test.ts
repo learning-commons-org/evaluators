@@ -3,18 +3,6 @@ import { VocabularyComplexityEvaluator } from '../../../src/evaluators/student-f
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
-/**
- * Comprehensive unit tests for VocabularyComplexityEvaluator
- *
- * These tests verify:
- * - Constructor validation
- * - Successful evaluation flow (both stages)
- * - Error handling (LLM failures, validation errors)
- * - Telemetry behavior (success/error cases)
- * - Token usage aggregation
- * - Edge cases
- */
-
 // Mock providers
 const createMockProvider = (config?: { type?: string; model?: string }): LLMProvider => ({
   label: config?.type && config?.model ? `${config.type}:${config.model}` : 'mock:model',

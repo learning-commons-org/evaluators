@@ -7,10 +7,7 @@
  */
 import { z } from 'zod';
 
-/**
- * Stage 1: Detailed sentence analysis output (40+ metrics)
- * Ported from Python SentenceAnalysesEvaluatorOutput
- */
+/** Step 1's raw sentence analysis, as the model returns it. */
 export const SentenceAnalysisSchema = z.object({
   reasoning: z.string().describe('Step-by-step reasoning for the analysis'),
 

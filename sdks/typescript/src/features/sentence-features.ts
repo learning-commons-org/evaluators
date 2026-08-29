@@ -57,7 +57,6 @@ function categorizeSentenceLengths(wordCounts: number[]) {
 
 /**
  * Add engineered features to sentence analysis output
- * Ported from Python add_engineered_features function
  */
 export function addEngineeredFeatures(analysis: SentenceAnalysis): SentenceFeatures {
   const numSentences = analysis.num_sentences;
@@ -205,7 +204,6 @@ export const FEATURE_COLS = [
 
 /**
  * Convert sentence features to JSON string for LLM prompt
- * Ported from Python row_to_features_json
  */
 export function featuresToJSON(
   features: SentenceFeatures,

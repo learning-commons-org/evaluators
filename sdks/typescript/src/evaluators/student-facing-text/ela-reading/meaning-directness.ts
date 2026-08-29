@@ -31,7 +31,10 @@ export type MeaningDirectnessInput = InputsOf<typeof INPUT_SCHEMA>;
  *   googleApiKey: process.env.GOOGLE_API_KEY
  * });
  *
- * const result = await evaluator.evaluate({ text, grade_level: '6' });
+ * const result = await evaluator.evaluate({
+ *   text: 'The author uses sustained irony to critique societal norms.',
+ *   grade_level: '10',
+ * });
  * console.log(result.result.complexity_score); // "moderately_complex"
  * console.log(result.result.reasoning);
  * ```
@@ -60,7 +63,7 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
   }
 
   /**
-   * Evaluate conventionality complexity for a given text and grade level
+   * Evaluate meaning directness for a text at a grade level
    *
    * @param input - The inputs declared in this evaluator's `input_schema.json`
    * @returns Evaluation result with complexity score and detailed analysis
@@ -108,7 +111,6 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
 
       const latencyMs = Date.now() - startTime;
 
-      // Aggregate token usage
       const totalTokenUsage = {
         input_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.input_tokens || 0), 0),
         output_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.output_tokens || 0), 0),
@@ -127,7 +129,6 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
         },
       };
 
-      // Send success telemetry (fire-and-forget)
       this.sendTelemetry({
         status: 'success',
         latencyMs,
@@ -140,7 +141,6 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
         },
         inputText: text,
       }).catch(() => {
-        // Ignore telemetry errors
       });
 
       this.logger.info('Meaning Directness evaluation completed successfully', {
@@ -180,7 +180,6 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,
         inputText: text,
       }).catch(() => {
-        // Ignore telemetry errors
       });
 
       if (error instanceof EvaluatorError) {
@@ -222,9 +221,8 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
  * @example
  * ```typescript
  * const result = await evaluateMeaningDirectness(
- *   "The author uses sustained irony to critique societal norms.",
- *   "10",
- *   { googleApiKey: process.env.GOOGLE_API_KEY }
+ *   { text: 'The author uses sustained irony to critique societal norms.', grade_level: '10' },
+ *   { googleApiKey: process.env.GOOGLE_API_KEY },
  * );
  * ```
  */

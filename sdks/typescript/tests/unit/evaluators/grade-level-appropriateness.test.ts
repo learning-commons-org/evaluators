@@ -9,17 +9,6 @@ import CONFIG from '../../../../../evals/student-facing-text/ela-reading/grade-l
 const DECLARED = CONFIG.steps[0].model;
 const MODEL_LABEL = `${DECLARED.provider}:${DECLARED.name}`;
 
-/**
- * Comprehensive unit tests for GradeLevelAppropriatenessEvaluator
- *
- * These tests verify:
- * - Constructor validation
- * - Successful evaluation flow (single stage)
- * - Error handling (LLM failures)
- * - Telemetry behavior
- * - Response structure
- */
-
 // Mock providers
 const createMockProvider = (config?: { type?: string; model?: string }): LLMProvider => ({
   label: config?.type && config?.model ? `${config.type}:${config.model}` : 'mock:model',
@@ -167,7 +156,6 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       // Verify score is the grade string
       expect(result.result.grade_band).toBe('9-10');
 
-      // Verify _internal structure (GradeLevelAppropriateness)
       expect(result.result).toHaveProperty('grade_band');
       expect(result.result).toHaveProperty('alternative_grade_band');
       expect(result.result).toHaveProperty('scaffolding_needed');
@@ -183,7 +171,6 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result.metadata.tokenUsage.inputTokens).toBe(200);
       expect(result.metadata.tokenUsage.outputTokens).toBe(150);
 
-      // Verify _internal values
       expect(result.result!.grade_band).toBe('9-10');
       expect(result.result!.alternative_grade_band).toBe('6-8');
       expect(result.result!.scaffolding_needed).toBeTruthy();

@@ -31,7 +31,10 @@ export type BackgroundKnowledgeDemandsInput = InputsOf<typeof INPUT_SCHEMA>;
  *   googleApiKey: process.env.GOOGLE_API_KEY
  * });
  *
- * const result = await evaluator.evaluate({ text, grade_level: '6' });
+ * const result = await evaluator.evaluate({
+ *   text: 'Hydraulic propulsion works by sucking water at the bow and forcing it sternward.',
+ *   grade_level: '10',
+ * });
  * console.log(result.result.complexity_score); // "moderately_complex"
  * console.log(result.result.reasoning);
  * ```
@@ -60,7 +63,7 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
   }
 
   /**
-   * Evaluate subject matter knowledge complexity for a given text and grade level
+   * Evaluate background knowledge demands for a text at a grade level
    *
    * @param input - The inputs declared in this evaluator's `input_schema.json`
    * @returns Evaluation result with complexity score and detailed analysis
@@ -108,7 +111,6 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
 
       const latencyMs = Date.now() - startTime;
 
-      // Aggregate token usage
       const totalTokenUsage = {
         input_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.input_tokens || 0), 0),
         output_tokens: stageDetails.reduce((sum, s) => sum + (s.token_usage?.output_tokens || 0), 0),
@@ -127,7 +129,6 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
         },
       };
 
-      // Send success telemetry (fire-and-forget)
       this.sendTelemetry({
         status: 'success',
         latencyMs,
@@ -140,7 +141,6 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
         },
         inputText: text,
       }).catch(() => {
-        // Ignore telemetry errors
       });
 
       this.logger.info('Background Knowledge Demands evaluation completed successfully', {
@@ -180,7 +180,6 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,
         inputText: text,
       }).catch(() => {
-        // Ignore telemetry errors
       });
 
       if (error instanceof EvaluatorError) {
@@ -192,7 +191,7 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
   }
 
   /**
-   * Run the SMK evaluation LLM call
+   * Run the background-knowledge-demands LLM call
    */
   private async evaluateBackgroundKnowledgeDemands(
     text: string,
@@ -217,14 +216,13 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
 }
 
 /**
- * Functional API for SMK evaluation
+ * Functional API for background knowledge demands
  *
  * @example
  * ```typescript
  * const result = await evaluateBackgroundKnowledgeDemands(
- *   "Hydraulic propulsion works by sucking water at the bow and forcing it sternward.",
- *   "10",
- *   { googleApiKey: process.env.GOOGLE_API_KEY }
+ *   { text: 'Hydraulic propulsion works by sucking water at the bow and forcing it sternward.', grade_level: '10' },
+ *   { googleApiKey: process.env.GOOGLE_API_KEY },
  * );
  * ```
  */

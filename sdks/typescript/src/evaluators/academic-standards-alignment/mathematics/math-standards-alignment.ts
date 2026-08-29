@@ -140,8 +140,8 @@ export interface MathStandardsAlignmentEvaluatorConfig extends BaseEvaluatorConf
   /** Max concurrent KG HTTP calls (default: 20) */
   kgConcurrency?: number;
   /**
-   * Override the Anthropic model used for evaluation (default: claude-haiku-4-5-20251001).
-   * Also used for the coarse filter unless coarseFilterModel is set separately.
+   * Model for the coarse pre-filter only. Defaults to the detail model the contract
+   * declares; `modelOverride` replaces both.
    */
   coarseFilterModel?: string;
   /** @internal Test seam — inject a pre-built client without a real API key */
