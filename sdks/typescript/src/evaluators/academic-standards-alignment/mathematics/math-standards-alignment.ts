@@ -6,6 +6,7 @@ import {
   CoarseFilterSchema,
 } from '../../../schemas/academic-standards-alignment/mathematics/math-standards-alignment.js';
 import {
+  COARSE_STEP,
   getSystemPrompt,
   getUserPrompt,
   getCoarseFilterPrompt,
@@ -140,8 +141,8 @@ export interface MathStandardsAlignmentEvaluatorConfig extends BaseEvaluatorConf
   /** Max concurrent KG HTTP calls (default: 20) */
   kgConcurrency?: number;
   /**
-   * Model for the coarse pre-filter only. Defaults to the detail model the contract
-   * declares; `modelOverride` replaces both.
+   * Model for the coarse pre-filter only. Defaults to the model its own step declares in
+   * `config.json`; `modelOverride` replaces both.
    */
   coarseFilterModel?: string;
   /** @internal Test seam — inject a pre-built client without a real API key */
@@ -154,6 +155,8 @@ export interface MathStandardsAlignmentEvaluatorConfig extends BaseEvaluatorConf
 
 const DETAIL_MODEL: string = STEP.model.name;
 const TEMPERATURE: number | null = STEP.generation.temperature;
+const COARSE_MODEL: string = COARSE_STEP.model.name;
+const COARSE_TEMPERATURE: number | null = COARSE_STEP.generation.temperature;
 const KG_SUBJECT = 'Mathematics';
 /**
  * Above this many question/standard pairs, evaluateByGradeLevel warns. A grade level can carry
@@ -222,7 +225,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 
     this.coarseProvider = this.createConfiguredProvider(
       Provider.Anthropic,
-      config.coarseFilterModel ?? DETAIL_MODEL,
+      config.coarseFilterModel ?? COARSE_MODEL,
       config.anthropicApiKey,
     );
   }
@@ -636,7 +639,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
           { role: 'user', content: getCoarseFilterPrompt({ question, standards: standardList }) },
         ],
         schema: CoarseFilterSchema,
-        temperature: TEMPERATURE,
+        temperature: COARSE_TEMPERATURE,
       });
 
       const relevant = new Set<string>();
