@@ -16,6 +16,7 @@ import {
 } from '../../src/evaluators/index.js';
 import { InputValidationError } from '../../src/errors.js';
 import { readOutcome } from '../../src/schemas/outcome.js';
+import { runPreprocessingStep } from '../../src/features/preprocessing.js';
 import type { EvaluationResult } from '../../src/schemas/index.js';
 import { BackgroundKnowledgeDemandsOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/background-knowledge-demands.js';
 import { GradeLevelAppropriatenessOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
@@ -48,7 +49,7 @@ import {
 const constructed: Array<{ type: string; model: string }> = [];
 
 /** Records the generation settings of every LLM call an evaluator makes. */
-const llmCalls: Array<{ temperature?: number }> = [];
+const llmCalls: Array<{ temperature?: number; messages?: Array<{ role: string; content: string }> }> = [];
 
 vi.mock('../../src/providers/index.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
@@ -58,8 +59,8 @@ vi.mock('../../src/providers/index.js', async (importOriginal) => {
       constructed.push({ type: config.type, model: config.model });
       return {
         label: `${config.type}:${config.model}`,
-        generateStructured: vi.fn(async (request: { temperature?: number }) => {
-          llmCalls.push({ temperature: request.temperature });
+        generateStructured: vi.fn(async (request: { temperature?: number; messages?: Array<{ role: string; content: string }> }) => {
+          llmCalls.push({ temperature: request.temperature, messages: request.messages });
           return {
             data: {},
             model: config.model,
@@ -198,6 +199,19 @@ const RESULT_NAME_GAPS = new Set<string>([
 ]);
 
 /**
+ * Evaluators that do not compute a declared preprocessing step the way the contract says.
+ */
+const PREPROCESSING_GAPS = new Set<string>([
+  // Both call the hand-rolled compromise+syllable `calculateFleschKincaidGrade` instead of
+  // the declared `text-readability.fleschKincaidGrade`. The two disagree — on the fixture
+  // corpus the declared library is the less accurate of the two against Python's textstat
+  // (mean error 1.394 vs 0.273), so which one the contract should declare is still open.
+  BKD_ID,
+  MD_ID,
+  VocabularyComplexityEvaluator.metadata.id,
+]);
+
+/**
  * Evaluators whose schema rejects the values its own contract fixtures record.
  */
 const FIXTURE_VALUE_GAPS = new Set<string>([
@@ -251,6 +265,16 @@ interface Contract {
       model: { provider: string; name: string };
       generation?: { temperature?: number };
       optional?: boolean;
+    }>;
+    preprocessing?: Array<{
+      id: string;
+      implementation?: {
+        typescript?: {
+          library: string;
+          function: string;
+          post_transform?: { type: string; precision?: number };
+        };
+      };
     }>;
     outcome?: { score: string; reasoning: string };
   };
@@ -727,6 +751,59 @@ describe('the reported model matches the contract steps that apply', () => {
     })) as { metadata: { model: string } };
 
     expect(result.metadata.model, `${E.metadata.name} at grade ${grade}`).toBe(expected);
+  });
+});
+
+describe('every declared preprocessing value reaches the prompt', () => {
+  // Preprocessing feeds a number into a sha256-pinned prompt, so a step that silently
+  // stops running, or runs a different implementation, changes what the model is asked
+  // without changing anything a schema or a hash would notice.
+  const withPreprocessing = cases.filter(({ E }) => {
+    if (!INVOKE[E.metadata.id]) return false;
+    // Sentence Structure's first stage reads array fields off the model response, and the
+    // shared mock returns `data: {}`, so it throws before any prompt is built. Its
+    // preprocessing declares libraries the registry does not have either — see
+    // PREPROCESSING_GAPS for the same divergence in the evaluators that can be driven.
+    if (E.metadata.id === SENTENCE_ID) return false;
+    return (contractFor(E.metadata.id).config.preprocessing ?? []).length > 0;
+  });
+
+  it('finds evaluators with declared preprocessing', () => {
+    expect(withPreprocessing.length).toBeGreaterThan(0);
+  });
+
+  const TEXT =
+    'A thousand years ago boys and girls did not learn to read. Books were scarce and ' +
+    'precious, and only a few men could read them. Each book was written by hand.';
+
+  it.each(withPreprocessing)('$name', async ({ E }) => {
+    const { config } = contractFor(E.metadata.id);
+    llmCalls.length = 0;
+
+    await INVOKE[E.metadata.id](E, TEXT);
+
+    const prompts = llmCalls.flatMap((c) => (c.messages ?? []).map((m) => m.content)).join('\n');
+
+    const missing = (config.preprocessing ?? [])
+      .flatMap((step) => {
+        const impl = step.implementation?.typescript;
+        if (!impl) return [];
+        const value = String(runPreprocessingStep(TEXT, impl));
+        return prompts.includes(value) ? [] : [step];
+      })
+      .map((step) => step.id);
+
+    if (PREPROCESSING_GAPS.has(E.metadata.id)) {
+      expect(
+        missing,
+        `${E.metadata.name} now matches its declared preprocessing — drop it from PREPROCESSING_GAPS`,
+      ).not.toEqual([]);
+      return;
+    }
+
+    expect(missing, `${E.metadata.name}: declared preprocessing absent from the prompt`).toEqual([]);
+    // A placeholder left in the prompt means substitution silently did not happen.
+    expect(prompts, `${E.metadata.name}: unsubstituted placeholder`).not.toMatch(/\{[a-z_]+\}/);
   });
 });
 
