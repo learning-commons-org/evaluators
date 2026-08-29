@@ -47,7 +47,10 @@ export interface BackgroundKnowledge {
  *   openaiApiKey: process.env.OPENAI_API_KEY
  * });
  *
- * const result = await evaluator.evaluate({ text, grade_level: '3' });
+ * const result = await evaluator.evaluate({
+ *   text: 'The mitochondria is the powerhouse of the cell.',
+ *   grade_level: '3',
+ * });
  * console.log(result.result.complexity_score); // "moderately_complex"
  * console.log(result.result.reasoning);
  * ```
@@ -327,7 +330,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
  * @example
  * ```typescript
  * const result = await evaluateVocabularyComplexity(
- *   { text, grade_level: '3' },
+ *   { text: 'The mitochondria is the powerhouse of the cell.', grade_level: '3' },
  *   { googleApiKey: process.env.GOOGLE_API_KEY,
  *     openaiApiKey: process.env.OPENAI_API_KEY },
  * );

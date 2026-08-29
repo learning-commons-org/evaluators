@@ -49,7 +49,10 @@ export type SentenceStructureInput = InputsOf<typeof INPUT_SCHEMA>;
  *   openaiApiKey: process.env.OPENAI_API_KEY,
  * });
  *
- * const result = await evaluator.evaluate({ text, grade_level: '3' });
+ * const result = await evaluator.evaluate({
+ *   text: 'The cat sat on the mat. It was sleeping peacefully.',
+ *   grade_level: '3',
+ * });
  * console.log(result.result.complexity_score); // "moderately_complex"
  * console.log(result.result.reasoning);
  * ```
@@ -300,7 +303,7 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
  * @example
  * ```typescript
  * const result = await evaluateSentenceStructure(
- *   { text, grade_level: '3' },
+ *   { text: 'The cat sat on the mat. It was sleeping peacefully.', grade_level: '3' },
  *   { openaiApiKey: process.env.OPENAI_API_KEY },
  * );
  * ```

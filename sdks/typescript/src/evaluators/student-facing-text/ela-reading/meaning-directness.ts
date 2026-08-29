@@ -31,7 +31,10 @@ export type MeaningDirectnessInput = InputsOf<typeof INPUT_SCHEMA>;
  *   googleApiKey: process.env.GOOGLE_API_KEY
  * });
  *
- * const result = await evaluator.evaluate({ text, grade_level: '6' });
+ * const result = await evaluator.evaluate({
+ *   text: 'The author uses sustained irony to critique societal norms.',
+ *   grade_level: '10',
+ * });
  * console.log(result.result.complexity_score); // "moderately_complex"
  * console.log(result.result.reasoning);
  * ```
@@ -218,7 +221,7 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
  * @example
  * ```typescript
  * const result = await evaluateMeaningDirectness(
- *   { text, grade_level: '10' },
+ *   { text: 'The author uses sustained irony to critique societal norms.', grade_level: '10' },
  *   { googleApiKey: process.env.GOOGLE_API_KEY },
  * );
  * ```

@@ -31,7 +31,10 @@ export type BackgroundKnowledgeDemandsInput = InputsOf<typeof INPUT_SCHEMA>;
  *   googleApiKey: process.env.GOOGLE_API_KEY
  * });
  *
- * const result = await evaluator.evaluate({ text, grade_level: '6' });
+ * const result = await evaluator.evaluate({
+ *   text: 'Hydraulic propulsion works by sucking water at the bow and forcing it sternward.',
+ *   grade_level: '10',
+ * });
  * console.log(result.result.complexity_score); // "moderately_complex"
  * console.log(result.result.reasoning);
  * ```
@@ -218,7 +221,7 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
  * @example
  * ```typescript
  * const result = await evaluateBackgroundKnowledgeDemands(
- *   { text, grade_level: '10' },
+ *   { text: 'Hydraulic propulsion works by sucking water at the bow and forcing it sternward.', grade_level: '10' },
  *   { googleApiKey: process.env.GOOGLE_API_KEY },
  * );
  * ```
