@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { BackgroundKnowledgeDemandsEvaluator } from '../../src/evaluators/background-knowledge-demands.js';
+import { BackgroundKnowledgeDemandsEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/background-knowledge-demands.js';
 import {
   runEvaluatorTest,
   type BaseTestCase,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { SentenceStructureEvaluator } from '../../../src/evaluators/sentence-structure.js';
+import { SentenceStructureEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/sentence-structure.js';
 import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import CONFIG from '../../../../../evals/student-facing-text/ela-reading/sentence-structure/config.json';

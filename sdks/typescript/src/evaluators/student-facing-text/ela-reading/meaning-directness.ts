@@ -1,15 +1,15 @@
-import type { LLMProvider } from '../providers/index.js';
-import { MeaningDirectnessOutputSchema, type MeaningDirectnessInternal } from '../schemas/meaning-directness.js';
-import { calculateFleschKincaidGrade } from '../features/index.js';
-import { getSystemPrompt, getUserPrompt } from '../prompts/meaning-directness/index.js';
-import type { EvaluationResult } from '../schemas/index.js';
-import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
-import { validateInputs, type InputsOf } from './inputs.js';
-import { declaredCredentials } from './credentials.js';
-import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/meaning-directness/input_schema.json';
-import type { StageDetail } from '../telemetry/index.js';
-import { EvaluatorError, wrapProviderError } from '../errors.js';
-import CONFIG from '../../../../evals/student-facing-text/ela-reading/meaning-directness/config.json';
+import type { LLMProvider } from '../../../providers/index.js';
+import { MeaningDirectnessOutputSchema, type MeaningDirectnessInternal } from '../../../schemas/student-facing-text/ela-reading/meaning-directness.js';
+import { calculateFleschKincaidGrade } from '../../../features/index.js';
+import { getSystemPrompt, getUserPrompt } from '../../../prompts/meaning-directness/index.js';
+import type { EvaluationResult } from '../../../schemas/index.js';
+import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../../base.js';
+import { validateInputs, type InputsOf } from '../../inputs.js';
+import { declaredCredentials } from '../../credentials.js';
+import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/meaning-directness/input_schema.json';
+import type { StageDetail } from '../../../telemetry/index.js';
+import { EvaluatorError, wrapProviderError } from '../../../errors.js';
+import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/meaning-directness/config.json';
 
 /**
  * Meaning Directness Evaluator

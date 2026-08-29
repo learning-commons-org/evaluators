@@ -1,24 +1,24 @@
 import pLimit from 'p-limit';
-import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../base.js';
-import type { LLMProvider } from '../../providers/index.js';
+import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../../base.js';
+import type { LLMProvider } from '../../../providers/index.js';
 import {
   BatchedLCEvaluationSchema,
   CoarseFilterSchema,
-} from '../../schemas/math/standards-alignment.js';
+} from '../../../schemas/academic-standards-alignment/mathematics/math-standards-alignment.js';
 import {
   getSystemPrompt,
   getUserPrompt,
   getCoarseFilterPrompt,
   STEP,
   SUPPORTED_GRADES,
-} from '../../prompts/math/standards-alignment/index.js';
-import { KnowledgeGraphClient, Jurisdiction } from '../../knowledge-graph/index.js';
-import { EvaluatorError, DependencyError, InputValidationError, LLMOutputProcessingError, wrapProviderError } from '../../errors.js';
-import type { StageDetail } from '../../telemetry/index.js';
-import CONFIG from '../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/config.json';
-import INPUT_SCHEMA from '../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/input_schema.json';
-import { validateInputs, type InputsOf } from '../inputs.js';
-import { declaredCredentials } from '../credentials.js';
+} from '../../../prompts/math/standards-alignment/index.js';
+import { KnowledgeGraphClient, Jurisdiction } from '../../../knowledge-graph/index.js';
+import { EvaluatorError, DependencyError, InputValidationError, LLMOutputProcessingError, wrapProviderError } from '../../../errors.js';
+import type { StageDetail } from '../../../telemetry/index.js';
+import CONFIG from '../../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/config.json';
+import INPUT_SCHEMA from '../../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/input_schema.json';
+import { validateInputs, type InputsOf } from '../../inputs.js';
+import { declaredCredentials } from '../../credentials.js';
 
 const EVALUATOR_ID = CONFIG.evaluator.id;
 
@@ -49,7 +49,7 @@ export type MathStandardsAlignmentInput = InputsOf<typeof INPUT_SCHEMA> & {
   jurisdiction: Jurisdiction;
 };
 
-export { Jurisdiction } from '../../knowledge-graph/index.js';
+export { Jurisdiction } from '../../../knowledge-graph/index.js';
 
 // ---------------------------------------------------------------------------
 // Public types

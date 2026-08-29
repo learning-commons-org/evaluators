@@ -1,16 +1,16 @@
-import type { LLMProvider } from '../providers/index.js';
+import type { LLMProvider } from '../../../providers/index.js';
 import {
   GradeLevelAppropriatenessOutputSchema,
   type GradeLevelAppropriatenessInternal,
-} from '../schemas/grade-level-appropriateness.js';
-import { getSystemPrompt, getUserPrompt } from '../prompts/grade-level-appropriateness/index.js';
-import type { EvaluationResult } from '../schemas/index.js';
-import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
-import { validateInputs, type InputsOf } from './inputs.js';
-import { declaredCredentials } from './credentials.js';
-import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/input_schema.json';
-import { EvaluatorError, wrapProviderError } from '../errors.js';
-import CONFIG from '../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/config.json';
+} from '../../../schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
+import { getSystemPrompt, getUserPrompt } from '../../../prompts/grade-level-appropriateness/index.js';
+import type { EvaluationResult } from '../../../schemas/index.js';
+import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../../base.js';
+import { validateInputs, type InputsOf } from '../../inputs.js';
+import { declaredCredentials } from '../../credentials.js';
+import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/input_schema.json';
+import { EvaluatorError, wrapProviderError } from '../../../errors.js';
+import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/config.json';
 
 /**
  * Grade Level Appropriateness Evaluator

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MeaningDirectnessEvaluator } from '../../../src/evaluators/meaning-directness.js';
+import { MeaningDirectnessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/meaning-directness.js';
 import { InputValidationError } from '../../../src/errors.js';
 
 /**

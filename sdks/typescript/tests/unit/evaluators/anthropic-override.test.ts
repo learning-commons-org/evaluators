@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Provider, type BaseEvaluatorConfig } from '../../../src/evaluators/base.js';
-import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/grade-level-appropriateness.js';
-import { MeaningDirectnessEvaluator } from '../../../src/evaluators/meaning-directness.js';
-import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/background-knowledge-demands.js';
-import { SentenceStructureEvaluator } from '../../../src/evaluators/sentence-structure.js';
-import { PurposeClarityEvaluator } from '../../../src/evaluators/purpose-clarity.js';
-import { VocabularyComplexityEvaluator } from '../../../src/evaluators/vocabulary-complexity.js';
+import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/grade-level-appropriateness.js';
+import { MeaningDirectnessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/meaning-directness.js';
+import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/background-knowledge-demands.js';
+import { SentenceStructureEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/sentence-structure.js';
+import { PurposeClarityEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/purpose-clarity.js';
+import { VocabularyComplexityEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/vocabulary-complexity.js';
 
 /**
  * Wiring only: every evaluator must accept an Anthropic override with just an

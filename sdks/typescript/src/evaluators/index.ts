@@ -10,42 +10,42 @@ export {
 export {
   VocabularyComplexityEvaluator,
   evaluateVocabularyComplexity,
-} from './vocabulary-complexity.js';
+} from './student-facing-text/ela-reading/vocabulary-complexity.js';
 
 export {
   SentenceStructureEvaluator,
   evaluateSentenceStructure,
-} from './sentence-structure.js';
+} from './student-facing-text/ela-reading/sentence-structure.js';
 
 export {
   GradeLevelAppropriatenessEvaluator,
   evaluateGradeLevelAppropriateness,
-} from './grade-level-appropriateness.js';
+} from './student-facing-text/ela-reading/grade-level-appropriateness.js';
 
 export {
   BackgroundKnowledgeDemandsEvaluator,
   evaluateBackgroundKnowledgeDemands,
-} from './background-knowledge-demands.js';
+} from './student-facing-text/ela-reading/background-knowledge-demands.js';
 
 export {
   MeaningDirectnessEvaluator,
   evaluateMeaningDirectness,
-} from './meaning-directness.js';
+} from './student-facing-text/ela-reading/meaning-directness.js';
 
 export {
   PurposeClarityEvaluator,
   evaluatePurposeClarity,
-} from './purpose-clarity.js';
+} from './student-facing-text/ela-reading/purpose-clarity.js';
 
 export {
   ReferenceKnowledgeDemandsEvaluator,
   evaluateReferenceKnowledgeDemands,
-} from './reference-knowledge-demands.js';
+} from './student-facing-text/ela-reading/reference-knowledge-demands.js';
 
 export {
   OrganizationalStructureEvaluator,
   evaluateOrganizationalStructure,
-} from './organizational-structure.js';
+} from './student-facing-text/ela-reading/organizational-structure.js';
 
 export {
   MathStandardsAlignmentEvaluator,
@@ -57,4 +57,4 @@ export {
   type QuestionBankResult,
   type QuestionResult,
   type QuestionBankOptions,
-} from './math/standards-alignment.js';
+} from './academic-standards-alignment/mathematics/math-standards-alignment.js';

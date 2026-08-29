@@ -1,26 +1,26 @@
-import type { LLMProvider } from '../providers/index.js';
+import type { LLMProvider } from '../../../providers/index.js';
 import {
   SentenceAnalysisSchema,
   ComplexityClassificationSchema,
   type SentenceAnalysis,
   type SentenceFeatures,
   type ComplexityClassification,
-} from '../schemas/sentence-structure.js';
-import { calculateReadabilityMetrics, addEngineeredFeatures, featuresToJSON } from '../features/index.js';
+} from '../../../schemas/student-facing-text/ela-reading/sentence-structure.js';
+import { calculateReadabilityMetrics, addEngineeredFeatures, featuresToJSON } from '../../../features/index.js';
 import {
   getSystemPromptAnalysis,
   getUserPromptAnalysis,
   getSystemPromptComplexity,
   getUserPromptComplexity,
-} from '../prompts/sentence-structure/index.js';
-import type { EvaluationResult, TextComplexityLevel } from '../schemas/index.js';
-import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
-import { validateInputs, type InputsOf } from './inputs.js';
-import { declaredCredentials } from './credentials.js';
-import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/sentence-structure/input_schema.json';
-import type { StageDetail } from '../telemetry/index.js';
-import { EvaluatorError, LLMOutputProcessingError, wrapProviderError } from '../errors.js';
-import CONFIG from '../../../../evals/student-facing-text/ela-reading/sentence-structure/config.json';
+} from '../../../prompts/sentence-structure/index.js';
+import type { EvaluationResult, TextComplexityLevel } from '../../../schemas/index.js';
+import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../../base.js';
+import { validateInputs, type InputsOf } from '../../inputs.js';
+import { declaredCredentials } from '../../credentials.js';
+import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/sentence-structure/input_schema.json';
+import type { StageDetail } from '../../../telemetry/index.js';
+import { EvaluatorError, LLMOutputProcessingError, wrapProviderError } from '../../../errors.js';
+import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/sentence-structure/config.json';
 
 /**
  * Normalize complexity label to handle LLM output variations

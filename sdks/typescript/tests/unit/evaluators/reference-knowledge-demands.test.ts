@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'node:crypto';
-import { ReferenceKnowledgeDemandsEvaluator } from '../../../src/evaluators/reference-knowledge-demands.js';
+import { ReferenceKnowledgeDemandsEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/reference-knowledge-demands.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import CONFIG from '../../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/config.json';

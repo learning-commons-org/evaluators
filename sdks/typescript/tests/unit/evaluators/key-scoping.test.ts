@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MathStandardsAlignmentEvaluator } from '../../../src/evaluators/math/standards-alignment.js';
-import { MeaningDirectnessEvaluator } from '../../../src/evaluators/meaning-directness.js';
+import { MathStandardsAlignmentEvaluator } from '../../../src/evaluators/academic-standards-alignment/mathematics/math-standards-alignment.js';
+import { MeaningDirectnessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/meaning-directness.js';
 import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 

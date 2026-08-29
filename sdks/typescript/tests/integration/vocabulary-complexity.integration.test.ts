@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { VocabularyComplexityEvaluator } from '../../src/evaluators/vocabulary-complexity.js';
+import { VocabularyComplexityEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/vocabulary-complexity.js';
 import {
   runEvaluatorTest,
   type BaseTestCase,

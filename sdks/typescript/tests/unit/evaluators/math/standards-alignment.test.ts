@@ -3,7 +3,7 @@ import {
   MathStandardsAlignmentEvaluator,
   Jurisdiction,
   type MathStandardsAlignmentEvaluatorConfig,
-} from '../../../../src/evaluators/math/standards-alignment.js';
+} from '../../../../src/evaluators/academic-standards-alignment/mathematics/math-standards-alignment.js';
 import { ConfigurationError, InputValidationError, LLMOutputProcessingError, KnowledgeGraphError, RateLimitError } from '../../../../src/errors.js';
 import type { LLMProvider } from '../../../../src/providers/base.js';
 import type { KnowledgeGraphClient } from '../../../../src/knowledge-graph/client.js';

@@ -1,23 +1,23 @@
-import type { LLMProvider } from '../providers/index.js';
+import type { LLMProvider } from '../../../providers/index.js';
 import {
   VocabularyComplexityOutputSchema,
   type VocabularyComplexityInternal,
   type BackgroundKnowledge,
-} from '../schemas/vocabulary-complexity.js';
-import { calculateFleschKincaidGrade } from '../features/index.js';
+} from '../../../schemas/student-facing-text/ela-reading/vocabulary-complexity.js';
+import { calculateFleschKincaidGrade } from '../../../features/index.js';
 import {
   getBackgroundKnowledgePrompt,
   getSystemPrompt,
   getUserPrompt,
-} from '../prompts/vocabulary-complexity/index.js';
-import type { EvaluationResult } from '../schemas/index.js';
-import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
-import { validateInputs, type InputsOf } from './inputs.js';
-import { declaredCredentials } from './credentials.js';
-import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/input_schema.json';
-import type { StageDetail } from '../telemetry/index.js';
-import { EvaluatorError, wrapProviderError } from '../errors.js';
-import CONFIG from '../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/config.json';
+} from '../../../prompts/vocabulary-complexity/index.js';
+import type { EvaluationResult } from '../../../schemas/index.js';
+import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../../base.js';
+import { validateInputs, type InputsOf } from '../../inputs.js';
+import { declaredCredentials } from '../../credentials.js';
+import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/input_schema.json';
+import type { StageDetail } from '../../../telemetry/index.js';
+import { EvaluatorError, wrapProviderError } from '../../../errors.js';
+import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/config.json';
 
 /**
  * Vocabulary Evaluator
