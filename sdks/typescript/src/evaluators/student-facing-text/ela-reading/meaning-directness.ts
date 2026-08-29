@@ -60,7 +60,7 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
   }
 
   /**
-   * Evaluate conventionality complexity for a given text and grade level
+   * Evaluate meaning directness for a text at a grade level
    *
    * @param input - The inputs declared in this evaluator's `input_schema.json`
    * @returns Evaluation result with complexity score and detailed analysis
@@ -222,9 +222,8 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
  * @example
  * ```typescript
  * const result = await evaluateMeaningDirectness(
- *   "The author uses sustained irony to critique societal norms.",
- *   "10",
- *   { googleApiKey: process.env.GOOGLE_API_KEY }
+ *   { text, grade_level: '10' },
+ *   { googleApiKey: process.env.GOOGLE_API_KEY },
  * );
  * ```
  */

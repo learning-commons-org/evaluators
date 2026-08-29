@@ -67,8 +67,9 @@ export interface BatchOutput {
 }
 
 /**
- * A named group of evaluators that run together and share an HTML report format.
- * This is the unit of selection exposed to users.
+ * The pre-family projection of an {@link EvaluatorFamily}.
+ * @deprecated Prefer EvaluatorFamily, which is the unit of selection; produced only by
+ * getAvailableGroups().
  */
 export interface EvaluatorGroup {
   id: string;

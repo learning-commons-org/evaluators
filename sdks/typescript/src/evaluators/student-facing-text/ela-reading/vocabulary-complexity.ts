@@ -21,8 +21,14 @@ import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/voca
 /** What this evaluator accepts, taken from its `input_schema.json`. */
 export type VocabularyComplexityInput = InputsOf<typeof INPUT_SCHEMA>;
 
+/** The vocabulary evaluator's stage-1 output, fed to stage 2 as prompt input. */
+export interface BackgroundKnowledge {
+  assumption: string;
+  gradeLevel: string;
+}
+
 /**
- * Vocabulary Evaluator
+ * Vocabulary Complexity Evaluator
  *
  * Evaluates vocabulary complexity of educational texts relative to grade level.
  * Uses a 2-stage process:
@@ -46,13 +52,6 @@ export type VocabularyComplexityInput = InputsOf<typeof INPUT_SCHEMA>;
  * console.log(result.result.reasoning);
  * ```
  */
-
-/** The vocabulary evaluator's stage-1 output, fed to stage 2 as prompt input. */
-export interface BackgroundKnowledge {
-  assumption: string;
-  gradeLevel: string;
-}
-
 export class VocabularyComplexityEvaluator extends BaseEvaluator {
   static readonly metadata = {
     id: CONFIG.evaluator.id,
@@ -256,7 +255,6 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
         // Ignore telemetry errors
       });
 
-      // Re-throw validation errors as-is
       if (error instanceof EvaluatorError) {
         throw error;
       }
@@ -340,12 +338,9 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
  * @example
  * ```typescript
  * const result = await evaluateVocabularyComplexity(
- *   "The mitochondria is the powerhouse of the cell.",
- *   "3",
- *   {
- *     googleApiKey: process.env.GOOGLE_API_KEY,
- *     openaiApiKey: process.env.OPENAI_API_KEY
- *   }
+ *   { text, grade_level: '3' },
+ *   { googleApiKey: process.env.GOOGLE_API_KEY,
+ *     openaiApiKey: process.env.OPENAI_API_KEY },
  * );
  * ```
  */

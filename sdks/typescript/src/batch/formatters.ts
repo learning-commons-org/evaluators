@@ -59,9 +59,9 @@ function getGLAStatus(inputGrade: string, glaBand: string): 'on-band' | 'adjacen
 }
 
 function complexityToNumeric(score: string): number | undefined {
-  // Underscores are folded so the contract's `slightly_complex` and the spaced form
-  // the not-yet-generated schemas still return both resolve. An unrecognised score
-  // drops the row from every aggregate, so this must accept both spellings.
+  // Scores arrive as the contract's `slightly_complex`. Underscores are folded to reach
+  // the space-separated map keys, and the historical spaced spelling still resolves for
+  // older CSV/JSON inputs. An unrecognised score drops the row from every aggregate.
   return COMPLEXITY_SCORE_MAP[score.toLowerCase().trim().replace(/_/g, ' ')];
 }
 
@@ -169,7 +169,7 @@ export interface ReportMeta {
 }
 
 /**
- * Generic machine-readable output for the text-complexity family: one entry per
+ * Machine-readable output for any family without a projection of its own: one entry per
  * (row, evaluator) with score/reasoning plus the untouched original row.
  */
 export function formatAsJSON(output: BatchOutput, meta: ReportMeta): string {

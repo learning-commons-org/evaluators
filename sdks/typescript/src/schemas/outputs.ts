@@ -1,8 +1,10 @@
 import { z } from 'zod';
 
 /**
- * Shared complexity levels used across all text complexity evaluators
- * (Vocabulary, Sentence Structure, and any future sub-evaluators)
+ * Legacy public enum in the pre-contract Title Case spelling.
+ *
+ * No evaluator reads it: each declares its own snake_case values in its generated schema.
+ * Exported only so the published surface does not break.
  */
 export const TextComplexityLevel = z.enum([
   'Slightly complex',

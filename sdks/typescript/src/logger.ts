@@ -25,7 +25,7 @@ export enum LogLevel {
  * Context object for structured logging
  */
 export interface LogContext {
-  /** Evaluator type (vocabulary, sentence-structure, etc.) */
+  /** The evaluator's registry id, e.g. "student_facing_text.ela_reading.sentence_structure" */
   evaluator?: string;
   /** Current operation or stage */
   operation?: string;

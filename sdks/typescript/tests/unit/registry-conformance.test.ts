@@ -126,9 +126,7 @@ const EVALUATORS = (Object.values(exported) as unknown[])
  * unimplemented and unmentioned.
  */
 const UNIMPLEMENTED = new Set<string>([
-  // Every contract now has an implementation. A new contract lands here until its
-  // evaluator does, and the assertion below fails once it is implemented, so the entry
-  // cannot outlive its reason.
+  // Empty: every contract has an implementation.
 ]);
 
 // ---------------------------------------------------------------------------
@@ -213,7 +211,7 @@ const ENUM_VALUE_GAPS = new Set<string>([
  * Evaluators that do not compute a declared preprocessing step the way the contract says.
  */
 const PREPROCESSING_GAPS = new Set<string>([
-  // Both call the hand-rolled compromise+syllable `calculateFleschKincaidGrade` instead of
+  // All three call the hand-rolled compromise+syllable `calculateFleschKincaidGrade` instead of
   // the declared `text-readability.fleschKincaidGrade`. The two disagree — on the fixture
   // corpus the declared library is the less accurate of the two against Python's textstat
   // (mean error 1.394 vs 0.273), so which one the contract should declare is still open.
@@ -854,8 +852,8 @@ describe('every declared preprocessing value reaches the prompt', () => {
     if (!INVOKE[E.metadata.id]) return false;
     // Sentence Structure's first stage reads array fields off the model response, and the
     // shared mock returns `data: {}`, so it throws before any prompt is built. Its
-    // preprocessing declares libraries the registry does not have either — see
-    // PREPROCESSING_GAPS for the same divergence in the evaluators that can be driven.
+    // declared libraries (compromise+syllable, raw-loader, custom) have no adapter in
+    // runPreprocessingStep either, so this check could not drive it in any case.
     if (E.metadata.id === SENTENCE_ID) return false;
     return (contractFor(E.metadata.id).config.preprocessing ?? []).length > 0;
   });

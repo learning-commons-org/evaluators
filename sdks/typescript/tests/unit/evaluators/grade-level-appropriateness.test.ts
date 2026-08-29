@@ -167,8 +167,7 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       // Verify score is the grade string
       expect(result.result.grade_band).toBe('9-10');
 
-      // Verify _internal structure (GradeLevelAppropriateness)
-      expect(result.result).toHaveProperty('grade_band');
+        expect(result.result).toHaveProperty('grade_band');
       expect(result.result).toHaveProperty('alternative_grade_band');
       expect(result.result).toHaveProperty('scaffolding_needed');
       expect(result.result).toHaveProperty('reasoning');
@@ -183,8 +182,7 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result.metadata.tokenUsage.inputTokens).toBe(200);
       expect(result.metadata.tokenUsage.outputTokens).toBe(150);
 
-      // Verify _internal values
-      expect(result.result!.grade_band).toBe('9-10');
+        expect(result.result!.grade_band).toBe('9-10');
       expect(result.result!.alternative_grade_band).toBe('6-8');
       expect(result.result!.scaffolding_needed).toBeTruthy();
     });

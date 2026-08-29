@@ -223,7 +223,6 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
         // Ignore telemetry errors
       });
 
-      // Re-throw validation errors as-is
       if (error instanceof EvaluatorError) {
         throw error;
       }
@@ -308,11 +307,8 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
  * @example
  * ```typescript
  * const result = await evaluateSentenceStructure(
- *   "The cat sat on the mat. It was sleeping peacefully.",
- *   "3",
- *   {
- *     openaiApiKey: process.env.OPENAI_API_KEY
- *   }
+ *   { text, grade_level: '3' },
+ *   { openaiApiKey: process.env.OPENAI_API_KEY },
  * );
  * ```
  */

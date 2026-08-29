@@ -2,8 +2,11 @@ import nlp from 'compromise';
 import { syllable } from 'syllable';
 
 /**
- * Calculate Flesch-Kincaid Grade Level
- * Equivalent to Python's textstat.flesch_kincaid_grade()
+ * Flesch-Kincaid grade level over compromise + syllable.
+ *
+ * Approximates Python's `textstat.flesch_kincaid_grade()` but does not match it, and is
+ * not the implementation the contracts declare — see PREPROCESSING_GAPS in
+ * registry-conformance.test.ts for the three evaluators that call this instead.
  */
 export function calculateFleschKincaidGrade(text: string): number {
   return calculateReadabilityMetrics(text).fleschKincaidGrade;

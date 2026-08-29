@@ -24,7 +24,7 @@ export { getFamilies, getFamily } from './families/registry.js';
 
 /**
  * Backward-compatible view of families as the older "evaluator group" shape.
- * @deprecated Use {@link getFamilies} — retained for the current CLI wiring.
+ * @deprecated Use {@link getFamilies}. No internal caller remains; kept for the published API.
  */
 export function getAvailableGroups(): EvaluatorGroup[] {
   return getFamilies().map((family) => {

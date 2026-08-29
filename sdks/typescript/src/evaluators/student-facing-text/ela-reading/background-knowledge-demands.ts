@@ -60,7 +60,7 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
   }
 
   /**
-   * Evaluate subject matter knowledge complexity for a given text and grade level
+   * Evaluate background knowledge demands for a text at a grade level
    *
    * @param input - The inputs declared in this evaluator's `input_schema.json`
    * @returns Evaluation result with complexity score and detailed analysis
@@ -192,7 +192,7 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
   }
 
   /**
-   * Run the SMK evaluation LLM call
+   * Run the background-knowledge-demands LLM call
    */
   private async evaluateBackgroundKnowledgeDemands(
     text: string,
@@ -217,14 +217,13 @@ export class BackgroundKnowledgeDemandsEvaluator extends BaseEvaluator {
 }
 
 /**
- * Functional API for SMK evaluation
+ * Functional API for background knowledge demands
  *
  * @example
  * ```typescript
  * const result = await evaluateBackgroundKnowledgeDemands(
- *   "Hydraulic propulsion works by sucking water at the bow and forcing it sternward.",
- *   "10",
- *   { googleApiKey: process.env.GOOGLE_API_KEY }
+ *   { text, grade_level: '10' },
+ *   { googleApiKey: process.env.GOOGLE_API_KEY },
  * );
  * ```
  */
