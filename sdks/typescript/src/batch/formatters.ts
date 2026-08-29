@@ -1,5 +1,6 @@
 import type { BatchOutput, BatchResult } from './types.js';
 import reportTemplate from './report-template.html';
+import { injectReportData, toInlineJson } from './report-injection.js';
 import { GradeLevelAppropriatenessEvaluator } from '../evaluators/student-facing-text/ela-reading/grade-level-appropriateness.js';
 
 // ---- Constants ----
@@ -394,18 +395,5 @@ export function formatAsHTML(output: BatchOutput, meta: ReportMeta): string {
     },
   };
 
-  // Inject serialized data into the template.
-  // Unicode-escape < > & so the JSON is safe inside a <script> tag even if
-  // the data contains HTML-like strings (prevents </script> injection).
-  const safeJson = JSON.stringify(reportData)
-    .replace(/</g, '\\u003c')
-    .replace(/>/g, '\\u003e')
-    .replace(/&/g, '\\u0026');
-
-  const INJECTION_MARKER = 'var REPORT_DATA = null; // __REPLACED_BY_FORMATTER__';
-  if (!reportTemplate.includes(INJECTION_MARKER)) {
-    throw new Error('Report template injection marker not found — template may be corrupted');
-  }
-
-  return reportTemplate.replace(INJECTION_MARKER, `var REPORT_DATA = ${safeJson};`);
+  return injectReportData(reportTemplate, toInlineJson(reportData), 'Text complexity');
 }
