@@ -192,6 +192,17 @@ function pct(part: number, whole: number): string {
   return `${((100 * part) / whole).toFixed(0)}%`;
 }
 
+/**
+ * Escape a fixture snippet for a markdown table cell.
+ *
+ * Backslashes first, then the delimiter: escaping `|` alone turns a literal `\|` in the
+ * text into `\\|`, which renders as a backslash followed by an unescaped delimiter and
+ * breaks the row.
+ */
+function tableCell(text: string): string {
+  return text.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
+}
+
 function fixed(value: number): string {
   if (!Number.isFinite(value)) return 'n/a';
   return value.toFixed(4);
@@ -287,7 +298,7 @@ if (declared) {
     .sort((a, b) => Math.abs(b.got - b.c.fk) - Math.abs(a.got - a.c.fk))
     .slice(0, 5);
   for (const { c, got } of ranked) {
-    const snippet = c.text.replace(/\s+/g, ' ').slice(0, 60).replace(/\|/g, '\\|');
+    const snippet = tableCell(c.text.replace(/\s+/g, ' ').slice(0, 60));
     lines.push(
       `| ${c.fk.toFixed(2)} | ${got.toFixed(2)} | **${Math.abs(got - c.fk).toFixed(2)}** | ${snippet}… |`
     );
