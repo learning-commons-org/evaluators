@@ -70,7 +70,7 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
         ],
         grade_context: 'Sustained irony and abstract social critique exceed typical Grade 10 expectations.',
         instructional_insights: 'Pre-teach the rhetorical device of irony; discuss the author\'s implied argument before reading.',
-        complexity_score: 'Very complex',
+        complexity_score: 'very_complex',
         reasoning: 'The text relies heavily on sustained irony and implicit comparisons that require readers to infer the author\'s critical stance.',
       },
       model: 'gemini-3-flash-preview',
@@ -80,7 +80,7 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
 
     const result = await evaluator.evaluate({ text: testText, grade_level: testGrade });
 
-    expect(result.result.complexity_score).toBe('Very complex');
+    expect(result.result.complexity_score).toBe('very_complex');
     expect(result.result.reasoning).toContain('irony');
     expect(result.metadata.model).toBe('google:gemini-3-flash-preview');
     expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
@@ -113,7 +113,7 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
       conventionality_features: ['literal narrative', 'concrete actions'],
       grade_context: 'Text uses mostly literal, accessible language for Grade 5.',
       instructional_insights: 'No special scaffolding needed for conventionality.',
-      complexity_score: 'Slightly complex' as const,
+      complexity_score: 'slightly_complex' as const,
       reasoning: 'The text is largely explicit and literal with minimal figurative language.',
     };
 
@@ -138,7 +138,7 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
         conventionality_features: ['figurative language'],
         grade_context: 'Appropriate for grade 7.',
         instructional_insights: 'Discuss metaphors before reading.',
-        complexity_score: 'Moderately complex',
+        complexity_score: 'moderately_complex',
         reasoning: 'Some figurative language present.',
       },
       model: 'gemini-3-flash-preview',
