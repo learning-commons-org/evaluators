@@ -75,9 +75,6 @@ export const ComplexityClassificationSchema = z.object({
 export type ComplexityClassification = z.infer<typeof ComplexityClassificationSchema>;
 
 /**
- * Internal data structure for sentence structure evaluation
- */
-/**
  * Engineered features computed from sentence analysis
  * These are calculated in TypeScript, not requested from LLM
  */

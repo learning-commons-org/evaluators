@@ -187,6 +187,17 @@ const TEMPERATURE_GAPS = new Set<string>([
 ]);
 
 /**
+ * Evaluators whose schema module does not export `<Evaluator>OutputSchema`, and so has no
+ * `<Evaluator>Result` for a caller to name the payload with.
+ */
+const RESULT_NAME_GAPS = new Set<string>([
+  // Exports its two step schemas instead: SentenceAnalysisSchema, ComplexityClassificationSchema.
+  SENTENCE_ID,
+  // Assembles its payload from per-component results, so there is no single schema.
+  MATH_ID,
+]);
+
+/**
  * The Zod schema each evaluator actually sends to the model.
  *
  * This is the side of the comparison the suite was missing: the contract says what the
@@ -339,6 +350,38 @@ describe('evaluator and schema modules sit at the derived path', () => {
 
       expect(existsSync(module), `no ${kind} module at ${module}`).toBe(true);
     }
+  });
+});
+
+describe('the payload type is named after the evaluator', () => {
+  // A caller reads the payload out of EvaluationResult<T>, so T is public API and needs a
+  // name they can import. Deriving it from the evaluator's own name is what makes that
+  // predictable, and it is the name the generator emits.
+  //
+  // Type names are erased at runtime, so this checks the schema export they come from.
+  it.each(cases)('$name', ({ E }) => {
+    const relative = E.metadata.id.split('.').map((s) => s.replace(/_/g, '-'));
+    const module = join(process.cwd(), 'src', 'schemas', ...relative) + '.ts';
+    const source = readFileSync(module, 'utf-8');
+
+    const className = relative[relative.length - 1]
+      .split('-')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join('');
+
+    const declaresSchema = source.includes(`export const ${className}OutputSchema`);
+    const declaresResult = source.includes(`export type ${className}Result`);
+
+    if (RESULT_NAME_GAPS.has(E.metadata.id)) {
+      expect(
+        declaresSchema && declaresResult,
+        `${E.metadata.name} now names its payload after itself — drop it from RESULT_NAME_GAPS`,
+      ).toBe(false);
+      return;
+    }
+
+    expect(declaresSchema, `${module} does not export ${className}OutputSchema`).toBe(true);
+    expect(declaresResult, `${module} does not export ${className}Result`).toBe(true);
   });
 });
 

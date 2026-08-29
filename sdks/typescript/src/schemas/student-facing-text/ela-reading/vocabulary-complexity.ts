@@ -15,7 +15,7 @@ export const VocabularyComplexityOutputSchema = z.object({
   reasoning: z.string().describe('Detailed reasoning for the complexity rating'),
 });
 
-export type VocabularyComplexityInternal = z.infer<typeof VocabularyComplexityOutputSchema>;
+export type VocabularyComplexityResult = z.infer<typeof VocabularyComplexityOutputSchema>;
 
 /**
  * Background knowledge assumption for a student at a given grade level

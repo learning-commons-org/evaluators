@@ -132,7 +132,7 @@ export function generateSchemaFile(configPath: string): GeneratedSchema {
     `// prettier-ignore`,
     `export const ${className}OutputSchema = ${zodCode};`,
     ``,
-    `export type ${className}Internal = z.infer<typeof ${className}OutputSchema>;`,
+    `export type ${className}Result = z.infer<typeof ${className}OutputSchema>;`,
     ``,
   ].join('\n');
 

@@ -13,4 +13,4 @@ export const BackgroundKnowledgeDemandsOutputSchema = z.object({
   reasoning: z.string().describe('A brief synthesis of why the text fits the chosen complexity level.'),
 });
 
-export type BackgroundKnowledgeDemandsInternal = z.infer<typeof BackgroundKnowledgeDemandsOutputSchema>;
+export type BackgroundKnowledgeDemandsResult = z.infer<typeof BackgroundKnowledgeDemandsOutputSchema>;
