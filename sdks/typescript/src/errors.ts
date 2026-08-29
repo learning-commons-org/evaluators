@@ -256,6 +256,43 @@ function lookupHeader(headers: Record<string, string>, name: string): string | u
 }
 
 /**
+ * Every JSON error body reachable from one link of the cause chain.
+ *
+ * The AI SDK exposes a parsed `data` and the raw `responseBody`, and which one is populated
+ * depends on the provider client — so read both rather than trusting either.
+ */
+function providerErrorBodies(link: unknown): unknown[] {
+  const holder = link as { data?: unknown; responseBody?: unknown };
+  const bodies: unknown[] = [holder.data];
+  if (typeof holder.responseBody === 'string') {
+    try {
+      bodies.push(JSON.parse(holder.responseBody));
+    } catch {
+      // A non-JSON body carries no verdict; the status code is all there is.
+    }
+  }
+  return bodies;
+}
+
+/**
+ * Whether the provider blamed the model id itself, rather than failing to serve it.
+ *
+ * OpenAI-shaped bodies carry `{ error: { param, code } }`. `param: 'model'` covers a
+ * malformed id as well as an unknown one — both are the caller's choice of model, so the
+ * same fault domain. Compared against string literals, which excludes non-string values
+ * without narrowing them first.
+ */
+function isModelRejection(error: unknown): boolean {
+  for (const link of causeChain(error)) {
+    for (const body of providerErrorBodies(link)) {
+      const verdict = (body as { error?: { code?: unknown; param?: unknown } } | undefined)?.error;
+      if (verdict?.param === 'model' || verdict?.code === 'model_not_found') return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Read structured fields off whatever was thrown. Message text is carried for
  * diagnosis but never used to classify.
  */
@@ -348,7 +385,11 @@ export function wrapProviderError(
     return new LLMOutputProcessingError(message, null, error);
   }
 
-  if (statusCode === 404) {
+  // A rejected model is the caller's configuration, not a service fault: Google and
+  // Anthropic answer 404, OpenAI answers 400 with `code: model_not_found`. Restricted to
+  // those two statuses so a 401/429/5xx that happens to name `model` keeps the definite
+  // policy its status carries.
+  if (statusCode === 404 || (statusCode === 400 && isModelRejection(error))) {
     return new ConfigurationError(
       `Model not found or invalid: ${message}. Check the model ID passed to the provider.`,
       error
