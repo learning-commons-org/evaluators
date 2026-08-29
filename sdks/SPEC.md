@@ -1,6 +1,6 @@
 # Evaluator SDK Specification
 
-**Spec version:** 0.1.0 · **Changelog:** [Appendix D](#appendix-d-spec-changelog)
+**Spec version:** 0.2.0 · **Changelog:** [Appendix D](#appendix-d-spec-changelog)
 
 This document is the normative blueprint for all Learning Commons Evaluator SDKs — current (TypeScript, Python) and future. It defines **what** every SDK must do, not how. Implementation details (retry libraries, async patterns, type systems) are left to each language's idioms.
 
@@ -97,9 +97,9 @@ Every evaluator accepts a config object at construction time.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `google_api_key` | string | none | Required when `default_providers` includes `google` or `model_override.provider` is `google` |
-| `openai_api_key` | string | none | Required when `default_providers` includes `openai` or `model_override.provider` is `openai` |
-| `anthropic_api_key` | string | none | Required when `default_providers` includes `anthropic` or `model_override.provider` is `anthropic` |
+| `google_api_key` | string | none | Required when an entry that will run uses `google` (§3.1) or `model_override.provider` is `google` |
+| `openai_api_key` | string | none | Required when an entry that will run uses `openai` (§3.1) or `model_override.provider` is `openai` |
+| `anthropic_api_key` | string | none | Required when an entry that will run uses `anthropic` (§3.1) or `model_override.provider` is `anthropic` |
 | `learning_commons_api_key` | string | none | Learning Commons–issued key, authorizing Learning Commons API calls (e.g. Knowledge Graph) |
 | `model_override` | object | none | Override provider and model for all LLM calls (§3.2) |
 | `model_override.provider` | enum | — | A `Provider` value (§3.3) |
@@ -119,8 +119,8 @@ Logging configuration (`logger`, `log_level`) is a per-language mechanism, not p
 - SDKs MUST NOT read credentials from the environment implicitly. Keys are passed explicitly in config; reading env vars (or vaults, or files) is the calling application's responsibility.
 - An SDK MAY offer an explicit opt-in helper (e.g. `Config.from_env()`) that reads the documented canonical variable names — the env read is then a visible call the application made, never a constructor side effect.
 - A key is *missing* if not provided or provided as the language's null/empty value.
-- If a required key is missing — per the evaluator's `default_providers`, its `required_credentials` (§10.1), or the `model_override` provider — the constructor MUST raise `ConfigurationError` before any I/O. Canonical message: `"Missing required credential: {field}"`.
-- When `model_override` is set, only the override provider's key is required **in place of those derived from `default_providers`**. `required_credentials` are unaffected: an override changes which model runs, never which services the evaluator calls.
+- Required keys are derived from the registry definition: the union, over every entry that will run (preprocessing entries and non-optional steps, §10.1), of the key for the entry's LLM provider and the entry's `required_credentials`. If a required key is missing, the constructor MUST raise `ConfigurationError` before any I/O. Canonical message: `"Missing required credential: {field}"`.
+- When `model_override` is set, the override provider's key replaces the provider-derived half only. `required_credentials` are unaffected: an override changes which model runs, never which services the evaluator calls.
 - Rendering a canonical key name in a message or config surface is the mechanical casing mapping of §2.1 — SDKs do not maintain per-key lookup tables.
 
 ### 3.2 `model_override`
@@ -131,7 +131,7 @@ Logging configuration (`logger`, `log_level`) is a per-language mechanism, not p
 
 ### 3.3 `Provider`
 
-The closed set of supported LLM providers, used in `model_override.provider`, `default_providers`, and model strings (§3.4). Each SDK exposes it as its idiomatic closed enumeration.
+The closed set of supported LLM providers, used in `model_override.provider`, step model declarations (§10.1), and model strings (§3.4). Each SDK exposes it as its idiomatic closed enumeration.
 
 | Value | Description |
 |---|---|
@@ -154,6 +154,8 @@ Model strings MUST reflect the model **actually used**, including any override.
 
 Validation runs before every LLM call, inside the error-handling boundary, so failures are captured in telemetry as `error` events.
 
+Bounds, accepted grades, and the set of input fields all come from the evaluator's registry-declared input schema (§10.1). The SDK applies **no defaults of its own** — a global default would silently mask a contract asking for something narrower. The only universal rule is check 1 below.
+
 ### 4.1 Text
 
 SDKs MUST NOT modify caller-supplied text. The text validated, the text measured, and the text sent to the model are the same string.
@@ -170,12 +172,7 @@ Trimming appears in check 1 as a predicate only — it decides whether the text 
 
 Messages MUST convey the same facts (which bound, what the bound is) and SHOULD match the canonical wording above.
 
-| Limit | Default |
-|---|---|
-| `min_text_length` | `1` |
-| `max_text_length` | `10000` |
-
-The SDK defaults carry no product opinion — `min_text_length: 1` only excludes empty input. Meaningful limits are per-evaluator registry values (§10); overrides MUST NOT be silently ignored.
+Fields are visited in the schema's declared order (`required` first), so a caller passing two bad inputs gets the same message from every SDK.
 
 ### 4.2 Grade
 
@@ -231,6 +228,7 @@ Class names are canonical in every SDK (§2.2). An error pattern useful in one S
 | `EvaluatorError` | — | Abstract base for all SDK errors | — |
 | `ConfigurationError` | `EvaluatorError` | Caller: missing/invalid key, unknown provider or model, malformed settings | No |
 | `InputValidationError` | `EvaluatorError` | Caller: text or grade failed validation (§4) | No |
+| `StandardNotFoundError` | `InputValidationError` | Caller: supplied academic-standard code does not exist in the Knowledge Graph | No |
 | `EvaluationError` | `EvaluatorError` | Abstract base: the SDK's own evaluation logic failed after the dependency call succeeded | per class |
 | `LLMOutputProcessingError` | `EvaluationError` | Model response failed parsing, normalization, or the expected output schema | Yes — immediate |
 | `DependencyError` | `EvaluatorError` | Abstract base: an external system failed | per instance |
@@ -287,6 +285,9 @@ The SDK caller is a code owner who already holds the API keys and inputs; diagno
 ### 6.5 Dependency error mapping
 
 Classify by **structured signals only** — status code, typed exception, structured error payloads (codes/reasons, walking the cause chain). Free-text message matching MUST NOT reclassify an error: wording is not a contract, and a misclassification is worse than the catch-all. Text-only failures stay in the dependency's catch-all class.
+
+- An unparseable response carrying an HTTP error status is the **dependency's** fault, not the model's: the body is an error page, not a malformed completion. Only unparseable *successful* responses classify as `LLMOutputProcessingError` — otherwise the immediate-retry strategy would resample against a service that is already failing.
+- An upstream-provided retryability hint applies only to the catch-all class (whose rule, retryable-iff-5xx, benefits from it) and can only widen, never narrow. Classes with a definite policy keep it — an upstream flag must not make an `AuthenticationError` retryable.
 
 | Signal | Maps to |
 |---|---|
@@ -369,7 +370,7 @@ No SDK is required to build these — they exist where that SDK's users need the
 
 ## 10. Evaluator Registry
 
-Evaluator definitions are shared, language-neutral data: one definition per evaluator, consumed by every SDK, so evaluation behavior cannot drift between languages. Registry home and format: Q-6.
+Evaluator definitions are shared, language-neutral data: one definition per evaluator, consumed by every SDK, so evaluation behavior cannot drift between languages. The registry lives at `evals/<domain>/<skill>/<evaluator>/` — per evaluator: `config.json` (the definition), `input_schema.json`, `output_schema.json`, prompt files, and `fixtures.json`. SDKs consume these files directly (or via a build step) and do not re-validate them at runtime (§10.2); registry-side CI owns their correctness.
 
 ### 10.1 Definition schema
 
@@ -381,14 +382,14 @@ A definition MUST specify:
 | `stable_id` | Immutable UUID assigned at creation. The identity that survives renames; consumers aggregating across time key on it |
 | `id_history` | Ordered list of prior `id` values, mapping old names to the current one |
 | Stability | Stable or Experimental |
-| Payload shape | The `result` shape (§5.2), field by field |
-| Supported grades | Range of canonical grade tokens, or none for grade-free evaluators |
-| Default providers | LLM providers; drives LLM key requirements (§3.1), narrowed by `model_override` |
-| `required_credentials` | Canonical config keys (§3) for non-LLM services the evaluator calls (e.g. `learning_commons_api_key`); unaffected by `model_override` |
-| Phases | Ordered phase names; per phase: pinned model ID (§10.2), prompt inputs, temperature |
-| Text limits | Only when overriding the §4.1 defaults |
+| Input schema | Every accepted input by canonical name, with bounds (§4.1) and accepted grade tokens |
+| Output schema | The `result` shape (§5.2), field by field |
+| Preprocessing | Derived-input entries (§10.4), each with its computation and any `required_credentials` |
+| Steps | Ordered LLM steps; per step: model (`provider` + immutable model ID, §10.2), prompt, temperature (`null` = omit the parameter, for providers that do not accept one), `optional` flag, and `required_credentials` |
 
-Grade-path variants (different model or prompt inputs per grade band) are expressed within the phase definitions.
+`required_credentials` sit on steps and preprocessing entries — not on the evaluator — so requirements narrow correctly: an `optional` step's credential is demanded only when a caller opts into that step. LLM key requirements are derived from the steps' providers, never declared separately (§3.1).
+
+Grade-path variants (different model or prompt inputs per grade band) are expressed within the step definitions.
 
 ### 10.2 Model IDs are immutable versions
 
@@ -402,7 +403,7 @@ Prompts MUST NOT contain LLM-framework artifacts (e.g. injected JSON-schema text
 
 ### 10.4 Derived inputs
 
-Computed prompt inputs are part of the contract. Where FK score is used, it MUST be the Flesch-Kincaid Grade Level formula, rounded to 2 decimal places. New derived inputs MUST define their computation here or in the registry definition.
+Computed prompt inputs are part of the contract, declared as preprocessing entries in the registry definition — including their computation and, where needed, per-language implementation bindings. Where FK score is used, it MUST be the Flesch-Kincaid Grade Level formula, rounded to 2 decimal places.
 
 ---
 
@@ -431,7 +432,7 @@ A new SDK claims conformance by satisfying the checklist and passing the shared 
 
 ### 11.3 Contract fixtures — the executable spec
 
-Cross-SDK behavior is verified by shared, language-neutral fixture files (per-evaluator cases plus spec-level fixtures for cross-cutting rules), executed by a per-language harness in each SDK's CI. The fixture format lives with the registry (Q-6).
+Cross-SDK behavior is verified by shared, language-neutral fixture files (per-evaluator cases plus spec-level fixtures for cross-cutting rules), executed by a per-language harness in each SDK's CI. Fixtures live in the registry alongside each evaluator's definition (`fixtures.json`, §10); the shared cross-cutting format is gap 4.
 
 - Every SDK MUST run the fixtures for each evaluator and capability it implements; a fixture failure is a conformance failure.
 - A spec change that alters observable behavior MUST land with fixtures expressing it. Prose without fixtures is a **SHOULD**, not a MUST, until fixtures exist.
@@ -474,30 +475,16 @@ Applies to non-Draft spec surfaces and Stable evaluators; Draft content and Expe
 
 Tracked deviations between this spec and the current SDKs — each a bug to fix on the road to 1.0, not a precedent.
 
-> **Snapshot as of 2026-08-18.** Several SDK PRs are in flight; refresh this table (and Appendix B) as they land.
+> **Snapshot as of 2026-08-29**, after the TypeScript SDK's rebuild onto the registry contracts. Python predates the rebuild; its rows will be re-audited when its own rebuild begins.
 
 | # | Spec section | SDK | Gap | Required change |
 |---|---|---|---|---|
-| 1 | §6.1 | TypeScript | `TimeoutError` instead of `RequestTimeoutError` | Rename |
-| 2 | §6.1 | TypeScript | Single `ValidationError`; no output-processing class | Split into `InputValidationError` / `LLMOutputProcessingError` |
-| 3 | §6.2 | TypeScript | `retryAfter` unsuffixed | Rename to `retryAfterMs` |
-| 4 | §6.2 | Python | `retry_after` in seconds | Rename to `retry_after_ms`, convert to milliseconds |
-| 5 | §5.1 | TypeScript | Flat `score`/`reasoning`/`metadata`/`_internal`; flat `inputTokens`/`outputTokens` | Migrate to envelope; nest `token_usage` |
-| 6 | §5.1 | Python | Bespoke Pydantic result shapes | Migrate to envelope |
-| 7 | §8.2–8.3 | Both | Wire schema diverges three ways (deployed collector: `stage_details` in a `metadata` wrapper; spec placeholder: `phase`; Python internals: `step`) | Blocked on Q-10 — align after downstream review of existing telemetry events |
-| 8 | §6.4–6.5 | TypeScript | `wrapProviderError` classifies via message regexes and lacks cause preservation | Structured-signal classification; preserve cause chain and structured attributes |
-| 9 | §6.1 | Python | Legacy `EvaluatorRetryableError` references | Remove aliases not in the taxonomy |
-| 10 | §9.1 | TypeScript | Math Standards Alignment batch unverified against contract | Audit per §9.1 |
-| 11 | §3 | Both | `partner_key`/`platformApiKey` naming; TS falls back `partnerKey ?? platformApiKey`, silently repurposing the KG key for telemetry attribution | Rename to `learning_commons_api_key`; add `telemetry.learning_commons_api_key`; remove the cross-scope fallback |
-| 12 | §10 | Both | No shared registry; evaluator definitions duplicated in each SDK's code | Establish the registry (Q-6) and migrate definitions |
-| 13 | §10.1 | Both | SDK-surfaced evaluator IDs are flat legacy names (`vocabulary`); no `stable_id`/`id_history` | Adopt the three-layer identity (`id` + `stable_id` + `id_history`) already used by the shared evaluator contract (PR #173) |
-| 14 | §11.3 | Both | No shared fixture format or cross-SDK harness (Python has an early harness tied to a temporary layout) | Establish fixture format with the registry; build per-language harnesses |
-| 15 | §10.3 | Python | `{format_instructions}` LangChain placeholders remain in prompts | Remove; enforce structured output at the chain layer |
-| 16 | §8.2–8.3 | Both | Telemetry field `provider` carries model strings | Rename to `model` in events and phase details |
-| 17 | §6.1–6.2 | Both | `APIError` shape: no `EvaluationError`/`DependencyError` categories, no catch-all leaves, no `dependency` field; TS `KnowledgeGraphError` sits outside the taxonomy | Restructure to the fault-domain taxonomy; re-parent `KnowledgeGraphError` under `DependencyError` |
-| 18 | §4.1 | Both | `min_text_length` default is 10 | Change SDK default to 1; meaningful minimums move to registry definitions |
-| 19 | §4.2 | Both | Grade parameter named `grade` | Rename to `grade_level` (SDK surfaces; several evaluators already standardized) |
-| 20 | §3.1 | TypeScript | `validateApiKeys` early-returns under `model_override`, skipping non-LLM credential checks; the Learning Commons requirement is hand-rolled in Math Standards Alignment; parallel per-key lookup tables and divergent missing-key messages | Derive requirements from `default_providers` + `required_credentials` with override narrowing only the former; adopt the canonical message and §2.1 rendering |
+| 1 | §3 | TypeScript | `telemetry.recordInputs` | Rename to `recordRawInputs` |
+| 2 | §8.2–8.3 | Both | Wire event schema diverges from the Draft text (collector expects `stage_details` in a `metadata` wrapper, `provider` carrying model strings, `evaluator_type`, `input_text`) | Blocked on Q-10 — one coordinated spec + SDK + collector migration |
+| 3 | §9.1 | TypeScript | Batch tooling reworked but not audited against the Draft batch contract | Audit once Q-12 fixes the shapes |
+| 4 | §11.3 | Both | No shared language-neutral fixture format; TypeScript has a registry-conformance suite, Python's harness targets a retired layout | Establish the fixture format on the registry; port both harnesses |
+| 5 | §12.2 | Both | Neither package declares the spec version it implements | Add to README and package metadata |
+| 6 | §§2, 5, 6, 10 | Python | Pre-rebuild surface throughout: old taxonomy shape, `retry_after` in seconds, bespoke result shapes, `{format_instructions}` in prompts, flat legacy IDs, no registry consumption | Rebuild onto the registry contracts as TypeScript did |
 
 ---
 
@@ -505,20 +492,20 @@ Tracked deviations between this spec and the current SDKs — each a bug to fix 
 
 Per-SDK status against §11.2, updated whenever a gap closes or a new SDK lands. ✓ conformant · ◐ partial · ✗ not yet.
 
-> **Snapshot as of 2026-08-18** — refresh alongside Appendix A.
+> **Snapshot as of 2026-08-29** — refresh alongside Appendix A.
 
 | Criterion | TypeScript | Python |
 |---|---|---|
-| C-1 Config | ◐ (gap 11) | ◐ (gap 11) |
-| C-2 Errors | ✗ (gaps 1–3, 8) | ◐ (gaps 4, 9) |
-| C-3 Input validation | ◐ | ◐ |
-| C-4 Envelope & payload | ✗ (gap 5) | ✗ (gap 6) |
+| C-1 Config | ◐ (gap 1) | ◐ (gap 6) |
+| C-2 Errors | ✓ | ◐ (gap 6) |
+| C-3 Input validation | ✓ | ◐ (gap 6) |
+| C-4 Envelope & payload | ✓ | ✗ (gap 6) |
 | C-5 Logging | ✓ | ✓ |
-| C-6 Telemetry | ◐ | ✗ (gap 7) |
-| C-7 Registry rules | ◐ | ◐ |
-| C-8 Registry + fixtures | ✗ (gaps 12–14) | ✗ (gaps 12–14) |
+| C-6 Telemetry | ◐ (gap 2) | ✗ (gap 6) |
+| C-7 Registry rules | ✓ | ✗ (gap 6) |
+| C-8 Registry + fixtures | ◐ (gap 4) | ✗ (gaps 4, 6) |
 | C-9 Divergences | ✓ | ✓ |
-| C-10 Spec version declared | ✗ | ✗ |
+| C-10 Spec version declared | ✗ (gap 5) | ✗ (gap 5) |
 
 ---
 
@@ -532,7 +519,6 @@ Resolved questions are removed once their resolution is codified in the spec bod
 | Q-3 | Should registry definitions carry a version (prompt/model revision) surfaced in result `metadata`? | Would let users pin/detect evaluation-behavior changes (§12.3) programmatically |
 | Q-4 | Per-rule requirement IDs (OpenFeature-style `[ERR-3]`) | Adopt if fixtures and docs need finer-grained references than section numbers |
 | Q-5 | Timeout defaults and configurability (`timeout_ms` in config?) | `RequestTimeoutError` exists but no canonical timeout knob or default defines when it triggers — flagged by every implementer review; resolve before 1.0 |
-| Q-6 | Registry home and format: where do shared evaluator definitions and contract fixtures live, and how do SDKs consume them? | The shared evaluator contract emerging under `evals/<domain>/<skill>/<evaluator>/config.json` (schema, fixtures, prompts, per-language derived-input definitions — PR #173) is the leading candidate |
 | Q-9 | Anonymous telemetry identity: should the spec define the SDK-generated `client_id`, and where does it travel (header vs event body)? | TS ships a persisted per-install UUID sent as `X-Client-ID`, but nothing downstream reads it — all anonymous events share one `anonymousId`. Needs the collector-side design before the spec commits |
 | Q-10 | Finalize the telemetry event schema and wire transport (§8.2–8.3, Draft) and migrate spec + TypeScript SDK + collector in one coordinated change | Requires alignment plus a downstream review of existing telemetry events before any decision. Scope includes transport (endpoint resolution, header names, encoding). Recorded recommendations: `step`/`step_details` top-level (registry vocabulary follows); per-input `inputs` map with gated `raw` replacing `input_text`/`text_length_chars`; adopt `sdk_language`; `evaluator_type` → `evaluator`; `grade` → `grade_level`; per-step `error_code` replacing `schema_validation_failed`; unify `latency_ms`/`processing_time_ms` |
 | Q-11 | Per-language runtime & packaging contracts | Unaddressed surfaces flagged by implementer reviews: sync/async posture (esp. Python), thread safety and evaluator reusability, resource lifecycle/cleanup, cancellation, ESM/CJS + minimum runtime versions, `py.typed`/typing guarantees |
@@ -544,5 +530,6 @@ Resolved questions are removed once their resolution is codified in the spec bod
 
 | Version | Date | Changes |
 |---|---|---|
+| 0.2.0 | 2026-08-29 | Post-rebuild audit against the TypeScript SDK: registry home resolved to `evals/<domain>/<skill>/<evaluator>/` (closes Q-6); `required_credentials` moved to step/preprocessing level with optional-step narrowing; LLM keys derived from steps' providers, `default_providers` retired; §4.1 SDK default limits removed — input schemas are the only source; `StandardNotFoundError` added; §6.5 refinements (HTTP-failed unparseable responses stay dependency faults; upstream retryability hints widen only the catch-all); `temperature: null` = omit the parameter; Appendices A/B regenerated |
 | 0.1.0 | 2026-08-25 | Review revisions: fault-domain error taxonomy with category-bound retry strategy and trust boundaries; purpose-scoped credentials (`learning_commons_api_key` + `telemetry.learning_commons_api_key`) with explicit-only key resolution (closes Q-1); `evaluate()` contract; three-layer evaluator identity `id`/`stable_id`/`id_history` (closes Q-7); telemetry attribution via the scoped key, no tracking field (closes Q-8); evaluator-scoped stability + Draft markers; SDK SemVer policy; logging as behavioral contract with per-language mechanisms; `record_raw_inputs`; `grade_level`/`grade_band` naming; immutable-version model IDs; registry-declared `required_credentials` with override-invariant semantics |
 | 0.1.0-draft | 2026-08-18 | Initial formalization: principles, naming + canonical value forms, envelope + payload invariants, canonical error taxonomy, telemetry/logging contracts, optional-capability tier, evaluator registry direction, contract-fixture mechanism, lifecycle & governance |
