@@ -69,7 +69,7 @@ export type SentenceAnalysis = z.infer<typeof SentenceAnalysisSchema>;
  */
 export const ComplexityClassificationSchema = z.object({
   reasoning: z.string().describe('Detailed pedagogically appropriate reasoning'),
-  answer: TextComplexityLevel,
+  complexity_score: TextComplexityLevel,
 });
 
 export type ComplexityClassification = z.infer<typeof ComplexityClassificationSchema>;

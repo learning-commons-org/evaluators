@@ -5,6 +5,7 @@ import { getSystemPrompt, getUserPrompt } from '../prompts/purpose-clarity/index
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import { validateInputs, type InputsOf } from './inputs.js';
+import { declaredCredentials } from './credentials.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
 import CONFIG from '../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';
@@ -31,6 +32,8 @@ export class PurposeClarityEvaluator extends BaseEvaluator {
     idHistory: CONFIG.evaluator.id_history,
     name: CONFIG.evaluator.name,
     description: CONFIG.evaluator.description,
+    outcome: CONFIG.outcome,
+    requiredCredentials: declaredCredentials(CONFIG),
     supportedGrades: SUPPORTED_GRADES,
     defaultProviders: [Provider.Google] as const,
   };
@@ -64,20 +67,23 @@ export class PurposeClarityEvaluator extends BaseEvaluator {
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(input: PurposeClarityInput): Promise<EvaluationResult<PurposeClarityInternal>> {
-    const { text, grade_level: gradeLevel } = input;
-
-    this.logger.info('Starting Purpose Clarity evaluation', {
-      evaluator: PurposeClarityEvaluator.metadata.id,
-      operation: 'evaluate',
-      gradeLevel,
-      textLength: text?.length,
-    });
-
+    let text = '';
+    let gradeLevel = '';
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
 
     try {
+      // Inside the try so a validation failure is telemetered as an error event,
+      // and before the inputs are read so a non-object is reported as one.
       validateInputs(input, INPUT_SCHEMA);
+      ({ text, grade_level: gradeLevel } = input);
+
+      this.logger.info('Starting Purpose Clarity evaluation', {
+        evaluator: PurposeClarityEvaluator.metadata.id,
+        operation: 'evaluate',
+        gradeLevel,
+        textLength: text?.length,
+      });
 
       const fkScore = PurposeClarityEvaluator.computeFkScore(text);
       const promptInputs: Record<string, string> = {

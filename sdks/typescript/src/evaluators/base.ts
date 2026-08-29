@@ -12,6 +12,7 @@ import {
   type DependencyId,
 } from '../errors.js';
 import { createLogger, LogLevel, type Logger } from '../logger.js';
+import { configFieldFor } from './credentials.js';
 import { createProvider } from '../providers/index.js';
 import type { LLMProvider } from '../providers/index.js';
 
@@ -180,6 +181,18 @@ export interface EvaluatorMetadata {
   readonly description: string;
   /** Supported grade levels (e.g., ['3', '4', '5', ...]) */
   readonly supportedGrades: readonly string[];
+  /**
+   * Which output properties carry the verdict and its rationale, as the evaluator's
+   * contract declares them. Absent for an evaluator whose output is not a single
+   * judgement, which is why {@link readOutcome} can report no verdict.
+   */
+  readonly outcome?: { readonly score: string; readonly reasoning: string };
+  /**
+   * Canonical config keys for non-LLM services this evaluator calls, from its
+   * contract. LLM keys are not listed — those follow `defaultProviders`, which a model
+   * override narrows; these it does not touch.
+   */
+  readonly requiredCredentials?: readonly string[];
   /** Providers required by this evaluator's default configuration */
   readonly defaultProviders: readonly Provider[];
 }
@@ -355,45 +368,56 @@ export abstract class BaseEvaluator {
   }
 
   /**
-   * Validate that the required API key is present.
-   * When modelOverride is set, checks the override provider's key.
-   * Otherwise checks the keys required by the evaluator's default providers.
-   * @throws {ConfigurationError} If a required key is missing
+   * Validate that every credential this evaluator needs was supplied.
+   *
+   * Requirements are derived, not listed: the LLM keys come from the providers its
+   * steps use, and the non-LLM ones from the contract's `required_credentials`. A model
+   * override replaces the former and leaves the latter alone, so an override cannot
+   * skip a credential for a service the evaluator still calls.
+   *
+   * @throws {ConfigurationError} If a required credential is missing
    */
   private validateApiKeys(config: BaseEvaluatorConfig): void {
-    const keyFor: Record<Provider, string | undefined> = {
-      [Provider.OpenAI]: config.openaiApiKey?.trim() || undefined,
-      [Provider.Google]: config.googleApiKey?.trim() || undefined,
-      [Provider.Anthropic]: config.anthropicApiKey?.trim() || undefined,
-    };
-    const humanName: Record<Provider, string> = {
-      [Provider.OpenAI]: 'OpenAI API key',
-      [Provider.Google]: 'Google API key',
-      [Provider.Anthropic]: 'Anthropic API key',
-    };
-    const configKey: Record<Provider, string> = {
-      [Provider.OpenAI]: 'openaiApiKey',
-      [Provider.Google]: 'googleApiKey',
-      [Provider.Anthropic]: 'anthropicApiKey',
+    // The one table that has to exist: these are the SDK's own config fields, which
+    // cannot be indexed dynamically. Names and messages are derived from the canonical
+    // key, so no per-provider table.
+    const provided: Record<string, string | undefined> = {
+      openaiApiKey: config.openaiApiKey,
+      googleApiKey: config.googleApiKey,
+      anthropicApiKey: config.anthropicApiKey,
+      learningCommonsApiKey: config.learningCommonsApiKey,
     };
 
-    if (config.modelOverride) {
-      if (!keyFor[config.modelOverride.provider]) {
-        throw new ConfigurationError(
-          `${humanName[config.modelOverride.provider]} is required when using modelOverride with provider "${config.modelOverride.provider}". Pass ${configKey[config.modelOverride.provider]} in config.`
-        );
-      }
-      return;
-    }
+    const providers = config.modelOverride
+      ? [config.modelOverride.provider]
+      : this.metadata.defaultProviders;
 
-    for (const provider of this.metadata.defaultProviders) {
-      if (!keyFor[provider]) {
+    const satisfied = new Set(this.credentialsSatisfiedByInjection(config));
+    const required = [
+      ...providers.map((provider) => `${provider}_api_key`),
+      ...(this.metadata.requiredCredentials ?? []).filter((key) => !satisfied.has(key)),
+    ];
+
+    for (const canonical of required) {
+      const field = configFieldFor(canonical);
+      if (!provided[field]?.trim()) {
         throw new ConfigurationError(
-          // No " evaluator" suffix: registry names already end in "Evaluator".
-          `${humanName[provider]} is required for ${this.metadata.name}. Pass ${configKey[provider]} in config.`
+          `Missing required credential: ${field}. Required by ${this.metadata.name}.`,
         );
       }
     }
+  }
+
+  /**
+   * Credentials a subclass no longer needs because the caller injected the client that
+   * would have used them.
+   *
+   * Reads only `config`, since this runs from the base constructor before the subclass
+   * is initialised. Same rule as an injected `llmProvider`: whoever supplies the client
+   * owns its auth.
+   */
+  protected credentialsSatisfiedByInjection(_config: BaseEvaluatorConfig): readonly string[] {
+    return [];
   }
 
   /**

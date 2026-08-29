@@ -58,7 +58,7 @@ const MOCK_RESPONSE = {
 describe('PurposeClarityEvaluator - Constructor', () => {
   it('throws when Google API key is missing', () => {
     expect(() => new PurposeClarityEvaluator({ googleApiKey: '' })).toThrow(
-      /Google API key is required/,
+      /Missing required credential: googleApiKey/,
     );
   });
 });

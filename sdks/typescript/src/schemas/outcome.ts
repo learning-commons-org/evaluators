@@ -4,11 +4,17 @@
  * The result envelope carries the payload exactly as the registry declares it, so
  * there is no top-level score to read. Batch runs and reports still need a single
  * scalar per evaluation to sort, group and chart on, and this is where that is
- * derived — once, from the shape the contracts already share, rather than in a
- * per-evaluator table each SDK would have to keep in step.
+ * read from the evaluator's declared `outcome` block, so no SDK keeps a per-evaluator
+ * table of which field holds the verdict.
  */
 
 import type { EvaluationResult } from './outputs.js';
+
+/** The `outcome` block an evaluator's contract declares. */
+export interface DeclaredOutcome {
+  readonly score: string;
+  readonly reasoning: string;
+}
 
 /**
  * The scalar verdict and its rationale, as a report consumes them.
@@ -22,22 +28,6 @@ export interface Outcome {
   reasoning: string;
 }
 
-/**
- * Evaluators whose verdict is not a `*_score` field.
- *
- * Grade Level Appropriateness answers with a grade band rather than a complexity
- * level, so its verdict field is a band and there is no score to find. It will stay
- * listed here after the rename to `grade_band`.
- *
- * Sentence Structure is listed only until its Zod schema is generated from its
- * contract, which declares `complexity_score`; the SDK currently asks the model for
- * `answer`.
- */
-const VERDICT_FIELD_OVERRIDES: Readonly<Record<string, string>> = {
-  'student_facing_text.ela_reading.grade_level_appropriateness': 'grade',
-  'student_facing_text.ela_reading.sentence_structure': 'answer',
-};
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -45,28 +35,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * Pick the verdict and reasoning out of an evaluation's payload.
  *
- * By convention every payload carries exactly one property ending in `_score`
- * (`complexity_score`, `quality_score`) plus `reasoning`; evaluators that break the
- * convention are listed above. A payload with no verdict field yields an
- * undefined score rather than throwing — a missing verdict is a reporting gap, not a
- * reason to fail an evaluation that already succeeded.
+ * `outcome` is the evaluator's declared `outcome` block, naming which payload
+ * properties hold them — so this reads the contract rather than guessing from a field
+ * suffix, and a new evaluator needs no registration here at all.
+ *
+ * An evaluator with no declared outcome, or a payload missing the declared property,
+ * yields an undefined score rather than throwing: a missing verdict is a reporting gap,
+ * not a reason to fail an evaluation that already succeeded.
  */
-export function readOutcome({ evaluator, result }: EvaluationResult): Outcome {
-  if (!isRecord(result)) return { score: undefined, reasoning: '' };
+export function readOutcome(
+  { result }: EvaluationResult,
+  outcome: DeclaredOutcome | undefined,
+): Outcome {
+  if (!isRecord(result) || !outcome) return { score: undefined, reasoning: '' };
 
-  // An override only wins while its field is actually present, so an evaluator that
-  // later adopts the convention starts working without anyone remembering to delete
-  // its entry — the alternative silently reports no verdict at all.
-  //
-  // `''` stands in for "no field": no payload declares an empty key, so both lookups
-  // below miss and the outcome comes back blank.
-  const declared = VERDICT_FIELD_OVERRIDES[evaluator] ?? '';
-  const field = declared in result
-    ? declared
-    : Object.keys(result).find((key) => key.endsWith('_score')) ?? '';
-
-  const score = result[field];
-  const reasoning = result['reasoning'];
+  const score = result[outcome.score];
+  const reasoning = result[outcome.reasoning];
 
   return {
     score: score === undefined || score === null ? undefined : String(score),

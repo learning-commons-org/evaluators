@@ -22,7 +22,7 @@ vi.mock('../../../src/telemetry/client.js', () => ({
 describe('MeaningDirectnessEvaluator - Constructor Validation', () => {
   it('should throw with specific message when Google API key is missing', () => {
     expect(() => new MeaningDirectnessEvaluator({ googleApiKey: '' })).toThrow(
-      `Google API key is required for ${MeaningDirectnessEvaluator.metadata.name}. Pass googleApiKey in config.`
+      `Missing required credential: googleApiKey. Required by ${MeaningDirectnessEvaluator.metadata.name}.`
     );
   });
 });

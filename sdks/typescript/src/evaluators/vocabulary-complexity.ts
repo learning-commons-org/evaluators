@@ -13,6 +13,7 @@ import {
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import { validateInputs, type InputsOf } from './inputs.js';
+import { declaredCredentials } from './credentials.js';
 import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/input_schema.json';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
@@ -40,8 +41,8 @@ import CONFIG from '../../../../evals/student-facing-text/ela-reading/vocabulary
  * });
  *
  * const result = await evaluator.evaluate(text, "3");
- * console.log(result.score); // "Moderately complex"
- * console.log(result.reasoning);
+ * console.log(result.result.complexity_score); // "Moderately complex"
+ * console.log(result.result.reasoning);
  * ```
  */
 /** What this evaluator accepts, taken from its `input_schema.json`. */
@@ -54,6 +55,8 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     idHistory: CONFIG.evaluator.id_history,
     name: CONFIG.evaluator.name,
     description: CONFIG.evaluator.description,
+    outcome: CONFIG.outcome,
+    requiredCredentials: declaredCredentials(CONFIG),
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
     defaultProviders: [Provider.Google, Provider.OpenAI] as const,
   };
@@ -94,15 +97,8 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(input: VocabularyComplexityInput): Promise<EvaluationResult<VocabularyComplexityInternal>> {
-    const { text, grade_level: gradeLevel } = input;
-
-    this.logger.info('Starting Vocabulary Complexity evaluation', {
-      evaluator: VocabularyComplexityEvaluator.metadata.id,
-      operation: 'evaluate',
-      gradeLevel,
-      textLength: text.length,
-    });
-
+    let text = '';
+    let gradeLevel = '';
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
     const complexityProvider = (gradeLevel === '3' || gradeLevel === '4')
@@ -116,9 +112,18 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
       : `${backgroundProviderLabel}+${complexityProviderLabel}`;
 
     try {
-      // Validate inputs — inside try so validation errors are telemetered.
-      // If partners consistently pass invalid grade levels/text, telemetry will surface documentation gaps.
+      // Inside the try so a validation failure is telemetered as an error event,
+      // and before the inputs are read so a non-object is reported as one.
       validateInputs(input, INPUT_SCHEMA);
+      ({ text, grade_level: gradeLevel } = input);
+
+      this.logger.info('Starting Vocabulary Complexity evaluation', {
+        evaluator: VocabularyComplexityEvaluator.metadata.id,
+        operation: 'evaluate',
+        gradeLevel,
+        textLength: text.length,
+      });
+      // If partners consistently pass invalid grade levels/text, telemetry will surface documentation gaps.
       this.logger.debug('Stage 1: Generating background knowledge', {
         evaluator: VocabularyComplexityEvaluator.metadata.id,
         operation: 'background_knowledge',

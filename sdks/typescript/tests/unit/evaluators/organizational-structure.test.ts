@@ -59,7 +59,7 @@ const MOCK_RESPONSE = {
 describe('OrganizationalStructureEvaluator - Constructor', () => {
   it('throws when Google API key is missing', () => {
     expect(() => new OrganizationalStructureEvaluator({ googleApiKey: '' })).toThrow(
-      /Google API key is required/,
+      /Missing required credential: googleApiKey/,
     );
   });
 });

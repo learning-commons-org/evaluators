@@ -23,7 +23,7 @@ vi.mock('../../../src/telemetry/client.js', () => ({
 describe('BackgroundKnowledgeDemandsEvaluator - Constructor Validation', () => {
   it('should throw with specific message when Google API key is missing', () => {
     expect(() => new BackgroundKnowledgeDemandsEvaluator({ googleApiKey: '' })).toThrow(
-      `Google API key is required for ${BackgroundKnowledgeDemandsEvaluator.metadata.name}. Pass googleApiKey in config.`
+      `Missing required credential: googleApiKey. Required by ${BackgroundKnowledgeDemandsEvaluator.metadata.name}.`
     );
   });
 });

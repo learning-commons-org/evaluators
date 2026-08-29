@@ -207,14 +207,6 @@ const SDK_OUTPUT_SCHEMAS: Record<string, { shape: Record<string, unknown> }> = {
   [SentenceStructureEvaluator.metadata.id]: ComplexityClassificationSchema,
 };
 
-/** Evaluators whose sent schema does not match their contract's declared payload. */
-const SCHEMA_GAPS = new Set<string>([
-  // Sends `grade` / `alternative_grade`; the contract declares `grade_band` /
-  // `alternative_grade_band`, and its enum says `11-12` where the SDK says `11-CCR`.
-  GLA_ID,
-  // Sends `answer`; the contract declares `complexity_score`.
-  SENTENCE_ID,
-]);
 
 // ---------------------------------------------------------------------------
 // Contract loading
@@ -240,6 +232,7 @@ interface Contract {
       generation?: { temperature?: number };
       optional?: boolean;
     }>;
+    outcome?: { score: string; reasoning: string };
   };
   inputSchema: { properties: Record<string, Record<string, unknown>>; required?: string[] };
   outputSchema: {
@@ -345,21 +338,19 @@ describe('identity matches the contract', () => {
 
 describe('supported grades match the contract', () => {
   it.each(cases)('$name', ({ E }) => {
-    const { config, inputSchema } = contractFor(E.metadata.id);
+    const { inputSchema } = contractFor(E.metadata.id);
 
-    // A grade-free evaluator declares no `grade_level` input; its contract's
-    // supported_grades then describes output bands, not accepted input.
-    const takesGrade = 'grade_level' in inputSchema.properties;
-    const declared = takesGrade
-      ? ((inputSchema.properties.grade_level.enum as string[]) ??
-         config.evaluator.supported_grades)
-      : [];
+    // `supported_grades` states what the evaluator is built for; the accepted set is
+    // the grade input's own enum. Comparing against the enum is the whole point -- an
+    // evaluator taking no grade accepts none, and asserting that by hardcoding `[]`
+    // would just restate the assumption.
+    const accepted = (inputSchema.properties.grade_level?.enum as string[]) ?? [];
 
     expectAgainstContract(
       GRADE_GAPS.has(E.metadata.id),
       [...E.metadata.supportedGrades],
-      declared,
-      `${E.metadata.name} supportedGrades`,
+      accepted,
+      `${E.metadata.name} supportedGrades vs the grades its input schema accepts`,
     );
   });
 });
@@ -393,12 +384,7 @@ describe('the schema the SDK sends matches the contract', () => {
     const sentFields = Object.keys(SDK_OUTPUT_SCHEMAS[E.metadata.id].shape).sort();
     const declared = Object.keys(outputSchema.properties).sort();
 
-    expectAgainstContract(
-      SCHEMA_GAPS.has(E.metadata.id),
-      sentFields,
-      declared,
-      `${E.metadata.name} sent payload fields`,
-    );
+    expect(sentFields, `${E.metadata.name} sent payload fields`).toEqual(declared);
   });
 });
 
@@ -425,9 +411,13 @@ describe('readOutcome finds a verdict in the payload the SDK actually returns', 
       },
     } as EvaluationResult;
 
+    // Read from the contract, not from metadata: this asserts the declaration and the
+    // payload agree, which is exactly what would drift.
+    const { outcome } = contractFor(E.metadata.id).config;
+
     expect(
-      readOutcome(envelope).score,
-      `${E.metadata.name}: readOutcome found no verdict in the payload the SDK returns`,
+      readOutcome(envelope, outcome).score,
+      `${E.metadata.name}: the payload the SDK returns has no ${outcome?.score ?? 'declared verdict'}`,
     ).toBeDefined();
   });
 });

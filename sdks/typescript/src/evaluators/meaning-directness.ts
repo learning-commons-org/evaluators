@@ -5,6 +5,7 @@ import { getSystemPrompt, getUserPrompt } from '../prompts/meaning-directness/in
 import type { EvaluationResult } from '../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from './base.js';
 import { validateInputs, type InputsOf } from './inputs.js';
+import { declaredCredentials } from './credentials.js';
 import INPUT_SCHEMA from '../../../../evals/student-facing-text/ela-reading/meaning-directness/input_schema.json';
 import type { StageDetail } from '../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../errors.js';
@@ -29,8 +30,8 @@ import CONFIG from '../../../../evals/student-facing-text/ela-reading/meaning-di
  * });
  *
  * const result = await evaluator.evaluate(text, "6");
- * console.log(result.score); // "Moderately complex"
- * console.log(result.reasoning);
+ * console.log(result.result.complexity_score); // "Moderately complex"
+ * console.log(result.result.reasoning);
  * ```
  */
 /** What this evaluator accepts, taken from its `input_schema.json`. */
@@ -43,6 +44,8 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
     idHistory: CONFIG.evaluator.id_history,
     name: CONFIG.evaluator.name,
     description: CONFIG.evaluator.description,
+    outcome: CONFIG.outcome,
+    requiredCredentials: declaredCredentials(CONFIG),
     supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
     defaultProviders: [Provider.Google] as const,
   };
@@ -69,21 +72,23 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(input: MeaningDirectnessInput): Promise<EvaluationResult<MeaningDirectnessInternal>> {
-    const { text, grade_level: gradeLevel } = input;
-
-    this.logger.info('Starting Meaning Directness evaluation', {
-      evaluator: MeaningDirectnessEvaluator.metadata.id,
-      operation: 'evaluate',
-      gradeLevel,
-      textLength: text.length,
-    });
-
+    let text = '';
+    let gradeLevel = '';
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
 
     try {
-      // Validate inputs — inside try so validation errors are telemetered.
+      // Inside the try so a validation failure is telemetered as an error event,
+      // and before the inputs are read so a non-object is reported as one.
       validateInputs(input, INPUT_SCHEMA);
+      ({ text, grade_level: gradeLevel } = input);
+
+      this.logger.info('Starting Meaning Directness evaluation', {
+        evaluator: MeaningDirectnessEvaluator.metadata.id,
+        operation: 'evaluate',
+        gradeLevel,
+        textLength: text.length,
+      });
 
       this.logger.debug('Evaluating conventionality complexity', {
         evaluator: MeaningDirectnessEvaluator.metadata.id,

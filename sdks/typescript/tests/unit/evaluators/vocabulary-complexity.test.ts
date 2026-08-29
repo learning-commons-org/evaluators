@@ -41,14 +41,14 @@ describe('VocabularyComplexityEvaluator - Constructor Validation', () => {
     expect(() => new VocabularyComplexityEvaluator({
       googleApiKey: '',
       openaiApiKey: 'test-openai-key',
-    })).toThrow(`Google API key is required for ${VocabularyComplexityEvaluator.metadata.name}. Pass googleApiKey in config.`);
+    })).toThrow(`Missing required credential: googleApiKey. Required by ${VocabularyComplexityEvaluator.metadata.name}.`);
   });
 
   it('should throw error when OpenAI API key is missing', () => {
     expect(() => new VocabularyComplexityEvaluator({
       googleApiKey: 'test-google-key',
       openaiApiKey: '',
-    })).toThrow(`OpenAI API key is required for ${VocabularyComplexityEvaluator.metadata.name}. Pass openaiApiKey in config.`);
+    })).toThrow(`Missing required credential: openaiApiKey. Required by ${VocabularyComplexityEvaluator.metadata.name}.`);
   });
 
 });

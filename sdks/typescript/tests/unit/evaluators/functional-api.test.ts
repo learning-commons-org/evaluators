@@ -38,8 +38,8 @@ const RESPONSE = {
   data: {
     complexity_level: 'Very complex',
     complexity_score: 'very_complex',
-    grade: '6-8',
-    alternative_grade: '9-10',
+    grade_band: '6-8',
+    alternative_grade_band: '9-10',
     scaffolding_needed: 'none',
     reasoning: 'because',
     grade_context: 'above grade',
@@ -134,7 +134,7 @@ describe('functional API wrappers', () => {
   it('evaluateGradeLevelAppropriateness takes no gradeLevel', async () => {
     const result = await evaluateGradeLevelAppropriateness({ text: TEXT }, CONFIG);
 
-    expect(result.result.grade).toBe('6-8');
+    expect(result.result.grade_band).toBe('6-8');
     expect(mockProvider.generateStructured).toHaveBeenCalledTimes(1);
   });
 
