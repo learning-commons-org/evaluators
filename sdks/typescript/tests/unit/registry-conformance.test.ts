@@ -198,12 +198,11 @@ const ENUM_VALUE_GAPS = new Set<string>([
  * Evaluators that do not compute a declared preprocessing step the way the contract says.
  */
 const PREPROCESSING_GAPS = new Set<string>([
-  // All three call the hand-rolled compromise+syllable `calculateFleschKincaidGrade` instead of
-  // the declared `text-readability.fleschKincaidGrade`. The two disagree — on the fixture
-  // corpus the declared library is the less accurate of the two against Python's textstat
-  // (mean error 1.394 vs 0.273), so which one the contract should declare is still open.
-  BKD_ID,
-  MD_ID,
+  // Multi-step, so it cannot move to the factory until step `condition` semantics are
+  // settled; until then it calls the hand-rolled `calculateFleschKincaidGrade` rather than
+  // the declared `text-readability.fleschKincaidGrade`. Neither matches Python's textstat:
+  // over the fixture corpus the declared library is out by 1.03 grade levels on average
+  // and the hand-rolled one by 0.54, so closing this gap alone does not give parity.
   VocabularyComplexityEvaluator.metadata.id,
 ]);
 

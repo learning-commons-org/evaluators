@@ -150,7 +150,12 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
     await evaluator.evaluate({ text: testText, grade_level: '7' });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0];
-    // The user prompt should contain the FK score (a number)
-    expect(call[0].messages[1].content).toMatch(/\d+(\.\d+)?/);
+
+    // The exact value the contract's declared implementation produces for this text
+    // (`text-readability.fleschKincaidGrade`, rounded to 2dp). A loose `/\d+(\.\d+)?/`
+    // here passed with preprocessing switched off entirely, because the grade level in
+    // the same prompt satisfied it.
+    expect(call[0].messages[1].content).toContain('6.8');
+    expect(call[0].messages[1].content).not.toContain('{fk_score}');
   });
 });
