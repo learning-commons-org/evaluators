@@ -11,17 +11,19 @@ import type { StageDetail } from '../../../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../../../errors.js';
 import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/meaning-directness/config.json';
 
+/** What this evaluator accepts, taken from its `input_schema.json`. */
+export type MeaningDirectnessInput = InputsOf<typeof INPUT_SCHEMA>;
+
 /**
  * Meaning Directness Evaluator
  *
  * Evaluates how explicit, literal, and straightforward a text's meaning is versus
  * how abstract, ironic, figurative, or archaic it is for the target grade level.
  *
- * Based on the Common Core Qualitative Text Complexity Rubric with 4 levels:
- * - Slightly complex
- * - Moderately complex
- * - Very complex
- * - Exceedingly complex
+ * Based on the Qualitative Text Complexity rubric.
+ *
+ * The complexity levels are whatever `output_schema.json` declares — currently
+ * `slightly_complex` through `exceedingly_complex` — and are returned verbatim.
  *
  * @example
  * ```typescript
@@ -29,14 +31,11 @@ import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/mean
  *   googleApiKey: process.env.GOOGLE_API_KEY
  * });
  *
- * const result = await evaluator.evaluate(text, "6");
- * console.log(result.result.complexity_score); // "Moderately complex"
+ * const result = await evaluator.evaluate({ text, grade_level: '6' });
+ * console.log(result.result.complexity_score); // "moderately_complex"
  * console.log(result.result.reasoning);
  * ```
  */
-/** What this evaluator accepts, taken from its `input_schema.json`. */
-export type MeaningDirectnessInput = InputsOf<typeof INPUT_SCHEMA>;
-
 export class MeaningDirectnessEvaluator extends BaseEvaluator {
   static readonly metadata = {
     id: CONFIG.evaluator.id,
@@ -63,10 +62,9 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
   /**
    * Evaluate conventionality complexity for a given text and grade level
    *
-   * @param text - The text to evaluate
-   * @param gradeLevel - The target grade level (3-12)
+   * @param input - The inputs declared in this evaluator's `input_schema.json`
    * @returns Evaluation result with complexity score and detailed analysis
-   * @throws {InputValidationError} If text is empty, too short/long, or gradeLevel is invalid
+   * @throws {InputValidationError} If an input is missing, unknown, or outside the bounds its schema declares
    * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
    * @throws {DependencyError} If the provider call fails (AuthenticationError, RateLimitError, NetworkError, RequestTimeoutError, LLMProviderError)
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
