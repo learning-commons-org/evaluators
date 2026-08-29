@@ -4,7 +4,7 @@
  *
  * Each evaluator's config.json declares `output_schema.$ref` pointing to a JSON Schema.
  * This script resolves internal $refs, converts to Zod, and writes a typed TypeScript
- * file to src/schemas/{slug}.ts.
+ * file to src/schemas/{domain}/{skill}/{evaluator}.ts, derived from the evaluator id.
  *
  * Usage:
  *   tsx scripts/generate-schema.ts <config.json> [<config.json> ...]
@@ -14,7 +14,7 @@
  */
 
 import { parseSchema } from 'json-schema-to-zod';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -40,6 +40,11 @@ interface GeneratedSchema {
 /**
  * Recursively resolves all internal $ref nodes using the schema's $defs map.
  * Strips $defs from the output — the resolved schema is self-contained.
+ *
+ * Keys sitting beside a `$ref` override the definition's own. That is what carries the
+ * per-field meaning: several contracts point two or more fields at one definition and
+ * distinguish them by a sibling `description`, which reaches the model as the field's
+ * `.describe()`. Returning the bare definition makes those fields say the same thing.
  */
 export function resolveRefs(node: JsonValue, defs: Record<string, JsonObject>): JsonValue {
   if (typeof node !== 'object' || node === null) return node;
@@ -49,7 +54,10 @@ export function resolveRefs(node: JsonValue, defs: Record<string, JsonObject>): 
     const key = node['$ref'].replace('#/$defs/', '');
     const def = defs[key];
     if (!def) throw new Error(`Cannot resolve $ref "${node['$ref']}": key "${key}" not found in $defs`);
-    return resolveRefs(def, defs);
+    const siblings = Object.fromEntries(
+      Object.entries(node).filter(([name]) => name !== '$ref'),
+    );
+    return resolveRefs({ ...def, ...siblings }, defs);
   }
 
   const result: JsonObject = {};
@@ -84,8 +92,11 @@ export function generateSchemaFile(configPath: string): GeneratedSchema {
   if (!config.evaluator?.id) throw new Error(`config.json missing evaluator.id: ${configPath}`);
   if (!config.output_schema?.$ref) throw new Error(`config.json missing output_schema.$ref: ${configPath}`);
 
-  // Slug is the last dot-segment of the evaluator ID (e.g. "literacy.gla.purpose" → "purpose")
-  const slug = config.evaluator.id.split('.').pop()!;
+  // The path comes from the whole id, matching where the evaluator's own module lives,
+  // so two evaluators sharing a last segment cannot overwrite each other. The exported
+  // names come from the last segment alone, which is what reads well at a call site.
+  const segments = config.evaluator.id.split('.').map((part) => part.replace(/_/g, '-'));
+  const slug = segments[segments.length - 1];
   const className = toPascalCase(slug);
 
   const schemaPath = resolve(configDir, config.output_schema.$ref);
@@ -93,6 +104,11 @@ export function generateSchemaFile(configPath: string): GeneratedSchema {
 
   const defs = (rawSchema['$defs'] ?? {}) as Record<string, JsonObject>;
   const resolved = resolveRefs(rawSchema, defs) as JsonObject;
+
+  // A root `description` describes the contract, not a field the model fills in, and
+  // several are notes to maintainers. Per-field descriptions are kept.
+  delete resolved['description'];
+
   const zodCode = parseSchema(resolved);
 
   const relSchemaPath = relative(SDK_ROOT, schemaPath);
@@ -113,7 +129,7 @@ export function generateSchemaFile(configPath: string): GeneratedSchema {
 
   return {
     slug,
-    outPath: join(SRC_SCHEMAS, `${slug}.ts`),
+    outPath: join(SRC_SCHEMAS, ...segments) + '.ts',
     content,
   };
 }
@@ -148,6 +164,7 @@ function main(): void {
           console.log(`✓  ${slug}: up to date`);
         }
       } else {
+        mkdirSync(dirname(outPath), { recursive: true });
         writeFileSync(outPath, content, 'utf-8');
         console.log(`Generated ${outPath}`);
       }
