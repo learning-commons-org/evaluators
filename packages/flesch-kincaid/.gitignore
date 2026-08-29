@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Testing
+coverage/
+
+# Note: src/data/*.ts and tests/parity-corpus.json are generated but checked in, so the
+# package installs and tests without Python. See README.

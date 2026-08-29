@@ -63,6 +63,12 @@
             "release-type": "node",
             "changelog-path": "CHANGELOG.md",
             "component": "sdks-typescript"
+        },
+        "packages/flesch-kincaid": {
+            "release-type": "node",
+            "changelog-path": "CHANGELOG.md",
+            "component": "flesch-kincaid",
+            "release-as": "0.1.0"
         }
     }
 }

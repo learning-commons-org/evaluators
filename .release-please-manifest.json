@@ -1,5 +1,6 @@
 {
   "evals/prompts": "1.6.0",
   "sdks/python": "0.2.0",
-  "sdks/typescript": "0.8.0"
+  "sdks/typescript": "0.8.0",
+  "packages/flesch-kincaid": "0.0.0"
 }
