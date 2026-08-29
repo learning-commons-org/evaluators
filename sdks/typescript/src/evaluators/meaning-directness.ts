@@ -30,8 +30,8 @@ import CONFIG from '../../../../evals/student-facing-text/ela-reading/meaning-di
  * });
  *
  * const result = await evaluator.evaluate(text, "6");
- * console.log(result.score); // "Moderately complex"
- * console.log(result.reasoning);
+ * console.log(result.result.complexity_score); // "Moderately complex"
+ * console.log(result.result.reasoning);
  * ```
  */
 /** What this evaluator accepts, taken from its `input_schema.json`. */
@@ -72,21 +72,23 @@ export class MeaningDirectnessEvaluator extends BaseEvaluator {
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(input: MeaningDirectnessInput): Promise<EvaluationResult<MeaningDirectnessInternal>> {
-    validateInputs(input, INPUT_SCHEMA);
-    const { text, grade_level: gradeLevel } = input;
-
-    this.logger.info('Starting Meaning Directness evaluation', {
-      evaluator: MeaningDirectnessEvaluator.metadata.id,
-      operation: 'evaluate',
-      gradeLevel,
-      textLength: text.length,
-    });
-
+    let text = '';
+    let gradeLevel = '';
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
 
     try {
-      // Validate inputs — inside try so validation errors are telemetered.
+      // Inside the try so a validation failure is telemetered as an error event,
+      // and before the inputs are read so a non-object is reported as one.
+      validateInputs(input, INPUT_SCHEMA);
+      ({ text, grade_level: gradeLevel } = input);
+
+      this.logger.info('Starting Meaning Directness evaluation', {
+        evaluator: MeaningDirectnessEvaluator.metadata.id,
+        operation: 'evaluate',
+        gradeLevel,
+        textLength: text.length,
+      });
 
       this.logger.debug('Evaluating conventionality complexity', {
         evaluator: MeaningDirectnessEvaluator.metadata.id,

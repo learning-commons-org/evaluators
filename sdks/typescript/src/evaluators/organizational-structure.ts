@@ -71,20 +71,23 @@ export class OrganizationalStructureEvaluator extends BaseEvaluator {
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(input: OrganizationalStructureInput): Promise<EvaluationResult<OrganizationalStructureInternal>> {
-    validateInputs(input, INPUT_SCHEMA);
-    const { text, grade_level: gradeLevel } = input;
-
-    this.logger.info('Starting Organizational Structure evaluation', {
-      evaluator: OrganizationalStructureEvaluator.metadata.id,
-      operation: 'evaluate',
-      gradeLevel,
-      textLength: text.length,
-    });
-
+    let text = '';
+    let gradeLevel = '';
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
 
     try {
+      // Inside the try so a validation failure is telemetered as an error event,
+      // and before the inputs are read so a non-object is reported as one.
+      validateInputs(input, INPUT_SCHEMA);
+      ({ text, grade_level: gradeLevel } = input);
+
+      this.logger.info('Starting Organizational Structure evaluation', {
+        evaluator: OrganizationalStructureEvaluator.metadata.id,
+        operation: 'evaluate',
+        gradeLevel,
+        textLength: text.length,
+      });
 
       const fkScore = OrganizationalStructureEvaluator.computeFkScore(text);
       const promptInputs: Record<string, string> = {

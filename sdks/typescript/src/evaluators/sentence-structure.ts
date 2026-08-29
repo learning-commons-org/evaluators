@@ -63,8 +63,8 @@ function normalizeLabel(label: string | null | undefined): TextComplexityLevel |
  * });
  *
  * const result = await evaluator.evaluate(text, "3");
- * console.log(result.score); // "Moderately complex"
- * console.log(result.reasoning);
+ * console.log(result.result.complexity_score); // "Moderately complex"
+ * console.log(result.result.reasoning);
  * ```
  */
 /** What this evaluator accepts, taken from its `input_schema.json`. */
@@ -105,21 +105,24 @@ export class SentenceStructureEvaluator extends BaseEvaluator {
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(input: SentenceStructureInput): Promise<EvaluationResult<ComplexityClassification>> {
-    validateInputs(input, INPUT_SCHEMA);
-    const { text, grade_level: gradeLevel } = input;
-
-    this.logger.info('Starting sentence structure evaluation', {
-      evaluator: SentenceStructureEvaluator.metadata.id,
-      operation: 'evaluate',
-      gradeLevel,
-      textLength: text.length,
-    });
-
+    let text = '';
+    let gradeLevel = '';
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
 
     try {
-      // Validate inputs — inside try so validation errors are telemetered.
+      // Inside the try so a validation failure is telemetered as an error event,
+      // and before the inputs are read so a non-object is reported as one.
+      validateInputs(input, INPUT_SCHEMA);
+      ({ text, grade_level: gradeLevel } = input);
+
+      this.logger.info('Starting sentence structure evaluation', {
+        evaluator: SentenceStructureEvaluator.metadata.id,
+        operation: 'evaluate',
+        gradeLevel,
+        textLength: text.length,
+      });
+
       this.logger.debug('Stage 1: Analyzing sentence structure', {
         evaluator: SentenceStructureEvaluator.metadata.id,
         operation: 'sentence_analysis',

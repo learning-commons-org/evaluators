@@ -68,20 +68,23 @@ export class ReferenceKnowledgeDemandsEvaluator extends BaseEvaluator {
    * @throws {LLMOutputProcessingError} If the model's response fails its output schema
    */
   async evaluate(input: ReferenceKnowledgeDemandsInput): Promise<EvaluationResult<ReferenceKnowledgeDemandsInternal>> {
-    validateInputs(input, INPUT_SCHEMA);
-    const { text, grade_level: gradeLevel } = input;
-
-    this.logger.info('Starting Reference Knowledge Demands evaluation', {
-      evaluator: ReferenceKnowledgeDemandsEvaluator.metadata.id,
-      operation: 'evaluate',
-      gradeLevel,
-      textLength: text.length,
-    });
-
+    let text = '';
+    let gradeLevel = '';
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
 
     try {
+      // Inside the try so a validation failure is telemetered as an error event,
+      // and before the inputs are read so a non-object is reported as one.
+      validateInputs(input, INPUT_SCHEMA);
+      ({ text, grade_level: gradeLevel } = input);
+
+      this.logger.info('Starting Reference Knowledge Demands evaluation', {
+        evaluator: ReferenceKnowledgeDemandsEvaluator.metadata.id,
+        operation: 'evaluate',
+        gradeLevel,
+        textLength: text.length,
+      });
 
       const fkScore = ReferenceKnowledgeDemandsEvaluator.computeFkScore(text);
       const promptInputs: Record<string, string> = {
