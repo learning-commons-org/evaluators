@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { runPreprocessingStep } from '../../../src/features/preprocessing.js';
+import CONFIG from '../../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';
 import { createHash } from 'node:crypto';
 import { PurposeClarityEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/purpose-clarity.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
-import CONFIG from '../../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';
 import { getSystemPrompt, getUserPrompt } from '../../../src/prompts/purpose-clarity/index.js';
 
 const STEP = CONFIG.steps[0];
@@ -54,6 +55,8 @@ const MOCK_RESPONSE = {
 };
 
 // --- Constructor ---
+
+const FK_TEXT = 'The quick brown fox jumps over the lazy dog.';
 
 describe('PurposeClarityEvaluator - Constructor', () => {
   it('throws when Google API key is missing', () => {
@@ -177,10 +180,16 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
   it('includes computed fk_score in user prompt', async () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
 
-    await evaluator.evaluate({ text: 'The quick brown fox jumps over the lazy dog.', grade_level: '5' });
+    await evaluator.evaluate({ text: FK_TEXT, grade_level: '5' });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
-    expect(call.messages[1].content).toMatch(/\d+(\.\d+)?/);
+    // The value the contract's own preprocessing produces, not just "some number" — the
+    // grade level alone satisfied that, so the assertion held with preprocessing off.
+    const fkStep = CONFIG.preprocessing.find((p) => p.id === 'fk_score')!;
+    const expected = String(runPreprocessingStep(FK_TEXT, fkStep.implementation.typescript));
+
+    expect(call.messages[1].content).toContain(expected);
+    expect(call.messages[1].content).not.toContain('{fk_score}');
   });
 
   it('maps LLM response to result shape', async () => {
