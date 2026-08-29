@@ -6,14 +6,18 @@ on:
       - main
     paths:
       - 'sdks/typescript/**'
-      - 'evals/prompts/**'
-      - 'evals/student-facing-text/**'
+      # The whole corpus: the SDK compiles every contract's config.json and prompt .txt
+      # into dist/, so any of them can change what the package does. Listing domains
+      # individually meant a new one silently ran no TypeScript CI at all.
+      - 'evals/**'
       - '.github/workflows/test-sdk-typescript.yml'
   pull_request:
     paths:
       - 'sdks/typescript/**'
-      - 'evals/prompts/**'
-      - 'evals/student-facing-text/**'
+      # The whole corpus: the SDK compiles every contract's config.json and prompt .txt
+      # into dist/, so any of them can change what the package does. Listing domains
+      # individually meant a new one silently ran no TypeScript CI at all.
+      - 'evals/**'
       - '.github/workflows/test-sdk-typescript.yml'
 
 permissions:
