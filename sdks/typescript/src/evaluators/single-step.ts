@@ -25,6 +25,8 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
     id_history: string[];
     name: string;
     description: string;
+    /** Required of every contract, so a config.json omitting it fails to compile here. */
+    supported_grades: string[];
   };
   steps: Array<{
     id: string;
@@ -147,7 +149,11 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string>,
     description: contract.evaluator.description,
     outcome: contract.outcome,
     requiredCredentials: declaredCredentials(contract),
-    supportedGrades: (inputSchema.properties.grade_level?.enum ?? []) as readonly string[],
+    // What the evaluator targets, which its contract states outright. Deriving it from the
+    // grade input instead published `[]` for every evaluator that takes no grade — the
+    // feedback family and Grade Level Appropriateness — asserting they target no grades.
+    // The accepted set is still the input enum, and `validateInputs` is what enforces it.
+    supportedGrades: contract.evaluator.supported_grades as readonly string[],
     defaultProviders: [VENDOR] as const,
   };
 

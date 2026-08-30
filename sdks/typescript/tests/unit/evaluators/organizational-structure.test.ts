@@ -4,7 +4,6 @@ import CONFIG from '../../../../../evals/student-facing-text/ela-reading/organiz
 import { OrganizationalStructureEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/organizational-structure.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
-import INPUT_SCHEMA from '../../../../../evals/student-facing-text/ela-reading/organizational-structure/input_schema.json';
 
 const STEP = CONFIG.steps[0];
 
@@ -94,11 +93,11 @@ describe('OrganizationalStructureEvaluator - Metadata', () => {
     );
   });
 
-  // Bound to the contract, not a copy of it: the schema's enum is the declared
-  // set, so a change there must show up here rather than drifting silently.
-  it('derives supportedGrades from input_schema.json', () => {
+  // Bound to the contract, not a copy of it, so a change there must show up here rather
+  // than drifting silently.
+  it('derives supportedGrades from config.json', () => {
     expect(OrganizationalStructureEvaluator.metadata.supportedGrades).toEqual(
-      INPUT_SCHEMA.properties.grade_level.enum,
+      CONFIG.evaluator.supported_grades,
     );
   });
 });
