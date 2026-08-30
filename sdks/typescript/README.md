@@ -40,11 +40,16 @@ Each evaluator's argument and payload types are exported — `VocabularyComplexi
 
 ## Installation
 
-Install the `@learning-commons/evaluators` and [Vercel AI](https://sdk.vercel.ai) SDKs:
+Install the SDK alongside [Vercel AI](https://sdk.vercel.ai) and [zod](https://zod.dev):
 
 ```bash
-npm install @learning-commons/evaluators ai
+npm install @learning-commons/evaluators ai zod
 ```
+
+`ai` and `zod` are peer dependencies, so your project owns their versions. `zod` must be
+version 4: the evaluator schemas this package exports are zod 4 values, and a second copy in
+your tree makes them incompatible with your own — a mismatch that shows up as
+`Type 'ZodObject<…>' is not assignable to type 'ZodTypeAny'` rather than as an install error.
 
 Next, install the provider adapter(s) for the evaluators you plan to run — the table below gives each evaluator's provider:
 

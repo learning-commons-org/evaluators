@@ -17,10 +17,25 @@ npm error Found: ai@6.0.271
 One command, not two:
 
 ```bash
-npm install @learning-commons/evaluators@^1 ai@^7 @ai-sdk/google@^4 @ai-sdk/openai@^4 @ai-sdk/anthropic@^4
+npm install @learning-commons/evaluators@^1 zod@^4 ai@^7 @ai-sdk/google@^4 @ai-sdk/openai@^4 @ai-sdk/anthropic@^4
 ```
 
 Install only the adapters you use. Node's minimum is unchanged at `>=20.19.0`.
+
+**`zod` is now a peer dependency and must be added.** In 0.8.0 it was bundled, so npm
+installed a copy for us; now your project declares it, which is what guarantees there is only
+one copy. If you already depend on zod it must be **version 4** — the exported evaluator
+schemas are zod 4 values, and with zod 3 in your tree npm keeps a second copy, so composing
+one of our schemas with your own fails:
+
+```
+error TS2322: Type 'ZodObject<…, $strict>' is not assignable to type 'ZodTypeAny'.
+  missing the following properties from type 'ZodType<any, any, any>': _type, _parse, …
+```
+
+Nothing you can do at the call site fixes that; the two copies are structurally different
+types. Note that `ai@7` accepts `zod@^3.25.76 || ^4.1.8`, so a project pinned to zod 3 for
+`ai`'s sake now has to move to zod 4.
 
 ## 1. `evaluate()` takes named inputs
 
@@ -262,6 +277,7 @@ Covered by step 0 above, which has to happen first. For reference:
 | --- | --- | --- |
 | `ai` | `>=6.0.0` | `>=7.0.0` |
 | `@ai-sdk/google`, `@ai-sdk/openai`, `@ai-sdk/anthropic` | `>=3.0.0` | `>=4.0.0` |
+| `zod` | *(bundled as a dependency)* | `^4.0.0` — now a peer you declare |
 
 ## 8. Math standards alignment: named inputs, and the envelope
 
