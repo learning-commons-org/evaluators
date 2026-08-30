@@ -8,9 +8,9 @@ import {
   OrganizationalStructureEvaluator,
   ReferenceKnowledgeDemandsEvaluator,
 } from '../../evaluators/index.js';
-import type { BaseEvaluatorConfig, ModelOverride } from '../../evaluators/base.js';
+import type { ModelOverride } from '../../evaluators/base.js';
 import { Provider } from '../../evaluators/base.js';
-import type { EvaluationResult } from '../../schemas/index.js';
+import { getEvaluatorClass, type RegisteredEvaluator } from '../../evaluators/registry.js';
 import { readOutcome } from '../../schemas/outcome.js';
 import {
   type ColumnSpec,
@@ -29,25 +29,7 @@ import {
  * Typed loosely on purpose -- members declare different input keys (GLA takes no
  * grade), and the family builds each object from the evaluator's own schema below.
  */
-interface SimpleEvaluator {
-  evaluate(input: Record<string, string>): Promise<EvaluationResult<unknown>>;
-}
-type EvaluatorConstructor = (new (config: BaseEvaluatorConfig) => SimpleEvaluator) & {
-  // The declared outcome travels with the class, so the family reads which field holds
-  // the verdict from the contract rather than knowing it per member.
-  metadata: { outcome?: { score: string; reasoning: string } };
-};
-
-const EVALUATOR_MAP = new Map<string, EvaluatorConstructor>([
-  [GradeLevelAppropriatenessEvaluator.metadata.id, GradeLevelAppropriatenessEvaluator],
-  [BackgroundKnowledgeDemandsEvaluator.metadata.id, BackgroundKnowledgeDemandsEvaluator],
-  [VocabularyComplexityEvaluator.metadata.id, VocabularyComplexityEvaluator],
-  [SentenceStructureEvaluator.metadata.id, SentenceStructureEvaluator],
-  [MeaningDirectnessEvaluator.metadata.id, MeaningDirectnessEvaluator],
-  [PurposeClarityEvaluator.metadata.id, PurposeClarityEvaluator],
-  [OrganizationalStructureEvaluator.metadata.id, OrganizationalStructureEvaluator],
-  [ReferenceKnowledgeDemandsEvaluator.metadata.id, ReferenceKnowledgeDemandsEvaluator],
-]);
+type SimpleEvaluator = InstanceType<RegisteredEvaluator>;
 
 const MEMBERS = [
   { id: GradeLevelAppropriatenessEvaluator.metadata.id, name: GradeLevelAppropriatenessEvaluator.metadata.name },
@@ -91,7 +73,7 @@ class QtcRunner implements FamilyRunner {
   private getEvaluator(memberId: string): SimpleEvaluator {
     let instance = this.instances.get(memberId);
     if (!instance) {
-      const EvaluatorClass = EVALUATOR_MAP.get(memberId);
+      const EvaluatorClass = getEvaluatorClass(memberId);
       if (!EvaluatorClass) throw new Error(`Unknown QTC evaluator: ${memberId}`);
       instance = new EvaluatorClass({
         googleApiKey: this.ctx.googleApiKey,
@@ -116,7 +98,7 @@ class QtcRunner implements FamilyRunner {
     }
 
     const result = await this.getEvaluator(memberId).evaluate(inputs);
-    const declared = EVALUATOR_MAP.get(memberId)?.metadata.outcome;
+    const declared = getEvaluatorClass(memberId)?.metadata.outcome;
     const { score, reasoning } = readOutcome(result, declared);
 
     // A report cell has to be a string. An absent verdict renders blank, and doing

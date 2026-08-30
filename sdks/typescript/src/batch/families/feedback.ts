@@ -7,8 +7,8 @@ import {
   ToneAppropriatenessEvaluator,
   WithholdingAnswersEvaluator,
 } from '../../evaluators/index.js';
-import type { BaseEvaluatorConfig, ModelOverride, Provider } from '../../evaluators/base.js';
-import type { EvaluationResult } from '../../schemas/index.js';
+import type { ModelOverride } from '../../evaluators/base.js';
+import { getEvaluatorClass, type RegisteredEvaluator } from '../../evaluators/registry.js';
 import { readOutcome } from '../../schemas/outcome.js';
 import {
   type ColumnSpec,
@@ -23,24 +23,14 @@ import {
 } from './family.js';
 
 /** The shape this family needs from an evaluator: named inputs in, envelope out. */
-interface FeedbackEvaluator {
-  evaluate(input: Record<string, string>): Promise<EvaluationResult<unknown>>;
-}
-
-type EvaluatorClass = (new (config: BaseEvaluatorConfig) => FeedbackEvaluator) & {
-  metadata: {
-    id: string;
-    name: string;
-    defaultProviders: readonly Provider[];
-    outcome?: { score: string; reasoning: string };
-  };
-};
+type FeedbackEvaluator = InstanceType<RegisteredEvaluator>;
 
 /**
- * The members, in report order. Everything else about them — id, display name, provider,
- * which field holds the verdict — is read off the class, which reads it off the contract.
+ * Which evaluators are in this family, and the order they report in. That is all this list
+ * decides — id, display name, provider and which field holds the verdict are read off the
+ * class, which reads them off the contract. Resolution by id goes through the registry.
  */
-const MEMBER_CLASSES: readonly EvaluatorClass[] = [
+const MEMBER_CLASSES: readonly RegisteredEvaluator[] = [
   RevisionAccuracyEvaluator,
   RevisionActionabilityEvaluator,
   RevisionManageabilityEvaluator,
@@ -49,8 +39,6 @@ const MEMBER_CLASSES: readonly EvaluatorClass[] = [
   ToneAppropriatenessEvaluator,
   WithholdingAnswersEvaluator,
 ];
-
-const BY_ID = new Map(MEMBER_CLASSES.map((E) => [E.metadata.id, E]));
 
 /** The columns a row must carry, matching what every member's input schema declares. */
 export const FEEDBACK_COLUMNS: ColumnSpec[] = [
@@ -72,7 +60,7 @@ class FeedbackRunner implements FamilyRunner {
   private getEvaluator(memberId: string): FeedbackEvaluator {
     let instance = this.instances.get(memberId);
     if (!instance) {
-      const EvaluatorClass = BY_ID.get(memberId);
+      const EvaluatorClass = getEvaluatorClass(memberId);
       if (!EvaluatorClass) throw new Error(`Unknown feedback evaluator: ${memberId}`);
       instance = new EvaluatorClass({
         googleApiKey: this.ctx.googleApiKey,
@@ -96,7 +84,7 @@ class FeedbackRunner implements FamilyRunner {
       feedback_text: row.columns['feedback_text'],
     });
 
-    const { score, reasoning } = readOutcome(result, BY_ID.get(memberId)?.metadata.outcome);
+    const { score, reasoning } = readOutcome(result, getEvaluatorClass(memberId)?.metadata.outcome);
 
     // A report cell has to be a string, and the verdict here is the integer 0 or 1, which
     // readOutcome has already stringified. An absent verdict renders blank.
@@ -115,7 +103,14 @@ export const FEEDBACK_FAMILY: EvaluatorFamily = {
     if (modelOverride) return [modelOverride.provider];
     const keys = new Set<KeyKind>();
     for (const member of resolveMembers(FEEDBACK_FAMILY, selectedMemberIds)) {
-      for (const provider of BY_ID.get(member.id)?.metadata.defaultProviders ?? []) {
+      // Not `?? []`: a member id that does not resolve would silently drop that member's
+      // provider key from the requirement list, and the run would fail later on a missing
+      // credential instead of prompting for it. These ids come from this family's own
+      // member list, so an unresolvable one is a bug here, not bad input.
+      const resolved = getEvaluatorClass(member.id);
+      if (!resolved) throw new Error(`Feedback family member is not registered: ${member.id}`);
+
+      for (const provider of resolved.metadata.defaultProviders) {
         keys.add(provider);
       }
     }

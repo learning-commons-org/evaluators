@@ -1,3 +1,5 @@
+export { getEvaluators, getEvaluator } from './registry.js';
+
 export {
   BaseEvaluator,
   Provider,
