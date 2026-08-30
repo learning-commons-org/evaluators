@@ -9,7 +9,7 @@ import CONFIG from '../../../../../../evals/feedback/ela-writing/student-respons
 import INPUT_SCHEMA from '../../../../../../evals/feedback/ela-writing/student-response-specificity/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type StudentResponseSpecificityInput = InputsOf<typeof INPUT_SCHEMA>;
+export type StudentResponseSpecificityInput = InputsOf<{ properties: Record<'student_text' | 'feedback_text', unknown> }>;
 
 /**
  * Judges whether the feedback engages this student's actual writing.

@@ -20,8 +20,8 @@ import type { StageDetail } from '../../../telemetry/index.js';
 import { EvaluatorError, wrapProviderError } from '../../../errors.js';
 import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/config.json';
 
-/** What this evaluator accepts, taken from its `input_schema.json`. */
-export type VocabularyComplexityInput = InputsOf<typeof INPUT_SCHEMA>;
+/** What this evaluator accepts, named by its `input_schema.json`. */
+export type VocabularyComplexityInput = InputsOf<{ properties: Record<'text' | 'grade_level', unknown> }>;
 
 /** The vocabulary evaluator's stage-1 output, fed to stage 2 as prompt input. */
 export interface BackgroundKnowledge {

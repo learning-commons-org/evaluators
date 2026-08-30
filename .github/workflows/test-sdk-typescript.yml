@@ -133,6 +133,12 @@ jobs:
       - name: 🏗️ Build package
         run: npm run build
 
+      # The declarations can only be checked against a build, and the test job above runs
+      # before this one without building — so a dist-dependent assertion placed there would
+      # silently skip on every run.
+      - name: 📜 Verify the published declarations
+        run: npm run verify:dist
+
       # Temporarily disabled - integration tests take too long in CI
       # - name: ⚡ Run integration tests (against dist/)
       #   if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository

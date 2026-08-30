@@ -9,7 +9,7 @@ import CONFIG from '../../../../../../evals/feedback/ela-writing/revision-action
 import INPUT_SCHEMA from '../../../../../../evals/feedback/ela-writing/revision-actionability/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type RevisionActionabilityInput = InputsOf<typeof INPUT_SCHEMA>;
+export type RevisionActionabilityInput = InputsOf<{ properties: Record<'student_text' | 'feedback_text', unknown> }>;
 
 /**
  * Judges whether the feedback tells the student what to actually do next.

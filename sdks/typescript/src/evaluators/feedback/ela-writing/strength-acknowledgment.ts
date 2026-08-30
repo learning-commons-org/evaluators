@@ -9,7 +9,7 @@ import CONFIG from '../../../../../../evals/feedback/ela-writing/strength-acknow
 import INPUT_SCHEMA from '../../../../../../evals/feedback/ela-writing/strength-acknowledgment/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type StrengthAcknowledgmentInput = InputsOf<typeof INPUT_SCHEMA>;
+export type StrengthAcknowledgmentInput = InputsOf<{ properties: Record<'student_text' | 'feedback_text', unknown> }>;
 
 /**
  * Judges whether the feedback names what the student did well.

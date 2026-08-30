@@ -9,7 +9,7 @@ import CONFIG from '../../../../../../evals/feedback/ela-writing/revision-manage
 import INPUT_SCHEMA from '../../../../../../evals/feedback/ela-writing/revision-manageability/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type RevisionManageabilityInput = InputsOf<typeof INPUT_SCHEMA>;
+export type RevisionManageabilityInput = InputsOf<{ properties: Record<'student_text' | 'feedback_text', unknown> }>;
 
 /**
  * Judges whether the revision the feedback asks for is achievable.

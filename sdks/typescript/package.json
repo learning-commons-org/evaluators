@@ -33,6 +33,7 @@
     "generate:schemas:check": "tsx scripts/generate-schema.ts --all --check",
     "generate:kg-types": "openapi-typescript https://docs.learningcommons.org/api-reference/knowledge-graph-api/openapi.yaml -o src/knowledge-graph/kg-api.d.ts",
     "build": "tsup",
+    "verify:dist": "vitest run tests/declarations",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
