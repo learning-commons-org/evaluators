@@ -28,8 +28,11 @@ if (RUN_INTEGRATION && !process.env.OPENAI_API_KEY) {
 }
 const describeIntegration = RUN_INTEGRATION ? describe : describe.skip;
 
-// Test timeout: 2 minutes per test case (allows for 3 attempts with API latency)
-const TEST_TIMEOUT_MS = 2 * 60 * 1000;
+// Multi-step: each attempt makes two sequential model calls, and there are up to three
+// attempts, so a case can legitimately need six calls. Four minutes because two only
+// held when this suite ran alone — under the full integration run a case timed out at
+// exactly 120s.
+const TEST_TIMEOUT_MS = 4 * 60 * 1000;
 
 const TEST_CASES: BaseTestCase[] = [
   // {
@@ -67,6 +70,14 @@ const TEST_CASES: BaseTestCase[] = [
     id: 'SS6',
     grade: '6',
     text: "Benjamin Franklin was a very important person in American history. He was born in Boston, Massachusetts in 1706. He was one of 17 children. Franklin did not go to school for very long. He learned to be a printer from his brother. Franklin was a very smart man. He invented many things, like bifocals, the Franklin stove, and the lightning rod. He also started the first public library in Philadelphia. Franklin was a writer, too. He wrote a book called *Poor Richard's Almanack*. It had many famous sayings, like \"Lost Time is never found again.\"\n\nFranklin was also a politician. He helped write the Declaration of Independence. He was a diplomat, too. He helped the United States get help from France during the Revolutionary War. He was a very busy man! Franklin was a scientist, a writer, a politician, and an inventor. He was a very important person in American history.\n\nFranklin was a very interesting person. He was a scientist who did experiments with electricity. He was a writer who wrote a book of sayings. He was a politician who helped the United States become independent. He was a diplomat who helped the United States get help from other countries. He was a very busy man!\n\nFranklin was a very smart man. He was a self-taught man who learned a lot on his own. He was a very creative man who invented many things. He was a very kind man who helped others. He was a very important man who helped shape the United States.\n\nFranklin was a very influential person. He was a leader who helped people. He was a thinker who came up with new ideas. He was a writer who shared his thoughts with others. He was a scientist who helped people understand the world. He was a very important person who helped make the United States what it is today.",
+    expected: 'slightly_complex',
+    acceptable: ['moderately_complex'],
+  },
+  {
+    // This evaluator's own contract fixture.
+    id: 'FIXTURE-cat_on_mat',
+    grade: '3',
+    text: "The cat sat on the mat. It was sleeping peacefully. The sun was warm. Soon it began to dream.",
     expected: 'slightly_complex',
     acceptable: ['moderately_complex'],
   },

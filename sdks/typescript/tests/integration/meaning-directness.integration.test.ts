@@ -133,6 +133,14 @@ const TEST_CASES: BaseTestCase[] = [
     expected: 'moderately_complex',
     acceptable: ['slightly_complex', 'very_complex'],
   },
+  {
+    // This evaluator's own contract fixture.
+    id: 'FIXTURE-turnip',
+    grade: '4',
+    text: "\"Well, then,\" said the teacher, \"you may take your slate and go out behind the schoolhouse for half an hour. Think of something to write about, and write the word on your slate. Then try to tell what it is, what it is like, what it is good for, and what is done with it. That is the way to write a composition.\" Henry took his slate and went out. Just behind the schoolhouse was Mr. Finney's barn. Quite close to the barn was a garden. And in the garden, Henry saw a turnip. \"Well, I know what that is,\" he said to himself; and he wrote the word turnip on his slate. Then he tried to tell what it was like, what it was good for, and what was done with it. Before the half hour was ended he had written a very neat composition on his slate. He then went into the house, and waited while the teacher read it. The teacher was surprised and pleased. He said, \"Henry Longfellow, you have done very well. Today you may stand up before the school and read what you have written about the turnip.\"",
+    expected: 'slightly_complex',
+    acceptable: ['moderately_complex'],
+  },
 ];
 
 describeIntegration.concurrent('Meaning Directness Evaluator - Comprehensive Test Suite', () => {
