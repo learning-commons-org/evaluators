@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
+import { pathToFileURL } from 'url';
 import prompts from 'prompts';
 import {
   BatchEvaluator,
@@ -22,7 +23,14 @@ import { parseArgs, resolveModel, MODEL_SHORTCODES } from './cli-args.js';
 
 // ---- Output directory validation ----
 
-function validateOutputDir(value: string): string | true {
+/**
+ * Whether the CLI can write its output to `value`, or why it cannot.
+ *
+ * Returns the reason rather than throwing or exiting, so the interactive prompt can show it
+ * and re-ask while `main` turns it into an exit code. A missing leaf directory is allowed
+ * because the CLI creates it; a missing parent is not, because it creates only one level.
+ */
+export function validateOutputDir(value: string): string | true {
   const trimmed = value.trim();
   if (!trimmed) return 'Output directory cannot be empty';
   const resolved = path.resolve(trimmed);
@@ -54,7 +62,13 @@ function validateOutputDir(value: string): string | true {
 
 // ---- Credentials ----
 
-const KEY_CONFIG: Record<KeyKind, { envVar: string; label: string; flag: string }> = {
+/**
+ * How each credential is named on the command line and in the environment.
+ *
+ * Keyed by `KeyKind`, so a provider added to that union without an entry here is a compile
+ * error rather than a runtime lookup returning undefined.
+ */
+export const KEY_CONFIG: Record<KeyKind, { envVar: string; label: string; flag: string }> = {
   [Provider.Google]: { envVar: 'GOOGLE_API_KEY', label: 'Google API Key', flag: '--google-api-key' },
   [Provider.OpenAI]: { envVar: 'OPENAI_API_KEY', label: 'OpenAI API Key', flag: '--openai-api-key' },
   [Provider.Anthropic]: { envVar: 'ANTHROPIC_API_KEY', label: 'Anthropic API Key', flag: '--anthropic-api-key' },
@@ -107,24 +121,53 @@ Evaluation:
 
 // ---- Interactive helpers ----
 
+/** Where a credential came from, or what to do about its absence. */
+export type KeySource =
+  | { kind: 'resolved'; key: string }
+  /** Absent but obtainable by asking; `reason` explains the alternative to asking. */
+  | { kind: 'ask'; reason: string }
+  /** Cannot be obtained at all — an explicitly empty flag is a mistake, not a prompt. */
+  | { kind: 'error'; reason: string };
+
+/**
+ * Decide where a credential comes from, without reading the environment or prompting.
+ *
+ * An empty flag is separated from an absent one on purpose: the caller meant to pass
+ * something, so prompting over it would hide their mistake.
+ */
+export function resolveKeySource(
+  kind: KeyKind,
+  fromFlag: string | undefined,
+  fromEnv: string | undefined,
+): KeySource {
+  const { envVar, label, flag } = KEY_CONFIG[kind];
+
+  if (fromFlag !== undefined) {
+    return fromFlag
+      ? { kind: 'resolved', key: fromFlag }
+      : { kind: 'error', reason: `${label} (${flag}) was provided but is empty` };
+  }
+  if (fromEnv) return { kind: 'resolved', key: fromEnv };
+
+  return { kind: 'ask', reason: `Missing ${label}. Provide ${flag} or set ${envVar}` };
+}
+
 async function resolveKey(
   kind: KeyKind,
   fromFlag: string | undefined,
   interactive: boolean,
 ): Promise<string> {
-  const { envVar, label, flag } = KEY_CONFIG[kind];
-  if (fromFlag !== undefined) {
-    if (!fromFlag) {
-      console.error(`❌ ${label} (${flag}) was provided but is empty`);
-      process.exit(1);
-    }
-    return fromFlag;
+  const { envVar, label } = KEY_CONFIG[kind];
+  const source = resolveKeySource(kind, fromFlag, process.env[envVar]);
+
+  if (source.kind === 'error') {
+    console.error(`❌ ${source.reason}`);
+    process.exit(1);
   }
-  const fromEnv = process.env[envVar];
-  if (fromEnv) return fromEnv;
+  if (source.kind === 'resolved') return source.key;
 
   if (!interactive) {
-    console.error(`❌ Missing ${label}. Provide ${flag} or set ${envVar} (running non-interactively).`);
+    console.error(`❌ ${source.reason} (running non-interactively).`);
     process.exit(1);
   }
 
@@ -412,4 +455,18 @@ async function main() {
   }
 }
 
-main();
+/**
+ * Whether this module is the process entry point rather than an import.
+ *
+ * `main()` runs at module scope, so without this an `import` of this file — which the tests
+ * need in order to reach anything in it — starts a batch run and blocks on the interactive
+ * prompts. Compares resolved file URLs because `argv[1]` is a path and may be relative.
+ */
+export function isEntryPoint(moduleUrl: string, argv1: string | undefined): boolean {
+  if (argv1 === undefined) return false;
+  return moduleUrl === pathToFileURL(argv1).href;
+}
+
+if (isEntryPoint(import.meta.url, process.argv[1])) {
+  main();
+}
