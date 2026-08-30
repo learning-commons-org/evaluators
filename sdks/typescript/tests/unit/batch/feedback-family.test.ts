@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { FEEDBACK_FAMILY } from '../../../src/batch/families/feedback.js';
 import { getFamilies, getFamily } from '../../../src/batch/families/registry.js';
+import { getEvaluator } from '../../../src/evaluators/index.js';
 import { validateRequiredColumns, normalizeRow } from '../../../src/batch/families/family.js';
 import { renderOutputs } from '../../../src/batch/output.js';
 import { Provider } from '../../../src/evaluators/base.js';
@@ -24,6 +25,23 @@ function llmProvider(): LLMProvider {
     generateText: vi.fn(),
   };
 }
+
+describe('every family member resolves in the evaluator registry', () => {
+  // The invariant the `requiredKeys` guard depends on. A member id that does not resolve
+  // would drop that member's provider from the required-key list, and the run would fail
+  // later on a missing credential rather than prompting for it. Asserted here so the
+  // condition is caught when a family changes, not at run time.
+  it.each(getFamilies().flatMap((f) => f.members.map((m) => ({ family: f.id, id: m.id }))))(
+    '$family: $id',
+    ({ id }) => {
+      expect(getEvaluator(id), `${id} is a family member but not registered`).toBeDefined();
+    },
+  );
+
+  it('finds members to check', () => {
+    expect(getFamilies().flatMap((f) => f.members).length).toBeGreaterThan(10);
+  });
+});
 
 describe('the feedback family is selectable', () => {
   it('is registered', () => {

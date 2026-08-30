@@ -76,13 +76,40 @@ const EVALUATORS: readonly RegisteredEvaluator[] = Object.freeze([
  */
 const METADATA: readonly EvaluatorMetadata[] = Object.freeze(EVALUATORS.map((E) => E.metadata));
 
+/**
+ * Index every evaluator by its current id and by each id it used to carry.
+ *
+ * Throws on a collision rather than letting one win. `new Map` keeps the last entry for a
+ * repeated key, so two evaluators sharing an id — most plausibly one evaluator's
+ * `idHistory` entry colliding with another's current id — would silently resolve to
+ * whichever was registered later, and `getEvaluator` would confidently return the wrong
+ * evaluator. Exported for the collision test, which cannot introduce a real duplicate.
+ *
+ * @internal
+ */
+export function indexById(
+  evaluators: readonly RegisteredEvaluator[],
+): ReadonlyMap<string, RegisteredEvaluator> {
+  const index = new Map<string, RegisteredEvaluator>();
+
+  for (const E of evaluators) {
+    for (const id of [E.metadata.id, ...E.metadata.idHistory]) {
+      const claimed = index.get(id);
+      if (claimed && claimed !== E) {
+        throw new Error(
+          `Registry id "${id}" is claimed by both ${claimed.metadata.name} and ` +
+            `${E.metadata.name}. An id, current or historical, must name one evaluator.`,
+        );
+      }
+      index.set(id, E);
+    }
+  }
+
+  return index;
+}
+
 /** Current id, and every id that has ever meant this evaluator, to the class. */
-const BY_ID: ReadonlyMap<string, RegisteredEvaluator> = new Map(
-  EVALUATORS.flatMap((E) => [
-    [E.metadata.id, E] as const,
-    ...E.metadata.idHistory.map((old) => [old, E] as const),
-  ]),
-);
+const BY_ID = indexById(EVALUATORS);
 
 /** Every evaluator in the SDK, in taxonomy order. */
 export function getEvaluators(): readonly EvaluatorMetadata[] {

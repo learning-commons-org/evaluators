@@ -103,7 +103,14 @@ export const FEEDBACK_FAMILY: EvaluatorFamily = {
     if (modelOverride) return [modelOverride.provider];
     const keys = new Set<KeyKind>();
     for (const member of resolveMembers(FEEDBACK_FAMILY, selectedMemberIds)) {
-      for (const provider of getEvaluatorClass(member.id)?.metadata.defaultProviders ?? []) {
+      // Not `?? []`: a member id that does not resolve would silently drop that member's
+      // provider key from the requirement list, and the run would fail later on a missing
+      // credential instead of prompting for it. These ids come from this family's own
+      // member list, so an unresolvable one is a bug here, not bad input.
+      const resolved = getEvaluatorClass(member.id);
+      if (!resolved) throw new Error(`Feedback family member is not registered: ${member.id}`);
+
+      for (const provider of resolved.metadata.defaultProviders) {
         keys.add(provider);
       }
     }
