@@ -63,9 +63,10 @@ function contract(overrides: Record<string, unknown> = {}) {
       id_history: ['demo.area.old_thing'],
       name: 'Thing Evaluator',
       description: 'Demonstration contract.',
-      // Deliberately wider than the grade input's enum, which is what the factory used to
-      // publish: the two are allowed to differ for an evaluator that takes no grade, and
-      // this is the only way to tell which source the factory actually read.
+      // Deliberately wider than this contract's own grade enum, which is the only way to
+      // tell which of the two the factory read. A real contract may not do this — the
+      // conformance suite requires them to agree wherever both exist — but this one is
+      // synthetic and never reaches that check.
       supported_grades: ['3', '4', '5', '6'],
     },
     steps: [
