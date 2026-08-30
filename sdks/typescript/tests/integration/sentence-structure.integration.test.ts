@@ -28,11 +28,10 @@ if (RUN_INTEGRATION && !process.env.OPENAI_API_KEY) {
 }
 const describeIntegration = RUN_INTEGRATION ? describe : describe.skip;
 
-// Test timeout: 2 minutes per test case (allows for 3 attempts with API latency)
 // Multi-step: each attempt makes two sequential model calls, and there are up to three
-// attempts, so a case can legitimately need six calls. Two minutes covers that when the
-// suite runs alone but not when the whole integration suite runs concurrently, which is
-// where a case was timing out at exactly 120s.
+// attempts, so a case can legitimately need six calls. Four minutes because two only
+// held when this suite ran alone — under the full integration run a case timed out at
+// exactly 120s.
 const TEST_TIMEOUT_MS = 4 * 60 * 1000;
 
 const TEST_CASES: BaseTestCase[] = [
@@ -76,11 +75,11 @@ const TEST_CASES: BaseTestCase[] = [
   },
   {
     // This evaluator's own contract fixture.
-    id: "FIXTURE-cat_on_mat",
-    grade: "3",
+    id: 'FIXTURE-cat_on_mat',
+    grade: '3',
     text: "The cat sat on the mat. It was sleeping peacefully. The sun was warm. Soon it began to dream.",
-    expected: "slightly_complex",
-    acceptable: ["moderately_complex"],
+    expected: 'slightly_complex',
+    acceptable: ['moderately_complex'],
   },
 ];
 

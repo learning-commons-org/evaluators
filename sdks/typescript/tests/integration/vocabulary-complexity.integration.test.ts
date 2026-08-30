@@ -29,11 +29,10 @@ if (RUN_INTEGRATION) {
 }
 const describeIntegration = RUN_INTEGRATION ? describe : describe.skip;
 
-// Test timeout: 2 minutes per test case (allows for 3 attempts with API latency)
 // Multi-step: each attempt makes two sequential model calls, and there are up to three
-// attempts, so a case can legitimately need six calls. Two minutes covers that when the
-// suite runs alone but not when the whole integration suite runs concurrently, which is
-// where a case was timing out at exactly 120s.
+// attempts, so a case can legitimately need six calls. Four minutes because two only
+// held when this suite ran alone — under the full integration run a case timed out at
+// exactly 120s.
 const TEST_TIMEOUT_MS = 4 * 60 * 1000;
 
 // Test cases from PR #6
@@ -89,19 +88,19 @@ const TEST_CASES: BaseTestCase[] = [
   },
   {
     // This evaluator's own contract fixture.
-    id: "FIXTURE-marco_polo_grade3",
-    grade: "3",
+    id: 'FIXTURE-marco_polo_grade3',
+    grade: '3',
     text: "Polo went on a 24-year trip to China with his father and uncle during the Mongol Dynasty. He left Venice at the age of 17 on a boat that went through the Mediterranean Sea, Ayas, Tabriz and Kerman. Then he travelled across Asia getting as far as Beijing. On the way there he had to go over mountains and through terrible deserts, across hot burning lands and places where the cold was horrible. He served in Kublai Khan's court for 17 years. He left the Far East and returned to Venice by sea. There was sickness on board and 600 passengers and crew died and some say pirates attacked. Nevertheless, Marco Polo survived it all.\nSome scholars believe that while Marco Polo did go to China, he did not go to all of the other places described in his book. He brought noodles back from China and the Italians came up with different sizes and shapes and called it pasta. Polo returned to Venice with treasures like ivory, jade, jewels, porcelain and silk.\nHis father had borrowed money and bought a ship. He became wealthy because of his trading in the near East.",
-    expected: "very_complex",
-    acceptable: ["moderately_complex", "exceedingly_complex"],
+    expected: 'very_complex',
+    acceptable: ['moderately_complex', 'exceedingly_complex'],
   },
   {
     // This evaluator's own contract fixture.
-    id: "FIXTURE-hurricanes_grade7",
-    grade: "7",
+    id: 'FIXTURE-hurricanes_grade7',
+    grade: '7',
     text: "Great whirling storms roar out of the oceans in many parts of the world. They are called by several names \u2014 hurricane, typhoon, and cyclone are the three most familiar ones. But no matter what they are called, they are all the same sort of storm. They are born in the same way, in tropical waters. They develop the same way, feeding on warm, moist air. And they do the same kind of damage, both ashore and at sea. Other storms may cover a bigger area or have higher winds, but none can match both the size and the fury of hurricanes. They are earth's mightiest storms.\n\nLike all storms, they take place in the atmosphere, the envelope of air that surrounds the earth and presses on its surface. The pressure at any one place is always changing. There are days when air is sinking and the atmosphere presses harder on the surface. These are the times of high pressure. There are days when a lot of air is rising and the atmosphere does not press down as hard. These are times of low pressure. Low-pressure areas over warm oceans give birth to hurricanes.",
-    expected: "slightly_complex",
-    acceptable: ["moderately_complex"],
+    expected: 'slightly_complex',
+    acceptable: ['moderately_complex'],
   },
 ];
 
