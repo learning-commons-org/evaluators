@@ -79,6 +79,12 @@ export type { MeaningDirectnessResult } from './schemas/student-facing-text/ela-
 export type { GradeLevelAppropriatenessResult } from './schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
 
 export { GradeLevelAppropriatenessOutputSchema } from './schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
+export { BackgroundKnowledgeDemandsOutputSchema } from './schemas/student-facing-text/ela-reading/background-knowledge-demands.js';
+export { MeaningDirectnessOutputSchema } from './schemas/student-facing-text/ela-reading/meaning-directness.js';
+export { OrganizationalStructureOutputSchema } from './schemas/student-facing-text/ela-reading/organizational-structure.js';
+export { PurposeClarityOutputSchema } from './schemas/student-facing-text/ela-reading/purpose-clarity.js';
+export { ReferenceKnowledgeDemandsOutputSchema } from './schemas/student-facing-text/ela-reading/reference-knowledge-demands.js';
+export { VocabularyComplexityOutputSchema } from './schemas/student-facing-text/ela-reading/vocabulary-complexity.js';
 
 // Purpose Clarity exports
 export type { PurposeClarityResult } from './schemas/student-facing-text/ela-reading/purpose-clarity.js';

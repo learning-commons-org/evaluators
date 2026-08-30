@@ -75,7 +75,10 @@ const evaluation = await evaluator.evaluate({ text, grade_level: "5" });
 const { score, reasoning } = readOutcome(evaluation, MyEvaluator.metadata.outcome);
 ```
 
-`score` is stringified, and is `undefined` for an evaluator whose output is not a single judgement.
+`score` is stringified, and is `undefined` for an evaluator whose output is not a single
+judgement. `reasoning` is always a `string` — empty rather than absent — so it needs no
+optional handling. `metadata.tokenUsage.inputTokens` and `outputTokens` are likewise always
+present numbers.
 
 Writing one helper across several evaluators — the case this replaces — needs a name for that
 second argument. It is exported as `DeclaredOutcome`:
@@ -98,6 +101,29 @@ function toRow(dimension: string, evaluation: EvaluationResult, outcome: Declare
 + metadata.tokenUsage.outputTokens;
 ```
 
+## 2a. The verdict *values* changed — check your stored data
+
+Nothing in the compiler will tell you about this, because `readOutcome` returns `score:
+string`. Every complexity verdict changed case and separator, and the top grade band was
+relabelled:
+
+| | 0.8.0 | 1.0.0 |
+| --- | --- | --- |
+| complexity score | `"Slightly complex"` | `"slightly_complex"` |
+| | `"Moderately complex"` | `"moderately_complex"` |
+| | `"Very complex"` | `"very_complex"` |
+| | `"Exceedingly complex"` | `"exceedingly_complex"` |
+| Purpose Clarity's fifth value | `"More context needed"` | `"more_context_needed"` |
+| top grade band | `"11-CCR"` | `"11-12"` |
+
+The other bands (`K-1`, `2-3`, `4-5`, `6-8`, `9-10`) are unchanged, and the feedback family's
+`0`/`1` is unchanged.
+
+So `if (score === "Very complex")` silently stops matching, a dashboard filter silently returns
+nothing, and a `GROUP BY score` silently splits into old and new buckets. **Grep for the old
+strings, and backfill anything you have persisted.** Values now come straight from each
+evaluator's contract, which is what makes them identical across our SDKs.
+
 ## 3. Evaluators renamed onto the taxonomy
 
 | 0.8.0 | 1.0.0 |
@@ -109,13 +135,14 @@ function toRow(dimension: string, evaluation: EvaluationResult, outcome: Declare
 | `<Evaluator>Internal` types | `<Evaluator>Result` |
 | `GradeLevelAppropriatenessSchema` | `GradeLevelAppropriatenessOutputSchema` |
 | `evaluator.evaluateByGrade(...)` | `evaluator.evaluateByGradeLevel(...)` |
+| `GradeBand` as a **value** (it was a Zod enum, so `GradeBand.options` worked) | type only. For the runtime list use `GradeLevelAppropriatenessOutputSchema.shape.grade_band` |
 | `Providers` (redundant alias; `Provider` already existed and is unchanged) | use `Provider` |
 
 Removed outright, so a `TS2305` on any of these has an entry here:
 
 | removed | replacement |
 | --- | --- |
-| `ComplexityClassification`, `ComplexityClassificationSchema` | each evaluator's own `<Evaluator>Result` / `<Evaluator>OutputSchema`, generated from its contract |
+| `ComplexityClassification`, `ComplexityClassificationSchema` | each evaluator's own `<Evaluator>Result` / `<Evaluator>OutputSchema`, generated from its contract — all fifteen are exported, e.g. `PurposeClarityOutputSchema` |
 | `PurposeComplexityLevel` | `PurposeClarityResult["complexity_score"]` |
 | `VocabularyInternal`, `SmkInternal`, `ConventionalityInternal`, `PurposeInternal`, `SentenceStructureInternal`, `GradeLevelAppropriatenessInternal` | the matching `<Evaluator>Result` |
 
@@ -172,7 +199,10 @@ New: `DependencyError`, `LLMProviderError`, `LLMOutputProcessingError` (an `Eval
 The word "grade" meant three things across the API, the Knowledge Graph boundary and the batch CSV. It is now `gradeLevel` in camelCase contexts and `grade_level` in the wire and CSV formats.
 
 - Evaluator input: `grade` → `grade_level`
-- Result and report fields: `grade` → `gradeLevel`
+- Batch and report fields: `grade` → `gradeLevel`
+- **Result payloads are snake_case and always have been**, so no `gradeLevel` appears in one.
+  Grade Level Appropriateness renamed its payload field `grade` → **`grade_band`** (see
+  section 9); the complexity evaluators' verdict field is `complexity_score`
 - Batch CSV column: `grade` → `grade_level` — **existing input files need the header renamed**:
 
   ```diff
@@ -266,6 +296,8 @@ over many question × standard pairs, so there is no single model or duration to
   | `grade-level-appropriateness` | `student_facing_text.ela_reading.grade_level_appropriateness` |
   | `math.standards-alignment` | `academic_standards_alignment.mathematics.math_standards_alignment` |
 
-  `text-complexity` does not resolve — that was the removed composite, not an evaluator.
+  `getEvaluator` returns `undefined` for anything it cannot resolve rather than throwing, so
+  check before use. `text-complexity` returns `undefined` — that was the removed composite,
+  not an evaluator.
 
 The `@learning-commons/evaluators/batch` entry point and the `evaluators-batch` command both existed in 0.8.0; they are documented in the [README](./README.md) now, which is the change.
