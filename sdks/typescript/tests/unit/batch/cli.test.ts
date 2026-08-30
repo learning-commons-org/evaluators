@@ -178,6 +178,17 @@ describe('isEntryPoint', () => {
     );
   });
 
+  it('matches an entry point that is already a file URL', () => {
+    // `node --entry-url file:///…` puts the URL itself in argv[1]. Feeding that through
+    // pathToFileURL would mangle it, and the CLI would exit 0 having done nothing.
+    const url = pathToFileURL(installed).href;
+    expect(isEntryPoint(url, url)).toBe(true);
+  });
+
+  it('canonicalises a non-normalised file URL entry point', () => {
+    expect(isEntryPoint('file:///tmp/cli.js', 'file:/tmp/cli.js')).toBe(true);
+  });
+
   it('is false when there is no entry point at all', () => {
     // `node -e` and some embeddings leave argv[1] undefined.
     expect(isEntryPoint(pathToFileURL(installed).href, undefined)).toBe(false);

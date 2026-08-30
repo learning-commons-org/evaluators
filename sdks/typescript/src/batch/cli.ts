@@ -460,11 +460,15 @@ async function main() {
  *
  * `main()` runs at module scope, so without this an `import` of this file — which the tests
  * need in order to reach anything in it — starts a batch run and blocks on the interactive
- * prompts. Compares resolved file URLs because `argv[1]` is a path and may be relative.
+ * prompts. Comparison is on resolved URLs because `argv[1]` may be a relative path.
+ *
+ * `node --entry-url` passes the entry point through as a URL rather than a path; running it
+ * through `pathToFileURL` would mangle it and leave the CLI doing nothing at all.
  */
 export function isEntryPoint(moduleUrl: string, argv1: string | undefined): boolean {
   if (argv1 === undefined) return false;
-  return moduleUrl === pathToFileURL(argv1).href;
+  const entryUrl = argv1.startsWith('file:') ? new URL(argv1).href : pathToFileURL(argv1).href;
+  return moduleUrl === entryUrl;
 }
 
 if (isEntryPoint(import.meta.url, process.argv[1])) {
