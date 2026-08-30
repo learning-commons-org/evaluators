@@ -150,6 +150,8 @@ export {
   type ModelOverride,
   type TelemetryOptions,
   type EvaluatorMetadata,
+  getEvaluators,
+  getEvaluator,
 } from './evaluators/index.js';
 
 // Features
