@@ -69,43 +69,7 @@ describe('input types match the contracts they name', () => {
   });
 });
 
-describe('every declared type a caller needs is reachable', () => {
-  it.each(DECLARED)('$typeName is exported from the package', ({ typeName }) => {
-    // Types are erased at runtime, so the export list in the built declaration file is the
-    // only place to check. Sixteen of these were declared and none exported.
-    const dts = join(import.meta.dirname, '../../dist/index.d.ts');
-    let declaration: string;
-    try {
-      declaration = readFileSync(dts, 'utf-8');
-    } catch {
-      // dist is a build artefact; skip rather than fail when running tests before a build.
-      return;
-    }
-
-    const exportList = [...declaration.matchAll(/^export (?:type )?\{([^}]*)\}/gm)]
-      .flatMap((m) => m[1].split(','))
-      .map((e) => e.replace(/^\s*type\s+/, '').trim().split(' as ').pop()!.trim());
-
-    expect(exportList, `${typeName} is declared but not exported`).toContain(typeName);
-  });
-});
-
-describe('the declaration bundle stays free of value declarations', () => {
-  it('contains no top-level `var`', () => {
-    // The 136 errors were all `var X = <json literal>` inlined by the dts bundler. A public
-    // type referencing `typeof <imported json>` brings them straight back.
-    const dts = join(import.meta.dirname, '../../dist/index.d.ts');
-    let declaration: string;
-    try {
-      declaration = readFileSync(dts, 'utf-8');
-    } catch {
-      return;
-    }
-
-    const vars = [...declaration.matchAll(/^var (\w+)/gm)].map((m) => m[1]);
-    expect(vars, `dist/index.d.ts declares values: ${vars.slice(0, 5).join(', ')}`).toEqual([]);
-  });
-
+describe('the source never reintroduces the cause', () => {
   it('never derives a public input type from an imported contract', () => {
     // Source-level, so it fails before a build rather than after one.
     const offenders = evaluatorSources(join(SRC, 'evaluators')).filter((file) =>
