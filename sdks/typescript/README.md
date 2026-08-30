@@ -295,11 +295,22 @@ It is mutually exclusive with `modelOverride`: setting both throws `Configuratio
 `@learning-commons/evaluators/batch` runs a CSV of rows through a family of evaluators, with concurrency and retries, writing CSV and JSON (and HTML for some families — see below).
 
 ```typescript
-import { BatchEvaluator, getFamily, parseCSV } from "@learning-commons/evaluators/batch";
+import { BatchEvaluator, parseCSV } from "@learning-commons/evaluators/batch";
 
 const rows = parseCSV("./input.csv"); // a path, not CSV text
-const family = getFamily("text-complexity");
+
+const output = await new BatchEvaluator({
+  googleApiKey: process.env.GOOGLE_API_KEY,
+  openaiApiKey: process.env.OPENAI_API_KEY,
+  concurrency: 3,
+}).evaluate(rows, "text-complexity", {
+  onProgress: (result) => console.log(result.evaluatorId, result.status),
+});
+
+console.log(`${output.summary.successful}/${output.summary.totalTasks} succeeded`);
 ```
+
+`getFamily(id)` gives you a family's members and column spec if you need to inspect it first.
 
 The same thing is available as a command, installed as `evaluators-batch`:
 
