@@ -17,7 +17,8 @@ function adapterImportError(error: unknown, vendor: string, pkg: string): unknow
   // Structured signal only, per SPEC §6.5: wording is not a contract, and matching on it
   // would reclassify an adapter that failed to load for some other reason. Walked rather
   // than read off the top, because bundlers and test loaders wrap an import failure in their
-  // own error and keep the real one as `cause`, so the code sits one level down.
+  // own error and keep the real one as `cause` — sometimes through more than one layer, hence
+  // walking the chain rather than checking a fixed depth.
   const missing = (function isMissing(e: unknown, depth = 0): boolean {
     if (e === null || typeof e !== 'object' || depth > 4) return false;
     const { code, cause } = e as { code?: unknown; cause?: unknown };
