@@ -116,12 +116,16 @@ describe('the README on npm', () => {
 
 describe('MIGRATION', () => {
   it('every name in a rename table\'s current column is exported', () => {
-    // Rows read `| `old` | `new` |`, so only the last cell names something that exists now.
+    // A rename row is `| `old` | `new` |` and nothing else — the current cell is exactly one
+    // backticked identifier. Cells carrying prose describe a changed shape rather than a
+    // rename (a removed property, a new constructor signature), and naming an export is not
+    // what they are doing, so they are skipped rather than mis-asserted.
     const claimed = MIGRATION.split('\n')
       .filter((line) => line.startsWith('| `') && line.split('|').length === 4)
       .flatMap((line) => {
-        const current = line.split('|')[2];
-        return [...current.matchAll(/`(\w+)`/g)].map((m) => m[1]);
+        const current = line.split('|')[2].trim();
+        const single = current.match(/^`(\w+)`$/);
+        return single ? [single[1]] : [];
       });
 
     expect(claimed.length).toBeGreaterThan(5);

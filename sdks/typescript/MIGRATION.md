@@ -192,7 +192,24 @@ return settled.map((outcome, i) => {
 
 One reparenting is easy to miss: **`StandardNotFoundError` now extends `InputValidationError`**, not `KnowledgeGraphError`. A code that does not resolve is a bad input, not an upstream failure, so a `catch (e) { if (e instanceof KnowledgeGraphError) ... }` that used to see it no longer will.
 
-New: `DependencyError`, `LLMProviderError`, `LLMOutputProcessingError` (an `EvaluationError`, for a response that arrived but could not be used).
+New: `DependencyError`, `LLMProviderError`, `ConfigurationError` (thrown at construction for
+a missing credential), and `LLMOutputProcessingError` for a response that arrived but could
+not be used.
+
+**The base class changed too**, which the rename table above does not cover:
+
+| 0.8.0 | 1.0.0 |
+| --- | --- |
+| `EvaluatorError.code?: string` | **removed.** Use `instanceof`, or `error.constructor.name`; a `DependencyError` also carries `dependency` and `statusCode` |
+| `new EvaluatorError(message, code?)` | `(message, retryable, cause?)` — and `EvaluatorError`, `EvaluationError` and `DependencyError` are now **abstract**, so a custom subclass or test fake needs updating |
+| `APIError.statusCode?: number \| undefined` | `DependencyError.statusCode: number \| null` — `if (e.statusCode !== undefined)` now always passes |
+| `retryable` on `APIError` | on every `EvaluatorError` |
+
+**`EvaluationError` is the trap.** The name survives but means something entirely different:
+0.8.0 exported it as a plain interface, `{ error: string; input: { text: string; grade?: string } }`,
+which is what the removed composite handed you for a failed dimension. In 1.0 it is an abstract
+error class. Code reading `.error` or `.input` off it fails with `TS2339`, and this hits exactly
+the readers section 3 is written for.
 
 ## 5. `grade` is `gradeLevel` everywhere
 
@@ -233,6 +250,10 @@ new VocabularyComplexityEvaluator(keys);
 
 Grep for `partnerKey` and `platformApiKey` rather than relying on the compiler.
 
+Math standards alignment is the exception that fails loudly: `learningCommonsApiKey` is a
+required credential there, so dropping `platformApiKey` throws `ConfigurationError: Missing
+required credential` at construction rather than degrading quietly.
+
 ## 7. Peer dependencies moved a major version
 
 Covered by step 0 above, which has to happen first. For reference:
@@ -250,12 +271,25 @@ payload bare.
 ```diff
 - const alignment = await evaluator.evaluate(question, statementCode, jurisdiction);
 - console.log(alignment.alignedCount);
-+ const { result } = await evaluator.evaluate({ question, statementCode, jurisdiction });
++ const { result } = await evaluator.evaluate({
++   question,
++   statementCode,
++   jurisdiction: Jurisdiction.MultiState, // an exported enum, not a string
++ });
 + console.log(result.alignedCount);
 ```
 
+The evaluator needs **both** `anthropicApiKey` and `learningCommonsApiKey`;
+`getEvaluator(id).requiredCredentials` lists the non-LLM ones.
+
 `statementCode` is the bare dotted code, **not** the full CCSS URI: `"5.NF.A.1"`, not
-`"CCSS.MATH.CONTENT.5.NF.A.1"`. The long form raises `StandardNotFoundError`.
+`"CCSS.MATH.CONTENT.5.NF.A.1"`. The long form raises `StandardNotFoundError`. If you have
+stored the long form, strip the prefix yourself — `normalizeStatementCode` looks like the fix
+and is not, since it only trims and upper-cases:
+
+```typescript
+const bare = stored.replace(/^CCSS\.MATH\.CONTENT\./i, "");
+```
 
 `evaluateItems` keeps its name and arguments. **`evaluateByGrade` is now
 `evaluateByGradeLevel`** — arguments unchanged. Neither returns an envelope: one call fans out
@@ -263,8 +297,9 @@ over many question × standard pairs, so there is no single model or duration to
 
 ## 9. Smaller behaviour changes
 
-- **`supportedGrades`** — read as `SomeEvaluator.metadata.supportedGrades`, the static; the
-  instance member is protected. It now reports what the contract says the evaluator targets. Previously it was derived from the grade input's enum, so the seven feedback evaluators and Grade Level Appropriateness published `[]`. It is not a validation set — where a `grade_level` input exists, its schema enum is what rejects a bad value.
+- **`supportedGrades`** — read as `SomeEvaluator.metadata.supportedGrades`, the static. It was
+  never available on an instance in either version. It now reports what the contract says the
+  evaluator targets. Previously it was derived from the grade input's enum, so the seven feedback evaluators and Grade Level Appropriateness published `[]`. It is not a validation set — where a `grade_level` input exists, its schema enum is what rejects a bad value.
 - **Vocabulary Complexity** reports the model that actually ran for grades 3–4, which differs from the 5–12 branch. If you asserted one model string for all grades, it will now differ.
 - **Grade Level Appropriateness and Sentence Structure** emit exactly the fields their contracts declare. GLA returns `grade_band`, `alternative_grade_band`, `scaffolding_needed`, `reasoning`.
 - **The three complexity-score schemas** are generated from their contracts, so field descriptions and enum values follow the contract rather than a hand-written copy.
@@ -284,7 +319,8 @@ over many question × standard pairs, so there is no single model or duration to
 - **`getEvaluators()` / `getEvaluator(id)`** — a registry over all sixteen. Both return
   **metadata, not a constructor**: `{ id, stableId, idHistory, name, description, outcome,
   requiredCredentials, supportedGrades, defaultProviders }`. To run an evaluator, import it by
-  name. Every id 0.8.0 ever wrote into a result still resolves:
+  name. 0.8.0's envelope carried no evaluator id — these are the ids it used internally, in
+  telemetry and in batch reports — and every one of them still resolves:
 
   | id stored by 0.8.0 | resolves to |
   | --- | --- |
@@ -298,6 +334,7 @@ over many question × standard pairs, so there is no single model or duration to
 
   `getEvaluator` returns `undefined` for anything it cannot resolve rather than throwing, so
   check before use. `text-complexity` returns `undefined` — that was the removed composite,
-  not an evaluator.
+  not an evaluator. Each evaluator carries exactly one former id, so a class-name stem such as
+  `smk` or `purpose` does not resolve; use the ids in the table.
 
 The `@learning-commons/evaluators/batch` entry point and the `evaluators-batch` command both existed in 0.8.0; they are documented in the [README](./README.md) now, which is the change.
