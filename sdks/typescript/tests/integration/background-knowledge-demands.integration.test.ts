@@ -116,6 +116,30 @@ const TEST_CASES: BaseTestCase[] = [
     expected: 'moderately_complex',
     acceptable: ['slightly_complex', 'very_complex'],
   },
+  {
+    // This evaluator's own contract fixture.
+    id: "FIXTURE-when_going_to_the_beach",
+    grade: "3",
+    text: "When going to the beach, find out which ones have lifeguards. Always try to visit beaches that have lifeguards watching the swimmers. The lifeguards on duty will put red and yellow flags on the beach to show you where it is safe to swim. Many people find it hard to see a rip current in the sea. Rip currents are like fast-flowing rivers that can pull even strong swimmers away from the beach. This is why it is better to swim between the lifeguard flags. If you get pulled out by a rip current, try not to panic. Try to swim to the left or to the right of the current's flow. Don't try to fight the current or to swim against the current. That will make you tired and more scared. To be safe when you visit the beach, you should always listen to the lifeguards. And make sure that you stay between the red and yellow flags on the beach. The flags show you where the currents are safe.",
+    expected: "slightly_complex",
+    acceptable: ["moderately_complex"],
+  },
+  {
+    // This evaluator's own contract fixture.
+    id: "FIXTURE-proteins_come_in_thousands_of_forms",
+    grade: "11",
+    text: "Proteins come in thousands of forms with lots of diverse functions. Proteins are often needed at particular times and locations within nerves, both in the cell body and along the axon. To get to specific points in the axon, including down to the terminal, proteins must be transported from the cell body, where they are most often made, toward microtubule plus-ends. Particular proteins along the axon allow nerve cells to respond to the local environment. When these proteins are not successfully transported and are absent from the axon, the nerve cell is unable to function correctly, which can result in deterioration and nerve cell death. Two additional cargoes transported toward the axon terminal are vesicles, which are like small sacks full of proteins or other substances, and mitochondria, which are the structures that provide a source of energy for the cell. If delivery of mitochondria is disrupted, for example in a disease or by a drug, the axon cannot produce the energy that it needs. This can harm nerve cell function, and in severe situations, lead to neuron death.",
+    expected: "very_complex",
+    acceptable: ["moderately_complex", "exceedingly_complex"],
+  },
+  {
+    // This evaluator's own contract fixture.
+    id: "FIXTURE-when_the_brain_grows_and_learns",
+    grade: "10",
+    text: "When the brain grows and learns, connections between different parts of the brain are created. Over time, these connections build networks. Networks are different parts of the brain that work together. Like a well-trained musical group, brain networks help us learn skills like reading. While we learn, the cells of the brain (called neurons) connect to each other by reaching out their tiny arms (called axons) or even by growing new arms. Over time, many axons connect to each other and build long highways, called white matter tracts. These highways allow information to travel from one part of the brain to another. Using MRI, scientists have learned that we can read because different parts of the brain become more active and communicate with each other as we learn. These brain areas have funny-sounding names: occipitotemporal area, or the \"letter box\" of the brain (where we process letters and words); temporoparietal area (helps us to play with the sounds of our language, such as figuring out that \"banana\" without the sound /b/ is \"anana\"); and inferior frontal region (the \"captain\" that directs us). When brain areas talk with each other often, the highways can become stronger.",
+    expected: "moderately_complex",
+    acceptable: ["slightly_complex", "very_complex"],
+  },
 ];
 
 describeIntegration.concurrent('SMK Evaluator - Comprehensive Test Suite', () => {
