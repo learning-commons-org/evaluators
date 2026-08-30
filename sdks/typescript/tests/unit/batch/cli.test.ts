@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   chmodSync,
   mkdirSync,
@@ -14,8 +14,12 @@ import {
   validateOutputDir,
   KEY_CONFIG,
   resolveKeySource,
+  resolveKey,
   isEntryPoint,
 } from '../../../src/batch/cli.js';
+import prompts from 'prompts';
+
+vi.mock('prompts', () => ({ default: vi.fn() }));
 import { Provider } from '../../../src/batch/index.js';
 
 /**
@@ -197,5 +201,112 @@ describe('isEntryPoint', () => {
   it('does not match a file whose path merely shares a prefix', () => {
     expect(isEntryPoint(pathToFileURL('/app/dist/batch/cli.js').href, '/app/dist/batch/cli.js.map'))
       .toBe(false);
+  });
+});
+
+describe('resolveKey', () => {
+  /** Stands in for `process.exit`, which is otherwise fatal to the test run. */
+  class Exited extends Error {
+    constructor(readonly code: number | undefined) {
+      super(`exit ${code}`);
+    }
+  }
+
+  let errors: string[];
+  let logs: string[];
+
+  beforeEach(() => {
+    errors = [];
+    logs = [];
+    vi.mocked(prompts).mockReset();
+    vi.spyOn(process, 'exit').mockImplementation((code) => {
+      throw new Exited(code as number | undefined);
+    });
+    vi.spyOn(console, 'error').mockImplementation((...args) => void errors.push(args.join(' ')));
+    vi.spyOn(console, 'log').mockImplementation((...args) => void logs.push(args.join(' ')));
+    delete process.env.OPENAI_API_KEY;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete process.env.OPENAI_API_KEY;
+  });
+
+  it('returns the flag without reading the environment or asking', async () => {
+    process.env.OPENAI_API_KEY = 'from-env';
+
+    await expect(resolveKey(Provider.OpenAI, 'from-flag', true)).resolves.toBe('from-flag');
+    expect(prompts).not.toHaveBeenCalled();
+  });
+
+  it('reads the environment when no flag is given', async () => {
+    process.env.OPENAI_API_KEY = 'from-env';
+
+    await expect(resolveKey(Provider.OpenAI, undefined, true)).resolves.toBe('from-env');
+    expect(prompts).not.toHaveBeenCalled();
+  });
+
+  it('exits 1 on an empty flag even when it could have asked', async () => {
+    await expect(resolveKey(Provider.OpenAI, '', true)).rejects.toThrow('exit 1');
+    expect(errors.join('\n')).toContain('was provided but is empty');
+    expect(prompts).not.toHaveBeenCalled();
+  });
+
+  it('exits 1 rather than hanging when it cannot ask', async () => {
+    // The -y path: a prompt here would block a CI job forever instead of failing it.
+    await expect(resolveKey(Provider.OpenAI, undefined, false)).rejects.toThrow('exit 1');
+    expect(errors.join('\n')).toContain('running non-interactively');
+    expect(prompts).not.toHaveBeenCalled();
+  });
+
+  /** Answers under whatever name the prompt declares, so the two cannot drift apart. */
+  function answerPrompt(value: unknown) {
+    vi.mocked(prompts).mockImplementation(async (question) => {
+      const { name } = question as { name: string };
+      return { [name]: value };
+    });
+  }
+
+  it('asks for a missing credential and returns what was typed', async () => {
+    answerPrompt('typed-by-hand');
+
+    await expect(resolveKey(Provider.OpenAI, undefined, true)).resolves.toBe('typed-by-hand');
+  });
+
+  it('names the credential it is asking for', async () => {
+    answerPrompt('typed-by-hand');
+
+    await resolveKey(Provider.OpenAI, undefined, true);
+
+    // A bare `:` prompt gives no clue which of four keys is wanted.
+    expect(vi.mocked(prompts).mock.calls[0][0]).toMatchObject({ message: 'OpenAI API Key:' });
+  });
+
+  it('masks the credential while it is being typed', async () => {
+    answerPrompt('typed-by-hand');
+
+    await resolveKey(Provider.OpenAI, undefined, true);
+
+    // A visible API key ends up in screen shares and terminal scrollback.
+    expect(vi.mocked(prompts).mock.calls[0][0]).toMatchObject({ type: 'password' });
+  });
+
+  it('exits 0, not 1, when the user cancels the prompt', async () => {
+    // Ctrl-C is a choice, not a failure, and a non-zero exit would fail a wrapping script.
+    vi.mocked(prompts).mockResolvedValue({});
+
+    await expect(resolveKey(Provider.OpenAI, undefined, true)).rejects.toThrow('exit 0');
+    expect(logs.join('\n')).toContain('Cancelled.');
+  });
+
+  it('rejects an empty answer at the prompt', async () => {
+    answerPrompt('k');
+    await resolveKey(Provider.OpenAI, undefined, true);
+
+    const { validate } = vi.mocked(prompts).mock.calls[0][0] as unknown as {
+      validate: (v: string) => true | string;
+    };
+    expect(validate('')).toBe('OpenAI API Key is required');
+    expect(validate('k')).toBe(true);
   });
 });

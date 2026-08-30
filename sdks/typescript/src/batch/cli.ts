@@ -152,7 +152,13 @@ export function resolveKeySource(
   return { kind: 'ask', reason: `Missing ${label}. Provide ${flag} or set ${envVar}` };
 }
 
-async function resolveKey(
+/**
+ * Resolve a credential, prompting for it when that is allowed and it is missing.
+ *
+ * The decision lives in `resolveKeySource`; this adds the three things that touch the
+ * outside world — reading `process.env`, asking, and exiting.
+ */
+export async function resolveKey(
   kind: KeyKind,
   fromFlag: string | undefined,
   interactive: boolean,
@@ -471,6 +477,4 @@ export function isEntryPoint(moduleUrl: string, argv1: string | undefined): bool
   return moduleUrl === entryUrl;
 }
 
-if (isEntryPoint(import.meta.url, process.argv[1])) {
-  main();
-}
+if (isEntryPoint(import.meta.url, process.argv[1])) main();
