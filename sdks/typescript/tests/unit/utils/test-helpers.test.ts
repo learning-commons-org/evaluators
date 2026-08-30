@@ -25,6 +25,27 @@ class FakeEvaluator {
 }
 
 const CASE = { id: 'T1', text: 'A passage.', grade: '5', expected: 'moderately_complex' };
+/** Answers wrongly for the first `wrongFor` calls, then correctly — a flaky verdict. */
+class FlakyEvaluator {
+  static readonly metadata = FakeEvaluator.metadata;
+
+  private calls = 0;
+
+  constructor(private readonly wrongFor: number) {}
+
+  evaluate = vi.fn(async () => {
+    this.calls += 1;
+    return {
+      evaluator: FlakyEvaluator.metadata.id,
+      result: {
+        complexity_score: this.calls <= this.wrongFor ? 'slightly_complex' : 'moderately_complex',
+        reasoning: 'because',
+      },
+      metadata: { model: 'x:y', processingTimeMs: 1, tokenUsage: { inputTokens: 1, outputTokens: 1 } },
+    };
+  });
+}
+
 
 describe('the integration harness reads the declared verdict', () => {
   it('extracts the field the contract names, not a top-level score', async () => {
@@ -135,6 +156,30 @@ describe('the integration harness reads the declared verdict', () => {
     ).rejects.toThrow(/"T5" declares neither `text` nor `inputs`/);
 
     expect(evaluator.evaluate).not.toHaveBeenCalled();
+  });
+
+  it('spends the whole attempt budget on a case that never matches', async () => {
+    const evaluator = new FakeEvaluator({ complexity_score: 'slightly_complex', reasoning: 'r' });
+
+    const result = await runEvaluatorTest(CASE, { evaluator, maxAttempts: 5 });
+
+    expect(evaluator.evaluate).toHaveBeenCalledTimes(5);
+    expect(result.matched).toBe(false);
+  });
+
+  it('passes on a later attempt, which is what raising the budget buys', async () => {
+    // Wrong three times, then right: fails at the default three attempts and passes at
+    // five. This is the whole basis for the feedback suites using five.
+    const atThree = new FlakyEvaluator(3);
+    const atFive = new FlakyEvaluator(3);
+
+    expect((await runEvaluatorTest(CASE, { evaluator: atThree, maxAttempts: 3 })).matched).toBe(
+      false,
+    );
+    expect((await runEvaluatorTest(CASE, { evaluator: atFive, maxAttempts: 5 })).matched).toBe(
+      true,
+    );
+    expect(atFive.evaluate).toHaveBeenCalledTimes(4);
   });
 
   it('still honours an explicit extractor for a non-verdict field', async () => {
