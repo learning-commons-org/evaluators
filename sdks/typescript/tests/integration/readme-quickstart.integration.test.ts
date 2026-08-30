@@ -37,10 +37,16 @@ describeIntegration('README quickstart', () => {
 
       const { result, metadata } = await evaluator.evaluate({ text: QUICKSTART_TEXT });
 
-      // Every field the snippet reads has to exist and be populated.
+      // Every field the snippet reads has to exist and be populated — all three, not just
+      // the first. `scaffolding_needed` is what makes the alternative band actionable, and
+      // an empty string for any of them would render as a blank line in the documented
+      // output while still typing as a string.
       expect(typeof result.grade_band).toBe('string');
       expect(result.grade_band).not.toBe('');
       expect(typeof result.alternative_grade_band).toBe('string');
+      expect(result.alternative_grade_band).not.toBe('');
+      expect(typeof result.scaffolding_needed).toBe('string');
+      expect(result.scaffolding_needed).not.toBe('');
       expect(metadata.model).toMatch(/^google:/);
 
       // And the field it used to read must still not exist, so the old snippet cannot
@@ -49,7 +55,8 @@ describeIntegration('README quickstart', () => {
 
       console.log(
         `  quickstart: grade_band=${result.grade_band} ` +
-          `alternative=${result.alternative_grade_band} model=${metadata.model}`,
+          `alternative=${result.alternative_grade_band} model=${metadata.model}\n` +
+          `  scaffolding: ${result.scaffolding_needed}`,
       );
     },
     120_000,

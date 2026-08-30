@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as sdk from '../../src/index.js';
 
@@ -83,6 +83,34 @@ describe('README', () => {
         `${grades[0]}–${grades[grades.length - 1]}`,
       );
     }
+  });
+});
+
+describe('the README on npm', () => {
+  // Rendered on npmjs.com and browsable in node_modules, where only what `files` lists
+  // exists. A relative link to something unpublished is dead in both places.
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8')) as {
+    files: string[];
+  };
+
+  /** Relative markdown link targets, minus any anchor. */
+  const RELATIVE_LINKS = [...README.matchAll(/\]\((\.\/[^)#]+)/g)].map((m) =>
+    m[1].replace(/^\.\//, ''),
+  );
+
+  it('makes relative links, so this is not vacuous', () => {
+    expect(RELATIVE_LINKS.length).toBeGreaterThan(0);
+  });
+
+  it.each(RELATIVE_LINKS)('%s exists on disk', (target) => {
+    expect(existsSync(join(root, target)), `${target} is linked but missing`).toBe(true);
+  });
+
+  it.each(RELATIVE_LINKS)('%s is in the published files allowlist', (target) => {
+    // Covered either by its own entry or by a directory entry that contains it.
+    const published = pkg.files.some((entry) => target === entry || target.startsWith(`${entry}/`));
+
+    expect(published, `${target} is linked from the README but \`files\` omits it`).toBe(true);
   });
 });
 
