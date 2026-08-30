@@ -6,10 +6,27 @@ TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.or
 
 Requires Node >= 20.19.0.
 
-TypeScript consumers currently need `"skipLibCheck": true` in `tsconfig.json`. The bundled
-declaration file inlines the evaluator contracts as value declarations, which `tsc` rejects
-in an ambient context; without the flag a build fails on the SDK's own types rather than
-yours. Tracked as a package defect, not a permanent requirement.
+The SDK is ESM-first and the examples below use top-level `await`, so a TypeScript project
+needs `"type": "module"` in `package.json`, `@types/node`, and:
+
+```json
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2022",
+    "strict": true,
+    "types": ["node"],
+    "skipLibCheck": true
+  }
+}
+```
+
+`skipLibCheck` is currently required, not merely advisable: the bundled declaration file
+inlines the evaluator contracts as value declarations, which `tsc` rejects in an ambient
+context, so without it a build fails on the SDK's own types rather than yours. That is a
+package defect being fixed, not a permanent requirement. CommonJS consumers can `require`
+the package but will need to rewrite the top-level `await` in these snippets.
 
 ## Installation
 
@@ -60,7 +77,17 @@ Every evaluator resolves to the same three-part envelope, so generic code works 
 }
 ```
 
-`result` is the model's structured output with keys and values unaltered, so the payload is identical across our SDKs. Payloads carry more than the verdict — Vocabulary Complexity also returns its `tier_2_words`, `tier_3_words`, `archaic_words` and `other_complex_words`, and the feedback family's `key_features` maps each criterion to `{ met, justification }`.
+`result` is the model's structured output with keys and values unaltered, so the payload is identical across our SDKs. Payloads carry more than the verdict, and how much varies by evaluator: Background Knowledge
+Demands returns `identified_topics`, `curriculum_check`, `assumptions_and_scaffolding` and
+`friction_analysis`; Meaning Directness returns `conventionality_features`, `grade_context` and
+`instructional_insights`; Organizational Structure, Purpose Clarity and Reference Knowledge
+Demands each return a nested `details`; Vocabulary Complexity returns `tier_2_words`,
+`tier_3_words`, `archaic_words` and `other_complex_words` as comma-joined strings. Only
+Sentence Structure returns just the score and reasoning. Each evaluator exports its payload
+type (`VocabularyComplexityResult` and so on) — that is the authoritative shape.
+
+The feedback family's `quality_score` is the **number** `0` or `1`, and its `key_features` maps
+each criterion to `{ met: 0 | 1, justification: string }` — `met` is a number, not a boolean.
 
 `metadata.model` names every model that ran, joined by `+` when an evaluator uses more than one — so a multi-step evaluator reports e.g. `openai:gpt-4o-…+openai:gpt-4.1-…`. Which models run can also depend on the input: Vocabulary Complexity takes a different branch for grades 3-4 than for 5-12. The **Required key** column below is what you must supply, not a promise about which provider serves a given call. When you need one comparable value per evaluation regardless of evaluator, use `readOutcome`:
 
@@ -74,6 +101,13 @@ const evaluation = await new VocabularyComplexityEvaluator({
 
 const { score, reasoning } = readOutcome(evaluation, VocabularyComplexityEvaluator.metadata.outcome);
 ```
+
+`score` is **always a string**, or `undefined` when the evaluator declares no single verdict.
+That matters for the feedback family, whose verdict is the number `0` or `1`: `readOutcome`
+returns `"0"`, and `"0"` is truthy in JavaScript. Compare explicitly — `score === "1"` — or read
+the payload field directly (`evaluation.result.quality_score`, a real number) when you want
+arithmetic. The second argument's type is exported as `DeclaredOutcome`, so you can write one
+helper across several evaluators.
 
 ## Evaluators
 
@@ -145,7 +179,10 @@ for (const { id, name, supportedGrades } of getEvaluators()) {
 getEvaluator("conventionality")?.name; // "Meaning Directness Evaluator"
 ```
 
-Both return metadata — `id`, `stableId`, `idHistory`, `name`, `description`, `supportedGrades`, `defaultProviders`, `requiredCredentials`, and `outcome` where the evaluator declares a single verdict. `requiredCredentials` is the authoritative answer to "which keys does this one need", e.g. `["learning_commons_api_key"]` for math standards alignment. To *run* an evaluator, import it by name: the metadata does not tell you which named inputs it takes, and each evaluator's are different.
+Both return metadata — `id`, `stableId`, `idHistory`, `name`, `description`, `supportedGrades`, `defaultProviders`, `requiredCredentials`, and `outcome` where the evaluator declares a single verdict. `requiredCredentials` lists only **non-LLM** services — it is `["learning_commons_api_key"]` for
+math standards alignment and `[]` for the other fifteen, so it is not the answer to "which keys
+does this need". Provider keys follow `defaultProviders`: `["google"]` means supply
+`googleApiKey`. To *run* an evaluator, import it by name: the metadata does not tell you which named inputs it takes, and each evaluator's are different.
 
 ## Configuration
 
@@ -155,11 +192,24 @@ Every evaluator takes the same options:
 | --- | --- |
 | `googleApiKey` / `openaiApiKey` / `anthropicApiKey` | Keys for the providers the evaluator uses |
 | `learningCommonsApiKey` | Authorizes Learning Commons API calls, such as the Knowledge Graph |
-| `modelOverride` | Run every call on a different `{ provider, model }` |
+| `modelOverride` | Run every call on a different `{ provider, model }`; `provider` is the exported `Provider` enum |
 | `llmProvider` | Bring your own provider (see below) |
 | `maxRetries` | Retries per failed call (default 2, so 3 attempts) |
 | `telemetry` | `true`, `false`, or `TelemetryOptions` (default on, without input recording) |
-| `logger` / `logLevel` | Inject a logger, or set the console logger's level (default `WARN`) |
+| `logger` / `logLevel` | Inject a logger, or set the console logger's level with the exported `LogLevel` enum (default `LogLevel.WARN`) |
+
+`Provider` and `LogLevel` are enums, not strings — `provider: "google"` and
+`logLevel: "ERROR"` do not compile:
+
+```typescript
+import { Provider, LogLevel, VocabularyComplexityEvaluator } from "@learning-commons/evaluators";
+
+new VocabularyComplexityEvaluator({
+  googleApiKey, openaiApiKey,
+  modelOverride: { provider: Provider.Google, model: "gemini-2.5-flash" },
+  logLevel: LogLevel.ERROR,
+});
+```
 
 Keys are read from this object only. There is no environment-variable fallback: setting
 `GOOGLE_API_KEY` in the environment does not satisfy `googleApiKey`, and omitting a key an
@@ -170,32 +220,85 @@ is the exception — it does read the environment, as its `--help` describes.)
 
 Pass any object implementing `LLMProvider` and the evaluator routes every call through it, skipping the built-in API-key adapters entirely — useful for Google Vertex AI, Amazon Bedrock, an AI-SDK gateway, or an eval framework's model system. No provider API keys are needed.
 
+Three members are required, and the two methods are **not symmetrical**: `generateStructured`
+takes one object and must return a `model`, while `generateText` takes positional arguments and
+must not. `messages` includes the `system` turn, which most backends want as a separate
+argument. A `temperature` of `null` means *send no temperature at all* — some models reject an
+explicit value — so forward it conditionally rather than coercing it with `?? undefined`.
+
 ```typescript
-import { SentenceStructureEvaluator, type LLMProvider } from "@learning-commons/evaluators";
+import { generateText, Output } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { SentenceStructureEvaluator, type LLMProvider, type Message } from "@learning-commons/evaluators";
+
+/** `ai` takes the system turn as its own option; leaving it in `messages` is rejected. */
+function split(messages: Message[]) {
+  const system = messages.find((m) => m.role === "system");
+  return {
+    ...(system ? { system: system.content } : {}),
+    messages: messages.filter((m) => m.role !== "system"),
+  };
+}
 
 const myProvider: LLMProvider = {
-  label: "vertex:gemini-2.5-flash", // "provider:model", surfaced as metadata.model
-  generateStructured: async ({ messages, schema, temperature }) => {
-    /* return { data, model, usage: { inputTokens, outputTokens }, latencyMs } */
+  // "provider:model" — this is what the SDK reports as metadata.model.
+  label: "byo:gpt-4o-mini",
+
+  async generateStructured({ messages, schema, temperature }) {
+    const started = Date.now();
+    const { output, usage } = await generateText({
+      model: openai("gpt-4o-mini"),
+      ...split(messages),
+      output: Output.object({ schema }),
+      ...(temperature != null ? { temperature } : {}),
+    });
+
+    return {
+      data: output,
+      model: "gpt-4o-mini",
+      usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0 },
+      latencyMs: Date.now() - started,
+    };
   },
-  generateText: async ({ messages, temperature }) => {
-    /* return { text, model, usage: { inputTokens, outputTokens }, latencyMs } */
+
+  async generateText(messages, temperature) {
+    const started = Date.now();
+    const { text, usage } = await generateText({
+      model: openai("gpt-4o-mini"),
+      ...split(messages),
+      ...(temperature != null ? { temperature } : {}),
+    });
+
+    return {
+      text,
+      usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0 },
+      latencyMs: Date.now() - started,
+    };
   },
 };
 
-const evaluator = new SentenceStructureEvaluator({ llmProvider: myProvider });
+const evaluation = await new SentenceStructureEvaluator({ llmProvider: myProvider }).evaluate({
+  text: "The dog ran. It was fast. The children laughed at the sight of it.",
+  grade_level: "5",
+});
+// evaluation.metadata.model === "byo:gpt-4o-mini"
 ```
 
-All three members are required; an object missing any of them throws `ConfigurationError`.
+`schema` is a Zod schema. `zod` is bundled with this package rather than being a peer, so a
+backend that needs the schema in another form should convert it rather than expect a matching
+`zod` of its own. An object missing any of the three members throws `ConfigurationError`.
 
 It is mutually exclusive with `modelOverride`: setting both throws `ConfigurationError`.
 
 ## Batch
 
-`@learning-commons/evaluators/batch` runs a CSV of rows through a family of evaluators, with concurrency, retries, and CSV/JSON/HTML output.
+`@learning-commons/evaluators/batch` runs a CSV of rows through a family of evaluators, with concurrency and retries, writing CSV and JSON (and HTML for some families — see below).
 
 ```typescript
 import { BatchEvaluator, getFamily, parseCSV } from "@learning-commons/evaluators/batch";
+
+const rows = parseCSV("./input.csv"); // a path, not CSV text
+const family = getFamily("text-complexity");
 ```
 
 The same thing is available as a command, installed as `evaluators-batch`:
@@ -215,7 +318,12 @@ The CSV's columns depend on the family. `getFamily(id).columns` is authoritative
 | --- | --- | --- |
 | `text-complexity` | `text`, `grade_level` | — |
 | `feedback` | `student_text`, `feedback_text` | — |
-| `math-standards-alignment` | `question` (or `text`), `statementCode` (or `statement_code`, `standard`) | `jurisdiction` (default Multi-State), `grade_level`, `id` |
+| `math-standards-alignment` | `question` (or `text`), `statementCode` (or `statement_code`, `ccss_standard`, `standard`) | `jurisdiction` (default Multi-State), `grade_level`, `id` (or `item_id`) |
+
+The outputs are a flattened per-row summary — score, reasoning and status — not the full
+payloads, and their shape differs between the standards family and the others. `results.html`
+is written for `text-complexity` and `math-standards-alignment` only; `feedback` gets CSV and
+JSON. For full payloads, call the evaluators directly.
 
 ## Errors
 
@@ -241,7 +349,7 @@ try {
 
 ## Documentation
 
-Full reference at [our docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview). Upgrading from 0.8.0? See [MIGRATION.md](./MIGRATION.md).
+Full reference at [our docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview). Migrating from 0.8.x? See [MIGRATION.md](./MIGRATION.md).
 
 ## License
 
