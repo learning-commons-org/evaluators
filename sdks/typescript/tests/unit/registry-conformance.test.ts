@@ -3,6 +3,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import * as exported from '../../src/evaluators/index.js';
+import * as packageRoot from '../../src/index.js';
 import {
   GradeLevelAppropriatenessEvaluator,
   BackgroundKnowledgeDemandsEvaluator,
@@ -429,6 +430,14 @@ describe('the payload type is named after the evaluator', () => {
 
     expect(declaresSchema, `${module} does not export ${className}OutputSchema`).toBe(true);
     expect(declaresResult, `${module} does not export ${className}Result`).toBe(true);
+
+    // Declaring it is not the same as publishing it. Nine of the fifteen schemas reached the
+    // barrel and six did not, so callers of those six dimensions had no runtime schema at
+    // all — and nothing here noticed, because this test only ever read the schema module.
+    expect(
+      `${className}OutputSchema` in packageRoot,
+      `${className}OutputSchema is declared but not exported from the package`,
+    ).toBe(true);
   });
 });
 

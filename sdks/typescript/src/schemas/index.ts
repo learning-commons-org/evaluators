@@ -18,4 +18,4 @@ export {
   type PurposeClarityResult,
 } from './student-facing-text/ela-reading/purpose-clarity.js';
 
-export { readOutcome, type Outcome } from './outcome.js';
+export { readOutcome, type Outcome, type DeclaredOutcome } from './outcome.js';
