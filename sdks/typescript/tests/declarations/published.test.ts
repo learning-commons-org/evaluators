@@ -22,6 +22,14 @@ import { join } from 'node:path';
 const TS_ROOT = join(import.meta.dirname, '../..');
 const ENTRIES = ['dist/index.d.ts', 'dist/batch/index.d.ts'];
 
+/**
+ * The repo's own compiler, not whatever `npx tsc` resolves to.
+ *
+ * Going through `npx` can pick up a global install or fetch a different version, which would
+ * let this pass or fail for reasons unrelated to the declarations under test.
+ */
+const TSC = join(TS_ROOT, 'node_modules/.bin/tsc');
+
 function read(entry: string): string {
   const path = join(TS_ROOT, entry);
   if (!existsSync(path)) {
@@ -41,9 +49,8 @@ describe('the published declarations typecheck on their own', () => {
     // assertion is that this call does not throw.
     expect(() =>
       execFileSync(
-        'npx',
+        TSC,
         [
-          'tsc',
           '--noEmit',
           '--strict',
           '--target',
@@ -60,8 +67,9 @@ describe('the published declarations typecheck on their own', () => {
   }, 180_000);
 
   it.each(ENTRIES)('%s declares no values', (entry) => {
-    // The 136 errors were all `var X = <json literal>`. A declaration file may only declare
-    // types, so this is the same defect stated in a form that needs no compiler.
+    // The 136 errors were all non-ambient `var X = <json literal>` statements. A declaration
+    // file may declare values — `declare const` is fine — so the invariant is specifically
+    // that no bare `var` survives, which is the same defect stated without a compiler.
     const vars = [...read(entry).matchAll(/^var (\w+)/gm)].map((m) => m[1]);
 
     expect(vars, `${entry} declares values: ${vars.slice(0, 5).join(', ')}`).toEqual([]);
