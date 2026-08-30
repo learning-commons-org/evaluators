@@ -73,8 +73,23 @@ const OTHER_GRADES_STEP = requireStep(
   CONFIG.evaluator.name,
 );
 
-/** The grades the grades-3-4 branch declares, so the routing follows the contract. */
-const GRADES_34: readonly string[] = GRADES_34_STEP.condition?.in?.map(String) ?? [];
+/**
+ * The grades the grades-3-4 branch declares, so the routing follows the contract.
+ *
+ * Absent or empty is a contract regression rather than "applies always": every grade would
+ * route to the other-grades branch, quietly evaluating grades 3-4 on the wrong model. The
+ * branching depends on this condition, so it fails at load rather than at inference.
+ */
+const GRADES_34: readonly string[] = (() => {
+  const declared = GRADES_34_STEP.condition?.in;
+  if (!declared || declared.length === 0) {
+    throw new Error(
+      `Step "${GRADES_34_STEP.id}" in ${CONFIG.evaluator.name} config.json declares no ` +
+        'condition.in; the grade routing has nothing to follow.',
+    );
+  }
+  return declared.map(String);
+})();
 
 export class VocabularyComplexityEvaluator extends BaseEvaluator {
   static readonly metadata = {
