@@ -13,7 +13,7 @@ import type { EvaluationResult } from '../../../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../../base.js';
 import { validateInputs, type InputsOf } from '../../inputs.js';
 import { requireStep } from '../../single-step.js';
-import { requireConditionValues } from '../../multi-step.js';
+import { requireConditionValues, requirePreprocessing } from '../../multi-step.js';
 import { declaredCredentials } from '../../credentials.js';
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/input_schema.json';
 import type { StageDetail } from '../../../telemetry/index.js';
@@ -76,6 +76,15 @@ const OTHER_GRADES_STEP = requireStep(
 
 /** The grades the grades-3-4 branch declares, so the routing follows the contract. */
 const GRADES_34 = requireConditionValues(GRADES_34_STEP, CONFIG.evaluator.name);
+
+/**
+ * The grades whose prompt binds `{fk_score}`, from the preprocessing entry's own condition
+ * rather than assumed to match the step's — the contract states them separately.
+ */
+const FK_APPLIES_TO = requireConditionValues(
+  requirePreprocessing(CONFIG, 'fk_score'),
+  CONFIG.evaluator.name,
+);
 
 export class VocabularyComplexityEvaluator extends BaseEvaluator {
   static readonly metadata = {
@@ -174,8 +183,11 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
         },
       });
 
-      // Calculate Flesch-Kincaid grade level
-      const fkLevel = calculateFleschKincaidGrade(text);
+      // Declared conditional: only the grades-3-4 branch binds {fk_score}, so computing it
+      // for grades 5-12 is work the contract says to skip.
+      const fkLevel = FK_APPLIES_TO.includes(gradeLevel)
+        ? calculateFleschKincaidGrade(text)
+        : undefined;
 
       // Stage 2: Evaluate vocabulary complexity
       const complexityResponse = await this.evaluateComplexity(
@@ -321,7 +333,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     text: string,
     gradeLevel: string,
     backgroundKnowledge: string,
-    fkLevel: number
+    fkLevel: number | undefined
   ): Promise<{ data: VocabularyComplexityResult; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const systemPrompt = getSystemPrompt(gradeLevel);
     const userPrompt = getUserPrompt(text, gradeLevel, backgroundKnowledge, fkLevel);
