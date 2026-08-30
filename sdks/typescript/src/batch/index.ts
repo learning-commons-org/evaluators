@@ -1,7 +1,7 @@
 /**
  * Batch evaluation module
  *
- * Programmatic API for running an evaluator group over a set of texts.
+ * Programmatic API for running an evaluator family over a set of texts.
  *
  * @example
  * ```typescript
@@ -10,7 +10,7 @@
  * const [family] = getFamilies(); // 'text-complexity'
  * const inputs = parseCSV('./texts.csv');
  * const evaluator = new BatchEvaluator({ googleApiKey, openaiApiKey });
- * const output = await evaluator.evaluate(inputs, group.id);
+ * const output = await evaluator.evaluate(inputs, family.id);
  * console.log(formatAsCSV(output));
  * ```
  */
