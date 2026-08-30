@@ -136,9 +136,20 @@ export interface TestableEvaluator {
  */
 function evaluatorInputs(testCase: BaseTestCase): Record<string, string> {
   if (testCase.inputs) return testCase.inputs;
+
+  // Not defaulted to '': an empty string is a valid input, so a case missing both fields
+  // would read as a real evaluation of empty text — a failing verdict pointing at the
+  // evaluator rather than at the case that is malformed.
+  if (testCase.text === undefined) {
+    throw new Error(
+      `Test case "${testCase.id}" declares neither \`text\` nor \`inputs\`, ` +
+        'so the harness has nothing to evaluate.',
+    );
+  }
+
   return testCase.grade
-    ? { text: testCase.text ?? '', grade_level: testCase.grade }
-    : { text: testCase.text ?? '' };
+    ? { text: testCase.text, grade_level: testCase.grade }
+    : { text: testCase.text };
 }
 
 /**
