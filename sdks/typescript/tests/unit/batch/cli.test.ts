@@ -4,7 +4,9 @@ import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
+  realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -191,6 +193,39 @@ describe('isEntryPoint', () => {
 
   it('canonicalises a non-normalised file URL entry point', () => {
     expect(isEntryPoint('file:///tmp/cli.js', 'file:/tmp/cli.js')).toBe(true);
+  });
+
+  it('matches a symlink pointing at the module, as an installed bin does', () => {
+    // The regression this test exists for: `npm install` puts the bin in
+    // node_modules/.bin as a symlink, so argv[1] is the link and import.meta.url is the
+    // resolved target. Comparing them textually leaves the CLI exiting 0 in silence.
+    const real = join(workspace, 'cli.js');
+    const link = join(workspace, 'evaluators-batch');
+    writeFileSync(real, '');
+    symlinkSync(real, link);
+
+    // realpathSync on the target too: macOS resolves /tmp through /private/tmp, and
+    // import.meta.url would already be the fully resolved form.
+    const moduleUrl = pathToFileURL(realpathSync(real)).href;
+
+    expect(isEntryPoint(moduleUrl, link)).toBe(true);
+  });
+
+  it('is false for a symlink pointing at a different file', () => {
+    // Resolving links must not turn every link into a match.
+    const real = join(workspace, 'cli.js');
+    const other = join(workspace, 'other.js');
+    const link = join(workspace, 'link-to-other');
+    writeFileSync(real, '');
+    writeFileSync(other, '');
+    symlinkSync(other, link);
+
+    expect(isEntryPoint(pathToFileURL(realpathSync(real)).href, link)).toBe(false);
+  });
+
+  it('is false when argv[1] names something that does not exist', () => {
+    // Resolution fails rather than throwing out of the guard and crashing at import.
+    expect(isEntryPoint(pathToFileURL(installed).href, join(workspace, 'absent.js'))).toBe(false);
   });
 
   it('is false when there is no entry point at all', () => {

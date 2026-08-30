@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
-import { pathToFileURL } from 'url';
+import { pathToFileURL, fileURLToPath } from 'url';
 import prompts from 'prompts';
 import {
   BatchEvaluator,
@@ -466,15 +466,30 @@ async function main() {
  *
  * `main()` runs at module scope, so without this an `import` of this file — which the tests
  * need in order to reach anything in it — starts a batch run and blocks on the interactive
- * prompts. Comparison is on resolved URLs because `argv[1]` may be a relative path.
+ * prompts.
  *
- * `node --entry-url` passes the entry point through as a URL rather than a path; running it
- * through `pathToFileURL` would mangle it and leave the CLI doing nothing at all.
+ * Three forms of `argv[1]` have to compare equal to this module's URL, and missing any one
+ * of them leaves `evaluators-batch` exiting 0 having done nothing:
+ *
+ * - a path, possibly relative, hence `pathToFileURL`;
+ * - a **symlink** to this file, which is how npm installs a `bin` — `argv[1]` is then
+ *   `node_modules/.bin/evaluators-batch` while `import.meta.url` is the resolved target,
+ *   so the two never match textually;
+ * - a `file:` URL, which `node --entry-url` passes through verbatim and which
+ *   `pathToFileURL` would mangle.
  */
 export function isEntryPoint(moduleUrl: string, argv1: string | undefined): boolean {
   if (argv1 === undefined) return false;
+
   const entryUrl = argv1.startsWith('file:') ? new URL(argv1).href : pathToFileURL(argv1).href;
-  return moduleUrl === entryUrl;
+  if (moduleUrl === entryUrl) return true;
+
+  try {
+    return moduleUrl === pathToFileURL(fs.realpathSync(fileURLToPath(entryUrl))).href;
+  } catch {
+    // argv[1] names something unreadable or absent; it is not this module.
+    return false;
+  }
 }
 
 if (isEntryPoint(import.meta.url, process.argv[1])) main();
