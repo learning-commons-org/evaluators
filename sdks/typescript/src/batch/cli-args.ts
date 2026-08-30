@@ -1,6 +1,5 @@
 import { Provider } from '../evaluators/base.js';
 import type { ModelOverride } from '../evaluators/base.js';
-import type { EvaluatorGroup } from './types.js';
 
 export interface CliArgs {
   csvPath?: string;
@@ -136,15 +135,4 @@ export function parseModelOverride(raw: string): ModelOverride {
   }
 
   return { provider: providerStr as Provider, model };
-}
-
-export function requiredProviders(
-  group: EvaluatorGroup,
-  modelOverride: ModelOverride | undefined
-): Provider[] {
-  if (modelOverride) return [modelOverride.provider];
-  const providers: Provider[] = [];
-  if (group.requiresGoogleKey) providers.push(Provider.Google);
-  if (group.requiresOpenAIKey) providers.push(Provider.OpenAI);
-  return providers;
 }

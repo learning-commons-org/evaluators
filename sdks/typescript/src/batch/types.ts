@@ -67,23 +67,6 @@ export interface BatchOutput {
 }
 
 /**
- * The pre-family projection of an {@link EvaluatorFamily}.
- * @deprecated Prefer EvaluatorFamily, which is the unit of selection; produced only by
- * getAvailableGroups().
- */
-export interface EvaluatorGroup {
-  id: string;
-  name: string;
-  description: string;
-  /** IDs of the evaluators that belong to this group */
-  evaluatorIds: readonly string[];
-  requiresGoogleKey: boolean;
-  requiresOpenAIKey: boolean;
-  /** Maximum number of input rows allowed for this group */
-  maxInputRows: number;
-}
-
-/**
  * Configuration for batch evaluation
  */
 export interface BatchConfig {
