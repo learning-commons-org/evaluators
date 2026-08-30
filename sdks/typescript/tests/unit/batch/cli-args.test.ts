@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseArgs, parseModelOverride, requiredProviders, resolveModel } from '../../../src/batch/cli-args.js';
+import { parseArgs, parseModelOverride, resolveModel } from '../../../src/batch/cli-args.js';
 import { Provider } from '../../../src/batch/index.js';
-import type { EvaluatorGroup } from '../../../src/batch/index.js';
 
 // ---- parseModelOverride ----
 
@@ -260,53 +259,5 @@ describe('resolveModel', () => {
 
   it('throws for an unknown bare word (no colon, not a shortcode)', () => {
     expect(() => resolveModel('gpt5')).toThrow(/shortcode/);
-  });
-});
-
-// ---- requiredProviders ----
-
-const makeGroup = (overrides: Partial<EvaluatorGroup> = {}): EvaluatorGroup => ({
-  id: 'text-complexity',
-  name: 'Text Complexity',
-  description: '',
-  evaluatorIds: [],
-  requiresGoogleKey: true,
-  requiresOpenAIKey: true,
-  maxInputRows: 50,
-  ...overrides,
-});
-
-describe('requiredProviders', () => {
-  it('returns Google and OpenAI when the group requires both and no override is set', () => {
-    const providers = requiredProviders(makeGroup(), undefined);
-    expect(providers).toContain(Provider.Google);
-    expect(providers).toContain(Provider.OpenAI);
-    expect(providers).toHaveLength(2);
-  });
-
-  it('returns only the override provider when a model override is set', () => {
-    const override = { provider: Provider.Anthropic, model: 'claude-opus-4-8' };
-    expect(requiredProviders(makeGroup(), override)).toEqual([Provider.Anthropic]);
-  });
-
-  it('returns only Google when override targets Google', () => {
-    const override = { provider: Provider.Google, model: 'gemini-2.5-pro' };
-    expect(requiredProviders(makeGroup(), override)).toEqual([Provider.Google]);
-  });
-
-  it('returns only OpenAI when override targets OpenAI', () => {
-    const override = { provider: Provider.OpenAI, model: 'gpt-4o' };
-    expect(requiredProviders(makeGroup(), override)).toEqual([Provider.OpenAI]);
-  });
-
-  it('respects group that only requires one key', () => {
-    const googleOnlyGroup = makeGroup({ requiresOpenAIKey: false });
-    const providers = requiredProviders(googleOnlyGroup, undefined);
-    expect(providers).toEqual([Provider.Google]);
-  });
-
-  it('returns empty array for a group requiring neither key', () => {
-    const noKeyGroup = makeGroup({ requiresGoogleKey: false, requiresOpenAIKey: false });
-    expect(requiredProviders(noKeyGroup, undefined)).toEqual([]);
   });
 });

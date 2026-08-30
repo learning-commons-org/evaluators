@@ -973,3 +973,55 @@ describe('a declared minimum length is enforced', () => {
     ).toBe(true);
   });
 });
+
+describe('the public surface offers no value a contract does not declare', () => {
+  // `TextComplexityLevel` shipped a Title Case enum — 'Slightly complex' — while every
+  // contract declares snake_case. Nothing read it, so nothing failed; the only cost fell on
+  // callers who typed against it and got values no evaluator returns. This catches the next
+  // one at the point it is exported rather than after it ships.
+  const declaredValues = new Set<string>();
+  for (const { E } of cases) {
+    const { outputSchema } = contractFor(E.metadata.id);
+    const collect = (node: unknown): void => {
+      if (Array.isArray(node)) {
+        node.forEach(collect);
+        return;
+      }
+      if (node === null || typeof node !== 'object') return;
+      const record = node as Record<string, unknown>;
+      if (Array.isArray(record.enum)) {
+        for (const value of record.enum) if (typeof value === 'string') declaredValues.add(value);
+      }
+      Object.values(record).forEach(collect);
+    };
+    collect(outputSchema);
+  }
+
+  it('found the values the contracts declare', () => {
+    // Without this the assertion below passes for an empty set.
+    expect(declaredValues.size).toBeGreaterThan(5);
+    expect(declaredValues).toContain('slightly_complex');
+  });
+
+  it('exports no verdict-shaped value the contracts never use', async () => {
+    const surface = (await import('../../src/index.js')) as Record<string, unknown>;
+
+    // A Zod enum on the public surface whose options describe a verdict must offer the
+    // values the contracts declare. Anything else is a spelling only the SDK believes in.
+    const offenders: string[] = [];
+    for (const [name, exported] of Object.entries(surface)) {
+      const options = (exported as { options?: unknown })?.options;
+      if (!Array.isArray(options) || options.length === 0) continue;
+      if (!options.every((o): o is string => typeof o === 'string')) continue;
+
+      const unknownValues = options.filter((o) => !declaredValues.has(o));
+      // Only flag an enum that looks like a verdict: every value unknown to every
+      // contract, while a case-folded form of one is declared.
+      const looksLikeVerdict = unknownValues.length === options.length &&
+        options.some((o) => declaredValues.has(o.toLowerCase().replace(/ /g, '_')));
+      if (looksLikeVerdict) offenders.push(`${name}: ${options.join(', ')}`);
+    }
+
+    expect(offenders, 'these export values no contract declares').toEqual([]);
+  });
+});

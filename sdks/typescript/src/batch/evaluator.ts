@@ -1,5 +1,4 @@
 import pLimit from 'p-limit';
-import { Provider } from '../evaluators/base.js';
 import type {
   BatchInput,
   BatchTask,
@@ -7,7 +6,6 @@ import type {
   BatchOutput,
   BatchConfig,
   BatchSummary,
-  EvaluatorGroup,
 } from './types.js';
 import {
   type EvaluatorFamily,
@@ -18,28 +16,9 @@ import {
   resolveMembers,
   validateRequiredColumns,
 } from './families/family.js';
-import { getFamilies, getFamily } from './families/registry.js';
+import { getFamily } from './families/registry.js';
 
 export { getFamilies, getFamily } from './families/registry.js';
-
-/**
- * Backward-compatible view of families as the older "evaluator group" shape.
- * @deprecated Use {@link getFamilies}. No internal caller remains; kept for the published API.
- */
-export function getAvailableGroups(): EvaluatorGroup[] {
-  return getFamilies().map((family) => {
-    const keys = family.requiredKeys(family.members.map((m) => m.id));
-    return {
-      id: family.id,
-      name: family.name,
-      description: family.description,
-      evaluatorIds: family.members.map((m) => m.id),
-      requiresGoogleKey: keys.includes(Provider.Google),
-      requiresOpenAIKey: keys.includes(Provider.OpenAI),
-      maxInputRows: family.maxInputRows,
-    };
-  });
-}
 
 export interface BatchRunOptions {
   selectedMemberIds?: string[];

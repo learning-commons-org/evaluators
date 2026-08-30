@@ -3,10 +3,7 @@ export type {
   EvaluationResult,
   EvaluationMetadata,
   EvaluationTokenUsage,
-  EvaluationFailure,
 } from './schemas/index.js';
-
-export { TextComplexityLevel } from './schemas/index.js';
 export type { GradeBand } from './schemas/index.js';
 export { readOutcome, type Outcome } from './schemas/index.js';
 
@@ -54,8 +51,6 @@ export type {
   Message,
   ProviderConfig,
 } from './providers/index.js';
-
-export { Providers } from './providers/index.js';
 
 // Sentence structure exports
 export {
