@@ -35,8 +35,9 @@ const { result, metadata } = await evaluator.evaluate({
   text: "The cat's out of the bag now.",
 });
 
-console.log(result.grade_band); // "4-5"
-console.log(result.alternative_grade_band); // "2-3", reachable with scaffolding
+console.log(result.grade_band); // a CCSS band, e.g. "2-3"
+console.log(result.alternative_grade_band); // the band reachable with scaffolding
+console.log(result.scaffolding_needed); // what that band would need
 console.log(metadata.model); // "google:gemini-3.6-flash"
 ```
 
@@ -81,7 +82,7 @@ Text complexity — how demanding a text is for a given grade. Each takes `{ tex
 | `SentenceStructureEvaluator` | 3–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/sentence-structure-evaluator/about-this-evaluator) |
 | `VocabularyComplexityEvaluator` | 3–12 | Google + OpenAI | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/vocabulary-evaluator/about-this-evaluator) |
 
-Grade band — takes `{ text }` only, and determines the grade rather than judging against one. Returns `grade_band`, `alternative_grade_band`, `scaffolding_needed`, `reasoning`.
+Grade band — takes `{ text }` only, and determines the grade rather than judging against one. Returns `grade_band`, `alternative_grade_band`, `scaffolding_needed`, `reasoning`. Bands are `K-1`, `2-3`, `4-5`, `6-8`, `9-10`, `11-12` — spans on the CCSS text-complexity scale, not single grades.
 
 | Evaluator | Grades | Provider | Docs |
 | --- | --- | --- | --- |
