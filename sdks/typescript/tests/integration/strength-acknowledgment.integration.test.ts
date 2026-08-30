@@ -9,7 +9,7 @@ import { runEvaluatorTest, type BaseTestCase } from '../utils/index.js';
  *
  * Cases are the inputs from this evaluator's `fixtures.json`, with the `quality_score` it
  * records as the expected verdict. The verdict is binary, so there is no adjacent value to
- * accept — a case matches within its retries or it fails.
+ * accept — a case matches within one of its five attempts or it fails.
  *
  * The retries are load-bearing: the contract's declared temperature never reaches this
  * model. gpt-5.4 is a reasoning model, which rejects `temperature`, so the AI SDK drops it
@@ -64,7 +64,12 @@ describeIntegration('StrengthAcknowledgmentEvaluator - Integration', () => {
         telemetry: false,
       });
 
-      const result = await runEvaluatorTest(testCase, { evaluator });
+      // Five attempts, not the default three. The verdict is binary, so an `acceptable`
+      // value would be the opposite answer and the assertion would pass for anything.
+      // Sampling one case 10 times gave 7 correct: at three attempts that is a ~3% chance
+      // of a spurious failure per run, at five it is ~0.2%. Attempts short-circuit on the
+      // first match, so this costs nothing unless a case is already failing.
+      const result = await runEvaluatorTest(testCase, { evaluator, maxAttempts: 5 });
 
       expect(result.matched, result.logs.join('\n')).toBe(true);
     },
