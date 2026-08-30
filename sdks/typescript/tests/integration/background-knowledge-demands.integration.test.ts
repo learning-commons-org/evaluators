@@ -146,7 +146,7 @@ describeIntegration.concurrent('SMK Evaluator - Comprehensive Test Suite', () =>
       logBuffer.push(`Test Case ${testCase.id} | Grade: ${testCase.grade}`);
       logBuffer.push('='.repeat(80));
       logBuffer.push(`Expected Complexity: ${testCase.expected}`);
-      logBuffer.push(`Text Preview: ${testCase.text.substring(0, 100)}...`);
+      logBuffer.push(`Text Preview: ${(testCase.text ?? '').substring(0, 100)}...`);
       logBuffer.push('');
 
       // Run the evaluation (returns logs instead of printing)

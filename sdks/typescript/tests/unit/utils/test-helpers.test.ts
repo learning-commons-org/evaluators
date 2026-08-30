@@ -93,6 +93,50 @@ describe('the integration harness reads the declared verdict', () => {
     expect(evaluator.evaluate).toHaveBeenCalledWith({ text: CASE.text, grade_level: CASE.grade });
   });
 
+  it('sends `inputs` verbatim for an evaluator that does not take text', async () => {
+    // The feedback family takes student_text and feedback_text. Falling back to `text`
+    // here would send an undeclared key and every case would fail input validation, which
+    // reads as the evaluator being broken rather than the harness sending the wrong shape.
+    const evaluator = new FakeEvaluator({ complexity_score: '1', reasoning: 'r' });
+
+    await runEvaluatorTest(
+      {
+        id: 'T3',
+        inputs: { student_text: 'A draft.', feedback_text: 'Add a topic sentence.' },
+        expected: '1',
+      },
+      { evaluator, maxAttempts: 1 },
+    );
+
+    expect(evaluator.evaluate).toHaveBeenCalledWith({
+      student_text: 'A draft.',
+      feedback_text: 'Add a topic sentence.',
+    });
+  });
+
+  it('prefers `inputs` over text and grade when both are given', async () => {
+    const evaluator = new FakeEvaluator({ complexity_score: '1', reasoning: 'r' });
+
+    await runEvaluatorTest(
+      { id: 'T4', text: 'ignored', grade: '5', inputs: { student_text: 'A draft.' }, expected: '1' },
+      { evaluator, maxAttempts: 1 },
+    );
+
+    expect(evaluator.evaluate).toHaveBeenCalledWith({ student_text: 'A draft.' });
+  });
+
+  it('refuses a case that declares neither text nor inputs', async () => {
+    // Defaulting to empty text would report a failing verdict against the evaluator
+    // instead of naming the case that is malformed.
+    const evaluator = new FakeEvaluator({ complexity_score: '1', reasoning: 'r' });
+
+    await expect(
+      runEvaluatorTest({ id: 'T5', expected: '1' }, { evaluator, maxAttempts: 1 }),
+    ).rejects.toThrow(/"T5" declares neither `text` nor `inputs`/);
+
+    expect(evaluator.evaluate).not.toHaveBeenCalled();
+  });
+
   it('still honours an explicit extractor for a non-verdict field', async () => {
     const evaluator = new FakeEvaluator({ complexity_score: 'x', reasoning: 'r', other: 'picked' });
 

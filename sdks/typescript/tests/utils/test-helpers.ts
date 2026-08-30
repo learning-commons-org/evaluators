@@ -108,8 +108,15 @@ export async function runTestWithRetry<TInput, TOutput>(
  */
 export interface BaseTestCase {
   id: string;
-  text: string;
+  /** The primary text. Omit when the evaluator takes something else — see `inputs`. */
+  text?: string;
   grade?: string; // Optional: some evaluators need it, some don't
+  /**
+   * The whole input object, for evaluators that take something other than `text` — the
+   * feedback family takes `student_text` and `feedback_text`. Passed verbatim, so the
+   * schema rejects a wrong key rather than the harness silently sending `text`.
+   */
+  inputs?: Record<string, string>;
   expected: string; // Expected output value (checked on each attempt)
   acceptable?: string[]; // Acceptable adjacent values (checked if no expected match after all retries)
 }
@@ -121,6 +128,28 @@ export interface BaseTestCase {
  */
 export interface TestableEvaluator {
   evaluate(input: Record<string, unknown>): Promise<EvaluationResult<Record<string, unknown>>>;
+}
+
+/**
+ * The object a case is evaluated with: `inputs` verbatim when given, otherwise the
+ * `text` (+ `grade_level`) shape the text-taking evaluators declare.
+ */
+function evaluatorInputs(testCase: BaseTestCase): Record<string, string> {
+  if (testCase.inputs) return testCase.inputs;
+
+  // Not defaulted to '': an empty string is a valid input, so a case missing both fields
+  // would read as a real evaluation of empty text — a failing verdict pointing at the
+  // evaluator rather than at the case that is malformed.
+  if (testCase.text === undefined) {
+    throw new Error(
+      `Test case "${testCase.id}" declares neither \`text\` nor \`inputs\`, ` +
+        'so the harness has nothing to evaluate.',
+    );
+  }
+
+  return testCase.grade
+    ? { text: testCase.text, grade_level: testCase.grade }
+    : { text: testCase.text };
 }
 
 /**
@@ -207,9 +236,7 @@ export async function runEvaluatorTest(
 
   // Phase 1: Try to match expected value (short-circuit on match)
   for (let attemptNum = 1; attemptNum <= maxAttempts; attemptNum++) {
-    const result = testCase.grade
-      ? await evaluator.evaluate({ text: testCase.text, grade_level: testCase.grade })
-      : await evaluator.evaluate({ text: testCase.text });
+    const result = await evaluator.evaluate(evaluatorInputs(testCase));
 
     const actualValue = extractResult(result);
     const isExpectedMatch = compareFn(actualValue, testCase.expected);
