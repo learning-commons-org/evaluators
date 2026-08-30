@@ -5,7 +5,7 @@ import { runEvaluatorTest, type BaseTestCase } from '../utils/index.js';
 /**
  * OrganizationalStructure Evaluator Integration Tests
  *
- * How clearly the text's organisation supports a reader at the target grade.
+ * How clearly the text's organization supports a reader at the target grade.
  *
  * Cases are this evaluator's `fixtures.json`, plus two whose expected values were
  * captured against the same model and temperature this contract declares.
