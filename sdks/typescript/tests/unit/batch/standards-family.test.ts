@@ -79,7 +79,7 @@ describe('STANDARDS_FAMILY.createRunner — provider-key forwarding', () => {
 });
 
 describe('STANDARDS_FAMILY.runTask', () => {
-  /** What `evaluate()` resolves to: the payload inside the shared envelope. */
+  /** A full `evaluate()` envelope, which is what the runner now has to unwrap. */
   const ALIGNMENT = {
     evaluator: 'math-standards-alignment',
     result: {
