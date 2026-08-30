@@ -6,6 +6,11 @@ TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.or
 
 Requires Node >= 20.19.0.
 
+TypeScript consumers currently need `"skipLibCheck": true` in `tsconfig.json`. The bundled
+declaration file inlines the evaluator contracts as value declarations, which `tsc` rejects
+in an ambient context; without the flag a build fails on the SDK's own types rather than
+yours. Tracked as a package defect, not a permanent requirement.
+
 ## Installation
 
 Install the `@learning-commons/evaluators` and [Vercel AI](https://sdk.vercel.ai) SDKs:
@@ -48,14 +53,16 @@ Every evaluator resolves to the same three-part envelope, so generic code works 
   evaluator: string;   // registry id, e.g. "student_facing_text.ela_reading.vocabulary_complexity"
   result: TResult;     // the evaluator's own payload, exactly as its output schema declares it
   metadata: {
-    model: string;             // "provider:model" for the model that actually ran
+    model: string;             // "provider:model" that ran; "a+b" when several did
     processingTimeMs: number;
     tokenUsage: { inputTokens: number; outputTokens: number };
   };
 }
 ```
 
-`result` is the model's structured output with keys and values unaltered, so the payload is identical across our SDKs. When you need one comparable value per evaluation regardless of evaluator, use `readOutcome`:
+`result` is the model's structured output with keys and values unaltered, so the payload is identical across our SDKs. Payloads carry more than the verdict — Vocabulary Complexity also returns its `tier_2_words`, `tier_3_words`, `archaic_words` and `other_complex_words`, and the feedback family's `key_features` maps each criterion to `{ met, justification }`.
+
+`metadata.model` names every model that ran, joined by `+` when an evaluator uses more than one — so a multi-step evaluator reports e.g. `openai:gpt-4o-…+openai:gpt-4.1-…`. Which models run can also depend on the input: Vocabulary Complexity takes a different branch for grades 3-4 than for 5-12. The **Required key** column below is what you must supply, not a promise about which provider serves a given call. When you need one comparable value per evaluation regardless of evaluator, use `readOutcome`:
 
 ```typescript
 import { readOutcome, VocabularyComplexityEvaluator } from "@learning-commons/evaluators";
@@ -72,7 +79,7 @@ const { score, reasoning } = readOutcome(evaluation, VocabularyComplexityEvaluat
 
 Text complexity — how demanding a text is for a given grade. Each takes `{ text, grade_level }` and returns a `complexity_score` on a four-level scale — `slightly_complex`, `moderately_complex`, `very_complex`, `exceedingly_complex` — with `reasoning`. Purpose Clarity can also answer `more_context_needed`.
 
-| Evaluator | Grades | Provider | Docs |
+| Evaluator | Grades | Required key | Docs |
 | --- | --- | --- | --- |
 | `BackgroundKnowledgeDemandsEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/subject-matter-knowledge/about-this-evaluator) |
 | `MeaningDirectnessEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/conventionality/about-this-evaluator) |
@@ -84,13 +91,13 @@ Text complexity — how demanding a text is for a given grade. Each takes `{ tex
 
 Grade band — takes `{ text }` only, and determines the grade rather than judging against one. Returns `grade_band`, `alternative_grade_band`, `scaffolding_needed`, `reasoning`. Bands are `K-1`, `2-3`, `4-5`, `6-8`, `9-10`, `11-12` — spans on the CCSS text-complexity scale, not single grades.
 
-| Evaluator | Grades | Provider | Docs |
+| Evaluator | Grades | Required key | Docs |
 | --- | --- | --- | --- |
 | `GradeLevelAppropriatenessEvaluator` | K–12 | Google | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/grade-level-appropriateness-evaluator/about-this-evaluator) |
 
 Feedback quality — judges a teacher comment on a student's writing. Each takes `{ student_text, feedback_text }` and returns a binary `quality_score` with `reasoning`, `key_features` and `proposed_adjustment`.
 
-| Evaluator | Grades | Provider |
+| Evaluator | Grades | Required key |
 | --- | --- | --- |
 | `RevisionAccuracyEvaluator` | 6–12 | OpenAI |
 | `RevisionActionabilityEvaluator` | 6–12 | OpenAI |
@@ -102,7 +109,7 @@ Feedback quality — judges a teacher comment on a student's writing. Each takes
 
 Standards alignment — checks a math item against a standard, component by component.
 
-| Evaluator | Grades | Provider | Also needs |
+| Evaluator | Grades | Required key | Also needs |
 | --- | --- | --- | --- |
 | `MathStandardsAlignmentEvaluator` | K–12 | Anthropic | `learningCommonsApiKey` (Knowledge Graph) |
 
@@ -138,7 +145,7 @@ for (const { id, name, supportedGrades } of getEvaluators()) {
 getEvaluator("conventionality")?.name; // "Meaning Directness Evaluator"
 ```
 
-Both return metadata — `id`, `stableId`, `idHistory`, `name`, `description`, `supportedGrades`, `defaultProviders`, and `outcome` where the evaluator declares a single verdict. To *run* an evaluator, import it by name: the metadata does not tell you which named inputs it takes, and each evaluator's are different.
+Both return metadata — `id`, `stableId`, `idHistory`, `name`, `description`, `supportedGrades`, `defaultProviders`, `requiredCredentials`, and `outcome` where the evaluator declares a single verdict. `requiredCredentials` is the authoritative answer to "which keys does this one need", e.g. `["learning_commons_api_key"]` for math standards alignment. To *run* an evaluator, import it by name: the metadata does not tell you which named inputs it takes, and each evaluator's are different.
 
 ## Configuration
 
@@ -154,13 +161,32 @@ Every evaluator takes the same options:
 | `telemetry` | `true`, `false`, or `TelemetryOptions` (default on, without input recording) |
 | `logger` / `logLevel` | Inject a logger, or set the console logger's level (default `WARN`) |
 
+Keys are read from this object only. There is no environment-variable fallback: setting
+`GOOGLE_API_KEY` in the environment does not satisfy `googleApiKey`, and omitting a key an
+evaluator needs throws `ConfigurationError` at construction. (The `evaluators-batch` command
+is the exception — it does read the environment, as its `--help` describes.)
+
 ### Bring your own provider
 
-Pass any object implementing `LLMProvider` and the evaluator routes every call through it, skipping the built-in API-key adapters entirely — useful for Google Vertex AI, Amazon Bedrock, an AI-SDK gateway, or an eval framework's model system. No provider API keys are needed, and any ambient ones go unused.
+Pass any object implementing `LLMProvider` and the evaluator routes every call through it, skipping the built-in API-key adapters entirely — useful for Google Vertex AI, Amazon Bedrock, an AI-SDK gateway, or an eval framework's model system. No provider API keys are needed.
 
 ```typescript
+import { SentenceStructureEvaluator, type LLMProvider } from "@learning-commons/evaluators";
+
+const myProvider: LLMProvider = {
+  label: "vertex:gemini-2.5-flash", // "provider:model", surfaced as metadata.model
+  generateStructured: async ({ messages, schema, temperature }) => {
+    /* return { data, model, usage: { inputTokens, outputTokens }, latencyMs } */
+  },
+  generateText: async ({ messages, temperature }) => {
+    /* return { text, model, usage: { inputTokens, outputTokens }, latencyMs } */
+  },
+};
+
 const evaluator = new SentenceStructureEvaluator({ llmProvider: myProvider });
 ```
+
+All three members are required; an object missing any of them throws `ConfigurationError`.
 
 It is mutually exclusive with `modelOverride`: setting both throws `ConfigurationError`.
 
@@ -175,9 +201,21 @@ import { BatchEvaluator, getFamily, parseCSV } from "@learning-commons/evaluator
 The same thing is available as a command, installed as `evaluators-batch`:
 
 ```bash
-npx evaluators-batch input.csv --family text-complexity --output-dir ./results
+npx evaluators-batch input.csv --family text-complexity --output-dir ./results -y
 npx evaluators-batch --help
 ```
+
+`-y` makes it non-interactive: without it, it prompts for anything missing, which hangs a CI
+job. Keys come from `--google-api-key` and friends or from the matching environment
+variables. Each family has a row limit; `--bypass-row-limit` lifts it.
+
+The CSV's columns depend on the family. `getFamily(id).columns` is authoritative:
+
+| Family | Required columns | Optional |
+| --- | --- | --- |
+| `text-complexity` | `text`, `grade_level` | — |
+| `feedback` | `student_text`, `feedback_text` | — |
+| `math-standards-alignment` | `question` (or `text`), `statementCode` (or `statement_code`, `standard`) | `jurisdiction` (default Multi-State), `grade_level`, `id` |
 
 ## Errors
 

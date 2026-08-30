@@ -5,7 +5,7 @@ export type {
   EvaluationTokenUsage,
 } from './schemas/index.js';
 export type { GradeBand } from './schemas/index.js';
-export { readOutcome, type Outcome } from './schemas/index.js';
+export { readOutcome, type Outcome, type DeclaredOutcome } from './schemas/index.js';
 
 // Error types
 export {

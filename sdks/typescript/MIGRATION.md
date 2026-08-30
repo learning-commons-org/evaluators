@@ -77,6 +77,18 @@ const { score, reasoning } = readOutcome(evaluation, MyEvaluator.metadata.outcom
 
 `score` is stringified, and is `undefined` for an evaluator whose output is not a single judgement.
 
+Writing one helper across several evaluators — the case this replaces — needs a name for that
+second argument. It is exported as `DeclaredOutcome`:
+
+```typescript
+import { readOutcome, type DeclaredOutcome, type EvaluationResult } from "@learning-commons/evaluators";
+
+function toRow(dimension: string, evaluation: EvaluationResult, outcome: DeclaredOutcome | undefined) {
+  const { score, reasoning } = readOutcome(evaluation, outcome);
+  return { dimension, score, reasoning };
+}
+```
+
 **Token counts moved** into a nested object:
 
 ```diff
@@ -96,7 +108,8 @@ const { score, reasoning } = readOutcome(evaluation, MyEvaluator.metadata.outcom
 | `VocabularyEvaluator` / `evaluateVocabulary` | `VocabularyComplexityEvaluator` / `evaluateVocabularyComplexity` |
 | `<Evaluator>Internal` types | `<Evaluator>Result` |
 | `GradeLevelAppropriatenessSchema` | `GradeLevelAppropriatenessOutputSchema` |
-| `Providers` | `Provider` |
+| `evaluator.evaluateByGrade(...)` | `evaluator.evaluateByGradeLevel(...)` |
+| `Providers` (redundant alias; `Provider` already existed and is unchanged) | use `Provider` |
 
 `TextComplexityEvaluator`, `evaluateTextComplexity`, `TextComplexityResult` and `TextComplexityLevel` are **removed with no replacement.** The composite ran several evaluators and merged their verdicts, which hid which model produced what. Call the evaluators you want and combine the results yourself, or use the `text-complexity` batch family, which does this with a report.
 
@@ -152,7 +165,14 @@ The word "grade" meant three things across the API, the Knowledge Graph boundary
 
 - Evaluator input: `grade` → `grade_level`
 - Result and report fields: `grade` → `gradeLevel`
-- Batch CSV column: `grade` → `grade_level` — **existing input files need the header renamed**
+- Batch CSV column: `grade` → `grade_level` — **existing input files need the header renamed**:
+
+  ```diff
+  - text,grade
+  + text,grade_level
+  ```
+
+  The other families' columns are in the [README](./README.md#batch).
 
 ## 6. The Learning Commons key is one option
 
@@ -164,6 +184,17 @@ The word "grade" meant three things across the API, the Knowledge Graph boundary
 
 Both `partnerKey` and `platformApiKey` are gone. `learningCommonsApiKey` on the evaluator config authorizes Learning Commons API calls such as the Knowledge Graph. Identified telemetry is a separate, opt-in setting: `telemetry: { learningCommonsApiKey: key }`.
 
+**TypeScript will not always catch this.** Excess-property checking only applies to an object
+literal written at the call site. If your keys come from a shared variable — the common case —
+the removed property is silently ignored and identified telemetry just stops:
+
+```typescript
+const keys = { googleApiKey, partnerKey };   // no error; partnerKey is simply dropped
+new VocabularyComplexityEvaluator(keys);
+```
+
+Grep for `partnerKey` and `platformApiKey` rather than relying on the compiler.
+
 ## 7. Peer dependencies moved a major version
 
 Covered by step 0 above, which has to happen first. For reference:
@@ -173,33 +204,60 @@ Covered by step 0 above, which has to happen first. For reference:
 | `ai` | `>=6.0.0` | `>=7.0.0` |
 | `@ai-sdk/google`, `@ai-sdk/openai`, `@ai-sdk/anthropic` | `>=3.0.0` | `>=4.0.0` |
 
-## 8. Math standards alignment returns the envelope
+## 8. Math standards alignment: named inputs, and the envelope
 
-It was the last evaluator returning its payload bare.
+Both the arguments and the return value changed. It was also the last evaluator returning its
+payload bare.
 
 ```diff
-- const alignment = await evaluator.evaluate({ ... });
+- const alignment = await evaluator.evaluate(question, statementCode, jurisdiction);
 - console.log(alignment.alignedCount);
-+ const { result } = await evaluator.evaluate({ ... });
++ const { result } = await evaluator.evaluate({ question, statementCode, jurisdiction });
 + console.log(result.alignedCount);
 ```
 
-`evaluateItems` and `evaluateByGradeLevel` are unchanged: one call fans out over many question × standard pairs, so there is no single model or duration to report.
+`statementCode` is the bare dotted code, **not** the full CCSS URI: `"5.NF.A.1"`, not
+`"CCSS.MATH.CONTENT.5.NF.A.1"`. The long form raises `StandardNotFoundError`.
+
+`evaluateItems` keeps its name and arguments. **`evaluateByGrade` is now
+`evaluateByGradeLevel`** — arguments unchanged. Neither returns an envelope: one call fans out
+over many question × standard pairs, so there is no single model or duration to report.
 
 ## 9. Smaller behaviour changes
 
-- **`metadata.supportedGrades`** now reports what the contract says the evaluator targets. Previously it was derived from the grade input's enum, so the seven feedback evaluators and Grade Level Appropriateness published `[]`. It is not a validation set — where a `grade_level` input exists, its schema enum is what rejects a bad value.
+- **`supportedGrades`** — read as `SomeEvaluator.metadata.supportedGrades`, the static; the
+  instance member is protected. It now reports what the contract says the evaluator targets. Previously it was derived from the grade input's enum, so the seven feedback evaluators and Grade Level Appropriateness published `[]`. It is not a validation set — where a `grade_level` input exists, its schema enum is what rejects a bad value.
 - **Vocabulary Complexity** reports the model that actually ran for grades 3–4, which differs from the 5–12 branch. If you asserted one model string for all grades, it will now differ.
 - **Grade Level Appropriateness and Sentence Structure** emit exactly the fields their contracts declare. GLA returns `grade_band`, `alternative_grade_band`, `scaffolding_needed`, `reasoning`.
 - **The three complexity-score schemas** are generated from their contracts, so field descriptions and enum values follow the contract rather than a hand-written copy.
 
 ## What is new in 1.0.0
 
-- **Seven feedback evaluators** judging teacher comments on student writing, and `OrganizationalStructureEvaluator` and `ReferenceKnowledgeDemandsEvaluator` are now public.
+- **Seven feedback evaluators** judging teacher comments on student writing, each taking
+  `{ student_text, feedback_text }` and returning a binary `quality_score`:
+  `RevisionAccuracyEvaluator`, `RevisionActionabilityEvaluator`,
+  `RevisionManageabilityEvaluator`, `StrengthAcknowledgmentEvaluator`,
+  `StudentResponseSpecificityEvaluator`, `ToneAppropriatenessEvaluator`,
+  `WithholdingAnswersEvaluator`. Also newly public:
+  `OrganizationalStructureEvaluator`, `ReferenceKnowledgeDemandsEvaluator`, and
+  `StandardNotFoundError` (see section 4 — it was not exported in 0.8.0).
 - **`llmProvider`** — bring your own provider. Inject any `LLMProvider` and no API keys are needed, for Vertex AI, Bedrock, a gateway or an eval framework's model system. Mutually exclusive with `modelOverride`.
 - **The `feedback` batch family**, alongside `text-complexity` and `math-standards-alignment`.
-- **`getEvaluators()` / `getEvaluator(id)`** — a registry over all sixteen, for enumeration and
-  for resolving a stored result's id back to the evaluator that produced it. Renamed ids
-  resolve through `idHistory`, so a result written under an old name stays identifiable.
+- **`getEvaluators()` / `getEvaluator(id)`** — a registry over all sixteen. Both return
+  **metadata, not a constructor**: `{ id, stableId, idHistory, name, description, outcome,
+  requiredCredentials, supportedGrades, defaultProviders }`. To run an evaluator, import it by
+  name. Every id 0.8.0 ever wrote into a result still resolves:
+
+  | id stored by 0.8.0 | resolves to |
+  | --- | --- |
+  | `vocabulary` | `student_facing_text.ela_reading.vocabulary_complexity` |
+  | `sentence-structure` | `student_facing_text.ela_reading.sentence_structure` |
+  | `subject-matter-knowledge` | `student_facing_text.ela_reading.background_knowledge_demands` |
+  | `conventionality` | `student_facing_text.ela_reading.meaning_directness` |
+  | `literacy.gla.purpose` | `student_facing_text.ela_reading.purpose_clarity` |
+  | `grade-level-appropriateness` | `student_facing_text.ela_reading.grade_level_appropriateness` |
+  | `math.standards-alignment` | `academic_standards_alignment.mathematics.math_standards_alignment` |
+
+  `text-complexity` does not resolve — that was the removed composite, not an evaluator.
 
 The `@learning-commons/evaluators/batch` entry point and the `evaluators-batch` command both existed in 0.8.0; they are documented in the [README](./README.md) now, which is the change.

@@ -139,6 +139,29 @@ describe('VercelAIProvider - getModel adapter resolution', () => {
     }
   });
 
+  it.each(['openai', 'anthropic', 'google'] as const)(
+    'blames the caller, not the dependency, for a missing %s adapter',
+    async (type) => {
+      // A forgotten devDependency is setup, not an upstream failure. Thrown as a plain
+      // Error it was wrapped into LLMProviderError — a DependencyError — so a caller
+      // catching by fault domain reported an outage for their own missing package. The
+      // tests above pin only the message, which is why that survived.
+      const ctx = await loadProvider({ failImports: [type] });
+      const provider = new ctx.mod.VercelAIProvider({ type, model: 'm' });
+
+      const error = await provider
+        .generateText([{ role: 'user', content: 'hi' }])
+        .then(() => undefined)
+        .catch((e: unknown) => e as Error);
+
+      // Asserted by name, not `instanceof`: `loadProvider` resets the module graph, so the
+      // class the provider throws is a different object from the one this file imported.
+      expect(error?.name).toBe('ConfigurationError');
+      // Every DependencyError carries the dependency it blames. This must not.
+      expect(error).not.toHaveProperty('dependency');
+    },
+  );
+
   it('throws on an unsupported provider type', async () => {
     const ctx = await loadProvider();
     // Bypass the constructor's type union to reach the switch default.

@@ -1,4 +1,5 @@
 import { generateText as aiGenerateText, Output } from 'ai';
+import { ConfigurationError } from '../errors.js';
 import type {
   LLMProvider,
   LLMRequest,
@@ -117,7 +118,7 @@ export class VercelAIProvider implements LLMProvider {
         const { createOpenAI } = await import(
           /* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ '@ai-sdk/openai'
         ).catch(() => {
-          throw new Error(
+          throw new ConfigurationError(
             'To use the OpenAI provider, install its adapter: npm install @ai-sdk/openai'
           );
         });
@@ -127,7 +128,7 @@ export class VercelAIProvider implements LLMProvider {
         const { createAnthropic } = await import(
           /* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ '@ai-sdk/anthropic'
         ).catch(() => {
-          throw new Error(
+          throw new ConfigurationError(
             'To use the Anthropic provider, install its adapter: npm install @ai-sdk/anthropic'
           );
         });
@@ -137,7 +138,7 @@ export class VercelAIProvider implements LLMProvider {
         const { createGoogleGenerativeAI } = await import(
           /* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ '@ai-sdk/google'
         ).catch(() => {
-          throw new Error(
+          throw new ConfigurationError(
             'To use the Google provider, install its adapter: npm install @ai-sdk/google'
           );
         });
