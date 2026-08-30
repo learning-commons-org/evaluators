@@ -98,13 +98,21 @@ describeIntegration('MathStandardsAlignmentEvaluator - Integration', () => {
         learningCommonsApiKey: process.env.LEARNING_COMMONS_API_KEY!,
       });
 
-      // `evaluate()` returns the payload directly rather than the `{ evaluator, result,
-      // metadata }` envelope the other evaluators return.
-      const result = await evaluator.evaluate({
+      const evaluation = await evaluator.evaluate({
         question: testCase.question,
         statementCode: testCase.statementCode,
         jurisdiction: Jurisdiction.MultiState,
       });
+      const { result } = evaluation;
+
+      expect(evaluation.evaluator).toBe(MathStandardsAlignmentEvaluator.metadata.id);
+      expect(evaluation.metadata.model).toMatch(/^anthropic:/);
+      expect(evaluation.metadata.processingTimeMs).toBeGreaterThan(0);
+      expect(evaluation.metadata.processingTimeMs).toBeLessThan(10 * 60_000);
+      // A live call consumes tokens, so a zero here means the envelope is reporting a
+      // constant rather than what the run actually cost.
+      expect(evaluation.metadata.tokenUsage.inputTokens).toBeGreaterThan(0);
+      expect(evaluation.metadata.tokenUsage.outputTokens).toBeGreaterThan(0);
 
       console.log(`\n  ${testCase.id}: ${result.alignedCount}/${result.totalCount} aligned`);
       for (const lc of result.learningComponents) {

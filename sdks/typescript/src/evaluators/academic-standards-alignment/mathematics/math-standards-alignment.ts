@@ -19,6 +19,7 @@ import type { StageDetail } from '../../../telemetry/index.js';
 import CONFIG from '../../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/config.json';
 import INPUT_SCHEMA from '../../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/input_schema.json';
 import { validateInputs, type InputsOf } from '../../inputs.js';
+import type { EvaluationResult } from '../../../schemas/outputs.js';
 import { declaredCredentials } from '../../credentials.js';
 
 const EVALUATOR_ID = CONFIG.evaluator.id;
@@ -234,7 +235,9 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
   // evaluate — single question × single standard (the primitive)
   // -------------------------------------------------------------------------
 
-  async evaluate(input: MathStandardsAlignmentInput): Promise<StandardAlignmentResult> {
+  async evaluate(
+    input: MathStandardsAlignmentInput,
+  ): Promise<EvaluationResult<StandardAlignmentResult>> {
     validateInputs(input, INPUT_SCHEMA);
     return this._evaluateCore(input.question, input.statementCode, input.jurisdiction);
   }
@@ -373,7 +376,8 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
             }
             let result: StandardAlignmentResult;
             try {
-              result = await bankLimit(() => this._evaluateCore(item.question, code, jurisdiction));
+              result = (await bankLimit(() => this._evaluateCore(item.question, code, jurisdiction)))
+                .result;
             } catch (err) {
               result = {
                 statementCode: code,
@@ -489,11 +493,33 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
   // Private helpers
   // -------------------------------------------------------------------------
 
+  /**
+   * Wrap a payload in the shared envelope.
+   *
+   * `model` is the configured detail model even when no call was made — a standard with no
+   * learning components resolves without one — and `tokenUsage` of zero is what says so.
+   */
+  private envelope(
+    result: StandardAlignmentResult,
+    startTime: number,
+    usage?: { inputTokens: number; outputTokens: number },
+  ): EvaluationResult<StandardAlignmentResult> {
+    return {
+      evaluator: EVALUATOR_ID,
+      result,
+      metadata: {
+        model: this.detailProvider.label,
+        processingTimeMs: Date.now() - startTime,
+        tokenUsage: usage ?? { inputTokens: 0, outputTokens: 0 },
+      },
+    };
+  }
+
   private async _evaluateCore(
     question: string,
     statementCode: string,
     jurisdiction: Jurisdiction,
-  ): Promise<StandardAlignmentResult> {
+  ): Promise<EvaluationResult<StandardAlignmentResult>> {
 
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
@@ -517,7 +543,10 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       }
 
       if (components.length === 0) {
-        return { statementCode, learningComponents: [], alignedCount: 0, totalCount: 0 };
+        return this.envelope(
+          { statementCode, learningComponents: [], alignedCount: 0, totalCount: 0 },
+          startTime,
+        );
       }
 
       // Include the KG identifier in brackets so the model can echo it back,
@@ -602,7 +631,11 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         inputText: question,
       }).catch(() => undefined);
 
-      return { statementCode, learningComponents, alignedCount, totalCount: components.length };
+      return this.envelope(
+        { statementCode, learningComponents, alignedCount, totalCount: components.length },
+        startTime,
+        { inputTokens: tokenUsage.input_tokens, outputTokens: tokenUsage.output_tokens },
+      );
     } catch (error) {
       const latencyMs = Date.now() - startTime;
 
@@ -706,6 +739,6 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 export async function evaluateMathStandardsAlignment(
   input: MathStandardsAlignmentInput,
   config: MathStandardsAlignmentEvaluatorConfig,
-): Promise<StandardAlignmentResult> {
+): Promise<EvaluationResult<StandardAlignmentResult>> {
   return new MathStandardsAlignmentEvaluator(config).evaluate(input);
 }

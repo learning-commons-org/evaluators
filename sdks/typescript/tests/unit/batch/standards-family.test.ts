@@ -79,14 +79,23 @@ describe('STANDARDS_FAMILY.createRunner — provider-key forwarding', () => {
 });
 
 describe('STANDARDS_FAMILY.runTask', () => {
+  /** A full `evaluate()` envelope, which is what the runner now has to unwrap. */
   const ALIGNMENT = {
-    statementCode: '3.MD.C.7.d',
-    learningComponents: [
-      { identifier: 'lc-1', description: 'a', reasoning: 'r', aligned: true, feedback: '' },
-      { identifier: 'lc-2', description: 'b', reasoning: 'r', aligned: false, feedback: 'revise' },
-    ],
-    alignedCount: 1,
-    totalCount: 2,
+    evaluator: 'math-standards-alignment',
+    result: {
+      statementCode: '3.MD.C.7.d',
+      learningComponents: [
+        { identifier: 'lc-1', description: 'a', reasoning: 'r', aligned: true, feedback: '' },
+        { identifier: 'lc-2', description: 'b', reasoning: 'r', aligned: false, feedback: 'revise' },
+      ],
+      alignedCount: 1,
+      totalCount: 2,
+    },
+    metadata: {
+      model: 'anthropic:claude-x',
+      processingTimeMs: 1,
+      tokenUsage: { inputTokens: 10, outputTokens: 20 },
+    },
   };
 
   /** The runner builds a real evaluator; swap it for a stub so no network is needed. */
@@ -120,6 +129,16 @@ describe('STANDARDS_FAMILY.runTask', () => {
       alignedCount: 1,
       totalCount: 2,
     });
+    // The payload is written verbatim to results.json, so spreading the envelope instead of
+    // its `result` would add `evaluator`/`metadata` columns to a partner-facing artefact.
+    expect(Object.keys(outcome.payload as object).sort()).toEqual([
+      'alignedCount',
+      'jurisdiction',
+      'learningComponents',
+      'question',
+      'statementCode',
+      'totalCount',
+    ]);
   });
 
   it('defaults an absent jurisdiction to Multi-State', async () => {

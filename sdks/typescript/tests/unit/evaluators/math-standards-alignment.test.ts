@@ -185,7 +185,7 @@ describe('MathStandardsAlignmentEvaluator — contract bindings', () => {
   });
 
   it('reports the standard it was asked about', async () => {
-    const result = await construct().evaluate({
+    const { result } = await construct().evaluate({
       question: 'A playground is shaped like an L. What is its area?',
       statementCode: '3.MD.C.7.d',
       jurisdiction: Jurisdiction.MultiState,
