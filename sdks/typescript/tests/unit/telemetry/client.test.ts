@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TelemetryClient } from '../../../src/telemetry/client.js';
-import type { TelemetryEvent } from '../../../src/telemetry/types.js';
+import type { TelemetryConfig, TelemetryEvent } from '../../../src/telemetry/types.js';
 import type { Logger } from '../../../src/logger.js';
 
 /**
@@ -9,19 +9,28 @@ import type { Logger } from '../../../src/logger.js';
  * never log noise for failures that are expected. None of that was covered.
  */
 
-const EVENT = { event: 'evaluation_completed', status: 'success' } as unknown as TelemetryEvent;
+/** A complete event, so a required field added to the type shows up here as a build error. */
+const EVENT: TelemetryEvent = {
+  timestamp: '2026-08-29T00:00:00.000Z',
+  sdk_version: '0.8.0',
+  evaluator_type: 'student_facing_text.ela_reading.vocabulary_complexity',
+  status: 'success',
+  latency_ms: 1234,
+  text_length_chars: 512,
+  provider: 'google:gemini-2.5-flash',
+};
 
 let logger: Logger;
 let fetchMock: ReturnType<typeof vi.fn>;
 
-function makeClient(overrides: Record<string, unknown> = {}) {
+function makeClient(overrides: Partial<TelemetryConfig> = {}): TelemetryClient {
   return new TelemetryClient({
     enabled: true,
     endpoint: 'https://telemetry.example/v1/events',
     clientId: 'client-abc',
     logger,
     ...overrides,
-  } as never);
+  });
 }
 
 beforeEach(() => {
@@ -45,7 +54,10 @@ describe('TelemetryClient.send', () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('https://telemetry.example/v1/events');
     expect(init.method).toBe('POST');
+    // Byte-for-byte: the collector's schema is the wire format, so a field silently
+    // dropped or renamed in transit is the failure this catches.
     expect(JSON.parse(init.body)).toEqual(EVENT);
+    expect(init.body).toBe(JSON.stringify(EVENT));
   });
 
   it('identifies the client and declares the content type', async () => {
