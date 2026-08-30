@@ -19,7 +19,9 @@ type AdapterName = 'openai' | 'anthropic' | 'google';
 const buildModel = (provider: string) =>
   vi.fn((model: string) => ({ provider, model }));
 
-async function loadProvider(opts: { failImports?: AdapterName[] } = {}) {
+async function loadProvider(
+  opts: { failImports?: AdapterName[]; brokenImports?: AdapterName[] } = {},
+) {
   vi.resetModules();
 
   const generateText = vi.fn().mockResolvedValue({
@@ -37,21 +39,38 @@ async function loadProvider(opts: { failImports?: AdapterName[] } = {}) {
   const createGoogleGenerativeAI = vi.fn(() => buildModel('google'));
 
   const fails = (name: AdapterName) => opts.failImports?.includes(name) ?? false;
+  const broken = (name: AdapterName) => opts.brokenImports?.includes(name) ?? false;
+
+  /** What Node throws when the package is not installed, code and all. */
+  const notInstalled = (pkg: string) =>
+    Object.assign(new Error(`Cannot find package '${pkg}'`), { code: 'ERR_MODULE_NOT_FOUND' });
 
   if (fails('openai')) {
-    vi.doMock('@ai-sdk/openai', () => { throw new Error('Cannot find module'); });
+    vi.doMock('@ai-sdk/openai', () => { throw notInstalled('@ai-sdk/openai'); });
+  } else if (broken('openai')) {
+    // Installed, but fails while loading — a syntax error or a missing
+    // transitive dependency. Not the caller's setup.
+    vi.doMock('@ai-sdk/openai', () => { throw new SyntaxError('Unexpected token in adapter'); });
   } else {
     vi.doMock('@ai-sdk/openai', () => ({ createOpenAI }));
   }
 
   if (fails('anthropic')) {
-    vi.doMock('@ai-sdk/anthropic', () => { throw new Error('Cannot find module'); });
+    vi.doMock('@ai-sdk/anthropic', () => { throw notInstalled('@ai-sdk/anthropic'); });
+  } else if (broken('anthropic')) {
+    // Installed, but fails while loading — a syntax error or a missing
+    // transitive dependency. Not the caller's setup.
+    vi.doMock('@ai-sdk/anthropic', () => { throw new SyntaxError('Unexpected token in adapter'); });
   } else {
     vi.doMock('@ai-sdk/anthropic', () => ({ createAnthropic }));
   }
 
   if (fails('google')) {
-    vi.doMock('@ai-sdk/google', () => { throw new Error('Cannot find module'); });
+    vi.doMock('@ai-sdk/google', () => { throw notInstalled('@ai-sdk/google'); });
+  } else if (broken('google')) {
+    // Installed, but fails while loading — a syntax error or a missing
+    // transitive dependency. Not the caller's setup.
+    vi.doMock('@ai-sdk/google', () => { throw new SyntaxError('Unexpected token in adapter'); });
   } else {
     vi.doMock('@ai-sdk/google', () => ({ createGoogleGenerativeAI }));
   }
@@ -161,6 +180,39 @@ describe('VercelAIProvider - getModel adapter resolution', () => {
       expect(error).not.toHaveProperty('dependency');
     },
   );
+
+  it.each(['openai', 'anthropic', 'google'] as const)(
+    'does not blame the caller when the %s adapter is installed but broken',
+    async (type) => {
+      // "install its adapter" would send the reader somewhere useless, and swallowing the
+      // syntax error would hide the only useful detail. Converting *every* import failure
+      // into ConfigurationError did both.
+      const ctx = await loadProvider({ brokenImports: [type] });
+      const provider = new ctx.mod.VercelAIProvider({ type, model: 'm' });
+
+      const error = await provider
+        .generateText([{ role: 'user', content: 'hi' }])
+        .then(() => undefined)
+        .catch((e: unknown) => e as Error);
+
+      expect(error?.name).not.toBe('ConfigurationError');
+      expect(error?.message).not.toMatch(/install its adapter/);
+    },
+  );
+
+  it('keeps the original failure as the cause when the adapter is absent', async () => {
+    // Losing it makes a resolution problem indistinguishable from any other.
+    const ctx = await loadProvider({ failImports: ['openai'] });
+    const provider = new ctx.mod.VercelAIProvider({ type: 'openai', model: 'm' });
+
+    const error = await provider
+      .generateText([{ role: 'user', content: 'hi' }])
+      .then(() => undefined)
+      .catch((e: unknown) => e as Error & { cause?: unknown });
+
+    expect(error?.name).toBe('ConfigurationError');
+    expect(error?.cause).toBeDefined();
+  });
 
   it('throws on an unsupported provider type', async () => {
     const ctx = await loadProvider();

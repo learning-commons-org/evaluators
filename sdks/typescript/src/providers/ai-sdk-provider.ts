@@ -1,5 +1,36 @@
 import { generateText as aiGenerateText, Output } from 'ai';
 import { ConfigurationError } from '../errors.js';
+
+/** Node's resolution codes for "that package is not there", ESM and CJS. */
+const NOT_INSTALLED = new Set(['ERR_MODULE_NOT_FOUND', 'MODULE_NOT_FOUND']);
+
+/**
+ * Turn a failed adapter import into the right error.
+ *
+ * Only an unresolvable module is the caller's setup. An adapter that *is* installed but
+ * throws while loading — a syntax error, a missing transitive dependency — is a real failure,
+ * and reporting "install its adapter" for it would send the reader somewhere useless. That
+ * case rethrows unchanged so the evaluator wraps it as a dependency failure, and the
+ * not-installed case keeps the original as `cause` either way.
+ */
+function adapterImportError(error: unknown, vendor: string, pkg: string): unknown {
+  // Walked, not read off the top: bundlers and test loaders wrap an import failure in their
+  // own error and keep the real one as `cause`, so the resolution code is often one level down.
+  const missing = (function isMissing(e: unknown, depth = 0): boolean {
+    if (e === null || typeof e !== 'object' || depth > 4) return false;
+    const { code, message, cause } = e as { code?: unknown; message?: unknown; cause?: unknown };
+    if (typeof code === 'string' && NOT_INSTALLED.has(code)) return true;
+    if (typeof message === 'string' && /cannot find (module|package)/i.test(message)) return true;
+    return isMissing(cause, depth + 1);
+  })(error);
+
+  return missing
+    ? new ConfigurationError(
+        `To use the ${vendor} provider, install its adapter: npm install ${pkg}`,
+        error,
+      )
+    : error;
+}
 import type {
   LLMProvider,
   LLMRequest,
@@ -117,30 +148,24 @@ export class VercelAIProvider implements LLMProvider {
       case 'openai': {
         const { createOpenAI } = await import(
           /* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ '@ai-sdk/openai'
-        ).catch(() => {
-          throw new ConfigurationError(
-            'To use the OpenAI provider, install its adapter: npm install @ai-sdk/openai'
-          );
+        ).catch((error: unknown) => {
+          throw adapterImportError(error, 'OpenAI', '@ai-sdk/openai');
         });
         return createOpenAI(apiKey ? { apiKey } : {})(this.model);
       }
       case 'anthropic': {
         const { createAnthropic } = await import(
           /* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ '@ai-sdk/anthropic'
-        ).catch(() => {
-          throw new ConfigurationError(
-            'To use the Anthropic provider, install its adapter: npm install @ai-sdk/anthropic'
-          );
+        ).catch((error: unknown) => {
+          throw adapterImportError(error, 'Anthropic', '@ai-sdk/anthropic');
         });
         return createAnthropic(apiKey ? { apiKey } : {})(this.model);
       }
       case 'google': {
         const { createGoogleGenerativeAI } = await import(
           /* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ '@ai-sdk/google'
-        ).catch(() => {
-          throw new ConfigurationError(
-            'To use the Google provider, install its adapter: npm install @ai-sdk/google'
-          );
+        ).catch((error: unknown) => {
+          throw adapterImportError(error, 'Google', '@ai-sdk/google');
         });
         return createGoogleGenerativeAI(apiKey ? { apiKey } : {})(this.model);
       }
