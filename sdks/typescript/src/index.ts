@@ -163,6 +163,7 @@ export {
   type MathStandardsAlignmentEvaluatorConfig,
   type LearningComponentResult,
   type StandardAlignmentResult,
+  type MathStandardsAlignmentResult,
   type QuestionItem,
   type QuestionBankResult,
   type QuestionResult,

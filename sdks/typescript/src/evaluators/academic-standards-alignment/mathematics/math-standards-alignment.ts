@@ -51,6 +51,9 @@ export type MathStandardsAlignmentInput = InputsOf<{ properties: Record<'questio
   jurisdiction: Jurisdiction;
 };
 
+/** Alias of {@link StandardAlignmentResult}, for the `<Evaluator>Result` convention. */
+export type MathStandardsAlignmentResult = StandardAlignmentResult;
+
 export { Jurisdiction } from '../../../knowledge-graph/index.js';
 
 // ---------------------------------------------------------------------------
@@ -65,6 +68,13 @@ export interface LearningComponentResult {
   feedback: string;
 }
 
+/**
+ * What `evaluate()` resolves its `result` to.
+ *
+ * Named for the alignment rather than the evaluator because the bulk methods return arrays of
+ * it too. {@link MathStandardsAlignmentResult} is the alias that keeps the
+ * `<Evaluator>Result` convention true for all sixteen evaluators.
+ */
 export interface StandardAlignmentResult {
   statementCode: string;
   learningComponents: LearningComponentResult[];

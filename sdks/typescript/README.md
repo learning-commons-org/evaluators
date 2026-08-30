@@ -21,7 +21,17 @@ needs `"type": "module"` in `package.json`, `@types/node`, and:
 }
 ```
 
-The published declarations typecheck cleanly on their own, so `skipLibCheck` is not required.
+You will also want the type packages:
+
+```bash
+npm install -D typescript @types/node @types/json-schema
+```
+
+`@types/json-schema` is needed because `ai`'s own dependency chain imports `json-schema`
+untyped; without it `tsc` reports `TS7016` from inside `@ai-sdk/provider`, not from this
+package. This SDK's declarations typecheck cleanly on their own, so `skipLibCheck` is not
+required on their account — but adding it is the other way to silence that peer's gap.
+
 CommonJS consumers can `require` the package but will need to rewrite the top-level `await`
 in these snippets.
 
@@ -111,7 +121,8 @@ helper across several evaluators.
 
 ## Evaluators
 
-Text complexity — how demanding a text is for a given grade. Each takes `{ text, grade_level }` and returns a `complexity_score` on a four-level scale — `slightly_complex`, `moderately_complex`, `very_complex`, `exceedingly_complex` — with `reasoning`. Purpose Clarity can also answer `more_context_needed`.
+Text complexity — how demanding a text is for a given grade. Each takes `{ text, grade_level }` and returns a `complexity_score` on a four-level scale — `slightly_complex`, `moderately_complex`, `very_complex`, `exceedingly_complex` — with `reasoning`. Purpose Clarity's `complexity_score` has a fifth possible value, `more_context_needed`, so a
+switch over the four above will not be exhaustive for it.
 
 | Evaluator | Grades | Required key | Docs |
 | --- | --- | --- | --- |
@@ -199,7 +210,8 @@ Every evaluator takes the same options:
 | `logger` / `logLevel` | Inject a logger, or set the console logger's level with the exported `LogLevel` enum (default `LogLevel.WARN`) |
 
 `Provider` and `LogLevel` are enums, not strings — `provider: "google"` and
-`logLevel: "ERROR"` do not compile:
+`logLevel: "ERROR"` do not compile. The members are `Provider.OpenAI`, `Provider.Google`,
+`Provider.Anthropic`, and `LogLevel.DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT`:
 
 ```typescript
 import { Provider, LogLevel, VocabularyComplexityEvaluator } from "@learning-commons/evaluators";
@@ -292,7 +304,7 @@ It is mutually exclusive with `modelOverride`: setting both throws `Configuratio
 
 ## Batch
 
-`@learning-commons/evaluators/batch` runs a CSV of rows through a family of evaluators, with concurrency and retries, writing CSV and JSON (and HTML for some families — see below).
+`@learning-commons/evaluators/batch` runs a CSV of rows through a family of evaluators, with concurrency and retries. It **returns** results; it writes nothing. Use `renderOutputs` to format them, or the command below, which writes the files for you.
 
 ```typescript
 import { BatchEvaluator, parseCSV } from "@learning-commons/evaluators/batch";
@@ -312,7 +324,9 @@ console.log(`${output.summary.successful}/${output.summary.totalTasks} succeeded
 
 `getFamily(id)` gives you a family's members and column spec if you need to inspect it first.
 
-The same thing is available as a command, installed as `evaluators-batch`:
+The same thing is available as a command, installed as `evaluators-batch`. This is what
+writes `results.csv`, `results.json`, and — for `text-complexity` and
+`math-standards-alignment` — `results.html`:
 
 ```bash
 npx evaluators-batch input.csv --family text-complexity --output-dir ./results -y
@@ -321,7 +335,9 @@ npx evaluators-batch --help
 
 `-y` makes it non-interactive: without it, it prompts for anything missing, which hangs a CI
 job. Keys come from `--google-api-key` and friends or from the matching environment
-variables. Each family has a row limit; `--bypass-row-limit` lifts it.
+variables. Each family has a row limit — 50 for `text-complexity` and `feedback`, 5000 for
+`math-standards-alignment`, and `getFamily(id).maxInputRows` is authoritative.
+`--bypass-row-limit` lifts it.
 
 The CSV's columns depend on the family. `getFamily(id).columns` is authoritative:
 
@@ -331,10 +347,9 @@ The CSV's columns depend on the family. `getFamily(id).columns` is authoritative
 | `feedback` | `student_text`, `feedback_text` | — |
 | `math-standards-alignment` | `question` (or `text`), `statementCode` (or `statement_code`, `ccss_standard`, `standard`) | `jurisdiction` (default Multi-State), `grade_level`, `id` (or `item_id`) |
 
-The outputs are a flattened per-row summary — score, reasoning and status — not the full
-payloads, and their shape differs between the standards family and the others. `results.html`
-is written for `text-complexity` and `math-standards-alignment` only; `feedback` gets CSV and
-JSON. For full payloads, call the evaluators directly.
+Those outputs are a flattened per-row summary — score, reasoning and status — not the full
+payloads, and their shape differs between the standards family and the others. For full
+payloads, call the evaluators directly.
 
 ## Errors
 
@@ -346,6 +361,10 @@ Errors are grouped by fault domain, so you can catch by who is at fault rather t
 | `InputValidationError` | The input was rejected before any model ran; `StandardNotFoundError` is a subclass |
 | `EvaluationError` | The evaluation ran but could not be completed; `LLMOutputProcessingError` is a subclass |
 | `DependencyError` | Something the SDK depends on failed. Subclasses: `AuthenticationError`, `RateLimitError`, `NetworkError`, `RequestTimeoutError`, `LLMProviderError`, `KnowledgeGraphError` |
+
+A failed evaluation is also logged before it is thrown, so a caught error still prints an
+`[ERROR]` block at the default level. Pass `logLevel: LogLevel.SILENT` if you would rather
+report failures yourself.
 
 ```typescript
 try {
@@ -360,7 +379,7 @@ try {
 
 ## Documentation
 
-Full reference at [our docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview). Migrating from 0.8.x? See [MIGRATION.md](./MIGRATION.md).
+Full reference at [our docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview). Upgrading from an earlier major version? See [MIGRATION.md](./MIGRATION.md).
 
 ## License
 
