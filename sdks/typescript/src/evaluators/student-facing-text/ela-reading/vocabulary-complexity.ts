@@ -12,6 +12,8 @@ import {
 import type { EvaluationResult } from '../../../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../../base.js';
 import { validateInputs, type InputsOf } from '../../inputs.js';
+import { requireStep } from '../../single-step.js';
+import { requireConditionValues } from '../../multi-step.js';
 import { declaredCredentials } from '../../credentials.js';
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/input_schema.json';
 import type { StageDetail } from '../../../telemetry/index.js';
@@ -55,6 +57,26 @@ export interface BackgroundKnowledge {
  * console.log(result.result.reasoning);
  * ```
  */
+/**
+ * The three declared steps. Read here rather than restated so a model or temperature
+ * re-pin in `config.json` takes effect without a second edit — the hardcoded copies these
+ * replace matched the contract, so nothing would have failed if it had drifted.
+ */
+const BACKGROUND_STEP = requireStep(CONFIG.steps, 'background_knowledge', CONFIG.evaluator.name);
+const GRADES_34_STEP = requireStep(
+  CONFIG.steps,
+  'vocab_complexity_grades_3_4',
+  CONFIG.evaluator.name,
+);
+const OTHER_GRADES_STEP = requireStep(
+  CONFIG.steps,
+  'vocab_complexity_other_grades',
+  CONFIG.evaluator.name,
+);
+
+/** The grades the grades-3-4 branch declares, so the routing follows the contract. */
+const GRADES_34 = requireConditionValues(GRADES_34_STEP, CONFIG.evaluator.name);
+
 export class VocabularyComplexityEvaluator extends BaseEvaluator {
   static readonly metadata = {
     id: CONFIG.evaluator.id,
@@ -64,7 +86,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     description: CONFIG.evaluator.description,
     outcome: CONFIG.outcome,
     requiredCredentials: declaredCredentials(CONFIG),
-    supportedGrades: ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const,
+    supportedGrades: (INPUT_SCHEMA.properties.grade_level?.enum ?? []) as readonly string[],
     defaultProviders: [Provider.Google, Provider.OpenAI] as const,
   };
 
@@ -77,7 +99,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
    * every caller must agree on the choice — including the one that reports it.
    */
   private complexityProviderFor(gradeLevel: string): LLMProvider {
-    return gradeLevel === '3' || gradeLevel === '4'
+    return GRADES_34.includes(gradeLevel)
       ? this.grades34ComplexityProvider
       : this.otherGradesComplexityProvider;
   }
@@ -86,15 +108,15 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     super(config);
 
     this.grades34ComplexityProvider = this.createConfiguredProvider(
-      Provider.Google, 'gemini-2.5-pro', config.googleApiKey
+      Provider.Google, GRADES_34_STEP.model.name, config.googleApiKey
     );
 
     this.otherGradesComplexityProvider = this.createConfiguredProvider(
-      Provider.OpenAI, 'gpt-4.1-2025-04-14', config.openaiApiKey
+      Provider.OpenAI, OTHER_GRADES_STEP.model.name, config.openaiApiKey
     );
 
     this.backgroundKnowledgeProvider = this.createConfiguredProvider(
-      Provider.OpenAI, 'gpt-4o-2024-11-20', config.openaiApiKey
+      Provider.OpenAI, BACKGROUND_STEP.model.name, config.openaiApiKey
     );
   }
 
@@ -276,7 +298,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
 
     const response = await this.backgroundKnowledgeProvider.generateText(
       [{ role: 'user', content: prompt }],
-      0 // temperature = 0 for consistency
+      BACKGROUND_STEP.generation.temperature,
     );
 
     return {
@@ -312,7 +334,9 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
         { role: 'user', content: userPrompt },
       ],
       schema: VocabularyComplexityOutputSchema,
-      temperature: 0,
+      temperature: GRADES_34.includes(gradeLevel)
+        ? GRADES_34_STEP.generation.temperature
+        : OTHER_GRADES_STEP.generation.temperature,
     });
 
     return {

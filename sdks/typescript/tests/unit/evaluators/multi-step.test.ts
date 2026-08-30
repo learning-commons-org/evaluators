@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { z } from 'zod';
-import { defineMultiStepEvaluator } from '../../../src/evaluators/multi-step.js';
+import {
+  defineMultiStepEvaluator,
+  requireConditionValues,
+} from '../../../src/evaluators/multi-step.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 const sent = vi.fn();
@@ -514,5 +517,34 @@ describe('defineMultiStepEvaluator — contract failures', () => {
     ).rejects.toThrow();
 
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('requireConditionValues', () => {
+  it('returns the declared values as strings', () => {
+    // Numeric grades in a contract would otherwise compare unequal to the string inputs
+    // an evaluator is handed.
+    expect(
+      requireConditionValues({ id: 's', condition: { input: 'grade_level', in: ['3', '4'] } }, 'X'),
+    ).toEqual(['3', '4']);
+    expect(
+      requireConditionValues(
+        { id: 's', condition: { input: 'grade_level', in: [3, 4] as never } },
+        'X',
+      ),
+    ).toEqual(['3', '4']);
+  });
+
+  it('refuses a step that declares no condition', () => {
+    // Routing that depends on the condition would silently take the other branch.
+    expect(() => requireConditionValues({ id: 'branch' }, 'Thing Evaluator')).toThrow(
+      /Step "branch" in Thing Evaluator config.json declares no condition.in/,
+    );
+  });
+
+  it('refuses an empty condition', () => {
+    expect(() =>
+      requireConditionValues({ id: 'branch', condition: { input: 'grade_level', in: [] } }, 'X'),
+    ).toThrow(/declares no condition.in/);
   });
 });
