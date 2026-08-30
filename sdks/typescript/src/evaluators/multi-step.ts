@@ -113,6 +113,28 @@ function vendorOf(provider: string, evaluatorName: string): Provider {
 }
 
 /**
+ * The preprocessing entry a contract declares under `id`, or a failure naming it.
+ *
+ * Parallel to {@link requireStep}: an entry read by id is registry information, and a
+ * contract that stops declaring it should fail at load rather than silently skip the work.
+ */
+export function requirePreprocessing(
+  contract: {
+    evaluator?: { name?: string };
+    preprocessing?: Array<{ id: string; condition?: DeclaredCondition }>;
+  },
+  id: string,
+): { id: string; condition?: DeclaredCondition } {
+  const entry = contract.preprocessing?.find((p) => p.id === id);
+  if (!entry) {
+    // Named, as requireStep does: without it the failure does not say whose contract.
+    const owner = contract.evaluator?.name ?? 'the';
+    throw new Error(`Preprocessing "${id}" not found in ${owner} config.json`);
+  }
+  return entry;
+}
+
+/**
  * The input values a step's condition names, or a failure if it names none.
  *
  * For a step whose *routing* depends on the condition, an absent or empty one is a contract

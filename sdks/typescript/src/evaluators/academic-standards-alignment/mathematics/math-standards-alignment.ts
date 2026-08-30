@@ -290,12 +290,26 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     type LcCacheEntry = Awaited<ReturnType<KnowledgeGraphClient['getLearningComponentsByCode']>>;
     const lcCache = new Map<string, LcCacheEntry>();
 
+    // A failed prefetch is recorded, not discarded: `totalCount` below falls back to 0,
+    // which is indistinguishable from a standard that genuinely has no learning
+    // components. The failure travels on the result's `error` instead, which already means
+    // "0 because nothing was measured".
+    const lcFailures = new Map<string, unknown>();
+
     if (useCoarseFilter) {
       await Promise.all(
         allCodes.map((code) =>
           this.kgClient.getLearningComponentsByCode(code, { jurisdiction, academicSubject: KG_SUBJECT })
             .then((result) => lcCache.set(code, result))
-            .catch(() => undefined),
+            .catch((err) => {
+              lcFailures.set(code, err);
+              this.logger.warn('Learning component prefetch failed; totalCount is unknown', {
+                evaluator: EVALUATOR_ID,
+                operation: 'prefetch_learning_components',
+                statementCode: code,
+                error: err instanceof Error ? err : undefined,
+              });
+            }),
         ),
       );
     }
@@ -347,12 +361,14 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
           item.statementCodes.map(async (code): Promise<StandardAlignmentResult> => {
             if (!relevant.has(code)) {
               const cached = lcCache.get(code);
+              const failure = lcFailures.get(code);
               return {
                 statementCode: code,
                 learningComponents: [],
                 alignedCount: 0,
                 totalCount: cached?.components.length ?? 0,
                 coarseFiltered: true,
+                ...(failure ? { error: describeFailure(failure) } : {}),
               };
             }
             let result: StandardAlignmentResult;

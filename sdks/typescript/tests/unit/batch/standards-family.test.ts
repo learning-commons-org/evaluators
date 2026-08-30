@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
 import { STANDARDS_FAMILY } from '../../../src/batch/families/standards.js';
 import { QTC_FAMILY } from '../../../src/batch/families/qtc.js';
@@ -137,5 +139,30 @@ describe('STANDARDS_FAMILY.runTask', () => {
       runnerWithStub(evaluate).runTask(row({ question: 'q', statementCode: 'x', jurisdiction: 'Utahh' }), MEMBER),
     ).rejects.toThrow(/Invalid jurisdiction "Utahh"/);
     expect(evaluate).not.toHaveBeenCalled();
+  });
+});
+
+describe('the standards report reads the fields the formatter emits', () => {
+  // The report filtered and displayed `it.grade`; the formatter emits `gradeLevel`. Since
+  // `it.grade` was always undefined, selecting a grade filtered *everything* out rather
+  // than filtering. Nothing failed because the filter is browser JS in a template, which
+  // no test executes — so this asserts on the template text, as the ordering check does.
+  const template = readFileSync(
+    join(process.cwd(), 'src/batch/families/standards-report.html'),
+    'utf-8',
+  );
+
+  it('never reads a bare `grade` off a row', () => {
+    expect(template).not.toMatch(/\bit\.grade\b/);
+  });
+
+  it('reads gradeLevel, which is what standards-output.ts writes', () => {
+    expect(template).toContain('it.gradeLevel');
+
+    const formatter = readFileSync(
+      join(process.cwd(), 'src/batch/families/standards-output.ts'),
+      'utf-8',
+    );
+    expect(formatter, 'the formatter must still emit that field').toContain('gradeLevel:');
   });
 });

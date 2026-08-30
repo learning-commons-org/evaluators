@@ -127,7 +127,7 @@ var REPORT_DATA = null; // __REPLACED_BY_FORMATTER__
 
     items.forEach(function (it) {
       if (fS && it.statementCode !== fS) return;
-      if (fG && it.grade !== fG) return;
+      if (fG && it.gradeLevel !== fG) return;
       var cls = classify(it);
       if (fSt) {
         if (fSt === 'error' && cls !== 'error') return;
@@ -164,7 +164,7 @@ var REPORT_DATA = null; // __REPLACED_BY_FORMATTER__
       '<span class="badge ' + badgeClass + '">' + badgeText + '</span>' +
       '<span class="stem"><span class="q">' + escapeHtml(it.question || '(no question text)') + '</span>' +
       '<span class="tags"><code>' + escapeHtml(it.statementCode || '') + '</code>' +
-      (it.grade ? '<span>grade ' + escapeHtml(it.grade) + '</span>' : '') +
+      (it.gradeLevel ? '<span>grade ' + escapeHtml(it.gradeLevel) + '</span>' : '') +
       (it.id ? '<span>id ' + escapeHtml(it.id) + '</span>' : '') + '</span></span>';
     el.appendChild(summary);
 

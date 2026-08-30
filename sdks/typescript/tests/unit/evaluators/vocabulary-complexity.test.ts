@@ -106,7 +106,9 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       expect(result.result.reasoning).toContain('grade-appropriate vocabulary');
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20+openai:gpt-4.1-2025-04-14');
-      expect(result.metadata.processingTimeMs).toBeGreaterThan(0);
+      // Not > 0: with both providers mocked and this branch computing no readability
+      // score, the whole evaluation can finish inside one clock tick.
+      expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
       // Token usage is aggregated across both stages: background (100/50) + complexity (200/100)
       expect(result.metadata.tokenUsage.inputTokens).toBe(300);
       expect(result.metadata.tokenUsage.outputTokens).toBe(150);

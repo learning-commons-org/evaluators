@@ -19,6 +19,13 @@ import CONFIG from '../../../../../evals/academic-standards-alignment/mathematic
 const created: Array<{ type: string; model: string }> = [];
 const calls: Array<{ model: string; temperature?: number; user: string }> = [];
 
+/**
+ * What the coarse filter says about the standard under test. `true` sends it on to be
+ * evaluated; `false` is what produces a coarse-filtered result, which is the only path
+ * where a missing learning-component prefetch shows up as a count.
+ */
+let coarseRelevant = true;
+
 vi.mock('../../../src/telemetry/client.js', () => ({
   TelemetryClient: class {
     send = vi.fn().mockResolvedValue(undefined);
@@ -49,7 +56,7 @@ vi.mock('../../../src/providers/index.js', async (importOriginal) => {
             const isCoarse = req.messages.every((m) => m.role !== 'system');
             return Promise.resolve({
               data: isCoarse
-                ? { standards: [{ standard: '3.MD.C.7.d', relevant: true }] }
+                ? { standards: [{ standard: '3.MD.C.7.d', relevant: coarseRelevant }] }
                 : {
                     evaluations: [
                       {
@@ -108,6 +115,7 @@ function construct(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   created.length = 0;
   calls.length = 0;
+  coarseRelevant = true;
 });
 
 describe('MathStandardsAlignmentEvaluator — contract bindings', () => {
@@ -187,5 +195,48 @@ describe('MathStandardsAlignmentEvaluator — contract bindings', () => {
     expect(result.totalCount).toBe(1);
     expect(result.alignedCount).toBe(1);
     expect(result.learningComponents[0].description).toBe('Decompose rectilinear figures');
+  });
+});
+
+describe('a failed learning-component prefetch is reported, not silently zero', () => {
+  it('carries the error on a coarse-filtered result', async () => {
+    // `totalCount` falls back to 0 when the prefetch fails, which reads exactly like a
+    // standard that has no learning components. The error is what tells the two apart —
+    // the field already means "0 because nothing was measured, not because nothing
+    // aligned".
+    const failing = {
+      getLearningComponentsByCode: vi.fn().mockRejectedValue(new Error('KG unavailable')),
+      getStandardInfo: vi.fn().mockResolvedValue({
+        uuid: 'standard-uuid',
+        statementCode: '3.MD.C.7.d',
+        normalizedCode: '3.MD.C.7.D',
+        description: 'Recognize area as additive.',
+      }),
+    } as unknown as KnowledgeGraphClient;
+
+    const evaluator = new MathStandardsAlignmentEvaluator({
+      anthropicApiKey: 'k',
+      learningCommonsApiKey: 'k',
+      telemetry: false,
+      _kgClient: failing,
+    });
+
+    // Filtered out, so the standard is never evaluated: the only remaining source of an
+    // error on this result is the prefetch. With the standard marked relevant the
+    // evaluation path fails too, and this test passed with the fix reverted.
+    coarseRelevant = false;
+
+    const [item] = await evaluator.evaluateItems(
+      [{ question: 'What is 12 + 7?', statementCodes: ['3.MD.C.7.d'] }],
+      Jurisdiction.MultiState,
+      { useCoarseFilter: true },
+    );
+
+    const [standard] = item.standards;
+    expect(standard.coarseFiltered, 'must reach the coarse-filtered branch').toBe(true);
+    expect(standard.totalCount).toBe(0);
+    expect(standard.error?.message, 'the failure must reach the caller').toContain(
+      'KG unavailable',
+    );
   });
 });

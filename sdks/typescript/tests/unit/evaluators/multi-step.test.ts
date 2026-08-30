@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   defineMultiStepEvaluator,
   requireConditionValues,
+  requirePreprocessing,
 } from '../../../src/evaluators/multi-step.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
@@ -546,5 +547,24 @@ describe('requireConditionValues', () => {
     expect(() =>
       requireConditionValues({ id: 'branch', condition: { input: 'grade_level', in: [] } }, 'X'),
     ).toThrow(/declares no condition.in/);
+  });
+});
+
+describe('requirePreprocessing', () => {
+  it('returns the entry a contract declares', () => {
+    const entry = { id: 'fk_score', condition: { input: 'grade_level', in: ['3'] } };
+
+    expect(requirePreprocessing({ preprocessing: [entry] }, 'fk_score')).toBe(entry);
+  });
+
+  it('refuses an entry the contract does not declare', () => {
+    // Read by id, so a contract that stops declaring it should fail at load rather than
+    // silently skip the computation.
+    expect(() =>
+      requirePreprocessing({ evaluator: { name: 'Thing Evaluator' }, preprocessing: [] }, 'fk_score'),
+    ).toThrow(/Preprocessing "fk_score" not found in Thing Evaluator config.json/);
+
+    // Still legible when the contract carries no name.
+    expect(() => requirePreprocessing({}, 'fk_score')).toThrow(/not found in the config.json/);
   });
 });
