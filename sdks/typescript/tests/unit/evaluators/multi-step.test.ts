@@ -560,9 +560,11 @@ describe('requirePreprocessing', () => {
   it('refuses an entry the contract does not declare', () => {
     // Read by id, so a contract that stops declaring it should fail at load rather than
     // silently skip the computation.
-    expect(() => requirePreprocessing({ preprocessing: [] }, 'fk_score')).toThrow(
-      /Preprocessing "fk_score" not found/,
-    );
-    expect(() => requirePreprocessing({}, 'fk_score')).toThrow(/not found/);
+    expect(() =>
+      requirePreprocessing({ evaluator: { name: 'Thing Evaluator' }, preprocessing: [] }, 'fk_score'),
+    ).toThrow(/Preprocessing "fk_score" not found in Thing Evaluator config.json/);
+
+    // Still legible when the contract carries no name.
+    expect(() => requirePreprocessing({}, 'fk_score')).toThrow(/not found in the config.json/);
   });
 });

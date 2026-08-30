@@ -45,11 +45,12 @@ describe('{fk_score} is bound only where the contract declares it', () => {
     expect(getUserPrompt(TEXT, '7', BACKGROUND)).toBe(getUserPrompt(TEXT, '7', BACKGROUND, 9.9));
   });
 
-  it('never leaks the string "undefined" into a prompt that binds the score', () => {
-    // Grade 3 binds it, so an absent score must not stringify. The evaluator cannot reach
-    // this combination, which is exactly why the guard needs its own test.
-    const prompt = getUserPrompt(TEXT, '3', BACKGROUND, undefined);
-
-    expect(prompt).not.toContain('undefined');
+  it('refuses to render a binding grade without a score', () => {
+    // Both quiet outcomes are worse than throwing: `undefined` reaches the model as a
+    // word, and skipping leaves a literal `{fk_score}` for it to read as instruction. The
+    // evaluator cannot reach this combination, which is why the guard needs its own test.
+    expect(() => getUserPrompt(TEXT, '3', BACKGROUND, undefined)).toThrow(
+      /Grade 3 binds \{fk_score\}/,
+    );
   });
 });

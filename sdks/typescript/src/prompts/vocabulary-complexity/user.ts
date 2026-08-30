@@ -37,9 +37,18 @@ export function getUserPrompt(
     .replaceAll('{student_background_knowledge}', studentBackgroundKnowledge)
     .replaceAll('{text}', text);
 
-  // Only the grades that declare the entry bind it. Substituting `undefined` for the rest
-  // would put the string "undefined" into any template that happened to carry the token.
-  return FK_APPLIES_TO.includes(studentGradeLevel) && fkLevel !== undefined
-    ? rendered.replaceAll('{fk_score}', fkLevel.toString())
-    : rendered;
+  // Only the grades that declare the entry bind it; for the rest the token is absent from
+  // the template and there is nothing to substitute.
+  if (!FK_APPLIES_TO.includes(studentGradeLevel)) return rendered;
+
+  // A grade that binds it and was given nothing is a caller error, and both quiet outcomes
+  // are worse than throwing: substituting `undefined` puts that word in the prompt, and
+  // skipping leaves a literal `{fk_score}` for the model to read as instruction.
+  if (fkLevel === undefined) {
+    throw new Error(
+      `Grade ${studentGradeLevel} binds {fk_score}, but no readability score was provided.`,
+    );
+  }
+
+  return rendered.replaceAll('{fk_score}', fkLevel.toString());
 }

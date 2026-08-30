@@ -119,12 +119,17 @@ function vendorOf(provider: string, evaluatorName: string): Provider {
  * contract that stops declaring it should fail at load rather than silently skip the work.
  */
 export function requirePreprocessing(
-  contract: { preprocessing?: Array<{ id: string; condition?: DeclaredCondition }> },
+  contract: {
+    evaluator?: { name?: string };
+    preprocessing?: Array<{ id: string; condition?: DeclaredCondition }>;
+  },
   id: string,
 ): { id: string; condition?: DeclaredCondition } {
   const entry = contract.preprocessing?.find((p) => p.id === id);
   if (!entry) {
-    throw new Error(`Preprocessing "${id}" not found in config.json`);
+    // Named, as requireStep does: without it the failure does not say whose contract.
+    const owner = contract.evaluator?.name ?? 'the';
+    throw new Error(`Preprocessing "${id}" not found in ${owner} config.json`);
   }
   return entry;
 }
