@@ -4,6 +4,24 @@
 
 Twenty-six exported names are gone and seventy-three are new. Work through the sections below in order — the first four affect every caller.
 
+## 0. Upgrade the package and the peers together
+
+The peer ranges moved a major version, so installing the SDK on its own fails before you can
+change a line of code:
+
+```
+npm error ERESOLVE unable to resolve dependency tree
+npm error Found: ai@6.0.271
+```
+
+One command, not two:
+
+```bash
+npm install @learning-commons/evaluators@^1 ai@^7 @ai-sdk/google@^4 @ai-sdk/openai@^4 @ai-sdk/anthropic@^4
+```
+
+Install only the adapters you use. Node's minimum is unchanged at `>=20.19.0`.
+
 ## 1. `evaluate()` takes named inputs
 
 Positional arguments are gone. Each evaluator declares its inputs in `input_schema.json`, and those names are the argument keys.
@@ -82,6 +100,36 @@ const { score, reasoning } = readOutcome(evaluation, MyEvaluator.metadata.outcom
 
 `TextComplexityEvaluator`, `evaluateTextComplexity`, `TextComplexityResult` and `TextComplexityLevel` are **removed with no replacement.** The composite ran several evaluators and merged their verdicts, which hid which model produced what. Call the evaluators you want and combine the results yourself, or use the `text-complexity` batch family, which does this with a report.
 
+It ran four, whose 1.0 names are:
+
+| composite key | 1.0 evaluator |
+| --- | --- |
+| `vocabulary` | `VocabularyComplexityEvaluator` |
+| `sentenceStructure` | `SentenceStructureEvaluator` |
+| `subjectMatterKnowledge` | `BackgroundKnowledgeDemandsEvaluator` |
+| `conventionality` | `MeaningDirectnessEvaluator` |
+
+**Mind the failure semantics.** The composite returned `{ error }` in place of any dimension
+that failed and still gave you the rest. `Promise.all` does not — one failed dimension rejects
+the whole call — so use `Promise.allSettled` if you want the old behaviour:
+
+```typescript
+const settled = await Promise.allSettled(
+  DIMENSIONS.map(([, E]) => new E(keys).evaluate({ text, grade_level: grade })),
+);
+
+return settled.map((outcome, i) => {
+  const [dimension, E] = DIMENSIONS[i];
+  return {
+    dimension,
+    score:
+      outcome.status === 'fulfilled'
+        ? (readOutcome(outcome.value, E.metadata.outcome).score ?? null)
+        : null,
+  };
+});
+```
+
 ## 4. Errors are grouped by fault domain
 
 `EvaluatorError` is still the root, but the middle of the hierarchy is new — you can now catch by who is at fault.
@@ -118,16 +166,12 @@ Both `partnerKey` and `platformApiKey` are gone. `learningCommonsApiKey` on the 
 
 ## 7. Peer dependencies moved a major version
 
-```bash
-npm install ai@^7 @ai-sdk/google@^4 @ai-sdk/openai@^4 @ai-sdk/anthropic@^4
-```
+Covered by step 0 above, which has to happen first. For reference:
 
 | Peer | 0.8.0 | 1.0.0 |
 | --- | --- | --- |
 | `ai` | `>=6.0.0` | `>=7.0.0` |
 | `@ai-sdk/google`, `@ai-sdk/openai`, `@ai-sdk/anthropic` | `>=3.0.0` | `>=4.0.0` |
-
-Node's minimum is unchanged at `>=20.19.0`.
 
 ## 8. Math standards alignment returns the envelope
 
