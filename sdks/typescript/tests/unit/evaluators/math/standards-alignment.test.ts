@@ -154,7 +154,7 @@ describe('MathStandardsAlignmentEvaluator - ambiguous statement codes', () => {
 describe('MathStandardsAlignmentEvaluator - evaluate', () => {
   it('returns StandardAlignmentResult with correct shape on happy path', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    const result = await evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION });
+    const { result } = await evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION });
 
     expect(result.statementCode).toBe(STATEMENT_CODE);
     expect(result.totalCount).toBe(2);
@@ -166,6 +166,34 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
       expect(typeof lc.reasoning).toBe('string');
       expect(typeof lc.feedback).toBe('string');
     }
+  });
+
+  it('wraps the payload in the shared envelope', async () => {
+    const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
+
+    const evaluation = await evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION });
+
+    expect(evaluation.evaluator).toBe(MathStandardsAlignmentEvaluator.metadata.id);
+    // The provider that actually ran, so an override is reflected rather than a constant.
+    expect(evaluation.metadata.model).toBe(mockProvider.label);
+    expect(evaluation.metadata.tokenUsage).toEqual({ inputTokens: 300, outputTokens: 150 });
+    // Bounded above as well: a duration built by adding the epoch instead of subtracting it
+    // is still >= 0, and reads as ~3.5e12 ms.
+    expect(evaluation.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
+    expect(evaluation.metadata.processingTimeMs).toBeLessThan(60_000);
+    expect(Object.keys(evaluation).sort()).toEqual(['evaluator', 'metadata', 'result']);
+  });
+
+  it('reports zero tokens when it resolves without calling a model', async () => {
+    // A standard with no learning components returns early. Reporting the mock's token
+    // counts here would attribute a cost to a call that never happened.
+    const emptyRepo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [] }) });
+    const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: emptyRepo }));
+
+    const { metadata } = await evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION });
+
+    expect(metadata.tokenUsage).toEqual({ inputTokens: 0, outputTokens: 0 });
+    expect(metadata.model).toBe(mockProvider.label);
   });
 
   it('passes jurisdiction and academicSubject to getLearningComponentsByCode', async () => {
@@ -183,7 +211,7 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
     const emptyRepo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [] }) });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: emptyRepo }));
 
-    const result = await evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION });
+    const { result } = await evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION });
 
     expect(result.learningComponents).toHaveLength(0);
     expect(result.alignedCount).toBe(0);
@@ -227,7 +255,7 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
       data: { evaluations: [{ lc_id: 'lc-k01', reasoning: 'ok', answer: 'Yes', feedback: '' }] },
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: kRepo }));
-    const result = await evaluator.evaluate({ question: QUESTION, statementCode: 'K.CC.A.1', jurisdiction: JURISDICTION });
+    const { result } = await evaluator.evaluate({ question: QUESTION, statementCode: 'K.CC.A.1', jurisdiction: JURISDICTION });
     expect(result.statementCode).toBe('K.CC.A.1');
   });
 
@@ -239,7 +267,7 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
       },
     });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
-    const result = await evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION });
+    const { result } = await evaluator.evaluate({ question: QUESTION, statementCode: STATEMENT_CODE, jurisdiction: JURISDICTION });
     expect(result.alignedCount).toBe(1);
     expect(result.totalCount).toBe(2);
     expect(result.learningComponents[1].aligned).toBe(false);

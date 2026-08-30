@@ -72,7 +72,7 @@ class StandardsRunner implements FamilyRunner {
 
   async runTask(row: FamilyRow, _memberId?: string): Promise<TaskOutcome> {
     const jurisdiction = resolveJurisdiction(row.columns.jurisdiction);
-    const result = await this.evaluator.evaluate({
+    const { result } = await this.evaluator.evaluate({
       question: row.columns.question,
       statementCode: row.columns.statementCode,
       jurisdiction,
