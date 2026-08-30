@@ -9,7 +9,7 @@ import CONFIG from '../../../../../../evals/feedback/ela-writing/tone-appropriat
 import INPUT_SCHEMA from '../../../../../../evals/feedback/ela-writing/tone-appropriateness/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type ToneAppropriatenessInput = InputsOf<typeof INPUT_SCHEMA>;
+export type ToneAppropriatenessInput = InputsOf<{ properties: Record<'student_text' | 'feedback_text', unknown> }>;
 
 /**
  * Judges whether the feedback addresses the work rather than the student.

@@ -9,7 +9,7 @@ import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/orga
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/organizational-structure/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type OrganizationalStructureInput = InputsOf<typeof INPUT_SCHEMA>;
+export type OrganizationalStructureInput = InputsOf<{ properties: Record<'text' | 'grade_level', unknown> }>;
 
 /**
  * Evaluates organizational structure in student-facing text.

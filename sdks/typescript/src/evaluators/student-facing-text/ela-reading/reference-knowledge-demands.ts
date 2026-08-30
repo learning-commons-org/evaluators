@@ -9,7 +9,7 @@ import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/refe
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type ReferenceKnowledgeDemandsInput = InputsOf<typeof INPUT_SCHEMA>;
+export type ReferenceKnowledgeDemandsInput = InputsOf<{ properties: Record<'text' | 'grade_level', unknown> }>;
 
 /**
  * Evaluates reference knowledge demands in student-facing text.

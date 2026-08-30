@@ -9,7 +9,7 @@ import CONFIG from '../../../../../../evals/feedback/ela-writing/revision-accura
 import INPUT_SCHEMA from '../../../../../../evals/feedback/ela-writing/revision-accuracy/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type RevisionAccuracyInput = InputsOf<typeof INPUT_SCHEMA>;
+export type RevisionAccuracyInput = InputsOf<{ properties: Record<'student_text' | 'feedback_text', unknown> }>;
 
 /**
  * Judges whether the feedback correctly identifies what the student writing needs.

@@ -9,7 +9,7 @@ import CONFIG from '../../../../../../evals/feedback/ela-writing/withholding-ans
 import INPUT_SCHEMA from '../../../../../../evals/feedback/ela-writing/withholding-answers/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type WithholdingAnswersInput = InputsOf<typeof INPUT_SCHEMA>;
+export type WithholdingAnswersInput = InputsOf<{ properties: Record<'student_text' | 'feedback_text', unknown> }>;
 
 /**
  * Judges whether the feedback guides revision without writing it for the student.

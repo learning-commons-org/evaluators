@@ -12,7 +12,7 @@ import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/grad
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type GradeLevelAppropriatenessInput = InputsOf<typeof INPUT_SCHEMA>;
+export type GradeLevelAppropriatenessInput = InputsOf<{ properties: Record<'text', unknown> }>;
 
 /**
  * Reports the grade band a text is appropriate for at independent reading, plus a second

@@ -16,17 +16,17 @@ needs `"type": "module"` in `package.json`, `@types/node`, and:
     "moduleResolution": "nodenext",
     "target": "es2022",
     "strict": true,
-    "types": ["node"],
-    "skipLibCheck": true
+    "types": ["node"]
   }
 }
 ```
 
-`skipLibCheck` is currently required, not merely advisable: the bundled declaration file
-inlines the evaluator contracts as value declarations, which `tsc` rejects in an ambient
-context, so without it a build fails on the SDK's own types rather than yours. That is a
-package defect being fixed, not a permanent requirement. CommonJS consumers can `require`
-the package but will need to rewrite the top-level `await` in these snippets.
+The published declarations typecheck cleanly on their own, so `skipLibCheck` is not required.
+CommonJS consumers can `require` the package but will need to rewrite the top-level `await`
+in these snippets.
+
+Each evaluator's argument and payload types are exported — `VocabularyComplexityInput`,
+`VocabularyComplexityResult` and so on — so you can name them in your own signatures.
 
 ## Installation
 

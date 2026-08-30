@@ -9,7 +9,7 @@ import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/mean
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/meaning-directness/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type MeaningDirectnessInput = InputsOf<typeof INPUT_SCHEMA>;
+export type MeaningDirectnessInput = InputsOf<{ properties: Record<'text' | 'grade_level', unknown> }>;
 
 /**
  * Evaluates how directly a text states its meaning, as against relying on inference,

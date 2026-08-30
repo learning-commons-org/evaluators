@@ -26,7 +26,7 @@ import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/sent
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/sentence-structure/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type SentenceStructureInput = InputsOf<typeof INPUT_SCHEMA>;
+export type SentenceStructureInput = InputsOf<{ properties: Record<'text' | 'grade_level', unknown> }>;
 
 /**
  * Evaluates sentence-structure complexity in student-facing text.

@@ -9,7 +9,7 @@ import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/purp
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/purpose-clarity/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type PurposeClarityInput = InputsOf<typeof INPUT_SCHEMA>;
+export type PurposeClarityInput = InputsOf<{ properties: Record<'text' | 'grade_level', unknown> }>;
 
 /**
  * Evaluates purpose clarity in student-facing text.

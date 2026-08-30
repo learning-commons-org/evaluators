@@ -47,7 +47,7 @@ const CODE_SCHEMA = {
   required: ['statementCode'],
 };
 
-export type MathStandardsAlignmentInput = InputsOf<typeof INPUT_SCHEMA> & {
+export type MathStandardsAlignmentInput = InputsOf<{ properties: Record<'question' | 'statementCode' | 'jurisdiction', unknown> }> & {
   jurisdiction: Jurisdiction;
 };
 

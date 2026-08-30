@@ -9,7 +9,7 @@ import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/back
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/background-knowledge-demands/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type BackgroundKnowledgeDemandsInput = InputsOf<typeof INPUT_SCHEMA>;
+export type BackgroundKnowledgeDemandsInput = InputsOf<{ properties: Record<'text' | 'grade_level', unknown> }>;
 
 /**
  * Evaluates how much prior subject knowledge a student needs to comprehend a text,
