@@ -123,6 +123,23 @@ console.log(`${result.alignedCount}/${result.totalCount} learning components ali
 
 Each evaluator is also available as a function — `evaluateGradeLevelAppropriateness(input, config)` and so on — for callers who would rather not hold an instance.
 
+## Discovering evaluators
+
+Every evaluator is listed in a registry, keyed by the registry id that appears on each result:
+
+```typescript
+import { getEvaluators, getEvaluator } from "@learning-commons/evaluators";
+
+for (const { id, name, supportedGrades } of getEvaluators()) {
+  console.log(`${name} (${id}) — grades ${supportedGrades.join(", ")}`);
+}
+
+// Renamed ids still resolve, so a stored result stays identifiable.
+getEvaluator("conventionality")?.name; // "Meaning Directness Evaluator"
+```
+
+Both return metadata — `id`, `stableId`, `idHistory`, `name`, `description`, `supportedGrades`, `defaultProviders`, and `outcome` where the evaluator declares a single verdict. To *run* an evaluator, import it by name: the metadata does not tell you which named inputs it takes, and each evaluator's are different.
+
 ## Configuration
 
 Every evaluator takes the same options:

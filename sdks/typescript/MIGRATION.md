@@ -2,7 +2,7 @@
 
 1.0.0 moves every evaluator onto the shared, language-neutral contracts under `evals/`, so the SDK reads its models, prompts, grades, inputs and output shapes from the same declarations the Python SDK and the notebooks use. The payoff is that a result is now identical across our SDKs; the cost is that most of the public surface changed at once.
 
-Twenty-six exported names are gone and seventy-one are new. Work through the sections below in order — the first four affect every caller.
+Twenty-six exported names are gone and seventy-three are new. Work through the sections below in order — the first four affect every caller.
 
 ## 1. `evaluate()` takes named inputs
 
@@ -154,5 +154,8 @@ It was the last evaluator returning its payload bare.
 - **Seven feedback evaluators** judging teacher comments on student writing, and `OrganizationalStructureEvaluator` and `ReferenceKnowledgeDemandsEvaluator` are now public.
 - **`llmProvider`** — bring your own provider. Inject any `LLMProvider` and no API keys are needed, for Vertex AI, Bedrock, a gateway or an eval framework's model system. Mutually exclusive with `modelOverride`.
 - **The `feedback` batch family**, alongside `text-complexity` and `math-standards-alignment`.
+- **`getEvaluators()` / `getEvaluator(id)`** — a registry over all sixteen, for enumeration and
+  for resolving a stored result's id back to the evaluator that produced it. Renamed ids
+  resolve through `idHistory`, so a result written under an old name stays identifiable.
 
 The `@learning-commons/evaluators/batch` entry point and the `evaluators-batch` command both existed in 0.8.0; they are documented in the [README](./README.md) now, which is the change.
