@@ -111,6 +111,14 @@ function toRow(dimension: string, evaluation: EvaluationResult, outcome: Declare
 | `evaluator.evaluateByGrade(...)` | `evaluator.evaluateByGradeLevel(...)` |
 | `Providers` (redundant alias; `Provider` already existed and is unchanged) | use `Provider` |
 
+Removed outright, so a `TS2305` on any of these has an entry here:
+
+| removed | replacement |
+| --- | --- |
+| `ComplexityClassification`, `ComplexityClassificationSchema` | each evaluator's own `<Evaluator>Result` / `<Evaluator>OutputSchema`, generated from its contract |
+| `PurposeComplexityLevel` | `PurposeClarityResult["complexity_score"]` |
+| `VocabularyInternal`, `SmkInternal`, `ConventionalityInternal`, `PurposeInternal`, `SentenceStructureInternal`, `GradeLevelAppropriatenessInternal` | the matching `<Evaluator>Result` |
+
 `TextComplexityEvaluator`, `evaluateTextComplexity`, `TextComplexityResult` and `TextComplexityLevel` are **removed with no replacement.** The composite ran several evaluators and merged their verdicts, which hid which model produced what. Call the evaluators you want and combine the results yourself, or use the `text-complexity` batch family, which does this with a report.
 
 It ran four, whose 1.0 names are:
