@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 /**
@@ -45,25 +47,39 @@ describe('the published declarations typecheck on their own', () => {
   it.each(ENTRIES)('%s reports no errors under a consumer-default tsc', (entry) => {
     read(entry); // fail loudly if the build is missing
 
-    // No `skipLibCheck`: that is the whole point. tsc exits non-zero on any error, so the
-    // assertion is that this call does not throw.
-    expect(() =>
-      execFileSync(
-        TSC,
-        [
-          '--noEmit',
-          '--strict',
-          '--target',
-          'es2022',
-          '--module',
-          'nodenext',
-          '--moduleResolution',
-          'nodenext',
-          entry,
-        ],
-        { cwd: TS_ROOT, stdio: 'pipe', encoding: 'utf-8' },
-      ),
-    ).not.toThrow();
+    // Checked through a generated project file rather than by naming the entry on the command
+    // line. TypeScript 7 errors (`TS5112`) when a file argument is combined with a tsconfig
+    // being present, so the command-line form would break the moment the pinned compiler
+    // moves major — while saying nothing about the declarations themselves.
+    const project = join(
+      tmpdir(),
+      `lc-dts-${entry.replace(/\W/g, '-')}-${process.pid}-${randomUUID()}.json`,
+    );
+    writeFileSync(
+      project,
+      JSON.stringify({
+        compilerOptions: {
+          noEmit: true,
+          strict: true,
+          target: 'es2022',
+          module: 'nodenext',
+          moduleResolution: 'nodenext',
+          // Set explicitly rather than left to the default: checking the declarations is
+          // the whole point, so this must not drift with whatever tsc decides to default to.
+          skipLibCheck: false,
+        },
+        files: [join(TS_ROOT, entry)],
+      }),
+    );
+
+    // tsc exits non-zero on any error, so the assertion is that this does not throw.
+    try {
+      expect(() =>
+        execFileSync(TSC, ['-p', project], { cwd: TS_ROOT, stdio: 'pipe', encoding: 'utf-8' }),
+      ).not.toThrow();
+    } finally {
+      rmSync(project, { force: true });
+    }
   }, 180_000);
 
   it.each(ENTRIES)('%s declares no values', (entry) => {
