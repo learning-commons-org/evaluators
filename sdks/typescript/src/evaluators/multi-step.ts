@@ -112,6 +112,27 @@ function vendorOf(provider: string, evaluatorName: string): Provider {
   return vendor;
 }
 
+/**
+ * The input values a step's condition names, or a failure if it names none.
+ *
+ * For a step whose *routing* depends on the condition, an absent or empty one is a contract
+ * regression rather than "applies always" — the caller would silently take the other
+ * branch. Read at load so a broken contract fails before any inference.
+ */
+export function requireConditionValues(
+  step: { id: string; condition?: DeclaredCondition },
+  evaluatorName: string,
+): readonly string[] {
+  const declared = step.condition?.in;
+  if (!declared || declared.length === 0) {
+    throw new Error(
+      `Step "${step.id}" in ${evaluatorName} config.json declares no condition.in; ` +
+        'the routing that depends on it has nothing to follow.',
+    );
+  }
+  return declared.map(String);
+}
+
 /** Whether a declared condition holds for the given inputs. No condition always holds. */
 function conditionHolds(
   condition: DeclaredCondition | undefined,
