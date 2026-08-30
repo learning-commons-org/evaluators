@@ -63,6 +63,11 @@ function contract(overrides: Record<string, unknown> = {}) {
       id_history: ['demo.area.old_thing'],
       name: 'Thing Evaluator',
       description: 'Demonstration contract.',
+      // Deliberately wider than this contract's own grade enum, which is the only way to
+      // tell which of the two the factory read. A real contract may not do this — the
+      // conformance suite requires them to agree wherever both exist — but this one is
+      // synthetic and never reaches that check.
+      supported_grades: ['3', '4', '5', '6'],
     },
     steps: [
       {
@@ -142,8 +147,10 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
     expect(E.metadata.name).toBe('Thing Evaluator');
   });
 
-  it('takes supported grades from the input schema enum', () => {
-    expect(define().metadata.supportedGrades).toEqual(['3', '4', '5']);
+  it('takes supported grades from the contract, not the grade input', () => {
+    // The contract declares four grades and the input enum three, so this fails if the
+    // factory goes back to deriving the field from the input schema.
+    expect(define().metadata.supportedGrades).toEqual(['3', '4', '5', '6']);
   });
 
   it('takes the default provider from the declared step, not a hardcoded vendor', () => {

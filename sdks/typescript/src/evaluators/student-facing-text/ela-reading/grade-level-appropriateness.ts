@@ -19,8 +19,9 @@ export type GradeLevelAppropriatenessInput = InputsOf<typeof INPUT_SCHEMA>;
  * band reachable with scaffolding.
  *
  * Takes no grade level: unlike the complexity evaluators, which judge a text *against* a
- * grade, this one determines the grade. Its `input_schema` declares only `text`, so
- * `metadata.supportedGrades` is empty by derivation rather than by assertion.
+ * grade, this one determines the grade. Its `input_schema` declares only `text`, so there is
+ * no accepted grade set; `metadata.supportedGrades` reports the K-12 span of the bands it
+ * can return, which is what its contract declares.
  *
  * One model call, so the flow comes from {@link defineSingleStepEvaluator} and the model,
  * temperature and prompt inputs are read from `config.json`.

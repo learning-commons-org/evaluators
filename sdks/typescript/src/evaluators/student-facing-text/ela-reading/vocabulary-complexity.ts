@@ -95,7 +95,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     description: CONFIG.evaluator.description,
     outcome: CONFIG.outcome,
     requiredCredentials: declaredCredentials(CONFIG),
-    supportedGrades: (INPUT_SCHEMA.properties.grade_level?.enum ?? []) as readonly string[],
+    supportedGrades: CONFIG.evaluator.supported_grades as readonly string[],
     defaultProviders: [Provider.Google, Provider.OpenAI] as const,
   };
 

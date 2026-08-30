@@ -150,12 +150,9 @@ const MODEL_GAPS = new Set<string>([
   // Empty: every evaluator constructs the model its contract declares.
 ]);
 
-/** Evaluators whose `supportedGrades` does not describe their declared inputs. */
+/** Evaluators whose `supportedGrades` does not match the grades their contract declares. */
 const GRADE_GAPS = new Set<string>([
-  // `supported_grades` here describes what `evaluateByGradeLevel` accepts — a bulk
-  // capability outside the one-to-one contract, whose shape is still open (Q-12).
-  // `evaluate()` itself takes no grade, and the input schema correctly declares none.
-  MATH_ID,
+  // Empty: every evaluator publishes the grades its contract declares.
 ]);
 
 
@@ -449,20 +446,34 @@ describe('identity matches the contract', () => {
 
 describe('supported grades match the contract', () => {
   it.each(cases)('$name', ({ E }) => {
-    const { inputSchema } = contractFor(E.metadata.id);
+    const { config } = contractFor(E.metadata.id);
 
-    // `supported_grades` states what the evaluator is built for; the accepted set is
-    // the grade input's own enum. Comparing against the enum is the whole point -- an
-    // evaluator taking no grade accepts none, and asserting that by hardcoding `[]`
-    // would just restate the assumption.
-    const accepted = (inputSchema.properties.grade_level?.enum as string[]) ?? [];
-
+    // What the evaluator targets, which the contract states outright rather than implying.
+    // The grade input's enum is a different question -- the set a caller may pass -- and it
+    // is absent for the evaluators that take no grade, which is why deriving this field
+    // from it published `[]` for eight of them.
     expectAgainstContract(
       GRADE_GAPS.has(E.metadata.id),
       [...E.metadata.supportedGrades],
-      accepted,
-      `${E.metadata.name} supportedGrades vs the grades its input schema accepts`,
+      config.evaluator.supported_grades,
+      `${E.metadata.name} supportedGrades vs the grades its contract declares`,
     );
+  });
+
+  // The two are separate fields with separate jobs, and `config.schema.json` requires them
+  // to agree wherever both exist: "when the evaluator accepts one,
+  // `input_schema.properties.grade_level.enum` is the accepted set and the two must agree".
+  // Nothing checked that directly, so the field the SDK no longer reads could drift.
+  it.each(cases)('$name accepts exactly the grades it declares support for', ({ E }) => {
+    const { config, inputSchema } = contractFor(E.metadata.id);
+    const accepted = inputSchema.properties.grade_level?.enum as string[] | undefined;
+
+    if (accepted === undefined) return;
+
+    expect(
+      [...accepted].sort(),
+      `${E.metadata.name}: grade_level enum vs evaluator.supported_grades`,
+    ).toEqual([...config.evaluator.supported_grades].sort());
   });
 });
 

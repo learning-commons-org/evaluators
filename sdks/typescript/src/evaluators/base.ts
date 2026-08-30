@@ -179,7 +179,13 @@ export interface EvaluatorMetadata {
   readonly name: string;
   /** Brief description of what the evaluator does */
   readonly description: string;
-  /** Supported grade levels (e.g., ['3', '4', '5', ...]) */
+  /**
+   * The grades this evaluator is built for, as its contract declares them.
+   *
+   * Not a validation set, and not necessarily the grades you may pass: an evaluator that
+   * takes no grade at all still reports what it targets. Where a `grade_level` input
+   * exists, the accepted values are its schema enum, and that is what rejects a bad one.
+   */
   readonly supportedGrades: readonly string[];
   /**
    * Which output properties carry the verdict and its rationale, as the evaluator's
