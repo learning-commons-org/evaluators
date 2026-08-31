@@ -139,6 +139,12 @@ jobs:
       - name: 📜 Verify the published declarations
         run: npm run verify:dist
 
+      # The exports map is the one thing a consumer cannot work around: a wrong `types`
+      # condition made every CJS TypeScript consumer fail to compile while the runtime was
+      # fine. These two check the resolution modes we cannot practically install in CI.
+      - name: 📦 Verify the published package metadata
+        run: npm run verify:package
+
       # Temporarily disabled - integration tests take too long in CI
       # - name: ⚡ Run integration tests (against dist/)
       #   if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
