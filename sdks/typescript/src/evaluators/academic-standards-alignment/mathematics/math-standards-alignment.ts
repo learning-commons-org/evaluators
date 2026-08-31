@@ -319,7 +319,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
               this.logger.warn('Learning component prefetch failed; total_count is unknown', {
                 evaluator: EVALUATOR_ID,
                 operation: 'prefetch_learning_components',
-                statement_code: code,
+                statementCode: code,
                 error: err instanceof Error ? err : undefined,
               });
             }),
@@ -358,8 +358,8 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
             // Also at item level: an item with no statement codes has nowhere else to
             // carry the failure, and the question itself is what failed.
             error: failure,
-            standards: item.statement_codes.map((statement_code) => ({
-              statement_code,
+            standards: item.statement_codes.map((code) => ({
+              statement_code: code,
               learning_components: [],
               aligned_count: 0,
               total_count: 0,
