@@ -1,6 +1,6 @@
 import {
   MathStandardsAlignmentEvaluator,
-  type StandardAlignmentResult,
+  type MathStandardsAlignmentResult,
 } from '../../evaluators/academic-standards-alignment/mathematics/math-standards-alignment.js';
 import { Jurisdiction } from '../../knowledge-graph/index.js';
 import { Provider } from '../../evaluators/base.js';
@@ -46,7 +46,7 @@ function resolveJurisdiction(raw: string | undefined): Jurisdiction {
 }
 
 /** Structured verdict carried on BatchResult.payload for standards rows. */
-export interface StandardsVerdict extends StandardAlignmentResult {
+export interface StandardsVerdict extends MathStandardsAlignmentResult {
   question: string;
   jurisdiction: Jurisdiction;
 }

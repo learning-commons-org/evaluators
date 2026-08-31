@@ -233,7 +233,7 @@ describe('a failed learning-component prefetch is reported, not silently zero', 
     );
 
     const [standard] = item.standards;
-    expect(standard.coarseFiltered, 'must reach the coarse-filtered branch').toBe(true);
+    expect(standard.coarse_filtered, 'must reach the coarse-filtered branch').toBe(true);
     expect(standard.total_count).toBe(0);
     expect(standard.error?.message, 'the failure must reach the caller').toContain(
       'KG unavailable',

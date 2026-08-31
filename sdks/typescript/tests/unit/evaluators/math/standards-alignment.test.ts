@@ -3,6 +3,7 @@ import {
   MathStandardsAlignmentEvaluator,
   Jurisdiction,
   type MathStandardsAlignmentEvaluatorConfig,
+  type QuestionItem,
 } from '../../../../src/evaluators/academic-standards-alignment/mathematics/math-standards-alignment.js';
 import { ConfigurationError, InputValidationError, LLMOutputProcessingError, KnowledgeGraphError, RateLimitError } from '../../../../src/errors.js';
 import type { LLMProvider } from '../../../../src/providers/base.js';
@@ -154,7 +155,7 @@ describe('MathStandardsAlignmentEvaluator - ambiguous statement codes', () => {
 });
 
 describe('MathStandardsAlignmentEvaluator - evaluate', () => {
-  it('returns StandardAlignmentResult with correct shape on happy path', async () => {
+  it('returns MathStandardsAlignmentResult with correct shape on happy path', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
     const { result } = await evaluator.evaluate({ question: QUESTION, statement_code: STATEMENT_CODE, jurisdiction: JURISDICTION });
 
@@ -378,7 +379,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems (shared codes)', () =>
     expect(mockProvider.generateStructured).toHaveBeenCalledTimes(2);
   });
 
-  it('byQuestion has correct shape for M questions × N shared codes', async () => {
+  it('by_question has correct shape for M questions x N shared codes', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig());
     const questions = ['Q1', 'Q2', 'Q3'];
     const codes = ['3.MD.C.7.d', '3.OA.A.1'];
@@ -396,7 +397,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems (shared codes)', () =>
     }
   });
 
-  it('marks coarse-filtered standards with coarseFiltered=true and empty LC list', async () => {
+  it('marks coarse-filtered standards with coarse_filtered=true and empty LC list', async () => {
     vi.mocked(mockProvider.generateStructured)
       .mockResolvedValueOnce({
         data: { standards: [{ standard: '3.MD.C.7.d', relevant: true }, { standard: '3.OA.A.1', relevant: false }] },
@@ -412,13 +413,13 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems (shared codes)', () =>
     );
 
     const filtered = results[0].standards.find((s) => s.statement_code === '3.OA.A.1')!;
-    expect(filtered.coarseFiltered).toBe(true);
+    expect(filtered.coarse_filtered).toBe(true);
     expect(filtered.learning_components).toHaveLength(0);
     // Reported from the pre-fetch, so "skipped" is not confused with "has none".
     expect(filtered.total_count).toBe(2);
 
     const evaluated = results[0].standards.find((s) => s.statement_code === '3.MD.C.7.d')!;
-    expect(evaluated.coarseFiltered).toBeUndefined();
+    expect(evaluated.coarse_filtered).toBeUndefined();
     expect(evaluated.learning_components).toHaveLength(2);
   });
 
@@ -449,7 +450,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems (shared codes)', () =>
     );
 
     const result = results[0].standards[0];
-    expect(result.coarseFiltered).toBeUndefined();
+    expect(result.coarse_filtered).toBeUndefined();
     expect(result.learning_components).toHaveLength(2);
   });
 
@@ -488,7 +489,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems (shared codes)', () =>
     );
 
     expect(results[0].standards).toHaveLength(2);
-    expect(results[0].standards.every((s) => !s.coarseFiltered)).toBe(true);
+    expect(results[0].standards.every((s) => !s.coarse_filtered)).toBe(true);
     expect(results[0].standards.every((s) => s.learning_components.length > 0)).toBe(true);
   });
 
@@ -553,7 +554,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateByGradeLevel', () => {
 
   it('fetches standards for grade and jurisdiction, deduping codes reused across courses', async () => {
     // A jurisdiction reusing one code across courses returns an item per course.
-    // Without deduping, byStandard would repeat that code.
+    // Without deduping, by_standard would repeat that code.
     const repo = makeMockKgClient({
       getStandardsByGradeLevel: vi.fn().mockResolvedValue([
         { caseIdentifierUUID: 'u1', statementCode: '3.MD.C.7.d', description: 'Area', statementType: 'Standard', normalizedStatementType: 'Standard', gradeLevel: ['3'] },
@@ -565,8 +566,8 @@ describe('MathStandardsAlignmentEvaluator - evaluateByGradeLevel', () => {
     const result = await evaluator.evaluateByGradeLevel([QUESTION], '3', JURISDICTION, { useCoarseFilter: false });
 
     expect(repo.getStandardsByGradeLevel).toHaveBeenCalledWith('3', { jurisdiction: JURISDICTION, academicSubject: 'Mathematics' });
-    expect(result.byStandard.map((s) => s.statement_code)).toEqual(['3.MD.C.7.d', '3.OA.A.1']);
-    expect(result.byQuestion[0].standards).toHaveLength(2);
+    expect(result.by_standard.map((s) => s.statement_code)).toEqual(['3.MD.C.7.d', '3.OA.A.1']);
+    expect(result.by_question[0].standards).toHaveLength(2);
   });
 
   it('warns when the grade-wide fan-out is large, and stays quiet when it is not', async () => {
@@ -589,7 +590,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateByGradeLevel', () => {
     expect(logger.warn.mock.calls[0][1]).toMatchObject({ questions: 1, standards: 501, pairs: 501 });
   });
 
-  it('returns byStandard with coverageCount counting questions with aligned_count > 0', async () => {
+  it('returns by_standard with coverage_count counting questions with aligned_count > 0', async () => {
     let callNum = 0;
     vi.mocked(mockProvider.generateStructured).mockImplementation(async () => {
       callNum++;
@@ -613,16 +614,16 @@ describe('MathStandardsAlignmentEvaluator - evaluateByGradeLevel', () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo }));
     const result = await evaluator.evaluateByGradeLevel(['Q1', 'Q2'], '3', JURISDICTION, { useCoarseFilter: false });
 
-    expect(result.byStandard[0].coverageCount).toBe(1);
-    expect(result.byStandard[0].coveredBy[0].question).toBe('Q1');
+    expect(result.by_standard[0].coverage_count).toBe(1);
+    expect(result.by_standard[0].covered_by[0].question).toBe('Q1');
   });
 
-  it('returns empty byStandard and byQuestion stubs when KG returns no standards for grade', async () => {
+  it('returns empty by_standard and by_question stubs when KG returns no standards for grade', async () => {
     const repo = makeMockKgClient({ getStandardsByGradeLevel: vi.fn().mockResolvedValue([]) });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo }));
     const result = await evaluator.evaluateByGradeLevel([QUESTION], '3', JURISDICTION);
-    expect(result.byStandard).toEqual([]);
-    expect(result.byQuestion).toEqual([{ question: QUESTION, standards: [] }]);
+    expect(result.by_standard).toEqual([]);
+    expect(result.by_question).toEqual([{ question: QUESTION, standards: [] }]);
   });
 
   it('passes California jurisdiction to getStandardsByGradeLevel', async () => {
@@ -637,6 +638,52 @@ describe('MathStandardsAlignmentEvaluator - evaluateByGradeLevel', () => {
 // ---------------------------------------------------------------------------
 // Error isolation
 // ---------------------------------------------------------------------------
+
+describe('MathStandardsAlignmentEvaluator - evaluateItems malformed items', () => {
+  // An item missing its code list used to escape as `TypeError: item.statement_codes is
+  // not iterable`, outside the taxonomy, so no `instanceof` in the docs caught it.
+  it('reports a missing statement_codes as the caller\'s bad input', async () => {
+    const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: makeMockKgClient() }));
+
+    const results = await evaluator.evaluateItems(
+      [{ question: QUESTION } as unknown as QuestionItem],
+      JURISDICTION,
+    );
+
+    expect(results[0].error?.name).toBe('InputValidationError');
+    expect(results[0].error?.message).toContain('statement_codes is required');
+  });
+
+  it('names the pre-1.0 spelling when an item still carries statementCodes', async () => {
+    const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: makeMockKgClient() }));
+
+    const results = await evaluator.evaluateItems(
+      [{ question: QUESTION, statementCodes: [STATEMENT_CODE] } as unknown as QuestionItem],
+      JURISDICTION,
+    );
+
+    expect(results[0].error?.name).toBe('InputValidationError');
+    // The whole point: say what to rename, since this is the shape 0.8.0 callers hold.
+    expect(results[0].error?.message).toContain('`statementCodes`');
+    expect(results[0].error?.message).toContain('rename it to `statement_codes`');
+  });
+
+  it('isolates one malformed item without failing its siblings', async () => {
+    const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: makeMockKgClient() }));
+
+    const results = await evaluator.evaluateItems(
+      [
+        { question: QUESTION } as unknown as QuestionItem,
+        { question: QUESTION, statement_codes: [STATEMENT_CODE] },
+      ],
+      JURISDICTION,
+    );
+
+    expect(results[0].error?.name).toBe('InputValidationError');
+    expect(results[1].error).toBeUndefined();
+    expect(results[1].standards[0].aligned_count).toBe(2);
+  });
+});
 
 describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () => {
   function failingCodeClient(badCode: string): KnowledgeGraphClient {
@@ -842,10 +889,10 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
     const errored = await new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: repo }))
       .evaluateByGradeLevel(['Q1'], '3', JURISDICTION);
 
-    expect(errored.byQuestion[0].standards[0].error).toBeDefined();
-    expect(errored.byStandard[0].coveredBy).toEqual([]);
-    expect(errored.byStandard[0]).toMatchObject({
-      coverageCount: 0, errorCount: 1, evaluatedCount: 0, noComponentsCount: 0,
+    expect(errored.by_question[0].standards[0].error).toBeDefined();
+    expect(errored.by_standard[0].covered_by).toEqual([]);
+    expect(errored.by_standard[0]).toMatchObject({
+      coverage_count: 0, error_count: 1, evaluated_count: 0, no_components_count: 0,
     });
 
     // Same zero coverage, but measured: every LC came back unaligned.
@@ -858,8 +905,8 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
     const unaligned = await new MathStandardsAlignmentEvaluator(makeConfig())
       .evaluateByGradeLevel(['Q1'], '3', JURISDICTION);
 
-    expect(unaligned.byStandard[0]).toMatchObject({
-      coverageCount: 0, errorCount: 0, evaluatedCount: 1, noComponentsCount: 0,
+    expect(unaligned.by_standard[0]).toMatchObject({
+      coverage_count: 0, error_count: 0, evaluated_count: 1, no_components_count: 0,
     });
 
     // Third way to reach zero coverage: never evaluated because the filter skipped it.
@@ -871,8 +918,8 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
     const filtered = await new MathStandardsAlignmentEvaluator(makeConfig())
       .evaluateByGradeLevel(['Q1'], '3', JURISDICTION, { useCoarseFilter: true });
 
-    expect(filtered.byStandard[0]).toMatchObject({
-      coverageCount: 0, errorCount: 0, evaluatedCount: 0, filteredCount: 1,
+    expect(filtered.by_standard[0]).toMatchObject({
+      coverage_count: 0, error_count: 0, evaluated_count: 0, filtered_count: 1,
     });
 
     // Fourth way: the standard exists but has no learning components, so nothing was
@@ -884,8 +931,8 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
       .evaluateByGradeLevel(['Q1'], '3', JURISDICTION);
 
     // Its own counter, so all-zeros is never the only signal.
-    expect(unauthored.byStandard[0]).toMatchObject({
-      coverageCount: 0, errorCount: 0, evaluatedCount: 0, filteredCount: 0, noComponentsCount: 1,
+    expect(unauthored.by_standard[0]).toMatchObject({
+      coverage_count: 0, error_count: 0, evaluated_count: 0, filtered_count: 0, no_components_count: 1,
     });
   });
 });
