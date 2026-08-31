@@ -156,16 +156,20 @@ evaluator's contract, which is what makes them identical across our SDKs.
 
 ## 2b. Declared input values are literal unions
 
-`grade_level` was typed `string`, so a typo compiled and failed at run time on a paid call. It
-is now the union its contract declares, generated from the same file the runtime check reads:
+You will meet this while doing section 1, not separately. 0.8.0 took the grade as a positional
+`string`; 1.0 takes it as a named input typed to the union its contract declares, generated
+from the same file the runtime check reads:
 
 ```diff
-- evaluate({ text, grade_level: string })
-+ evaluate({ text, grade_level: '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | '11' | '12' })
+- await evaluator.evaluate(text, grade);            // grade: string
++ await evaluator.evaluate({ text, grade_level: grade });
+//                                        ^ '3' | '4' | … | '12'
 ```
 
-Passing a literal is unaffected. **Passing a `string` variable no longer compiles**, which is
-the one place this costs you:
+So a typo that used to compile and fail at run time on a paid call is now a compile error.
+
+Passing a literal is unaffected. **Passing the `string` variable you already had no longer
+compiles** — which, since 0.8.0 typed it `string`, is most of what you are converting:
 
 ```typescript
 const grade: string = row.grade_level;

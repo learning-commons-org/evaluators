@@ -77,7 +77,7 @@ describe('input types match the contracts they name', () => {
     expect(Object.keys(properties).sort()).toEqual(Object.keys(contract).sort());
   });
 
-  it.each(DECLARED)('$typeName carries the contract\'s enum values', ({ properties, contract }) => {
+  it.each(DECLARED)('$typeName carries the contract\'s enum values', ({ typeName, properties, contract }) => {
     // The reason for generating these rather than deriving them: a declared `enum` becomes a
     // literal union, so a bad grade is a compile error instead of a run-time one on a paid
     // call. A field with no enum stays `string` — the length bounds are not expressible.
@@ -86,7 +86,7 @@ describe('input types match the contracts they name', () => {
         ? spec.enum.map((v) => JSON.stringify(v)).join(' | ')
         : 'string';
 
-      expect(properties[name], `${name} in ${'$'}{'{typeName}'}`).toBe(expected);
+      expect(properties[name], `${typeName}.${name}`).toBe(expected);
     }
   });
 });
