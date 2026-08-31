@@ -10,12 +10,10 @@
  * Run against a freshly packed tarball: `npm run verify:package`.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRequire } from 'node:module';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
@@ -35,10 +33,26 @@ function run(cmd, args, cwd) {
   return execFileSync(cmd, args, { cwd, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
-/** Pack once; every check installs this exact artifact. */
+/** Pack once; every check reads or installs this exact artifact. */
 function pack() {
   const out = run('npm', ['pack', '--silent'], ROOT).trim().split('\n').pop();
   return join(ROOT, out);
+}
+
+/**
+ * Paths inside the tarball, `package/`-prefix stripped.
+ *
+ * Everything below asserts against these rather than against the working tree: a file can
+ * exist in the repo and still be absent from the package, because `files` decides what
+ * ships. Checking the repo would pass on exactly the regression these checks exist to catch.
+ */
+function tarballPaths(tarball) {
+  return new Set(
+    run('tar', ['tzf', tarball], ROOT)
+      .split('\n')
+      .map((l) => l.trim().replace(/^package\//, ''))
+      .filter(Boolean),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -95,36 +109,44 @@ function checkPeerFloorsInstall(tarball) {
 // Resolvers without `exports` support (webpack 4, browserify, tools built on `resolve`)
 // read `main` only. `attw` reports node10 green off `types` alone, so it cannot see this.
 // ---------------------------------------------------------------------------
-function checkMain() {
+function checkMain(shipped) {
   if (!pkg.main) {
-    fail('main is declared', 'absent — legacy resolvers cannot find the package at all');
+    fail('main is declared and shipped', 'absent — legacy resolvers cannot find the package at all');
     return;
   }
-  if (!existsSync(join(ROOT, pkg.main))) {
-    fail('main is declared', `${pkg.main} does not exist`);
+  const rel = pkg.main.replace(/^\.\//, '');
+  if (!shipped.has(rel)) {
+    fail('main is declared and shipped', `${pkg.main} is not in the tarball (check "files")`);
     return;
   }
-  pass('main is declared', pkg.main);
+  pass('main is declared and shipped', pkg.main);
 }
 
 /**
  * Every `exports` subpath needs a directory stub too, since a resolver that ignores
  * `exports` also has no way to find the subpath. `main` alone fixes only the root.
  */
-function checkSubpathStubs() {
+function checkSubpathStubs(tarball, shipped) {
   const subpaths = Object.keys(pkg.exports ?? {}).filter(
     (k) => k.startsWith('./') && k !== './package.json',
   );
   const missing = [];
   for (const sub of subpaths) {
-    const stub = join(ROOT, sub.slice(2), 'package.json');
-    if (!existsSync(stub)) {
-      missing.push(`${sub} has no ${sub.slice(2)}/package.json stub`);
+    const dir = sub.slice(2);
+    const stubPath = `${dir}/package.json`;
+    if (!shipped.has(stubPath)) {
+      missing.push(`${sub}: ${stubPath} is not in the tarball (check "files")`);
       continue;
     }
-    const target = JSON.parse(readFileSync(stub, 'utf-8')).main;
-    if (!target || !existsSync(join(dirname(stub), target))) {
-      missing.push(`${sub} stub points at a missing main (${target})`);
+    // Read it out of the tarball too, so a stub that ships but points nowhere is caught.
+    const stub = JSON.parse(run('tar', ['xzOf', tarball, `package/${stubPath}`], ROOT));
+    if (!stub.main) {
+      missing.push(`${sub}: shipped stub declares no "main"`);
+      continue;
+    }
+    const target = join(dir, stub.main).replace(/\\/g, '/');
+    if (!shipped.has(target)) {
+      missing.push(`${sub}: stub main "${stub.main}" resolves to ${target}, not in the tarball`);
     }
   }
   if (missing.length > 0) {
@@ -220,9 +242,10 @@ function checkRuntimeLoads(tarball) {
 console.log('Packaging checks beyond publint/attw:\n');
 const tarball = pack();
 try {
+  const shipped = tarballPaths(tarball);
   checkPeerBounds();
-  checkMain();
-  checkSubpathStubs();
+  checkMain(shipped);
+  checkSubpathStubs(tarball, shipped);
   checkEnginesAgainstRequireEsm();
   checkPeerFloorsInstall(tarball);
   checkRuntimeLoads(tarball);
