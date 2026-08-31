@@ -5,6 +5,21 @@ All notable changes to the evaluator prompt files will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.7.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.6.0...evals-prompts-v1.7.0) (2026-08-31)
+
+
+### Features
+
+* **evals:** add Background Knowledge Demands onto the shared evaluator contract ([#173](https://github.com/learning-commons-org/evaluators/issues/173)) ([658631f](https://github.com/learning-commons-org/evaluators/commit/658631fdcaba834f98e9f6960c790efb6ceaf412))
+* **evals:** add Meaning Directness onto the shared evaluator contract ([#161](https://github.com/learning-commons-org/evaluators/issues/161)) ([5d0cee2](https://github.com/learning-commons-org/evaluators/commit/5d0cee2e0284839687f92a2a7cbb2fee4911b598))
+* **evals:** add Sentence Structure onto the shared evaluator contract ([#174](https://github.com/learning-commons-org/evaluators/issues/174)) ([10f2fcd](https://github.com/learning-commons-org/evaluators/commit/10f2fcd13f66ae2e8d62c260e0ad679263cb1554))
+* **evals:** add Vocabulary Complexity onto the shared evaluator contract ([#163](https://github.com/learning-commons-org/evaluators/issues/163)) ([a434a7a](https://github.com/learning-commons-org/evaluators/commit/a434a7ac213a878148632755774a78a7b844871b))
+
+
+### Bug Fixes
+
+* **evals-prompts:** correct GLA grade bands and re-sync prompt copies ([#159](https://github.com/learning-commons-org/evaluators/issues/159)) ([5e581a2](https://github.com/learning-commons-org/evaluators/commit/5e581a274624ca3a6f4951344501745eb84e02fa))
+
 ## [1.6.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.5.0...evals-prompts-v1.6.0) (2026-06-24)
 
 
