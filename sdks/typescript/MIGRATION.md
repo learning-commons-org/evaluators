@@ -356,8 +356,13 @@ payload bare.
 ```
 
 Every key is snake_case now, matching the other fifteen evaluators: `statement_code`,
-`learning_components`, `aligned_count`, `total_count`. Nothing else about the payload changed.
+`learning_components`, `aligned_count`, `total_count`, and (on the bulk methods only)
+`coarse_filtered`. The one exception is the `error` object the bulk methods attach, whose
+`statusCode` and `retryable` stay camelCase because they mirror the error classes themselves.
 Batch CSVs still accept `statementCode` as a column alias.
+
+The payload type has one name, `MathStandardsAlignmentResult`. It was also exported as
+`StandardAlignmentResult`; that name is gone.
 
 The evaluator needs **both** `anthropicApiKey` and `learningCommonsApiKey`;
 `getEvaluator(id).requiredCredentials` lists the non-LLM ones.
@@ -371,9 +376,23 @@ and is not, since it only trims and upper-cases:
 const bare = stored.replace(/^CCSS\.MATH\.CONTENT\./i, "");
 ```
 
-`evaluateItems` keeps its name and arguments. **`evaluateByGrade` is now
-`evaluateByGradeLevel`** — arguments unchanged. Neither returns an envelope: one call fans out
-over many question × standard pairs, so there is no single model or duration to report.
+`evaluateItems` keeps its name, but **its items renamed `statementCodes` to
+`statement_codes`**:
+
+```diff
+- evaluator.evaluateItems([{ question, statementCodes: ["5.NF.A.1"] }], jurisdiction);
++ evaluator.evaluateItems([{ question, statement_codes: ["5.NF.A.1"] }], jurisdiction);
+```
+
+Passing the old shape is reported per item as `InputValidationError`, naming the field to
+rename; it does not throw for the whole call, so a mixed batch still returns its valid items.
+
+**`evaluateByGrade` is now `evaluateByGradeLevel`**, arguments unchanged. Its
+`QuestionBankResult` is snake_case throughout: `by_question`, `by_standard`, `covered_by`,
+`coverage_count`, `evaluated_count`, `error_count`, `filtered_count`, `no_components_count`.
+
+Neither returns an envelope: one call fans out over many question x standard pairs, so there
+is no single model or duration to report.
 
 ## 9. Smaller behaviour changes
 

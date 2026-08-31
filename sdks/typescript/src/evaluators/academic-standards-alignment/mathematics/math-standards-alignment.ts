@@ -51,9 +51,6 @@ export type MathStandardsAlignmentInput = InputsOf<{ properties: Record<'questio
   jurisdiction: Jurisdiction;
 };
 
-/** Alias of {@link StandardAlignmentResult}, for the `<Evaluator>Result` convention. */
-export type MathStandardsAlignmentResult = StandardAlignmentResult;
-
 export { Jurisdiction } from '../../../knowledge-graph/index.js';
 
 // ---------------------------------------------------------------------------
@@ -69,18 +66,25 @@ export interface LearningComponentResult {
 }
 
 /**
- * What `evaluate()` resolves its `result` to.
+ * What `evaluate()` resolves its `result` to, and what the bulk methods return arrays of.
  *
- * Named for the alignment rather than the evaluator because the bulk methods return arrays of
- * it too. {@link MathStandardsAlignmentResult} is the alias that keeps the
- * `<Evaluator>Result` convention true for all sixteen evaluators.
+ * One name rather than two. This was also exported as `StandardAlignmentResult`, which every
+ * signature actually used while the `<Evaluator>Result` name went unused, so the convention
+ * the second name existed to satisfy never reached anyone reading autocomplete.
+ *
+ * The keys are snake_case throughout, including the fields the SDK adds rather than the
+ * contract: `coarse_filtered` and the bulk counts have no contract counterpart, but a Python
+ * equivalent would name them that way, and one convention per payload beats two.
+ * `error.statusCode` / `error.retryable` are the exception: they mirror
+ * `DependencyError.statusCode` and `EvaluatorError.retryable`, and callers copy between the
+ * live error and this reported copy of it.
  */
-export interface StandardAlignmentResult {
+export interface MathStandardsAlignmentResult {
   statement_code: string;
   learning_components: LearningComponentResult[];
   aligned_count: number;
   total_count: number;
-  coarseFiltered?: boolean;
+  coarse_filtered?: boolean;
   /**
    * Set when this pair could not be evaluated. Produced only by evaluateItems and
    * evaluateByGradeLevel; evaluate() throws instead.
@@ -106,30 +110,30 @@ export interface QuestionItem {
 /** One question's results. `error` is set when the question itself could not be used. */
 export interface QuestionResult {
   question: string;
-  standards: StandardAlignmentResult[];
-  error?: StandardAlignmentResult['error'];
+  standards: MathStandardsAlignmentResult[];
+  error?: MathStandardsAlignmentResult['error'];
 }
 
 export interface QuestionBankResult {
-  byQuestion: QuestionResult[];
-  byStandard: Array<{
+  by_question: QuestionResult[];
+  by_standard: Array<{
     statement_code: string;
-    coveredBy: Array<{
+    covered_by: Array<{
       question: string;
       aligned_count: number;
       total_count: number;
     }>;
-    coverageCount: number;
+    coverage_count: number;
     /**
-     * Denominators for coverageCount. The four sum to the number of questions, so a
-     * zero coverageCount can be attributed: measured and unaligned (evaluatedCount),
-     * never measured (errorCount, filteredCount, noComponentsCount).
+     * Denominators for coverage_count. The four sum to the number of questions, so a
+     * zero coverage_count can be attributed: measured and unaligned (evaluated_count),
+     * never measured (error_count, filtered_count, no_components_count).
      */
-    evaluatedCount: number;
-    errorCount: number;
-    filteredCount: number;
+    evaluated_count: number;
+    error_count: number;
+    filtered_count: number;
     /** Standard exists but nothing is authored against it, so nothing was measurable. */
-    noComponentsCount: number;
+    no_components_count: number;
   }>;
 }
 
@@ -177,7 +181,7 @@ const KG_SUBJECT = 'Mathematics';
 const BY_GRADE_WARN_PAIRS = 500;
 
 /** Flattens a thrown value into the reportable shape, keeping what a report can group on. */
-function describeFailure(err: unknown): NonNullable<StandardAlignmentResult['error']> {
+function describeFailure(err: unknown): NonNullable<MathStandardsAlignmentResult['error']> {
   if (!(err instanceof Error)) return { message: String(err) };
   // `name` is the canonical error code, so there is no separate code field.
   return {
@@ -247,7 +251,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 
   async evaluate(
     input: MathStandardsAlignmentInput,
-  ): Promise<EvaluationResult<StandardAlignmentResult>> {
+  ): Promise<EvaluationResult<MathStandardsAlignmentResult>> {
     validateInputs(input, INPUT_SCHEMA);
     return this._evaluateCore(input.question, input.statement_code, input.jurisdiction);
   }
@@ -278,6 +282,18 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         // The question is checked whether or not the item carries codes: an item with
         // an empty list still has a question the caller may have got wrong.
         validateInputs({ question: item.question }, QUESTION_SCHEMA);
+        // Checked before iterating, so a missing or misspelled list is reported as the
+        // caller's bad input rather than escaping as a raw TypeError. `statementCodes`
+        // is called out by name because it is what this field was before 1.0.
+        if (!Array.isArray(item.statement_codes)) {
+          const legacy = (item as unknown as { statementCodes?: unknown }).statementCodes;
+          throw new InputValidationError(
+            legacy !== undefined
+              ? 'statement_codes is required. This item carries `statementCodes`, which was ' +
+                  'its name before 1.0; rename it to `statement_codes`.'
+              : 'statement_codes is required and must be an array of standard codes.',
+          );
+        }
         for (const code of item.statement_codes) {
           validateInputs({ statement_code: code }, CODE_SCHEMA);
         }
@@ -290,7 +306,15 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       }
       return {
         question: item.question,
-        statement_codes: [...new Set(item.statement_codes)],
+        // Guarded rather than assumed: an item that failed the check above still reaches
+        // here, and it carries its failure at item level with no codes to report against.
+        //
+        // Non-strings are dropped rather than echoed back. The item already carries the
+        // InputValidationError that names them, and reporting one would put a non-string in
+        // a field this evaluator's own types declare as `string`.
+        statement_codes: Array.isArray(item.statement_codes)
+          ? [...new Set(item.statement_codes.filter((c): c is string => typeof c === 'string'))]
+          : [],
         validationError,
       };
     });
@@ -371,7 +395,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         const relevant = relevanceMaps.get(i) ?? new Set(item.statement_codes);
 
         const standards = await Promise.all(
-          item.statement_codes.map(async (code): Promise<StandardAlignmentResult> => {
+          item.statement_codes.map(async (code): Promise<MathStandardsAlignmentResult> => {
             if (!relevant.has(code)) {
               const cached = lcCache.get(code);
               const failure = lcFailures.get(code);
@@ -380,11 +404,11 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
                 learning_components: [],
                 aligned_count: 0,
                 total_count: cached?.components.length ?? 0,
-                coarseFiltered: true,
+                coarse_filtered: true,
                 ...(failure ? { error: describeFailure(failure) } : {}),
               };
             }
-            let result: StandardAlignmentResult;
+            let result: MathStandardsAlignmentResult;
             try {
               result = (await bankLimit(() => this._evaluateCore(item.question, code, jurisdiction)))
                 .result;
@@ -436,7 +460,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     });
     // statementCode is nullable in the KG API, so skip standards without one. Deduped
     // because a jurisdiction reusing a code across courses returns one item per
-    // course, which would otherwise repeat that code in byStandard.
+    // course, which would otherwise repeat that code in by_standard.
     const codes = [...new Set(
       academicStandards
         .map((s) => s.statementCode)
@@ -457,21 +481,21 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 
     if (codes.length === 0) {
       return {
-        byQuestion: questions.map((q) => ({ question: q, standards: [] })),
-        byStandard: [],
+        by_question: questions.map((q) => ({ question: q, standards: [] })),
+        by_standard: [],
       };
     }
 
     const items = questions.map((q) => ({ question: q, statement_codes: codes }));
-    const byQuestion = await this.evaluateItems(items, jurisdiction, options);
+    const by_question = await this.evaluateItems(items, jurisdiction, options);
 
-    const byStandard = codes.map((code) => {
-      const results = byQuestion.map(({ question, standards }) => ({
+    const by_standard = codes.map((code) => {
+      const results = by_question.map(({ question, standards }) => ({
         question,
         result: standards.find((s) => s.statement_code === code),
       }));
 
-      const coveredBy = results.flatMap(({ question, result }) => {
+      const covered_by = results.flatMap(({ question, result }) => {
         // An errored pair measured nothing, so it is neither coverage nor
         // evidence against it.
         if (!result || result.error || result.aligned_count === 0) return [];
@@ -480,23 +504,23 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 
       return {
         statement_code: code,
-        coveredBy,
-        coverageCount: coveredBy.length,
+        covered_by,
+        coverage_count: covered_by.length,
         // total_count > 0 required: a standard with no learning components measured
         // nothing, so counting it as evaluated would make "0 aligned of 1 evaluated"
         // read as a judgement rather than an absence of data.
-        evaluatedCount: results.filter(
-          ({ result }) => result && !result.error && !result.coarseFiltered && result.total_count > 0,
+        evaluated_count: results.filter(
+          ({ result }) => result && !result.error && !result.coarse_filtered && result.total_count > 0,
         ).length,
-        errorCount: results.filter(({ result }) => result?.error).length,
-        filteredCount: results.filter(({ result }) => result?.coarseFiltered).length,
-        noComponentsCount: results.filter(
-          ({ result }) => result && !result.error && !result.coarseFiltered && result.total_count === 0,
+        error_count: results.filter(({ result }) => result?.error).length,
+        filtered_count: results.filter(({ result }) => result?.coarse_filtered).length,
+        no_components_count: results.filter(
+          ({ result }) => result && !result.error && !result.coarse_filtered && result.total_count === 0,
         ).length,
       };
     });
 
-    return { byQuestion, byStandard };
+    return { by_question, by_standard };
   }
 
   // -------------------------------------------------------------------------
@@ -510,10 +534,10 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
    * learning components resolves without one — and `tokenUsage` of zero is what says so.
    */
   private envelope(
-    result: StandardAlignmentResult,
+    result: MathStandardsAlignmentResult,
     startTime: number,
     usage?: { inputTokens: number; outputTokens: number },
-  ): EvaluationResult<StandardAlignmentResult> {
+  ): EvaluationResult<MathStandardsAlignmentResult> {
     return {
       evaluator: EVALUATOR_ID,
       result,
@@ -529,7 +553,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     question: string,
     statementCode: string,
     jurisdiction: Jurisdiction,
-  ): Promise<EvaluationResult<StandardAlignmentResult>> {
+  ): Promise<EvaluationResult<MathStandardsAlignmentResult>> {
 
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
@@ -749,6 +773,6 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 export async function evaluateMathStandardsAlignment(
   input: MathStandardsAlignmentInput,
   config: MathStandardsAlignmentEvaluatorConfig,
-): Promise<EvaluationResult<StandardAlignmentResult>> {
+): Promise<EvaluationResult<MathStandardsAlignmentResult>> {
   return new MathStandardsAlignmentEvaluator(config).evaluate(input);
 }

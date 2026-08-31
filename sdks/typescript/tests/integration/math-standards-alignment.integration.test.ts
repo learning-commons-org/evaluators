@@ -100,7 +100,7 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
       for (const qr of filtered) {
         console.log(`\n  Q: "${qr.question.slice(0, 70)}…"`);
         for (const s of qr.standards) {
-          if (s.coarseFiltered) {
+          if (s.coarse_filtered) {
             console.log(`    ${s.statement_code.padEnd(12)} [COARSE FILTERED]`);
           } else {
             const tag = s.aligned_count > 0 ? `ALIGNED ${s.aligned_count}/${s.total_count}` : `not aligned 0/${s.total_count}`;
@@ -117,7 +117,7 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
       for (const gtStd of areaGT.standards) {
         const filteredStd = areaFiltered.standards.find((s) => s.statement_code === gtStd.statement_code)!;
         const wasAligned = gtStd.aligned_count > 0;
-        const wasFiltered = filteredStd.coarseFiltered === true;
+        const wasFiltered = filteredStd.coarse_filtered === true;
         const status = wasFiltered && wasAligned ? '❌ FALSE NEGATIVE' :
                        wasFiltered ? '○ filtered (correctly — not aligned)' :
                        wasAligned ? '✓ passed through (correctly — aligned)' :
