@@ -33,8 +33,25 @@ untyped; without it `tsc` reports `TS7016` from inside `@ai-sdk/provider`, not f
 package. This SDK's declarations typecheck cleanly on their own, so `skipLibCheck` is not
 required on their account — but adding it is the other way to silence that peer's gap.
 
+To run a snippet, use a TypeScript runner. The config above is `noEmit`-shaped, so there is
+no build step to run:
+
+```bash
+npx tsx quickstart.ts
+```
+
+A runner is the portable choice. Recent Node versions strip types themselves, so
+`node quickstart.ts` works there too, but the 20.19 floor above cannot.
+
 CommonJS consumers can `require` the package but will need to rewrite the top-level `await`
-in these snippets.
+in these snippets. Two caveats there: the CommonJS build requires ESM-only packages, so it
+needs `require(esm)` (hence the Node range above), and **Jest's default CommonJS transform
+cannot load it at all**: `SyntaxError: Cannot use import statement outside a module`, from
+inside `ai`. Add those packages to `transformIgnorePatterns`, or run Jest in ESM mode:
+
+```js
+transformIgnorePatterns: ['node_modules/(?!(ai|p-limit|syllable|text-readability)/)'],
+```
 
 Each evaluator's argument and payload types are exported — `VocabularyComplexityInput`,
 `VocabularyComplexityResult` and so on — so you can name them in your own signatures. Both are
@@ -70,7 +87,21 @@ npm error Found: zod@3.25.76
 
 Forcing past it with `--legacy-peer-deps` or `--force` installs zod 3 anyway, and the build
 then fails on our declarations instead — `Namespace '…/zod/v3/external' has no exported member
-'core'`. Either way the answer is zod 4; there is nothing to fix at the call site.
+'core'`.
+
+**If your project already depends on zod 3, widen your own range first.** The install above
+will not do it for you, because `npm install zod` honours the `^3` you already declared:
+
+```bash
+npm install zod@^4          # then re-run the install above
+```
+
+That is a major upgrade of a dependency you own, so review zod's own 3 to 4 notes for your
+call sites. Nothing needs fixing at *this* SDK's call sites; the schemas it exports are zod 4
+values, and once there is a single zod 4 copy they compose with yours directly.
+
+The floor is `zod@^4.1.8` rather than `^4.0.0` because `ai@7` itself requires
+`zod@^3.25.76 || ^4.1.8`.
 
 Next, install the provider adapter(s) for the evaluators you plan to run — the table below gives each evaluator's provider:
 
@@ -122,10 +153,22 @@ Demands each return a nested `details`; Vocabulary Complexity returns `tier_2_wo
 Sentence Structure returns just the score and reasoning. Each evaluator exports its payload
 type (`VocabularyComplexityResult` and so on) — that is the authoritative shape.
 
-The feedback family's `quality_score` is the **number** `0` or `1`, and its `key_features` maps
-each criterion to `{ met: 0 | 1, justification: string }` — `met` is a number, not a boolean.
+The feedback family's `quality_score` is the **number** `0` or `1`, and its `key_features`
+gives each criterion a `{ met: 0 | 1, justification: string }`, where `met` is a number, not a
+boolean. `key_features` is a fixed struct, not an index-signature map, so `key_features[name]`
+for a `string` name is a type error; and **the criterion keys differ per evaluator**, e.g.
 
-`metadata.model` names every model that ran, joined by `+` when an evaluator uses more than one — so a multi-step evaluator reports e.g. `openai:gpt-4o-…+openai:gpt-4.1-…`. Which models run can also depend on the input: Vocabulary Complexity takes a different branch for grades 3-4 than for 5-12. The **Required key** column below is what you must supply, not a promise about which provider serves a given call. When you need one comparable value per evaluation regardless of evaluator, use `readOutcome`:
+```
+RevisionAccuracy     accurate_task_assessment, revision_need_identification,
+                     appropriate_signal_when_task_complete
+ToneAppropriateness  neutral_professional_language, targets_work_not_student,
+                     praise_proportionate_to_work
+```
+
+To enumerate them for any evaluator, read its exported schema:
+`Object.keys(ToneAppropriatenessOutputSchema.shape.key_features.shape)`.
+
+`metadata.model` names every model that ran, joined by `+` when an evaluator uses more than one — so a multi-step evaluator reports e.g. `openai:gpt-4o-…+openai:gpt-4.1-…`. Which models run can also depend on the input: Vocabulary Complexity takes a different branch for grades 3-4 than for 5-12. The **Required key** column below is what you must supply, not a promise about which provider serves a given call: construction validates the union of keys an evaluator could need across all its branches, so Vocabulary Complexity demands both keys even at a grade where only one provider runs. Model strings come from each evaluator's contract and change with it, so treat `metadata.model` as the record of what actually ran rather than something to assert on. When you need one comparable value per evaluation regardless of evaluator, use `readOutcome`:
 
 ```typescript
 import { readOutcome, VocabularyComplexityEvaluator } from "@learning-commons/evaluators";
@@ -256,6 +299,26 @@ Every evaluator takes the same options:
 | `telemetry` | `true`, `false`, or `TelemetryOptions` (default on, without input recording) |
 | `logger` / `logLevel` | Inject a logger, or set the console logger's level with the exported `LogLevel` enum (default `LogLevel.WARN`) |
 
+`TelemetryOptions` and `Logger` are both exported. Their shapes:
+
+```typescript
+interface TelemetryOptions {
+  enabled?: boolean;              // default true
+  recordInputs?: boolean;         // default false: input text is not sent unless you opt in
+  learningCommonsApiKey?: string; // set: events are attributed to you. unset: anonymous
+}
+
+interface Logger {              // LogContext is { evaluator?, operation?, error?, ...unknown }
+  debug(message: string, context?: LogContext): void;
+  info(message: string, context?: LogContext): void;
+  warn(message: string, context?: LogContext): void;
+  error(message: string, context?: LogContext): void;
+}
+```
+
+Telemetry failures are logged at `warn` and never affect an evaluation, so a restricted-egress
+environment will see a warning per call at the default level; `telemetry: false` silences it.
+
 `Provider` and `LogLevel` are enums, not strings — `provider: "google"` and
 `logLevel: "ERROR"` do not compile. The members are `Provider.OpenAI`, `Provider.Google`,
 `Provider.Anthropic`, and `LogLevel.DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT`:
@@ -343,9 +406,11 @@ const evaluation = await new SentenceStructureEvaluator({ llmProvider: myProvide
 // evaluation.metadata.model === "byo:gpt-4o-mini"
 ```
 
-`schema` is a Zod schema. `zod` is bundled with this package rather than being a peer, so a
-backend that needs the schema in another form should convert it rather than expect a matching
-`zod` of its own. An object missing any of the three members throws `ConfigurationError`.
+`schema` is a Zod schema, and because `zod` is a peer dependency it is an instance of *your*
+zod: the same copy your own code imports, which is what makes `Output.object({ schema })`
+above compile without conversion. A backend that needs another form can convert it with
+zod's own helpers (`z.toJSONSchema(schema)`). An object missing any of the three members
+throws `ConfigurationError`.
 
 It is mutually exclusive with `modelOverride`: setting both throws `ConfigurationError`.
 
@@ -369,7 +434,38 @@ const output = await new BatchEvaluator({
 console.log(`${output.summary.successful}/${output.summary.totalTasks} succeeded`);
 ```
 
-`getFamily(id)` gives you a family's members and column spec if you need to inspect it first.
+`getFamilies()` lists the three families; `getFamily(id)` gives one family's members and column
+spec if you need to inspect it before running:
+
+```typescript
+getFamilies().map((f) => f.id);          // ["text-complexity", "math-standards-alignment", "feedback"]
+getFamily("feedback").members.length;    // 7
+getFamily("text-complexity").columns;    // [{ name, required, aliases?, default? }, ...]
+```
+
+Note that **`text-complexity` has eight members**: the seven complexity evaluators plus Grade
+Level Appropriateness, which the tables above list separately because it determines a grade
+rather than judging against one. It ignores the required `grade_level` column, which the other
+seven need. Use `--evaluator` to run a subset.
+
+To format results yourself rather than letting the command write them:
+
+```typescript
+import { renderOutputs, type ReportMeta } from "@learning-commons/evaluators/batch";
+
+const meta: ReportMeta = {
+  csvPath: "./input.csv",      // recorded in the report header
+  groupId: "text-complexity",  // the family id
+  reportId: "run-2026-08-31",
+  generatedAt: new Date(),
+  totalInputRows: rows.length,
+};
+
+const { csv, json, html } = renderOutputs("text-complexity", output, meta);
+```
+
+`html` is absent for families without a report of their own. `formatAsCSV(output)`,
+`formatAsJSON(output, meta)` and `formatAsHTML(output, meta)` are the individual projections.
 
 The same thing is available as a command, installed as `evaluators-batch`. This is what
 writes `results.csv`, `results.json`, and — for `text-complexity` and
@@ -380,9 +476,10 @@ npx evaluators-batch input.csv --family text-complexity --output-dir ./results -
 npx evaluators-batch --help
 ```
 
-`-y` makes it non-interactive: without it, it prompts for anything missing, which hangs a CI
-job. Keys come from `--google-api-key` and friends or from the matching environment
-variables. Each family has a row limit — 50 for `text-complexity` and `feedback`, 5000 for
+`-y` makes it non-interactive: without it, it prompts on a TTY for anything missing. Off a TTY
+it does not hang; it exits 1 naming what is absent, e.g. `Specify --family`. Pass `-y`
+anyway so a scripted run fails on the missing input rather than on a prompt it cannot answer.
+Keys come from `--google-api-key` and friends or from the matching environment variables. Each family has a row limit — 50 for `text-complexity` and `feedback`, 5000 for
 `math-standards-alignment`, and `getFamily(id).maxInputRows` is authoritative.
 `--bypass-row-limit` lifts it.
 
