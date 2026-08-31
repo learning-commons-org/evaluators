@@ -49,7 +49,7 @@ interface TestCase {
   id: string;
   description: string;
   question: string;
-  statementCode: string;
+  statement_code: string;
   /** The standard's learning components, in Knowledge Graph order. */
   components: string[];
   /** `some` = at least one component aligns; `none` = no component aligns. */
@@ -67,7 +67,7 @@ const TEST_CASES: TestCase[] = [
     id: 'MSA1',
     description: 'L-shaped playground area against 3.MD.C.7.d',
     question: AREA_QUESTION,
-    statementCode: '3.MD.C.7.d',
+    statement_code: '3.MD.C.7.d',
     components: RECTILINEAR_COMPONENTS,
     alignment: 'some',
   },
@@ -75,7 +75,7 @@ const TEST_CASES: TestCase[] = [
     id: 'MSA2',
     description: 'simple addition against 3.MD.C.7.d',
     question: 'What is 12 + 7?',
-    statementCode: '3.MD.C.7.d',
+    statement_code: '3.MD.C.7.d',
     components: RECTILINEAR_COMPONENTS,
     alignment: 'none',
   },
@@ -83,7 +83,7 @@ const TEST_CASES: TestCase[] = [
     id: 'MSA3',
     description: 'L-shaped playground area against the parent standard 3.MD.C.7',
     question: AREA_QUESTION,
-    statementCode: '3.MD.C.7',
+    statement_code: '3.MD.C.7',
     components: ['Use multiplication and addition to find the area of rectangles'],
     alignment: 'some',
   },
@@ -100,7 +100,7 @@ describeIntegration('MathStandardsAlignmentEvaluator - Integration', () => {
 
       const evaluation = await evaluator.evaluate({
         question: testCase.question,
-        statementCode: testCase.statementCode,
+        statement_code: testCase.statement_code,
         jurisdiction: Jurisdiction.MultiState,
       });
       const { result } = evaluation;
@@ -114,36 +114,36 @@ describeIntegration('MathStandardsAlignmentEvaluator - Integration', () => {
       expect(evaluation.metadata.tokenUsage.inputTokens).toBeGreaterThan(0);
       expect(evaluation.metadata.tokenUsage.outputTokens).toBeGreaterThan(0);
 
-      console.log(`\n  ${testCase.id}: ${result.alignedCount}/${result.totalCount} aligned`);
-      for (const lc of result.learningComponents) {
+      console.log(`\n  ${testCase.id}: ${result.aligned_count}/${result.total_count} aligned`);
+      for (const lc of result.learning_components) {
         console.log(`    ${lc.aligned ? '✓' : '✗'} ${lc.description.slice(0, 84)}`);
       }
 
-      expect(result.statementCode).toBe(testCase.statementCode);
+      expect(result.statement_code).toBe(testCase.statement_code);
       expect(
-        result.learningComponents.map((lc) => lc.description),
+        result.learning_components.map((lc) => lc.description),
         'learning components come from the Knowledge Graph, so they are exact',
       ).toEqual(testCase.components);
-      expect(result.totalCount).toBe(testCase.components.length);
-      expect(result.alignedCount).toBe(
-        result.learningComponents.filter((lc) => lc.aligned).length,
+      expect(result.total_count).toBe(testCase.components.length);
+      expect(result.aligned_count).toBe(
+        result.learning_components.filter((lc) => lc.aligned).length,
       );
 
       if (testCase.alignment === 'none') {
         expect(
-          result.alignedCount,
-          `"${testCase.question.slice(0, 40)}…" must not align to ${testCase.statementCode}`,
+          result.aligned_count,
+          `"${testCase.question.slice(0, 40)}…" must not align to ${testCase.statement_code}`,
         ).toBe(0);
       } else {
         expect(
-          result.alignedCount,
-          `"${testCase.question.slice(0, 40)}…" should align to ${testCase.statementCode}`,
+          result.aligned_count,
+          `"${testCase.question.slice(0, 40)}…" should align to ${testCase.statement_code}`,
         ).toBeGreaterThan(0);
       }
 
       // Every component is reasoned about, and a miss says how to fix the item — that is
       // the evaluator's actual product, and an empty string would satisfy the schema.
-      for (const lc of result.learningComponents) {
+      for (const lc of result.learning_components) {
         expect(lc.reasoning.trim().length, `reasoning for "${lc.description}"`).toBeGreaterThan(20);
         if (!lc.aligned) {
           expect(

@@ -68,7 +68,7 @@ Input names by family:
 | Text complexity (7 evaluators) | `{ text, grade_level }` |
 | `GradeLevelAppropriatenessEvaluator` | `{ text }` |
 | Feedback (7 evaluators) | `{ student_text, feedback_text }` |
-| `MathStandardsAlignmentEvaluator` | `{ question, statementCode, jurisdiction }` |
+| `MathStandardsAlignmentEvaluator` | `{ question, statement_code, jurisdiction }` |
 
 Unknown keys, missing keys and out-of-range values now throw `InputValidationError` before any model runs. Text is bounded at 1–10,000 characters, measured as you sent it.
 
@@ -344,16 +344,25 @@ payload bare.
 - console.log(alignment.alignedCount);
 + const { result } = await evaluator.evaluate({
 +   question,
-+   statementCode,
++   statement_code: statementCode,
 +   jurisdiction: Jurisdiction.MultiState, // an exported enum, not a string
 + });
-+ console.log(result.alignedCount);
++ console.log(result.aligned_count);
 ```
+
+The keys are snake_case now. This evaluator was the only one of the sixteen whose contract
+declared them in camelCase — inherited from the Knowledge Graph API's own field names — so
+`statementCode`, `learningComponents`, `alignedCount` and `totalCount` became `statement_code`,
+`learning_components`, `aligned_count` and `total_count`, matching its fifteen siblings. Nothing
+else about the payload changed.
+
+Batch CSVs are unaffected: `statement_code` is the canonical column and `statementCode` stays a
+recognized alias, so existing files load either way.
 
 The evaluator needs **both** `anthropicApiKey` and `learningCommonsApiKey`;
 `getEvaluator(id).requiredCredentials` lists the non-LLM ones.
 
-`statementCode` is the bare dotted code, **not** the full CCSS URI: `"5.NF.A.1"`, not
+`statement_code` is the bare dotted code, **not** the full CCSS URI: `"5.NF.A.1"`, not
 `"CCSS.MATH.CONTENT.5.NF.A.1"`. The long form raises `StandardNotFoundError`. If you have
 stored the long form, strip the prefix yourself — `normalizeStatementCode` looks like the fix
 and is not, since it only trims and upper-cases:

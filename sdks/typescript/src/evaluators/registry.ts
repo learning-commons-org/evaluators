@@ -22,7 +22,7 @@ import { MathStandardsAlignmentEvaluator } from './academic-standards-alignment/
  * An evaluator class as the registry holds it: constructible, and carrying its own metadata.
  *
  * Deliberately **not** exported from the package. Resolving a class by id erases which named
- * inputs it takes — math takes `question`/`statementCode`/`jurisdiction`, the complexity
+ * inputs it takes — math takes `question`/`statement_code`/`jurisdiction`, the complexity
  * evaluators take `text`/`grade_level` — and no signature can express "whatever this
  * particular id declares". Publishing it would hand callers a constructor that compiles
  * against any input shape and fails only at run time, and the SDK exposes no way to discover

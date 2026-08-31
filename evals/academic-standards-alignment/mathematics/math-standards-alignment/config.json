@@ -20,7 +20,7 @@
       "endpoint": "https://api.learningcommons.org/knowledge-graph/v0/academic-standards/search",
       "params": {
         "jurisdiction": "{jurisdiction}",
-        "statementCode": "{statementCode}"
+        "statementCode": "{statement_code}"
       },
       "auth": "x-api-key",
       "required_credentials": ["learning_commons_api_key"],
@@ -30,11 +30,11 @@
       "id": "get_standard_uuid",
       "type": "api",
       "kind": "http_get",
-      "description": "Resolve the statementCode to its caseIdentifierUUID via the Knowledge Graph.",
+      "description": "Resolve the statement_code to its caseIdentifierUUID via the Knowledge Graph.",
       "endpoint": "https://api.learningcommons.org/knowledge-graph/v0/academic-standards/search",
       "params": {
         "jurisdiction": "{jurisdiction}",
-        "statementCode": "{statementCode}"
+        "statementCode": "{statement_code}"
       },
       "auth": "x-api-key",
       "required_credentials": ["learning_commons_api_key"],
@@ -52,7 +52,7 @@
       "pagination": "cursor",
       "auth": "x-api-key",
       "required_credentials": ["learning_commons_api_key"],
-      "output": "learningComponents"
+      "output": "learning_components"
     }
   ],
   "steps": [
@@ -111,7 +111,7 @@
         ],
         "placeholders": {
           "question": { "required": true, "source": "input" },
-          "learning_components": { "required": true, "source": "preprocessing.learningComponents", "note": "Numbered list of LC descriptions with identifiers" }
+          "learning_components": { "required": true, "source": "preprocessing.learning_components", "note": "Numbered list of LC descriptions with identifiers" }
         }
       },
       "model": {

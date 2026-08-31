@@ -2,18 +2,28 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "math_standards_alignment_output_schema.json",
   "type": "object",
-  "required": ["statementCode", "learningComponents", "alignedCount", "totalCount"],
+  "required": [
+    "statement_code",
+    "learning_components",
+    "aligned_count",
+    "total_count"
+  ],
   "additionalProperties": false,
   "properties": {
-    "statementCode": {
+    "statement_code": {
       "type": "string",
-      "description": "The standard code that was evaluated (matches the statementCode input)"
+      "description": "The standard code that was evaluated (matches the statement_code input)"
     },
-    "learningComponents": {
+    "learning_components": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["description", "reasoning", "aligned", "feedback"],
+        "required": [
+          "description",
+          "reasoning",
+          "aligned",
+          "feedback"
+        ],
         "additionalProperties": false,
         "properties": {
           "description": {
@@ -29,18 +39,21 @@
             "description": "True if the question directly elicits the skill described by this learning component"
           },
           "feedback": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "If aligned=false: concrete revision to make the item align. If aligned=true: null."
           }
         }
       }
     },
-    "alignedCount": {
+    "aligned_count": {
       "type": "integer",
       "minimum": 0,
       "description": "Number of learning components this question aligns to"
     },
-    "totalCount": {
+    "total_count": {
       "type": "integer",
       "minimum": 0,
       "description": "Total number of learning components for this standard"

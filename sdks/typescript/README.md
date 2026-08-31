@@ -191,11 +191,11 @@ const { result } = await new MathStandardsAlignmentEvaluator({
   learningCommonsApiKey: process.env.LEARNING_COMMONS_API_KEY,
 }).evaluate({
   question: "A playground is shaped like an L. What is its area?",
-  statementCode: "3.MD.C.7.d",
+  statement_code: "3.MD.C.7.d",
   jurisdiction: Jurisdiction.MultiState,
 });
 
-console.log(`${result.alignedCount}/${result.totalCount} learning components aligned`);
+console.log(`${result.aligned_count}/${result.total_count} learning components aligned`);
 ```
 
 Each evaluator is also available as a function — `evaluateGradeLevelAppropriateness(input, config)` and so on — for callers who would rather not hold an instance.
@@ -370,7 +370,7 @@ The CSV's columns depend on the family. `getFamily(id).columns` is authoritative
 | --- | --- | --- |
 | `text-complexity` | `text`, `grade_level` | — |
 | `feedback` | `student_text`, `feedback_text` | — |
-| `math-standards-alignment` | `question` (or `text`), `statementCode` (or `statement_code`, `ccss_standard`, `standard`) | `jurisdiction` (default Multi-State), `grade_level`, `id` (or `item_id`) |
+| `math-standards-alignment` | `question` (or `text`), `statement_code` (or `statementCode`, `ccss_standard`, `standard`) | `jurisdiction` (default Multi-State), `grade_level`, `id` (or `item_id`) |
 
 Those outputs are a flattened per-row summary — score, reasoning and status — not the full
 payloads, and their shape differs between the standards family and the others. For full

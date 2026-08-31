@@ -145,7 +145,7 @@ describe('MathStandardsAlignmentEvaluator — contract bindings', () => {
   it('sends the detail step its declared temperature', async () => {
     await construct().evaluate({
       question: 'A playground is shaped like an L. What is its area?',
-      statementCode: '3.MD.C.7.d',
+      statement_code: '3.MD.C.7.d',
       jurisdiction: Jurisdiction.MultiState,
     });
 
@@ -157,7 +157,7 @@ describe('MathStandardsAlignmentEvaluator — contract bindings', () => {
   it('sends the coarse filter step its own declared temperature', async () => {
     // The coarse filter only runs for a bulk call that opts into it.
     await construct().evaluateItems(
-      [{ question: 'What is 12 + 7?', statementCodes: ['3.MD.C.7.d'] }],
+      [{ question: 'What is 12 + 7?', statement_codes: ['3.MD.C.7.d'] }],
       Jurisdiction.MultiState,
       { useCoarseFilter: true },
     );
@@ -173,7 +173,7 @@ describe('MathStandardsAlignmentEvaluator — contract bindings', () => {
   it('substitutes every placeholder its steps declare', async () => {
     await construct().evaluate({
       question: 'A playground is shaped like an L. What is its area?',
-      statementCode: '3.MD.C.7.d',
+      statement_code: '3.MD.C.7.d',
       jurisdiction: Jurisdiction.MultiState,
     });
 
@@ -187,20 +187,20 @@ describe('MathStandardsAlignmentEvaluator — contract bindings', () => {
   it('reports the standard it was asked about', async () => {
     const { result } = await construct().evaluate({
       question: 'A playground is shaped like an L. What is its area?',
-      statementCode: '3.MD.C.7.d',
+      statement_code: '3.MD.C.7.d',
       jurisdiction: Jurisdiction.MultiState,
     });
 
-    expect(result.statementCode).toBe('3.MD.C.7.d');
-    expect(result.totalCount).toBe(1);
-    expect(result.alignedCount).toBe(1);
-    expect(result.learningComponents[0].description).toBe('Decompose rectilinear figures');
+    expect(result.statement_code).toBe('3.MD.C.7.d');
+    expect(result.total_count).toBe(1);
+    expect(result.aligned_count).toBe(1);
+    expect(result.learning_components[0].description).toBe('Decompose rectilinear figures');
   });
 });
 
 describe('a failed learning-component prefetch is reported, not silently zero', () => {
   it('carries the error on a coarse-filtered result', async () => {
-    // `totalCount` falls back to 0 when the prefetch fails, which reads exactly like a
+    // `total_count` falls back to 0 when the prefetch fails, which reads exactly like a
     // standard that has no learning components. The error is what tells the two apart —
     // the field already means "0 because nothing was measured, not because nothing
     // aligned".
@@ -227,14 +227,14 @@ describe('a failed learning-component prefetch is reported, not silently zero', 
     coarseRelevant = false;
 
     const [item] = await evaluator.evaluateItems(
-      [{ question: 'What is 12 + 7?', statementCodes: ['3.MD.C.7.d'] }],
+      [{ question: 'What is 12 + 7?', statement_codes: ['3.MD.C.7.d'] }],
       Jurisdiction.MultiState,
       { useCoarseFilter: true },
     );
 
     const [standard] = item.standards;
     expect(standard.coarseFiltered, 'must reach the coarse-filtered branch').toBe(true);
-    expect(standard.totalCount).toBe(0);
+    expect(standard.total_count).toBe(0);
     expect(standard.error?.message, 'the failure must reach the caller').toContain(
       'KG unavailable',
     );

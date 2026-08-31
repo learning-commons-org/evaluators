@@ -18,16 +18,16 @@ function raw(columns: Record<string, string>, rowIndex = 2) {
 
 describe('validateRequiredColumns', () => {
   it('passes when required columns are present (via canonical name)', () => {
-    expect(() => validateRequiredColumns(STANDARDS_FAMILY, ['question', 'statementCode'])).not.toThrow();
+    expect(() => validateRequiredColumns(STANDARDS_FAMILY, ['question', 'statement_code'])).not.toThrow();
   });
 
   it('accepts aliases for required columns', () => {
-    // standards: statementCode alias "ccss_standard", question alias "text"
+    // standards: statement_code alias "ccss_standard", question alias "text"
     expect(() => validateRequiredColumns(STANDARDS_FAMILY, ['text', 'ccss_standard'])).not.toThrow();
   });
 
   it('throws listing the missing canonical column', () => {
-    expect(() => validateRequiredColumns(STANDARDS_FAMILY, ['question'])).toThrow(/statementCode/);
+    expect(() => validateRequiredColumns(STANDARDS_FAMILY, ['question'])).toThrow(/statement_code/);
   });
 });
 
@@ -35,30 +35,30 @@ describe('normalizeRow — standards family', () => {
   it('maps aliases onto canonical names', () => {
     const row = normalizeRow(raw({ text: '2+2=?', ccss_standard: '4.OA.A.1' }), STANDARDS_FAMILY);
     expect(row.columns.question).toBe('2+2=?');
-    expect(row.columns.statementCode).toBe('4.OA.A.1');
+    expect(row.columns.statement_code).toBe('4.OA.A.1');
   });
 
   it('applies the Multi-State jurisdiction default when absent', () => {
-    const row = normalizeRow(raw({ question: 'q', statementCode: '4.OA.A.1' }), STANDARDS_FAMILY);
+    const row = normalizeRow(raw({ question: 'q', statement_code: '4.OA.A.1' }), STANDARDS_FAMILY);
     expect(row.columns.jurisdiction).toBe(Jurisdiction.MultiState);
   });
 
   it('keeps an explicit jurisdiction over the default', () => {
     const row = normalizeRow(
-      raw({ question: 'q', statementCode: '4.OA.A.1', jurisdiction: 'California' }),
+      raw({ question: 'q', statement_code: '4.OA.A.1', jurisdiction: 'California' }),
       STANDARDS_FAMILY,
     );
     expect(row.columns.jurisdiction).toBe('California');
   });
 
   it('throws for a row missing a required value', () => {
-    expect(() => normalizeRow(raw({ question: 'q' }), STANDARDS_FAMILY)).toThrow(/statementCode/);
+    expect(() => normalizeRow(raw({ question: 'q' }), STANDARDS_FAMILY)).toThrow(/statement_code/);
   });
 
   it('prefers the canonical column over an alias when both are present', () => {
     // `question` has alias `text`; a CSV with both must use the canonical column.
     const row = normalizeRow(
-      raw({ text: 'passage context', question: '2+2=?', statementCode: '4.OA.A.1' }),
+      raw({ text: 'passage context', question: '2+2=?', statement_code: '4.OA.A.1' }),
       STANDARDS_FAMILY,
     );
     expect(row.columns.question).toBe('2+2=?');
@@ -66,7 +66,7 @@ describe('normalizeRow — standards family', () => {
 
   it('falls back to an alias when the canonical column is present but empty', () => {
     const row = normalizeRow(
-      raw({ question: '', text: 'the real item', statementCode: '4.OA.A.1' }),
+      raw({ question: '', text: 'the real item', statement_code: '4.OA.A.1' }),
       STANDARDS_FAMILY,
     );
     expect(row.columns.question).toBe('the real item');
