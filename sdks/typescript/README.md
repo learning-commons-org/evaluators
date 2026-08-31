@@ -40,8 +40,8 @@ no build step to run:
 npx tsx quickstart.ts
 ```
 
-`node quickstart.ts` also works from Node 22.6 onward, where Node strips types itself, but not
-on the 20.19 floor above.
+A runner is the portable choice. Recent Node versions strip types themselves, so
+`node quickstart.ts` works there too, but the 20.19 floor above cannot.
 
 CommonJS consumers can `require` the package but will need to rewrite the top-level `await`
 in these snippets. Two caveats there: the CommonJS build requires ESM-only packages, so it
