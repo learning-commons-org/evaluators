@@ -6,14 +6,31 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./batch": {
-      "types": "./dist/batch/index.d.ts",
-      "import": "./dist/batch/index.js",
-      "require": "./dist/batch/index.cjs"
+      "import": {
+        "types": "./dist/batch/index.d.ts",
+        "default": "./dist/batch/index.js"
+      },
+      "require": {
+        "types": "./dist/batch/index.d.cts",
+        "default": "./dist/batch/index.cjs"
+      }
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "batch": [
+        "./dist/batch/index.d.ts"
+      ]
     }
   },
   "sideEffects": false,
@@ -34,6 +51,7 @@
     "generate:kg-types": "openapi-typescript https://docs.learningcommons.org/api-reference/knowledge-graph-api/openapi.yaml -o src/knowledge-graph/kg-api.d.ts",
     "build": "tsup",
     "verify:dist": "vitest run tests/declarations",
+    "verify:package": "publint --strict && attw --pack .",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
@@ -97,6 +115,7 @@
     "@ai-sdk/anthropic": "^4.0.2",
     "@ai-sdk/google": "^4.0.2",
     "@ai-sdk/openai": "^4.0.3",
+    "@arethetypeswrong/cli": "^0.18.5",
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.0.0",
     "@types/prompts": "^2.4.9",
@@ -108,6 +127,7 @@
     "globals": "^17.6.0",
     "json-schema-to-zod": "^2.8.1",
     "openapi-typescript": "^7.13.0",
+    "publint": "^0.3.24",
     "tsup": "^8.0.1",
     "tsx": "^4.21.0",
     "typescript": "^5.3.3",
