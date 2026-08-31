@@ -2,7 +2,7 @@
 
 1.0.0 moves every evaluator onto the shared, language-neutral contracts under `evals/`, so the SDK reads its models, prompts, grades, inputs and output shapes from the same declarations the Python SDK and the notebooks use. The payoff is that a result is now identical across our SDKs; the cost is that most of the public surface changed at once.
 
-Twenty-six exported names are gone and seventy-three are new. Work through the sections below in order — the first four affect every caller.
+Twenty-six exported names are gone and ninety-seven are new. Work through the sections below in order — the first four affect every caller.
 
 ## 0. Upgrade the package and the peers together
 
@@ -72,7 +72,7 @@ Input names by family:
 | Feedback (7 evaluators) | `{ student_text, feedback_text }` |
 | `MathStandardsAlignmentEvaluator` | `{ question, statement_code, jurisdiction }` |
 
-Unknown keys, missing keys and out-of-range values now throw `InputValidationError` before any model runs. Text is bounded at 1–10,000 characters, measured as you sent it.
+Unknown keys, missing keys and out-of-range values now throw `InputValidationError` before any model runs. Each text input is bounded by its own contract, measured as you sent it: 10,000 characters at the top for all of them, and a minimum of 1 except Background Knowledge Demands, Grade Level Appropriateness, Meaning Directness and Sentence Structure, which require 10. The error states the limit it applied.
 
 ## 2. The result envelope changed shape
 
@@ -135,9 +135,12 @@ function toRow(dimension: string, evaluation: EvaluationResult, outcome: Declare
 
 ## 2a. The verdict *values* changed — check your stored data
 
-Nothing in the compiler will tell you about this, because `readOutcome` returns `score:
-string`. Every complexity verdict changed case and separator, and the top grade band was
-relabelled:
+The compiler will not tell you about this if you go through `readOutcome`, which returns
+`score: string`. It *will* catch a comparison against the typed payload:
+`band === "11-CCR"` gives `TS2367: ... have no overlap`, so run `tsc` before you start
+grepping.
+
+Every complexity verdict changed case and separator, and the top grade band was relabelled:
 
 | | 0.8.0 | 1.0.0 |
 | --- | --- | --- |
@@ -207,10 +210,10 @@ expressible in the type system and stay with the run-time check. The affected fi
 | `<Evaluator>Internal` types | `<Evaluator>Result` |
 | `GradeLevelAppropriatenessSchema` | `GradeLevelAppropriatenessOutputSchema` |
 | `evaluator.evaluateByGrade(...)` | `evaluator.evaluateByGradeLevel(...)` |
-| `GradeBand` as a **value** (it was a Zod enum, so `GradeBand.options` worked) | type only. For the runtime list use `GradeLevelAppropriatenessOutputSchema.shape.grade_band` |
+| `GradeBand` as a **value** (it was a Zod enum, so `GradeBand.options` worked) | type only. For the runtime list use `GradeLevelAppropriatenessOutputSchema.shape.grade_band.options` |
 | `Providers` (redundant alias; `Provider` already existed and is unchanged) | use `Provider` |
 
-Removed outright, so a `TS2305` on any of these has an entry here:
+Removed outright. Most report `TS2305`, but where a similar name survives TypeScript reports `TS2724` with a "did you mean" instead. `GradeLevelAppropriatenessSchema`, `Providers`, `ValidationError` and the two `*Internal` types below all do, so search for both codes:
 
 | removed | replacement |
 | --- | --- |
@@ -264,9 +267,15 @@ return settled.map((outcome, i) => {
 
 One reparenting is easy to miss: **`StandardNotFoundError` now extends `InputValidationError`**, not `KnowledgeGraphError`. A code that does not resolve is a bad input, not an upstream failure, so a `catch (e) { if (e instanceof KnowledgeGraphError) ... }` that used to see it no longer will.
 
-New: `DependencyError`, `LLMProviderError`, `ConfigurationError` (thrown at construction for
-a missing credential), and `LLMOutputProcessingError` for a response that arrived but could
-not be used.
+New: `DependencyError`, `LLMProviderError`, and `LLMOutputProcessingError` for a response
+that arrived but could not be used. `ConfigurationError` is **not** new (it shipped in
+0.8.0), but its base class and constructor changed with the rest, so existing `catch`
+blocks for it still need the audit below.
+
+`RateLimitError` renamed its payload: **`retryAfter` is now `retryAfterMs`**, and it is
+`number | null` rather than `number | undefined`. 0.8.0's own documented idiom was
+`sleep(error.retryAfter || 5000)`; left unchanged that silently becomes a constant 5s
+backoff. A narrowed `error` gives you `TS2339` here, but an `any`-typed `catch` will not.
 
 **The base class changed too**, which the rename table above does not cover:
 
@@ -399,7 +408,12 @@ is no single model or duration to report.
 - **`supportedGrades`** — read as `SomeEvaluator.metadata.supportedGrades`, the static. It was
   never available on an instance in either version. It now reports what the contract says the
   evaluator targets. Previously it was derived from the grade input's enum, so the seven feedback evaluators and Grade Level Appropriateness published `[]`. It is not a validation set — where a `grade_level` input exists, its schema enum is what rejects a bad value.
-- **Vocabulary Complexity** reports the model that actually ran for grades 3–4, which differs from the 5–12 branch. If you asserted one model string for all grades, it will now differ.
+- **Model strings moved for two evaluators.** Grade Level Appropriateness went from
+  `google:gemini-2.5-pro` to `google:gemini-3.6-flash`, and Sentence Structure from
+  `openai:gpt-4o` to `openai:gpt-4o-2024-08-06`. Vocabulary Complexity still reports a
+  different model for grades 3-4 than for 5-12, exactly as it did in 0.8.0. Models come
+  from each evaluator's contract and move with it, so assert on results rather than on
+  `metadata.model`.
 - **Grade Level Appropriateness and Sentence Structure** emit exactly the fields their contracts declare. GLA returns `grade_band`, `alternative_grade_band`, `scaffolding_needed`, `reasoning`.
 - **The three complexity-score schemas** are generated from their contracts, so field descriptions and enum values follow the contract rather than a hand-written copy.
 
@@ -410,9 +424,11 @@ is no single model or duration to report.
   `RevisionAccuracyEvaluator`, `RevisionActionabilityEvaluator`,
   `RevisionManageabilityEvaluator`, `StrengthAcknowledgmentEvaluator`,
   `StudentResponseSpecificityEvaluator`, `ToneAppropriatenessEvaluator`,
-  `WithholdingAnswersEvaluator`. Also newly public:
-  `OrganizationalStructureEvaluator`, `ReferenceKnowledgeDemandsEvaluator`, and
-  `StandardNotFoundError` (see section 4 — it was not exported in 0.8.0).
+  `WithholdingAnswersEvaluator`. **All seven need `openaiApiKey`.** Also newly public:
+  `OrganizationalStructureEvaluator` and `ReferenceKnowledgeDemandsEvaluator`, both needing
+  `googleApiKey`, and `StandardNotFoundError` (see section 4; it was not exported in 0.8.0).
+  A missing key throws `ConfigurationError` at construction, so a project holding only one
+  provider's key cannot reach the others; the README's evaluator tables list every one.
 - **`llmProvider`** — bring your own provider. Inject any `LLMProvider` and no API keys are needed, for Vertex AI, Bedrock, a gateway or an eval framework's model system. Mutually exclusive with `modelOverride`.
 - **The `feedback` batch family**, alongside `text-complexity` and `math-standards-alignment`.
 - **`getEvaluators()` / `getEvaluator(id)`** — a registry over all sixteen. Both return
@@ -436,4 +452,17 @@ is no single model or duration to report.
   not an evaluator. Each evaluator carries exactly one former id, so a class-name stem such as
   `smk` or `purpose` does not resolve; use the ids in the table.
 
-The `@learning-commons/evaluators/batch` entry point and the `evaluators-batch` command both existed in 0.8.0; they are documented in the [README](./README.md) now, which is the change.
+The `@learning-commons/evaluators/batch` entry point and the `evaluators-batch` command both
+existed in 0.8.0, and are documented in the [README](./README.md) now. **Their API changed as
+well**, which nothing above covers:
+
+| 0.8.0 | 1.0.0 |
+| --- | --- |
+| `EvaluatorGroup` | `EvaluatorFamily`, a different shape: `members`, `columns`, `requiredKeys()`, `createRunner()` instead of `evaluatorIds`, `requiresGoogleKey`, `requiresOpenAIKey` |
+| `getAvailableGroups()` | `getFamilies()`, plus `getFamily(id)` for one |
+| `BatchEvaluator.evaluate(inputs, groupId, onProgress?)` | `evaluate(inputs, family, options?)`, where `options` also accepts a bare `onProgress` function, so an existing third argument keeps working |
+| `BatchInput.text` / `.grade` | `BatchInput.columns: Record<string, string>`, a removal rather than the `grade` to `gradeLevel` rename in section 5 |
+
+The CLI gained `--family`, `--evaluator`, `--model`, `--learning-commons-api-key` and `-y`.
+`--evaluator` takes the full registry id (`student_facing_text.ela_reading.vocabulary_complexity`),
+not the short name.
