@@ -37,6 +37,7 @@ type JsonObject = { [key: string]: JsonValue };
 
 interface EvaluatorConfig {
   evaluator: { id: string };
+  input_schema?: { $ref: string };
   output_schema: { $ref: string };
 }
 
@@ -92,6 +93,60 @@ export function toPascalCase(str: string): string {
  * Generates the content of a Zod schema TypeScript file from a config.json path.
  * Returns slug, output path, and file content.
  */
+/**
+ * Render one declared input as a TypeScript property.
+ *
+ * A declared `enum` becomes a literal union, which is the point: the contract's accepted
+ * values become a compile error instead of a run-time one. Anything else is `string` — the
+ * bounds (`minLength`, `maxLength`) are not expressible in the type system and stay with
+ * `validateInputs`, which is the authoritative check either way.
+ */
+function renderInputProperty(name: string, spec: JsonObject): string {
+  const enumValues = spec['enum'];
+  const type = Array.isArray(enumValues) && enumValues.length > 0
+    ? enumValues.map((v) => JSON.stringify(v)).join(' | ')
+    : 'string';
+
+  const description = typeof spec['description'] === 'string' ? spec['description'] : undefined;
+  const doc = description ? `  /** ${description} */\n` : '';
+
+  return `${doc}  ${JSON.stringify(name)}: ${type};`;
+}
+
+/** The input type for a contract, or `undefined` when it declares no input schema. */
+function renderInputType(
+  configDir: string,
+  config: EvaluatorConfig,
+  className: string,
+): { code: string; source: string } | undefined {
+  if (!config.input_schema?.$ref) return undefined;
+
+  const schemaPath = resolve(configDir, config.input_schema.$ref);
+  const schema = JSON.parse(readFileSync(schemaPath, 'utf-8')) as JsonObject;
+  const properties = (schema['properties'] ?? {}) as Record<string, JsonObject>;
+
+  const names = Object.keys(properties);
+  if (names.length === 0) return undefined;
+
+  // Every declared input is required in every contract today; if that changes, an absent
+  // entry in `required` should render as optional rather than silently stay mandatory.
+  const required = new Set((schema['required'] ?? []) as string[]);
+  const missing = names.filter((n) => !required.has(n));
+  if (missing.length > 0) {
+    throw new Error(
+      `${config.input_schema.$ref} declares optional inputs (${missing.join(', ')}), which ` +
+        'this generator does not render yet — add optional-property support before shipping it.',
+    );
+  }
+
+  const body = names.map((name) => renderInputProperty(name, properties[name])).join('\n');
+
+  return {
+    code: `export type ${className}Input = {\n${body}\n};`,
+    source: relative(SDK_ROOT, schemaPath),
+  };
+}
+
 export function generateSchemaFile(configPath: string): GeneratedSchema {
   const absConfigPath = resolve(configPath);
   const configDir = dirname(absConfigPath);
@@ -121,14 +176,17 @@ export function generateSchemaFile(configPath: string): GeneratedSchema {
   const zodCode = parseSchema(resolved);
 
   const relSchemaPath = relative(SDK_ROOT, schemaPath);
+  const input = renderInputType(configDir, config, className);
 
   const content = [
     GENERATED_MARKER,
     `// Source: ${relSchemaPath}`,
+    ...(input ? [`//         ${input.source}`] : []),
     `// Regenerate: npm run generate:schemas`,
     ``,
     `import { z } from 'zod';`,
     ``,
+    ...(input ? [`/** What this evaluator accepts, from its input schema. */`, input.code, ``] : []),
     `// prettier-ignore`,
     `export const ${className}OutputSchema = ${zodCode};`,
     ``,

@@ -30,42 +30,64 @@ function evaluatorSources(dir: string): string[] {
 interface Declared {
   file: string;
   typeName: string;
-  keys: string[];
-  contractKeys: string[];
+  /** Property name -> the TypeScript type text the generator emitted. */
+  properties: Record<string, string>;
+  contract: Record<string, { enum?: string[] }>;
 }
 
-const DECLARED: Declared[] = evaluatorSources(join(SRC, 'evaluators')).flatMap((file) => {
+/** The generated schema modules, which now carry each evaluator's input type. */
+function generatedModules(dir: string): string[] {
+  return readdirSync(dir).flatMap((entry) => {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) return generatedModules(path);
+    return path.endsWith('.ts') ? [path] : [];
+  });
+}
+
+const DECLARED: Declared[] = generatedModules(join(SRC, 'schemas')).flatMap((file) => {
   const source = readFileSync(file, 'utf-8');
 
-  const typeMatch = source.match(
-    /export type (\w+Input) = InputsOf<\{ properties: Record<([^>]+), unknown> \}>/,
-  );
-  const schemaMatch = source.match(/import INPUT_SCHEMA from '([^']+input_schema\.json)'/);
-  if (!typeMatch || !schemaMatch) return [];
+  // `export type XInput = { ... };` as the generator prints it.
+  const typeMatch = source.match(/export type (\w+Input) = \{\n([\s\S]*?)\n\};/);
+  const sourceMatch = source.match(/^\/\/\s+(\S*input_schema\.json)$/m);
+  if (!typeMatch || !sourceMatch) return [];
 
-  // The contract the module itself imports, resolved the same way the compiler does.
-  const relative = schemaMatch[1].replace(/^(\.\.\/)+/, '');
-  const contract = JSON.parse(readFileSync(join(EVALS, relative.replace(/^evals\//, '')), 'utf-8'));
+  const properties: Record<string, string> = {};
+  for (const line of typeMatch[2].split('\n')) {
+    const prop = line.match(/^\s*"([^"]+)":\s*(.+);$/);
+    if (prop) properties[prop[1]] = prop[2].trim();
+  }
 
-  return [
-    {
-      file,
-      typeName: typeMatch[1],
-      keys: [...typeMatch[2].matchAll(/'([^']+)'/g)].map((m) => m[1]),
-      contractKeys: Object.keys(contract.properties),
-    },
-  ];
+  const relative = sourceMatch[1].replace(/^(\.\.\/)+/, '').replace(/^evals\//, '');
+  const contract = JSON.parse(readFileSync(join(EVALS, relative), 'utf-8')) as {
+    properties: Record<string, { enum?: string[] }>;
+  };
+
+  return [{ file, typeName: typeMatch[1], properties, contract: contract.properties }];
 });
 
 describe('input types match the contracts they name', () => {
   it('finds them, so the cases below cannot pass vacuously', () => {
-    expect(DECLARED).toHaveLength(16);
+    // Fifteen generated modules; math assembles its payload from per-component results and
+    // has no single output schema, so its input type stays hand-written.
+    expect(DECLARED).toHaveLength(15);
   });
 
-  it.each(DECLARED)('$typeName', ({ keys, contractKeys }) => {
-    // Written out rather than derived, because deriving from `typeof <json>` is what broke
-    // the declaration bundle. This is the check that keeps the two honest.
-    expect([...keys].sort()).toEqual([...contractKeys].sort());
+  it.each(DECLARED)('$typeName names the inputs its contract declares', ({ properties, contract }) => {
+    expect(Object.keys(properties).sort()).toEqual(Object.keys(contract).sort());
+  });
+
+  it.each(DECLARED)('$typeName carries the contract\'s enum values', ({ typeName, properties, contract }) => {
+    // The reason for generating these rather than deriving them: a declared `enum` becomes a
+    // literal union, so a bad grade is a compile error instead of a run-time one on a paid
+    // call. A field with no enum stays `string` — the length bounds are not expressible.
+    for (const [name, spec] of Object.entries(contract)) {
+      const expected = spec.enum
+        ? spec.enum.map((v) => JSON.stringify(v)).join(' | ')
+        : 'string';
+
+      expect(properties[name], `${typeName}.${name}`).toBe(expected);
+    }
   });
 });
 
@@ -75,6 +97,16 @@ describe('the source never reintroduces the cause', () => {
     const offenders = evaluatorSources(join(SRC, 'evaluators')).filter((file) =>
       /export type \w+Input = InputsOf<typeof /.test(readFileSync(file, 'utf-8')),
     );
+
+    expect(offenders.map((f) => f.replace(SRC, 'src'))).toEqual([]);
+  });
+
+  it('leaves the input types to the generator', () => {
+    // A hand-written one would drift from its contract's enum values, which is what the
+    // generator exists to prevent. Math is the exception and declares its own.
+    const offenders = evaluatorSources(join(SRC, 'evaluators'))
+      .filter((file) => /export type \w+Input = \{/.test(readFileSync(file, 'utf-8')))
+      .filter((file) => !file.includes('math-standards-alignment'));
 
     expect(offenders.map((f) => f.replace(SRC, 'src'))).toEqual([]);
   });

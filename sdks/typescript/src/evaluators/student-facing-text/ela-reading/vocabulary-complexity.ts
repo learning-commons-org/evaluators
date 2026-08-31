@@ -11,7 +11,7 @@ import {
 } from '../../../prompts/vocabulary-complexity/index.js';
 import type { EvaluationResult } from '../../../schemas/index.js';
 import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../../base.js';
-import { validateInputs, type InputsOf } from '../../inputs.js';
+import { validateInputs } from '../../inputs.js';
 import { requireStep } from '../../single-step.js';
 import { requireConditionValues, requirePreprocessing } from '../../multi-step.js';
 import { declaredCredentials } from '../../credentials.js';
@@ -21,7 +21,9 @@ import { EvaluatorError, wrapProviderError } from '../../../errors.js';
 import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/config.json';
 
 /** What this evaluator accepts, named by its `input_schema.json`. */
-export type VocabularyComplexityInput = InputsOf<{ properties: Record<'text' | 'grade_level', unknown> }>;
+import type { VocabularyComplexityInput } from '../../../schemas/student-facing-text/ela-reading/vocabulary-complexity.js';
+
+export type { VocabularyComplexityInput };
 
 /** The vocabulary evaluator's stage-1 output, fed to stage 2 as prompt input. */
 export interface BackgroundKnowledge {

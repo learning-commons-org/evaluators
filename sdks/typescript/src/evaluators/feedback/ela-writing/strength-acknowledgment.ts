@@ -2,14 +2,15 @@ import { StrengthAcknowledgmentOutputSchema, type StrengthAcknowledgmentResult }
 import type { EvaluationResult } from '../../../schemas/index.js';
 import type { BaseEvaluatorConfig } from '../../base.js';
 import { defineSingleStepEvaluator } from '../../single-step.js';
-import type { InputsOf } from '../../inputs.js';
 import SYSTEM_PROMPT from '../../../../../../evals/feedback/ela-writing/strength-acknowledgment/system.txt';
 import USER_PROMPT_TEMPLATE from '../../../../../../evals/feedback/ela-writing/strength-acknowledgment/user.txt';
 import CONFIG from '../../../../../../evals/feedback/ela-writing/strength-acknowledgment/config.json';
 import INPUT_SCHEMA from '../../../../../../evals/feedback/ela-writing/strength-acknowledgment/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type StrengthAcknowledgmentInput = InputsOf<{ properties: Record<'student_text' | 'feedback_text', unknown> }>;
+import type { StrengthAcknowledgmentInput } from '../../../schemas/feedback/ela-writing/strength-acknowledgment.js';
+
+export type { StrengthAcknowledgmentInput };
 
 /**
  * Judges whether the feedback names what the student did well.

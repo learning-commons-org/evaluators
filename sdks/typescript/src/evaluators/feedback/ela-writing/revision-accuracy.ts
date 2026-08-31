@@ -2,14 +2,15 @@ import { RevisionAccuracyOutputSchema, type RevisionAccuracyResult } from '../..
 import type { EvaluationResult } from '../../../schemas/index.js';
 import type { BaseEvaluatorConfig } from '../../base.js';
 import { defineSingleStepEvaluator } from '../../single-step.js';
-import type { InputsOf } from '../../inputs.js';
 import SYSTEM_PROMPT from '../../../../../../evals/feedback/ela-writing/revision-accuracy/system.txt';
 import USER_PROMPT_TEMPLATE from '../../../../../../evals/feedback/ela-writing/revision-accuracy/user.txt';
 import CONFIG from '../../../../../../evals/feedback/ela-writing/revision-accuracy/config.json';
 import INPUT_SCHEMA from '../../../../../../evals/feedback/ela-writing/revision-accuracy/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type RevisionAccuracyInput = InputsOf<{ properties: Record<'student_text' | 'feedback_text', unknown> }>;
+import type { RevisionAccuracyInput } from '../../../schemas/feedback/ela-writing/revision-accuracy.js';
+
+export type { RevisionAccuracyInput };
 
 /**
  * Judges whether the feedback correctly identifies what the student writing needs.

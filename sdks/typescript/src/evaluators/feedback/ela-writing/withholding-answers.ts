@@ -2,14 +2,15 @@ import { WithholdingAnswersOutputSchema, type WithholdingAnswersResult } from '.
 import type { EvaluationResult } from '../../../schemas/index.js';
 import type { BaseEvaluatorConfig } from '../../base.js';
 import { defineSingleStepEvaluator } from '../../single-step.js';
-import type { InputsOf } from '../../inputs.js';
 import SYSTEM_PROMPT from '../../../../../../evals/feedback/ela-writing/withholding-answers/system.txt';
 import USER_PROMPT_TEMPLATE from '../../../../../../evals/feedback/ela-writing/withholding-answers/user.txt';
 import CONFIG from '../../../../../../evals/feedback/ela-writing/withholding-answers/config.json';
 import INPUT_SCHEMA from '../../../../../../evals/feedback/ela-writing/withholding-answers/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type WithholdingAnswersInput = InputsOf<{ properties: Record<'student_text' | 'feedback_text', unknown> }>;
+import type { WithholdingAnswersInput } from '../../../schemas/feedback/ela-writing/withholding-answers.js';
+
+export type { WithholdingAnswersInput };
 
 /**
  * Judges whether the feedback guides revision without writing it for the student.

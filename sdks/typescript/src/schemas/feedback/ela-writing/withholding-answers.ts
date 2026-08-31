@@ -1,8 +1,17 @@
 // GENERATED — do not edit directly.
 // Source: ../../evals/feedback/ela-writing/withholding-answers/output_schema.json
+//         ../../evals/feedback/ela-writing/withholding-answers/input_schema.json
 // Regenerate: npm run generate:schemas
 
 import { z } from 'zod';
+
+/** What this evaluator accepts, from its input schema. */
+export type WithholdingAnswersInput = {
+  /** The student's written response. */
+  "student_text": string;
+  /** The teacher's feedback to the student. */
+  "feedback_text": string;
+};
 
 // prettier-ignore
 export const WithholdingAnswersOutputSchema = z.object({ "reasoning": z.string().describe("Step-by-step reasoning before the final answer: assess the student response against the task goal, then judge whether the teacher feedback meets the criterion."), "key_features": z.object({ "points_toward_evidence_without_supplying": z.object({ "met": z.union([z.literal(0), z.literal(1)]).describe("1 if this key feature is satisfied by the feedback, 0 otherwise."), "justification": z.string().describe("One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback.") }).strict().describe("Whether the feedback points toward where to find evidence rather than supplying the actual evidence"), "prompts_revision_without_rewriting": z.object({ "met": z.union([z.literal(0), z.literal(1)]).describe("1 if this key feature is satisfied by the feedback, 0 otherwise."), "justification": z.string().describe("One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback.") }).strict().describe("Whether it prompts the student to revise rather than rewriting or modeling the full response"), "leaves_core_thinking_to_student": z.object({ "met": z.union([z.literal(0), z.literal(1)]).describe("1 if this key feature is satisfied by the feedback, 0 otherwise."), "justification": z.string().describe("One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback.") }).strict().describe("Whether the guidance leaves the core thinking (selecting, explaining, or wording the evidence) to the student") }).strict().describe("Per-key-feature assessment; each feature judged independently."), "proposed_adjustment": z.string().describe("How the teacher feedback could be modified to meet the criterion. If it already meets the criterion, say so briefly."), "quality_score": z.union([z.literal(0), z.literal(1)]).describe("Overall: 1 if the feedback meets the criterion, 0 otherwise.") }).strict();
