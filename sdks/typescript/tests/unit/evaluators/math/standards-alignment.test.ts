@@ -668,6 +668,23 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems malformed items', () =
     expect(results[0].error?.message).toContain('rename it to `statement_codes`');
   });
 
+  it('never reports a non-string statement_code, even on an errored item', async () => {
+    const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: makeMockKgClient() }));
+
+    const results = await evaluator.evaluateItems(
+      [{ question: QUESTION, statement_codes: [123, STATEMENT_CODE] } as unknown as QuestionItem],
+      JURISDICTION,
+    );
+
+    expect(results[0].error?.name).toBe('InputValidationError');
+    expect(results[0].error?.message).toContain('must be a string');
+    // The declared type says `string`; echoing the bad value back would make it a lie.
+    for (const s of results[0].standards) {
+      expect(typeof s.statement_code).toBe('string');
+    }
+    expect(results[0].standards.map((s) => s.statement_code)).toEqual([STATEMENT_CODE]);
+  });
+
   it('isolates one malformed item without failing its siblings', async () => {
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: makeMockKgClient() }));
 

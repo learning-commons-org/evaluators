@@ -308,8 +308,12 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         question: item.question,
         // Guarded rather than assumed: an item that failed the check above still reaches
         // here, and it carries its failure at item level with no codes to report against.
+        //
+        // Non-strings are dropped rather than echoed back. The item already carries the
+        // InputValidationError that names them, and reporting one would put a non-string in
+        // a field this evaluator's own types declare as `string`.
         statement_codes: Array.isArray(item.statement_codes)
-          ? [...new Set(item.statement_codes)]
+          ? [...new Set(item.statement_codes.filter((c): c is string => typeof c === 'string'))]
           : [],
         validationError,
       };
