@@ -4,7 +4,8 @@
 
 TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction) — sixteen LLM-backed evaluators for the complexity of text students read, the quality of feedback they receive, and the alignment of math items to standards.
 
-Requires Node >= 20.19.0.
+Requires Node 20.19+ or 22.12+ (`^20.19.0 || >=22.12.0`) — the CommonJS build needs
+`require(esm)`, which Node 21.x and 22.0-22.11 lack.
 
 The SDK is ESM-first and the examples below use top-level `await`, so a TypeScript project
 needs `"type": "module"` in `package.json`, `@types/node`, and:
