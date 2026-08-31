@@ -24,18 +24,33 @@ Install only the adapters you use. Node's minimum is unchanged at `>=20.19.0`.
 
 **`zod` is now a peer dependency and must be added.** In 0.8.0 it was bundled, so npm
 installed a copy for us; now your project declares it, which is what guarantees there is only
-one copy. If you already depend on zod it must be **version 4** — the exported evaluator
-schemas are zod 4 values, and with zod 3 in your tree npm keeps a second copy, so composing
-one of our schemas with your own fails:
+one copy.
+
+It must be **version 4** — the exported evaluator schemas are zod 4 values. A project on zod 3
+fails the install rather than the build:
+
+```
+npm error ERESOLVE unable to resolve dependency tree
+npm error Found: zod@3.25.76
+```
+
+That is the intended outcome: it names the problem before any code runs. Bypassing it with
+`--legacy-peer-deps` or `--force` installs zod 3 anyway, and the build then fails on our
+declarations — `Namespace '…/zod/v3/external' has no exported member 'core'`.
+
+For contrast, 0.8.0 gave **no** install-time signal: it bundled its own zod 4 alongside your
+zod 3, and the two copies were structurally different types, so composing one of our schemas
+with your own failed at your call site with nothing fixable there:
 
 ```
 error TS2322: Type 'ZodObject<…, $strict>' is not assignable to type 'ZodTypeAny'.
   missing the following properties from type 'ZodType<any, any, any>': _type, _parse, …
 ```
 
-Nothing you can do at the call site fixes that; the two copies are structurally different
-types. Note that `ai@7` accepts `zod@^3.25.76 || ^4.1.8`, so a project pinned to zod 3 for
-`ai`'s sake now has to move to zod 4.
+That silent-two-copies state is what this change removes.
+
+Note that `ai@7` accepts `zod@^3.25.76 || ^4.1.8`, so a project pinned to zod 3 for `ai`'s
+sake now has to move to zod 4.
 
 ## 1. `evaluate()` takes named inputs
 

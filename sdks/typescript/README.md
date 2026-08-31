@@ -47,9 +47,17 @@ npm install @learning-commons/evaluators ai zod
 ```
 
 `ai` and `zod` are peer dependencies, so your project owns their versions. `zod` must be
-version 4: the evaluator schemas this package exports are zod 4 values, and a second copy in
-your tree makes them incompatible with your own — a mismatch that shows up as
-`Type 'ZodObject<…>' is not assignable to type 'ZodTypeAny'` rather than as an install error.
+version 4 — the evaluator schemas this package exports are zod 4 values. Installing against
+zod 3 fails at install time, naming zod:
+
+```
+npm error ERESOLVE unable to resolve dependency tree
+npm error Found: zod@3.25.76
+```
+
+Forcing past it with `--legacy-peer-deps` or `--force` installs zod 3 anyway, and the build
+then fails on our declarations instead — `Namespace '…/zod/v3/external' has no exported member
+'core'`. Either way the answer is zod 4; there is nothing to fix at the call site.
 
 Next, install the provider adapter(s) for the evaluators you plan to run — the table below gives each evaluator's provider:
 
