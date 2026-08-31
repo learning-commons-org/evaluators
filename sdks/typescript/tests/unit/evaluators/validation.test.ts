@@ -1,4 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+/** The declared grade type. These cases feed it invalid values on purpose, to prove the
+ * runtime check still rejects what the literal union now also rejects at compile time. */
+type GradeLevelInput = '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | '11' | '12';
 import { VocabularyComplexityEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/vocabulary-complexity.js';
 import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/background-knowledge-demands.js';
 import { MeaningDirectnessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/meaning-directness.js';
@@ -249,7 +253,7 @@ describe('Input Validation - Grade Validation', () => {
     ])('should reject grade %s (below minimum)', async (_label, grade) => {
       const validText = 'This is a sample text for testing.';
 
-      await expect(evaluator.evaluate({ text: validText, grade_level: grade }))
+      await expect(evaluator.evaluate({ text: validText, grade_level: grade as GradeLevelInput }))
         .rejects.toThrow(`Invalid grade_level "${grade}". Accepted values: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12.`);
     });
 
@@ -259,7 +263,7 @@ describe('Input Validation - Grade Validation', () => {
     ])('should reject grade %s (above maximum)', async (_label, grade) => {
       const validText = 'This is a sample text for testing.';
 
-      await expect(evaluator.evaluate({ text: validText, grade_level: grade }))
+      await expect(evaluator.evaluate({ text: validText, grade_level: grade as GradeLevelInput }))
         .rejects.toThrow(`Invalid grade_level "${grade}". Accepted values: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12.`);
     });
 
@@ -270,7 +274,7 @@ describe('Input Validation - Grade Validation', () => {
     ])('should reject grade %s (invalid format)', async (_label, grade) => {
       const validText = 'This is a sample text for testing.';
 
-      await expect(evaluator.evaluate({ text: validText, grade_level: grade }))
+      await expect(evaluator.evaluate({ text: validText, grade_level: grade as GradeLevelInput }))
         .rejects.toThrow(`Invalid grade_level "${grade}". Accepted values: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12.`);
     });
   });

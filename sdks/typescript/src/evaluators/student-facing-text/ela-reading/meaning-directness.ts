@@ -2,14 +2,15 @@ import { MeaningDirectnessOutputSchema, type MeaningDirectnessResult } from '../
 import type { EvaluationResult } from '../../../schemas/index.js';
 import type { BaseEvaluatorConfig } from '../../base.js';
 import { defineSingleStepEvaluator } from '../../single-step.js';
-import type { InputsOf } from '../../inputs.js';
 import SYSTEM_PROMPT from '../../../../../../evals/student-facing-text/ela-reading/meaning-directness/system.txt';
 import USER_PROMPT_TEMPLATE from '../../../../../../evals/student-facing-text/ela-reading/meaning-directness/user.txt';
 import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/meaning-directness/config.json';
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/meaning-directness/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type MeaningDirectnessInput = InputsOf<{ properties: Record<'text' | 'grade_level', unknown> }>;
+import type { MeaningDirectnessInput } from '../../../schemas/student-facing-text/ela-reading/meaning-directness.js';
+
+export type { MeaningDirectnessInput };
 
 /**
  * Evaluates how directly a text states its meaning, as against relying on inference,

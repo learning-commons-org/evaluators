@@ -2,14 +2,15 @@ import { RevisionManageabilityOutputSchema, type RevisionManageabilityResult } f
 import type { EvaluationResult } from '../../../schemas/index.js';
 import type { BaseEvaluatorConfig } from '../../base.js';
 import { defineSingleStepEvaluator } from '../../single-step.js';
-import type { InputsOf } from '../../inputs.js';
 import SYSTEM_PROMPT from '../../../../../../evals/feedback/ela-writing/revision-manageability/system.txt';
 import USER_PROMPT_TEMPLATE from '../../../../../../evals/feedback/ela-writing/revision-manageability/user.txt';
 import CONFIG from '../../../../../../evals/feedback/ela-writing/revision-manageability/config.json';
 import INPUT_SCHEMA from '../../../../../../evals/feedback/ela-writing/revision-manageability/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type RevisionManageabilityInput = InputsOf<{ properties: Record<'student_text' | 'feedback_text', unknown> }>;
+import type { RevisionManageabilityInput } from '../../../schemas/feedback/ela-writing/revision-manageability.js';
+
+export type { RevisionManageabilityInput };
 
 /**
  * Judges whether the revision the feedback asks for is achievable.

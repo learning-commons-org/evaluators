@@ -2,14 +2,15 @@ import { ToneAppropriatenessOutputSchema, type ToneAppropriatenessResult } from 
 import type { EvaluationResult } from '../../../schemas/index.js';
 import type { BaseEvaluatorConfig } from '../../base.js';
 import { defineSingleStepEvaluator } from '../../single-step.js';
-import type { InputsOf } from '../../inputs.js';
 import SYSTEM_PROMPT from '../../../../../../evals/feedback/ela-writing/tone-appropriateness/system.txt';
 import USER_PROMPT_TEMPLATE from '../../../../../../evals/feedback/ela-writing/tone-appropriateness/user.txt';
 import CONFIG from '../../../../../../evals/feedback/ela-writing/tone-appropriateness/config.json';
 import INPUT_SCHEMA from '../../../../../../evals/feedback/ela-writing/tone-appropriateness/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type ToneAppropriatenessInput = InputsOf<{ properties: Record<'student_text' | 'feedback_text', unknown> }>;
+import type { ToneAppropriatenessInput } from '../../../schemas/feedback/ela-writing/tone-appropriateness.js';
+
+export type { ToneAppropriatenessInput };
 
 /**
  * Judges whether the feedback addresses the work rather than the student.

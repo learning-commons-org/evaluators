@@ -36,7 +36,19 @@ CommonJS consumers can `require` the package but will need to rewrite the top-le
 in these snippets.
 
 Each evaluator's argument and payload types are exported — `VocabularyComplexityInput`,
-`VocabularyComplexityResult` and so on — so you can name them in your own signatures.
+`VocabularyComplexityResult` and so on — so you can name them in your own signatures. Both are
+generated from the evaluator's contract, so an input's declared values are a literal union
+rather than `string`:
+
+```typescript
+const ok: PurposeClarityInput = { text, grade_level: "5" };
+const typo: PurposeClarityInput = { text, grade_level: "fifth" };
+//                                       ^ not assignable to '"3" | "4" | … | "12"'
+```
+
+A grade arriving as a `string` — from a form, a database, a request body — needs narrowing
+before it fits. Validate it where the external value enters your system, which is where the
+check belongs; the evaluator still rejects a bad value at run time either way.
 
 ## Installation
 

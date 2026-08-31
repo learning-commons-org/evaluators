@@ -5,14 +5,15 @@ import {
 import type { EvaluationResult } from '../../../schemas/index.js';
 import type { BaseEvaluatorConfig } from '../../base.js';
 import { defineSingleStepEvaluator } from '../../single-step.js';
-import type { InputsOf } from '../../inputs.js';
 import SYSTEM_PROMPT from '../../../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/system.txt';
 import USER_PROMPT_TEMPLATE from '../../../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/user.txt';
 import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/config.json';
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type GradeLevelAppropriatenessInput = InputsOf<{ properties: Record<'text', unknown> }>;
+import type { GradeLevelAppropriatenessInput } from '../../../schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
+
+export type { GradeLevelAppropriatenessInput };
 
 /**
  * Reports the grade band a text is appropriate for at independent reading, plus a second

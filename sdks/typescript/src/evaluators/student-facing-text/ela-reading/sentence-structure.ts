@@ -14,7 +14,6 @@ import {
 import type { EvaluationResult } from '../../../schemas/index.js';
 import type { BaseEvaluatorConfig } from '../../base.js';
 import { defineMultiStepEvaluator } from '../../multi-step.js';
-import type { InputsOf } from '../../inputs.js';
 import ANALYSIS_SYSTEM from '../../../../../../evals/student-facing-text/ela-reading/sentence-structure/analysis-system.txt';
 import ANALYSIS_USER from '../../../../../../evals/student-facing-text/ela-reading/sentence-structure/analysis-user.txt';
 import COMPLEXITY_SYSTEM from '../../../../../../evals/student-facing-text/ela-reading/sentence-structure/complexity-system.txt';
@@ -26,7 +25,9 @@ import CONFIG from '../../../../../../evals/student-facing-text/ela-reading/sent
 import INPUT_SCHEMA from '../../../../../../evals/student-facing-text/ela-reading/sentence-structure/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type SentenceStructureInput = InputsOf<{ properties: Record<'text' | 'grade_level', unknown> }>;
+import type { SentenceStructureInput } from '../../../schemas/student-facing-text/ela-reading/sentence-structure.js';
+
+export type { SentenceStructureInput };
 
 /**
  * Evaluates sentence-structure complexity in student-facing text.

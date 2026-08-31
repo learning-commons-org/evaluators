@@ -2,14 +2,15 @@ import { RevisionActionabilityOutputSchema, type RevisionActionabilityResult } f
 import type { EvaluationResult } from '../../../schemas/index.js';
 import type { BaseEvaluatorConfig } from '../../base.js';
 import { defineSingleStepEvaluator } from '../../single-step.js';
-import type { InputsOf } from '../../inputs.js';
 import SYSTEM_PROMPT from '../../../../../../evals/feedback/ela-writing/revision-actionability/system.txt';
 import USER_PROMPT_TEMPLATE from '../../../../../../evals/feedback/ela-writing/revision-actionability/user.txt';
 import CONFIG from '../../../../../../evals/feedback/ela-writing/revision-actionability/config.json';
 import INPUT_SCHEMA from '../../../../../../evals/feedback/ela-writing/revision-actionability/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type RevisionActionabilityInput = InputsOf<{ properties: Record<'student_text' | 'feedback_text', unknown> }>;
+import type { RevisionActionabilityInput } from '../../../schemas/feedback/ela-writing/revision-actionability.js';
+
+export type { RevisionActionabilityInput };
 
 /**
  * Judges whether the feedback tells the student what to actually do next.

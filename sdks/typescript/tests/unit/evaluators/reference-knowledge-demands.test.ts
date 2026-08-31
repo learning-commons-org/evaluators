@@ -1,4 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+/** The declared grade type. Cast onto it to drive the *runtime* rejection path,
+ * which the literal union would otherwise make unreachable from TypeScript. */
+type GradeLevelInput = '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | '11' | '12';
 import { runPreprocessingStep } from '../../../src/features/preprocessing.js';
 import CONFIG from '../../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/config.json';
 import { ReferenceKnowledgeDemandsEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/reference-knowledge-demands.js';
@@ -237,12 +241,12 @@ describe('ReferenceKnowledgeDemandsEvaluator - Validation', () => {
   });
 
   it('rejects grade below 3', async () => {
-    await expect(evaluator.evaluate({ text: 'Some text.', grade_level: '2' })).rejects.toThrow(/Invalid grade/);
+    await expect(evaluator.evaluate({ text: 'Some text.', grade_level: '2' as GradeLevelInput })).rejects.toThrow(/Invalid grade/);
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
   it('rejects grade above 12', async () => {
-    await expect(evaluator.evaluate({ text: 'Some text.', grade_level: '13' })).rejects.toThrow(/Invalid grade/);
+    await expect(evaluator.evaluate({ text: 'Some text.', grade_level: '13' as GradeLevelInput })).rejects.toThrow(/Invalid grade/);
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 

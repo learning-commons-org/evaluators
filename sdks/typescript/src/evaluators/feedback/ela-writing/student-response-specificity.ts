@@ -2,14 +2,15 @@ import { StudentResponseSpecificityOutputSchema, type StudentResponseSpecificity
 import type { EvaluationResult } from '../../../schemas/index.js';
 import type { BaseEvaluatorConfig } from '../../base.js';
 import { defineSingleStepEvaluator } from '../../single-step.js';
-import type { InputsOf } from '../../inputs.js';
 import SYSTEM_PROMPT from '../../../../../../evals/feedback/ela-writing/student-response-specificity/system.txt';
 import USER_PROMPT_TEMPLATE from '../../../../../../evals/feedback/ela-writing/student-response-specificity/user.txt';
 import CONFIG from '../../../../../../evals/feedback/ela-writing/student-response-specificity/config.json';
 import INPUT_SCHEMA from '../../../../../../evals/feedback/ela-writing/student-response-specificity/input_schema.json';
 
 /** What this evaluator accepts, taken from its `input_schema.json`. */
-export type StudentResponseSpecificityInput = InputsOf<{ properties: Record<'student_text' | 'feedback_text', unknown> }>;
+import type { StudentResponseSpecificityInput } from '../../../schemas/feedback/ela-writing/student-response-specificity.js';
+
+export type { StudentResponseSpecificityInput };
 
 /**
  * Judges whether the feedback engages this student's actual writing.

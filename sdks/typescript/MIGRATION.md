@@ -154,6 +154,42 @@ nothing, and a `GROUP BY score` silently splits into old and new buckets. **Grep
 strings, and backfill anything you have persisted.** Values now come straight from each
 evaluator's contract, which is what makes them identical across our SDKs.
 
+## 2b. Declared input values are literal unions
+
+`grade_level` was typed `string`, so a typo compiled and failed at run time on a paid call. It
+is now the union its contract declares, generated from the same file the runtime check reads:
+
+```diff
+- evaluate({ text, grade_level: string })
++ evaluate({ text, grade_level: '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | '11' | '12' })
+```
+
+Passing a literal is unaffected. **Passing a `string` variable no longer compiles**, which is
+the one place this costs you:
+
+```typescript
+const grade: string = row.grade_level;
+await evaluator.evaluate({ text, grade_level: grade });
+//                                            ^ string is not assignable
+```
+
+Narrow it where the external value enters your system:
+
+```typescript
+const GRADES = ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const;
+type Grade = (typeof GRADES)[number];
+
+function toGrade(value: string): Grade {
+  if (!GRADES.includes(value as Grade)) throw new Error(`Unsupported grade: ${value}`);
+  return value as Grade;
+}
+```
+
+Only declared enums changed. Text inputs remain `string` — their length bounds are not
+expressible in the type system and stay with the run-time check. The affected fields are
+`grade_level` on the seven text-complexity evaluators; math's `jurisdiction` was already the
+`Jurisdiction` enum.
+
 ## 3. Evaluators renamed onto the taxonomy
 
 | 0.8.0 | 1.0.0 |
