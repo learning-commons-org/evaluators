@@ -20,7 +20,9 @@ One command, not two:
 npm install @learning-commons/evaluators@^1 zod@^4 ai@^7 @ai-sdk/google@^4 @ai-sdk/openai@^4 @ai-sdk/anthropic@^4
 ```
 
-Install only the adapters you use. Node's minimum is unchanged at `>=20.19.0`.
+Install only the adapters you use. Node's floor is unchanged, but the range is now
+`^20.19.0 || >=22.12.0`: the CommonJS build requires ESM-only packages, so it needs
+`require(esm)`, which 20.19 has and 21.x / 22.0-22.11 do not.
 
 **`zod` is now a peer dependency and must be added.** In 0.8.0 it was bundled, so npm
 installed a copy for us; now your project declares it, which is what guarantees there is only
@@ -330,9 +332,12 @@ Covered by step 0 above, which has to happen first. For reference:
 
 | Peer | 0.8.0 | 1.0.0 |
 | --- | --- | --- |
-| `ai` | `>=6.0.0` | `>=7.0.0` |
-| `@ai-sdk/google`, `@ai-sdk/openai`, `@ai-sdk/anthropic` | `>=3.0.0` | `>=4.0.0` |
-| `zod` | *(bundled as a dependency)* | `^4.0.0` — now a peer you declare |
+| `ai` | `>=6.0.0` | `>=7.0.0 <8` |
+| `@ai-sdk/google`, `@ai-sdk/openai`, `@ai-sdk/anthropic` | `>=3.0.0` | `>=4.0.0 <5` |
+| `zod` | *(bundled as a dependency)* | `^4.1.8` — now a peer you declare |
+
+The `zod` floor is `4.1.8` rather than `4.0.0` because `ai@7` itself requires
+`zod@^3.25.76 || ^4.1.8`; a lower floor is not installable alongside it.
 
 ## 8. Math standards alignment: named inputs, and the envelope
 
