@@ -23,12 +23,12 @@ function standardsResult(over: Partial<BatchResult> = {}): BatchResult {
     processingTimeMs: 10,
     originalRow: { id: 'itm-1', ccss_standard: '4.OA.A.1', question: '2+2=?' },
     payload: {
-      statementCode: '4.OA.A.1',
+      statement_code: '4.OA.A.1',
       question: '2+2=?',
       jurisdiction: 'Multi-State',
-      alignedCount: 1,
-      totalCount: 2,
-      learningComponents: [
+      aligned_count: 1,
+      total_count: 2,
+      learning_components: [
         { identifier: 'lc1', description: 'Add within 100', aligned: true, reasoning: 'r1', feedback: '' },
         { identifier: 'lc2', description: 'Multiply', aligned: false, reasoning: 'r2', feedback: 'make it multiply' },
       ],
@@ -102,7 +102,8 @@ describe('renderOutputs — standards family', () => {
     expect(parsed.items[0].status).toBe('error');
     expect(parsed.items[0].error).toBe('Standard not found');
     expect(parsed.items[0].alignedCount).toBeNull();
-    // Error rows still carry jurisdiction/statementCode from the source row.
+    // Error rows still carry jurisdiction/statementCode from the source row. These are report
+    // row fields, which stay camelCase; only the contract payload moved to snake_case.
     expect(parsed.items[0].jurisdiction).toBe('Texas');
     expect(parsed.items[0].statementCode).toBe('4.OA.A.1');
   });
@@ -217,7 +218,7 @@ describe('standards CSV — escaping, header contract, and blank handling', () =
   it('leaves the ratio blank rather than dividing by zero', () => {
     const bundle = renderOutputs(
       'math-standards-alignment',
-      output([standardsResult({ payload: { statementCode: '4.OA.A.1', question: 'q', jurisdiction: 'Multi-State', alignedCount: 0, totalCount: 0, learningComponents: [] } })]),
+      output([standardsResult({ payload: { statement_code: '4.OA.A.1', question: 'q', jurisdiction: 'Multi-State', aligned_count: 0, total_count: 0, learning_components: [] } })]),
       meta,
     );
     const row = bundle.csv.split('\n')[1].split(',');
@@ -246,7 +247,7 @@ describe('standards CSV — escaping, header contract, and blank handling', () =
   // normalizeRow matches headers case-insensitively and via the family's aliases,
   // so anything accepted on input must survive into the outputs.
   it.each([
-    ['canonical, normalized', { columns: { id: 'itm-9', statementCode: '5.NF.B.3', jurisdiction: 'Utah' } }],
+    ['canonical, normalized', { columns: { id: 'itm-9', statement_code: '5.NF.B.3', jurisdiction: 'Utah' } }],
     ['aliased + capitalized source headers', {
       columns: undefined,
       originalRow: { Item_ID: 'itm-9', CCSS_Standard: '5.NF.B.3', Jurisdiction: 'Utah' },
@@ -254,16 +255,16 @@ describe('standards CSV — escaping, header contract, and blank handling', () =
     // Blank/null/padded keys must all fall through to a populated alias rather
     // than resolving to '' or the string "null".
     ['blank, null and padded keys, falling through to a populated alias', {
-      columns: { id: '', statementCode: '', jurisdiction: '' },
+      columns: { id: '', statement_code: '', jurisdiction: '' },
       originalRow: {
-        statementCode: '',
-        statement_code: null,
+        statement_code: '',
+        statementCode: null,
         Item_ID: 'itm-9',
         CCSS_Standard: '5.NF.B.3',
         '  Jurisdiction  ': 'Utah',
       },
     }],
-  ])('carries id/statementCode/jurisdiction from %s onto an error row', (_label, over) => {
+  ])('carries id/statement_code/jurisdiction from %s onto an error row', (_label, over) => {
     const bundle = renderOutputs(
       'math-standards-alignment',
       output([standardsResult({ status: 'error', error: 'KG 401', score: undefined, payload: undefined, ...over })]),
@@ -335,7 +336,7 @@ describe('standards HTML — payload escaping', () => {
   function htmlFor(question: string): string {
     const { html } = renderOutputs(
       'math-standards-alignment',
-      output([standardsResult({ payload: { statementCode: '4.OA.A.1', question, jurisdiction: 'Multi-State', alignedCount: 1, totalCount: 2, learningComponents: [] } })]),
+      output([standardsResult({ payload: { statement_code: '4.OA.A.1', question, jurisdiction: 'Multi-State', aligned_count: 1, total_count: 2, learning_components: [] } })]),
       meta,
     );
     // The standards family has a report of its own; a bundle without one here would mean

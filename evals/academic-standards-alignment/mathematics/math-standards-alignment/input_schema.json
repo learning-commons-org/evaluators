@@ -2,7 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "math_standards_alignment_input_schema.json",
   "type": "object",
-  "required": ["question", "statementCode", "jurisdiction"],
+  "required": [
+    "question",
+    "statement_code",
+    "jurisdiction"
+  ],
   "additionalProperties": false,
   "properties": {
     "question": {
@@ -11,7 +15,7 @@
       "minLength": 1,
       "maxLength": 10000
     },
-    "statementCode": {
+    "statement_code": {
       "type": "string",
       "description": "Math standard code to evaluate against (e.g. '3.MD.C.7.d', 'K.CC.A.1').",
       "minLength": 1,
@@ -19,7 +23,7 @@
     },
     "jurisdiction": {
       "type": "string",
-      "description": "Standards jurisdiction — 'Multi-State' for CCSS, or a specific state name. Determines which framework the standard code is resolved against. Mirrors the SDK's Jurisdiction enum.",
+      "description": "Standards jurisdiction \u2014 'Multi-State' for CCSS, or a specific state name. Determines which framework the standard code is resolved against. Mirrors the SDK's Jurisdiction enum.",
       "enum": [
         "Multi-State",
         "Alabama",

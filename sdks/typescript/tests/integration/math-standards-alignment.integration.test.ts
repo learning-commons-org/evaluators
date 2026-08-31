@@ -67,8 +67,8 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
     '3.MD.C.7 family: area L-shape question vs parent + all sub-standards',
     async () => {
       const questionItems = [
-        { question: AREA_QUESTION, statementCodes: MD_C_7_FAMILY },
-        { question: UNRELATED_QUESTION, statementCodes: MD_C_7_FAMILY },
+        { question: AREA_QUESTION, statement_codes: MD_C_7_FAMILY },
+        { question: UNRELATED_QUESTION, statement_codes: MD_C_7_FAMILY },
       ];
 
       // ── Phase 1: ground truth (no coarse filter) ──────────────────────────
@@ -87,9 +87,9 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
       for (const qr of groundTruth) {
         console.log(`\n  Q: "${qr.question.slice(0, 70)}…"`);
         for (const s of qr.standards) {
-          const tag = s.alignedCount > 0 ? `ALIGNED ${s.alignedCount}/${s.totalCount}` : `not aligned 0/${s.totalCount}`;
-          console.log(`    ${s.statementCode.padEnd(12)} [${tag}]`);
-          for (const lc of s.learningComponents) {
+          const tag = s.aligned_count > 0 ? `ALIGNED ${s.aligned_count}/${s.total_count}` : `not aligned 0/${s.total_count}`;
+          console.log(`    ${s.statement_code.padEnd(12)} [${tag}]`);
+          for (const lc of s.learning_components) {
             console.log(`      ${lc.aligned ? '✓' : '✗'} ${lc.description.slice(0, 80)}`);
           }
         }
@@ -101,10 +101,10 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
         console.log(`\n  Q: "${qr.question.slice(0, 70)}…"`);
         for (const s of qr.standards) {
           if (s.coarseFiltered) {
-            console.log(`    ${s.statementCode.padEnd(12)} [COARSE FILTERED]`);
+            console.log(`    ${s.statement_code.padEnd(12)} [COARSE FILTERED]`);
           } else {
-            const tag = s.alignedCount > 0 ? `ALIGNED ${s.alignedCount}/${s.totalCount}` : `not aligned 0/${s.totalCount}`;
-            console.log(`    ${s.statementCode.padEnd(12)} [${tag}]`);
+            const tag = s.aligned_count > 0 ? `ALIGNED ${s.aligned_count}/${s.total_count}` : `not aligned 0/${s.total_count}`;
+            console.log(`    ${s.statement_code.padEnd(12)} [${tag}]`);
           }
         }
       }
@@ -115,21 +115,21 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
 
       let falseNegatives = 0;
       for (const gtStd of areaGT.standards) {
-        const filteredStd = areaFiltered.standards.find((s) => s.statementCode === gtStd.statementCode)!;
-        const wasAligned = gtStd.alignedCount > 0;
+        const filteredStd = areaFiltered.standards.find((s) => s.statement_code === gtStd.statement_code)!;
+        const wasAligned = gtStd.aligned_count > 0;
         const wasFiltered = filteredStd.coarseFiltered === true;
         const status = wasFiltered && wasAligned ? '❌ FALSE NEGATIVE' :
                        wasFiltered ? '○ filtered (correctly — not aligned)' :
                        wasAligned ? '✓ passed through (correctly — aligned)' :
                        '✓ passed through (not aligned, detail eval confirmed)';
-        console.log(`  ${gtStd.statementCode.padEnd(12)} aligned=${wasAligned} filtered=${wasFiltered}  ${status}`);
+        console.log(`  ${gtStd.statement_code.padEnd(12)} aligned=${wasAligned} filtered=${wasFiltered}  ${status}`);
         if (wasFiltered && wasAligned) falseNegatives++;
       }
       console.log(`\nFalse negatives: ${falseNegatives}/${MD_C_7_FAMILY.length}`);
 
       // ── Ground truth assertions ────────────────────────────────────────────
 
-      const find = (code: string) => areaGT.standards.find((s) => s.statementCode === code)!;
+      const find = (code: string) => areaGT.standards.find((s) => s.statement_code === code)!;
 
       // Alignment per learning component is a model judgement and it moves between runs
       // even at temperature 0 — for 3.MD.C.7.d runs have produced 1, 2 and 3 of 3. So the
@@ -138,37 +138,37 @@ describe('MathStandardsAlignmentEvaluator - integration', { timeout: 300_000 }, 
       // 3.MD.C.7 — parent standard: "use multiplication and addition to find area"
       //   Area L-shape requires adding two rectangles → aligned
       const s7 = find('3.MD.C.7');
-      expect(s7.totalCount).toBeGreaterThan(0);
-      expect(s7.alignedCount, '3.MD.C.7 should align').toBeGreaterThan(0);
+      expect(s7.total_count).toBeGreaterThan(0);
+      expect(s7.aligned_count, '3.MD.C.7 should align').toBeGreaterThan(0);
 
       // 3.MD.C.7.a — "tiling" and "same result as multiplying side lengths"
       //   L-shape question does not ask students to tile or reason about tiling
       const s7a = find('3.MD.C.7.a');
-      expect(s7a.totalCount).toBeGreaterThan(0);
-      expect(s7a.alignedCount, '3.MD.C.7.a should not align (about tiling, not decomposition)').toBe(0);
+      expect(s7a.total_count).toBeGreaterThan(0);
+      expect(s7a.aligned_count, '3.MD.C.7.a should not align (about tiling, not decomposition)').toBe(0);
 
       // 3.MD.C.7.b — "multiply side lengths to find area of rectangles"
       //   Computing 8×3 and 4×2 is multiplication of side lengths → aligned
       const s7b = find('3.MD.C.7.b');
-      expect(s7b.totalCount).toBeGreaterThan(0);
-      expect(s7b.alignedCount, '3.MD.C.7.b should align (multiplication of sides present)').toBeGreaterThan(0);
+      expect(s7b.total_count).toBeGreaterThan(0);
+      expect(s7b.aligned_count, '3.MD.C.7.b should align (multiplication of sides present)').toBeGreaterThan(0);
 
       // 3.MD.C.7.c — "distributive property / a(b+c)"
       //   L-shape uses decomposition and addition but does not explicitly model a(b+c)
       const s7c = find('3.MD.C.7.c');
-      expect(s7c.totalCount).toBeGreaterThan(0);
-      expect(s7c.alignedCount, '3.MD.C.7.c should not align (about distributive property, not rectilinear area)').toBe(0);
+      expect(s7c.total_count).toBeGreaterThan(0);
+      expect(s7c.aligned_count, '3.MD.C.7.c should not align (about distributive property, not rectilinear area)').toBe(0);
 
       // 3.MD.C.7.d — "area additive / decompose rectilinear figures" — canonical match
       //   L-shape is the textbook example of rectilinear decomposition
       const s7d = find('3.MD.C.7.d');
-      expect(s7d.totalCount).toBeGreaterThan(0);
-      expect(s7d.alignedCount, '3.MD.C.7.d should align').toBeGreaterThan(0);
+      expect(s7d.total_count).toBeGreaterThan(0);
+      expect(s7d.aligned_count, '3.MD.C.7.d should align').toBeGreaterThan(0);
 
       // Unrelated question must not align to any standard
       const unrelatedGT = groundTruth.find((q) => q.question === UNRELATED_QUESTION)!;
       for (const s of unrelatedGT.standards) {
-        expect(s.alignedCount, `"12 + 7" should not align to ${s.statementCode}`).toBe(0);
+        expect(s.aligned_count, `"12 + 7" should not align to ${s.statement_code}`).toBe(0);
       }
 
       // Coarse filter must not produce false negatives on the area question

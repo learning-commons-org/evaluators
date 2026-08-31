@@ -83,13 +83,13 @@ describe('STANDARDS_FAMILY.runTask', () => {
   const ALIGNMENT = {
     evaluator: 'math-standards-alignment',
     result: {
-      statementCode: '3.MD.C.7.d',
-      learningComponents: [
+      statement_code: '3.MD.C.7.d',
+      learning_components: [
         { identifier: 'lc-1', description: 'a', reasoning: 'r', aligned: true, feedback: '' },
         { identifier: 'lc-2', description: 'b', reasoning: 'r', aligned: false, feedback: 'revise' },
       ],
-      alignedCount: 1,
-      totalCount: 2,
+      aligned_count: 1,
+      total_count: 2,
     },
     metadata: {
       model: 'anthropic:claude-x',
@@ -112,13 +112,13 @@ describe('STANDARDS_FAMILY.runTask', () => {
   it('reports aligned/total as the score and carries the full verdict as payload', async () => {
     const evaluate = vi.fn().mockResolvedValue(ALIGNMENT);
     const outcome = await runnerWithStub(evaluate).runTask(
-      row({ question: 'What is the area?', statementCode: '3.MD.C.7.d', jurisdiction: Jurisdiction.Utah }),
+      row({ question: 'What is the area?', statement_code: '3.MD.C.7.d', jurisdiction: Jurisdiction.Utah }),
       MEMBER,
     );
 
     expect(evaluate).toHaveBeenCalledWith({
       question: 'What is the area?',
-      statementCode: '3.MD.C.7.d',
+      statement_code: '3.MD.C.7.d',
       jurisdiction: Jurisdiction.Utah,
     });
     expect(outcome.score).toBe('1/2');
@@ -126,28 +126,28 @@ describe('STANDARDS_FAMILY.runTask', () => {
     expect(outcome.payload).toMatchObject({
       question: 'What is the area?',
       jurisdiction: Jurisdiction.Utah,
-      alignedCount: 1,
-      totalCount: 2,
+      aligned_count: 1,
+      total_count: 2,
     });
     // The payload is written verbatim to results.json, so spreading the envelope instead of
     // its `result` would add `evaluator`/`metadata` columns to a partner-facing artefact.
     expect(Object.keys(outcome.payload as object).sort()).toEqual([
-      'alignedCount',
+      'aligned_count',
       'jurisdiction',
-      'learningComponents',
+      'learning_components',
       'question',
-      'statementCode',
-      'totalCount',
+      'statement_code',
+      'total_count',
     ]);
   });
 
   it('defaults an absent jurisdiction to Multi-State', async () => {
     const evaluate = vi.fn().mockResolvedValue(ALIGNMENT);
-    await runnerWithStub(evaluate).runTask(row({ question: 'q', statementCode: '3.MD.C.7.d' }), MEMBER);
+    await runnerWithStub(evaluate).runTask(row({ question: 'q', statement_code: '3.MD.C.7.d' }), MEMBER);
 
     expect(evaluate).toHaveBeenCalledWith({
       question: 'q',
-      statementCode: '3.MD.C.7.d',
+      statement_code: '3.MD.C.7.d',
       jurisdiction: Jurisdiction.MultiState,
     });
   });
@@ -155,7 +155,7 @@ describe('STANDARDS_FAMILY.runTask', () => {
   it('rejects an unrecognised jurisdiction instead of passing it to the Knowledge Graph', async () => {
     const evaluate = vi.fn();
     await expect(
-      runnerWithStub(evaluate).runTask(row({ question: 'q', statementCode: 'x', jurisdiction: 'Utahh' }), MEMBER),
+      runnerWithStub(evaluate).runTask(row({ question: 'q', statement_code: 'x', jurisdiction: 'Utahh' }), MEMBER),
     ).rejects.toThrow(/Invalid jurisdiction "Utahh"/);
     expect(evaluate).not.toHaveBeenCalled();
   });

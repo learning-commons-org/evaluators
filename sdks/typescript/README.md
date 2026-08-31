@@ -191,11 +191,32 @@ const { result } = await new MathStandardsAlignmentEvaluator({
   learningCommonsApiKey: process.env.LEARNING_COMMONS_API_KEY,
 }).evaluate({
   question: "A playground is shaped like an L. What is its area?",
-  statementCode: "3.MD.C.7.d",
+  statement_code: "3.MD.C.7.d",
   jurisdiction: Jurisdiction.MultiState,
 });
 
-console.log(`${result.alignedCount}/${result.totalCount} learning components aligned`);
+console.log(`${result.aligned_count}/${result.total_count} learning components aligned`);
+```
+
+`result` carries one verdict per learning component the standard declares, so you can see *which*
+part of the standard an item does and does not reach:
+
+```jsonc
+{
+  "statement_code": "3.MD.C.7.d",
+  "learning_components": [
+    {
+      "identifier": "29c42ed3-da20-5288-a4b1-c72989c97fe4",
+      "description": "Find the area of rectilinear figures by decomposing them into non-overlapping parts and finding the area of each part",
+      "reasoning": "The question presents an L-shaped playground explicitly described as two rectangular parts with no overlap...",
+      "aligned": true,
+      "feedback": "Students must decompose the L-shape into two rectangles, find each area, and sum them."
+    }
+    // ...one entry per learning component
+  ],
+  "aligned_count": 3,
+  "total_count": 3       // a total_count of 0 means the standard has no components authored yet
+}
 ```
 
 Each evaluator is also available as a function — `evaluateGradeLevelAppropriateness(input, config)` and so on — for callers who would rather not hold an instance.
@@ -370,7 +391,7 @@ The CSV's columns depend on the family. `getFamily(id).columns` is authoritative
 | --- | --- | --- |
 | `text-complexity` | `text`, `grade_level` | — |
 | `feedback` | `student_text`, `feedback_text` | — |
-| `math-standards-alignment` | `question` (or `text`), `statementCode` (or `statement_code`, `ccss_standard`, `standard`) | `jurisdiction` (default Multi-State), `grade_level`, `id` (or `item_id`) |
+| `math-standards-alignment` | `question` (or `text`), `statement_code` (or `statementCode`, `ccss_standard`, `standard`) | `jurisdiction` (default Multi-State), `grade_level`, `id` (or `item_id`) |
 
 Those outputs are a flattened per-row summary — score, reasoning and status — not the full
 payloads, and their shape differs between the standards family and the others. For full

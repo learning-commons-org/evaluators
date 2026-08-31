@@ -27,7 +27,7 @@ interface StandardsRow {
   alignedCount: number | null;
   totalCount: number | null;
   error: string | null;
-  learningComponents: StandardsVerdict['learningComponents'];
+  learningComponents: StandardsVerdict['learning_components'];
   originalRow: Record<string, unknown>;
 }
 
@@ -60,14 +60,14 @@ function toRow(result: BatchResult): StandardsRow {
     id: column(result, 'id'),
     gradeLevel: result.gradeLevel || column(result, 'grade_level'),
     // Keep context on error rows, which carry no verdict to read from.
-    statementCode: verdict?.statementCode ?? column(result, 'statementCode'),
+    statementCode: verdict?.statement_code ?? column(result, 'statement_code'),
     jurisdiction: verdict?.jurisdiction ?? column(result, 'jurisdiction'),
     question: verdict?.question ?? result.text ?? column(result, 'question'),
     status: result.status,
-    alignedCount: verdict ? verdict.alignedCount : null,
-    totalCount: verdict ? verdict.totalCount : null,
+    alignedCount: verdict ? verdict.aligned_count : null,
+    totalCount: verdict ? verdict.total_count : null,
     error: result.status === 'error' ? result.error ?? 'Unknown error' : null,
-    learningComponents: verdict?.learningComponents ?? [],
+    learningComponents: verdict?.learning_components ?? [],
     originalRow: original,
   };
 }

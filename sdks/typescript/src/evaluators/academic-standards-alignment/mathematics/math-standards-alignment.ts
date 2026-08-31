@@ -43,11 +43,11 @@ const QUESTION_SCHEMA = {
 };
 
 const CODE_SCHEMA = {
-  properties: { statementCode: INPUT_SCHEMA.properties.statementCode },
-  required: ['statementCode'],
+  properties: { statement_code: INPUT_SCHEMA.properties.statement_code },
+  required: ['statement_code'],
 };
 
-export type MathStandardsAlignmentInput = InputsOf<{ properties: Record<'question' | 'statementCode' | 'jurisdiction', unknown> }> & {
+export type MathStandardsAlignmentInput = InputsOf<{ properties: Record<'question' | 'statement_code' | 'jurisdiction', unknown> }> & {
   jurisdiction: Jurisdiction;
 };
 
@@ -76,16 +76,16 @@ export interface LearningComponentResult {
  * `<Evaluator>Result` convention true for all sixteen evaluators.
  */
 export interface StandardAlignmentResult {
-  statementCode: string;
-  learningComponents: LearningComponentResult[];
-  alignedCount: number;
-  totalCount: number;
+  statement_code: string;
+  learning_components: LearningComponentResult[];
+  aligned_count: number;
+  total_count: number;
   coarseFiltered?: boolean;
   /**
    * Set when this pair could not be evaluated. Produced only by evaluateItems and
    * evaluateByGradeLevel; evaluate() throws instead.
    *
-   * Not evidence of non-alignment: alignedCount is 0 because nothing was
+   * Not evidence of non-alignment: aligned_count is 0 because nothing was
    * measured, not because nothing aligned.
    *
    * `name` is the error class, which is what a report groups failures on.
@@ -100,7 +100,7 @@ export interface StandardAlignmentResult {
 
 export interface QuestionItem {
   question: string;
-  statementCodes: string[];
+  statement_codes: string[];
 }
 
 /** One question's results. `error` is set when the question itself could not be used. */
@@ -113,11 +113,11 @@ export interface QuestionResult {
 export interface QuestionBankResult {
   byQuestion: QuestionResult[];
   byStandard: Array<{
-    statementCode: string;
+    statement_code: string;
     coveredBy: Array<{
       question: string;
-      alignedCount: number;
-      totalCount: number;
+      aligned_count: number;
+      total_count: number;
     }>;
     coverageCount: number;
     /**
@@ -249,13 +249,13 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     input: MathStandardsAlignmentInput,
   ): Promise<EvaluationResult<StandardAlignmentResult>> {
     validateInputs(input, INPUT_SCHEMA);
-    return this._evaluateCore(input.question, input.statementCode, input.jurisdiction);
+    return this._evaluateCore(input.question, input.statement_code, input.jurisdiction);
   }
 
   // -------------------------------------------------------------------------
   // evaluateItems — M questions × per-question standards
   //
-  // Each item specifies its own statementCodes list. Use this for:
+  // Each item specifies its own statement_codes list. Use this for:
   //   - Tagging validation: verify a question covers its pre-mapped standards
   //   - Grade-level coverage: pass the same codes to all items (evaluateByGradeLevel does this)
   //
@@ -278,8 +278,8 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         // The question is checked whether or not the item carries codes: an item with
         // an empty list still has a question the caller may have got wrong.
         validateInputs({ question: item.question }, QUESTION_SCHEMA);
-        for (const code of item.statementCodes) {
-          validateInputs({ statementCode: code }, CODE_SCHEMA);
+        for (const code of item.statement_codes) {
+          validateInputs({ statement_code: code }, CODE_SCHEMA);
         }
       } catch (err) {
         // Only a domain error is a per-item validation failure. Anything else is a
@@ -290,7 +290,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       }
       return {
         question: item.question,
-        statementCodes: [...new Set(item.statementCodes)],
+        statement_codes: [...new Set(item.statement_codes)],
         validationError,
       };
     });
@@ -298,12 +298,12 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     const useCoarseFilter = options?.useCoarseFilter ?? false;
     const bankLimit = options?.concurrency != null ? pLimit(options.concurrency) : this.llmLimit;
 
-    // Pre-fetch LC data for all unique codes — needed to report totalCount on coarse-filtered results.
-    const allCodes = [...new Set(dedupedItems.flatMap((i) => i.statementCodes))];
+    // Pre-fetch LC data for all unique codes — needed to report total_count on coarse-filtered results.
+    const allCodes = [...new Set(dedupedItems.flatMap((i) => i.statement_codes))];
     type LcCacheEntry = Awaited<ReturnType<KnowledgeGraphClient['getLearningComponentsByCode']>>;
     const lcCache = new Map<string, LcCacheEntry>();
 
-    // A failed prefetch is recorded, not discarded: `totalCount` below falls back to 0,
+    // A failed prefetch is recorded, not discarded: `total_count` below falls back to 0,
     // which is indistinguishable from a standard that genuinely has no learning
     // components. The failure travels on the result's `error` instead, which already means
     // "0 because nothing was measured".
@@ -316,7 +316,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
             .then((result) => lcCache.set(code, result))
             .catch((err) => {
               lcFailures.set(code, err);
-              this.logger.warn('Learning component prefetch failed; totalCount is unknown', {
+              this.logger.warn('Learning component prefetch failed; total_count is unknown', {
                 evaluator: EVALUATOR_ID,
                 operation: 'prefetch_learning_components',
                 statementCode: code,
@@ -327,19 +327,19 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       );
     }
 
-    // Coarse filter: per-item, against that item's own statementCodes. Invalid
+    // Coarse filter: per-item, against that item's own statement_codes. Invalid
     // items get an empty set so they stay out of the progress denominator.
     let relevanceMaps: Map<number, Set<string>>;
     if (!useCoarseFilter) {
       relevanceMaps = new Map(
-        dedupedItems.map((item, i) => [i, item.validationError ? new Set<string>() : new Set(item.statementCodes)]),
+        dedupedItems.map((item, i) => [i, item.validationError ? new Set<string>() : new Set(item.statement_codes)]),
       );
     } else {
       const filterResults = await Promise.all(
         dedupedItems.map((item) =>
           item.validationError
             ? Promise.resolve(new Set<string>())
-            : bankLimit(() => this.runCoarseFilter(item.question, item.statementCodes, jurisdiction)),
+            : bankLimit(() => this.runCoarseFilter(item.question, item.statement_codes, jurisdiction)),
         ),
       );
       relevanceMaps = new Map(dedupedItems.map((_, i) => [i, filterResults[i]]));
@@ -358,28 +358,28 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
             // Also at item level: an item with no statement codes has nowhere else to
             // carry the failure, and the question itself is what failed.
             error: failure,
-            standards: item.statementCodes.map((statementCode) => ({
-              statementCode,
-              learningComponents: [],
-              alignedCount: 0,
-              totalCount: 0,
+            standards: item.statement_codes.map((code) => ({
+              statement_code: code,
+              learning_components: [],
+              aligned_count: 0,
+              total_count: 0,
               error: failure,
             })),
           };
         }
 
-        const relevant = relevanceMaps.get(i) ?? new Set(item.statementCodes);
+        const relevant = relevanceMaps.get(i) ?? new Set(item.statement_codes);
 
         const standards = await Promise.all(
-          item.statementCodes.map(async (code): Promise<StandardAlignmentResult> => {
+          item.statement_codes.map(async (code): Promise<StandardAlignmentResult> => {
             if (!relevant.has(code)) {
               const cached = lcCache.get(code);
               const failure = lcFailures.get(code);
               return {
-                statementCode: code,
-                learningComponents: [],
-                alignedCount: 0,
-                totalCount: cached?.components.length ?? 0,
+                statement_code: code,
+                learning_components: [],
+                aligned_count: 0,
+                total_count: cached?.components.length ?? 0,
                 coarseFiltered: true,
                 ...(failure ? { error: describeFailure(failure) } : {}),
               };
@@ -390,12 +390,12 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
                 .result;
             } catch (err) {
               result = {
-                statementCode: code,
-                learningComponents: [],
-                alignedCount: 0,
+                statement_code: code,
+                learning_components: [],
+                aligned_count: 0,
                 // Report the real component count when the pre-fetch knows it, so an
                 // errored pair is not mistaken for a standard with no components.
-                totalCount: lcCache.get(code)?.components.length ?? 0,
+                total_count: lcCache.get(code)?.components.length ?? 0,
                 error: describeFailure(err),
               };
             }
@@ -434,7 +434,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       jurisdiction,
       academicSubject: KG_SUBJECT,
     });
-    // statementCode is nullable in the spec — skip standards without one. Deduped
+    // statementCode is nullable in the KG API, so skip standards without one. Deduped
     // because a jurisdiction reusing a code across courses returns one item per
     // course, which would otherwise repeat that code in byStandard.
     const codes = [...new Set(
@@ -462,36 +462,36 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       };
     }
 
-    const items = questions.map((q) => ({ question: q, statementCodes: codes }));
+    const items = questions.map((q) => ({ question: q, statement_codes: codes }));
     const byQuestion = await this.evaluateItems(items, jurisdiction, options);
 
     const byStandard = codes.map((code) => {
       const results = byQuestion.map(({ question, standards }) => ({
         question,
-        result: standards.find((s) => s.statementCode === code),
+        result: standards.find((s) => s.statement_code === code),
       }));
 
       const coveredBy = results.flatMap(({ question, result }) => {
         // An errored pair measured nothing, so it is neither coverage nor
         // evidence against it.
-        if (!result || result.error || result.alignedCount === 0) return [];
-        return [{ question, alignedCount: result.alignedCount, totalCount: result.totalCount }];
+        if (!result || result.error || result.aligned_count === 0) return [];
+        return [{ question, aligned_count: result.aligned_count, total_count: result.total_count }];
       });
 
       return {
-        statementCode: code,
+        statement_code: code,
         coveredBy,
         coverageCount: coveredBy.length,
-        // totalCount > 0 required: a standard with no learning components measured
+        // total_count > 0 required: a standard with no learning components measured
         // nothing, so counting it as evaluated would make "0 aligned of 1 evaluated"
         // read as a judgement rather than an absence of data.
         evaluatedCount: results.filter(
-          ({ result }) => result && !result.error && !result.coarseFiltered && result.totalCount > 0,
+          ({ result }) => result && !result.error && !result.coarseFiltered && result.total_count > 0,
         ).length,
         errorCount: results.filter(({ result }) => result?.error).length,
         filteredCount: results.filter(({ result }) => result?.coarseFiltered).length,
         noComponentsCount: results.filter(
-          ({ result }) => result && !result.error && !result.coarseFiltered && result.totalCount === 0,
+          ({ result }) => result && !result.error && !result.coarseFiltered && result.total_count === 0,
         ).length,
       };
     });
@@ -554,7 +554,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 
       if (components.length === 0) {
         return this.envelope(
-          { statementCode, learningComponents: [], alignedCount: 0, totalCount: 0 },
+          { statement_code: statementCode, learning_components: [], aligned_count: 0, total_count: 0 },
           startTime,
         );
       }
@@ -642,7 +642,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       }).catch(() => undefined);
 
       return this.envelope(
-        { statementCode, learningComponents, alignedCount, totalCount: components.length },
+        { statement_code: statementCode, learning_components: learningComponents, aligned_count: alignedCount, total_count: components.length },
         startTime,
         { inputTokens: tokenUsage.input_tokens, outputTokens: tokenUsage.output_tokens },
       );
