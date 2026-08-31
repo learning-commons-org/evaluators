@@ -350,14 +350,9 @@ payload bare.
 + console.log(result.aligned_count);
 ```
 
-The keys are snake_case now. This evaluator was the only one of the sixteen whose contract
-declared them in camelCase — inherited from the Knowledge Graph API's own field names — so
-`statementCode`, `learningComponents`, `alignedCount` and `totalCount` became `statement_code`,
-`learning_components`, `aligned_count` and `total_count`, matching its fifteen siblings. Nothing
-else about the payload changed.
-
-Batch CSVs are unaffected: `statement_code` is the canonical column and `statementCode` stays a
-recognized alias, so existing files load either way.
+Every key is snake_case now, matching the other fifteen evaluators: `statement_code`,
+`learning_components`, `aligned_count`, `total_count`. Nothing else about the payload changed.
+Batch CSVs still accept `statementCode` as a column alias.
 
 The evaluator needs **both** `anthropicApiKey` and `learningCommonsApiKey`;
 `getEvaluator(id).requiredCredentials` lists the non-LLM ones.

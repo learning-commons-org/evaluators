@@ -198,6 +198,27 @@ const { result } = await new MathStandardsAlignmentEvaluator({
 console.log(`${result.aligned_count}/${result.total_count} learning components aligned`);
 ```
 
+`result` carries one verdict per learning component the standard declares, so you can see *which*
+part of the standard an item does and does not reach:
+
+```jsonc
+{
+  "statement_code": "3.MD.C.7.d",
+  "learning_components": [
+    {
+      "identifier": "29c42ed3-da20-5288-a4b1-c72989c97fe4",
+      "description": "Find the area of rectilinear figures by decomposing them into non-overlapping parts and finding the area of each part",
+      "reasoning": "The question presents an L-shaped playground explicitly described as two rectangular parts with no overlap...",
+      "aligned": true,
+      "feedback": "Students must decompose the L-shape into two rectangles, find each area, and sum them."
+    }
+    // ...one entry per learning component
+  ],
+  "aligned_count": 3,
+  "total_count": 3       // a total_count of 0 means the standard has no components authored yet
+}
+```
+
 Each evaluator is also available as a function — `evaluateGradeLevelAppropriateness(input, config)` and so on — for callers who would rather not hold an instance.
 
 ## Discovering evaluators

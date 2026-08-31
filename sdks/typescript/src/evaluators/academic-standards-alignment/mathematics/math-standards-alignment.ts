@@ -434,7 +434,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       jurisdiction,
       academicSubject: KG_SUBJECT,
     });
-    // statementCode is nullable in the KG API — skip standards without one. Deduped
+    // statementCode is nullable in the KG API, so skip standards without one. Deduped
     // because a jurisdiction reusing a code across courses returns one item per
     // course, which would otherwise repeat that code in byStandard.
     const codes = [...new Set(

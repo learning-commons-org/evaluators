@@ -7,7 +7,7 @@ by eval-config; here we only judge validity of the schema documents themselves.
 
 We also enforce snake_case property names. These keys are the one part of a contract
 every SDK reproduces verbatim, in every language, so a camelCase key is not a style
-preference — it forces one evaluator's public surface to differ from its fifteen
+preference - it forces one evaluator's public surface to differ from its fifteen
 siblings' in every SDK at once. Math Standards Alignment carried four such keys,
 inherited from the Knowledge Graph API's own field names, until they were renamed.
 """

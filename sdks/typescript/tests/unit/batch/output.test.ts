@@ -103,7 +103,7 @@ describe('renderOutputs — standards family', () => {
     expect(parsed.items[0].error).toBe('Standard not found');
     expect(parsed.items[0].alignedCount).toBeNull();
     // Error rows still carry jurisdiction/statementCode from the source row. These are report
-    // row fields, which stay camelCase — only the contract payload moved to snake_case.
+    // row fields, which stay camelCase; only the contract payload moved to snake_case.
     expect(parsed.items[0].jurisdiction).toBe('Texas');
     expect(parsed.items[0].statementCode).toBe('4.OA.A.1');
   });
