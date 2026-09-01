@@ -2,7 +2,6 @@
   {
     "id": "5076429_cleaned",
     "description": "Multi-source prompt (2.1 rated). Clean hit: evaluator matches expert consensus on all indicators. Expert consensus (Round 3, 6 raters): 2.1=Analyzing, 2.2=Analyzing, 3.1=Analyzing, 3.2=Analyzing, 4.1=Analyzing, Overall=Analyzing.",
-    "source": "PERSUADE 2.0 (CLEAR corpus), CC BY 4.0. Label = Round 3 expert consensus (round-up median of rater ratings).",
     "input": {
       "source_count": 3,
       "assignment_text": "Write a letter to your state senator in which you argue in favor of keeping the Electoral College or changing to election by popular vote for the president of the United States. Use the information from the texts in your essay. Manage your time carefully so that you can read the passages; plan your response; write your response; and revise and edit your response. Be sure to include a claim; address counterclaims; use evidence from multiple sources; and avoid overly relying on one source. Your response should be in the form of a multiparagraph essay. Write your response in the space provided.",
@@ -12,14 +11,13 @@
     "expected": {
       "overall": {
         "rationale": "Expert consensus median across 6 raters was Analyzing.",
-        "rating": "Analyzing"
+        "rating": "analyzing"
       }
     }
   },
   {
     "id": "AAAOPP13416000111182",
     "description": "Single-source prompt (2.1 omitted). Clean hit at the lower end of the scale. Expert consensus (Round 3, 5 raters): 2.2=Exploring, 3.1=Exploring, 3.2=Exploring, 4.1=Exploring, Overall=Exploring.",
-    "source": "PERSUADE 2.0 (CLEAR corpus), CC BY 4.0. Label = Round 3 expert consensus (round-up median of rater ratings).",
     "input": {
       "source_count": 1,
       "assignment_text": "You have read the article 'Unmasking the Face on Mars.' Imagine you are a scientist at NASA discussing the Face with someone who thinks it was created by aliens. Using information in the article, write an argumentative essay to convince someone that the Face is just a natural landform.Be sure to include: claims to support your argument that the Face is a natural landform; evidence from the article to support your claims; an introduction, a body, and a conclusion to your argumentative essay.",
@@ -29,7 +27,7 @@
     "expected": {
       "overall": {
         "rationale": "Expert consensus median across 5 raters was Exploring.",
-        "rating": "Exploring"
+        "rating": "exploring"
       }
     }
   }
