@@ -126,7 +126,10 @@ const EVALUATORS = (Object.values(exported) as unknown[])
  * unimplemented and unmentioned.
  */
 const UNIMPLEMENTED = new Set<string>([
-  // Empty: every contract has an implementation.
+  // Contract landed first so the rubric, schemas and fixtures could be reviewed by the
+  // people who own them. The TypeScript evaluator follows in its own PR; drop this entry
+  // when it does.
+  'durable_skills.ela_writing.critical_thinking',
 ]);
 
 // ---------------------------------------------------------------------------

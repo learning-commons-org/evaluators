@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "input_schema.json",
+  "title": "EvaluatorInput",
+  "type": "object",
+  "required": [
+    "assignment_text",
+    "sources",
+    "source_count",
+    "essay_text"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "assignment_text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The writing assignment / prompt given to the student."
+    },
+    "sources": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The source passage(s) the student was given, as text."
+    },
+    "source_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "How many distinct source passages the prompt provided. Indicator 2.1 (synthesizing sources) is rated only when this is greater than 1; when it is 1, Indicator 2.1 is omitted from the output."
+    },
+    "essay_text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The student's essay, verbatim (may contain spelling/grammar errors)."
+    }
+  }
+}
