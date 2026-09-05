@@ -7,7 +7,6 @@ import pytest
 from learning_commons_evaluators import (
     GradeLevelAppropriatenessEvaluationInput,
     GradeLevelAppropriatenessEvaluator,
-    create_config_no_telemetry,
 )
 from learning_commons_evaluators.schemas.errors import ConfigurationError
 from learning_commons_evaluators.schemas.grade_level_appropriateness import (
@@ -39,9 +38,8 @@ def _make_mock_output():
 
 
 class TestGradeLevelAppropriatenessEvaluator:
-    def test_evaluate_returns_evaluation_result(self):
-        config = create_config_no_telemetry()
-        evaluator = GradeLevelAppropriatenessEvaluator(config)
+    def test_evaluate_returns_evaluation_result(self, config_with_google):
+        evaluator = GradeLevelAppropriatenessEvaluator(config_with_google)
         inp = GradeLevelAppropriatenessEvaluationInput(text=_SAMPLE_TEXT)
         with patch.object(evaluator, "execute_prompt_chain_step", return_value=_make_mock_output()):
             result = evaluator.evaluate_sync(inp)
@@ -53,7 +51,7 @@ class TestGradeLevelAppropriatenessEvaluator:
         assert result.metadata.status == Status.succeeded
         assert result.metadata.evaluator_metadata.id == "grade-level-appropriateness"
 
-    def test_evaluate_with_explicit_settings(self):
+    def test_evaluate_with_explicit_settings(self, config_with_google):
         from learning_commons_evaluators.schemas.config import (
             LLMProvider,
             PromptSettings,
@@ -62,8 +60,7 @@ class TestGradeLevelAppropriatenessEvaluator:
             GradeLevelAppropriatenessEvaluationSettings,
         )
 
-        config = create_config_no_telemetry()
-        evaluator = GradeLevelAppropriatenessEvaluator(config)
+        evaluator = GradeLevelAppropriatenessEvaluator(config_with_google)
         settings = GradeLevelAppropriatenessEvaluationSettings(
             prompt_settings_step_gla_evaluation=PromptSettings(
                 provider_type=LLMProvider.GOOGLE,
@@ -76,8 +73,8 @@ class TestGradeLevelAppropriatenessEvaluator:
             result = evaluator.evaluate_sync(inp, evaluation_settings=settings)
         assert result.metadata.status == Status.succeeded
 
-    def test_metadata_and_default_settings(self):
-        evaluator = GradeLevelAppropriatenessEvaluator(create_config_no_telemetry())
+    def test_metadata_and_default_settings(self, config_with_google):
+        evaluator = GradeLevelAppropriatenessEvaluator(config_with_google)
         assert evaluator.metadata.id == "grade-level-appropriateness"
         assert evaluator.metadata.version == "0.1"
         assert evaluator.default_evaluation_settings is not None

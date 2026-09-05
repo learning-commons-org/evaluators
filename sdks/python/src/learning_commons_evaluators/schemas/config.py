@@ -12,6 +12,7 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict
 
 from learning_commons_evaluators.logger import Logger, get_logger
+from learning_commons_evaluators.schemas.errors import ConfigurationError
 
 # --- LLM provider configs (for LLM calls in prompt steps) ---
 
@@ -75,6 +76,29 @@ class EvaluationSettings(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
+_PROVIDER_CONFIG_ATTR: dict[LLMProvider, str] = {
+    LLMProvider.GOOGLE: "google_llm_provider_config",
+    LLMProvider.OPENAI: "openai_llm_provider_config",
+    LLMProvider.ANTHROPIC: "anthropic_llm_provider_config",
+}
+
+_PROVIDER_MISSING_MESSAGE: dict[LLMProvider, str] = {
+    LLMProvider.GOOGLE: "Google provider config is not set on EvaluatorConfig",
+    LLMProvider.OPENAI: "OpenAI provider config is not set on EvaluatorConfig",
+    LLMProvider.ANTHROPIC: "Anthropic provider config is not set on EvaluatorConfig",
+}
+
+
+def _required_llm_providers(settings: EvaluationSettings) -> set[LLMProvider]:
+    """Collect LLM providers referenced by PromptSettings fields on settings."""
+    providers: set[LLMProvider] = set()
+    for name in type(settings).model_fields:
+        value = getattr(settings, name)
+        if isinstance(value, PromptSettings):
+            providers.add(value.provider_type)
+    return providers
+
+
 @dataclass(frozen=True)
 class TelemetryConfig:
     """Config for telemetry."""
@@ -105,6 +129,17 @@ class EvaluatorConfig:
     anthropic_llm_provider_config: AnthropicLLMProviderConfig | None = None
     logger: Logger = field(default_factory=get_logger)
     telemetry: TelemetryConfig = field(default_factory=TelemetryConfig)
+
+    def validate_supports_evaluation_settings(self, settings: EvaluationSettings) -> None:
+        """Raise ConfigurationError if settings require an LLM provider not configured on self."""
+        required = _required_llm_providers(settings)
+        missing_messages = [
+            _PROVIDER_MISSING_MESSAGE[provider]
+            for provider in sorted(required, key=lambda p: p.value)
+            if getattr(self, _PROVIDER_CONFIG_ATTR[provider]) is None
+        ]
+        if missing_messages:
+            raise ConfigurationError("; ".join(missing_messages))
 
 
 def create_config(

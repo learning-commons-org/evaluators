@@ -3,7 +3,11 @@
 import pytest
 
 from learning_commons_evaluators import create_config_no_telemetry
-from learning_commons_evaluators.schemas.config import EvaluationSettings
+from learning_commons_evaluators.schemas.config import (
+    EvaluationSettings,
+    GoogleLLMProviderConfig,
+    OpenAILLMProviderConfig,
+)
 from learning_commons_evaluators.schemas.metadata import (
     EvaluationMetadata,
     EvaluatorMaturity,
@@ -42,3 +46,20 @@ def evaluation_metadata(evaluator_metadata):
 def config():
     """EvaluatorConfig with no telemetry, suitable for unit tests."""
     return create_config_no_telemetry()
+
+
+@pytest.fixture
+def config_with_google():
+    """EvaluatorConfig with Google provider set (conventionality and similar evaluators)."""
+    return create_config_no_telemetry(
+        google_llm_provider_config=GoogleLLMProviderConfig(api_key="test-google-key"),
+    )
+
+
+@pytest.fixture
+def config_with_google_and_openai():
+    """EvaluatorConfig with Google and OpenAI providers set (vocabulary evaluator)."""
+    return create_config_no_telemetry(
+        google_llm_provider_config=GoogleLLMProviderConfig(api_key="test-google-key"),
+        openai_llm_provider_config=OpenAILLMProviderConfig(api_key="test-openai-key"),
+    )

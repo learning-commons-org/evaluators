@@ -35,6 +35,7 @@ from learning_commons_evaluators.errors import ConfigurationError
 from learning_commons_evaluators.schemas.common_inputs import GradeInputField, TextInputField
 from learning_commons_evaluators.schemas.config import (
     EvaluationSettings,
+    GoogleLLMProviderConfig,
     LLMProvider,
     PromptSettings,
 )
@@ -102,6 +103,10 @@ class _StubSettings(EvaluationSettings):
     marker: int = 0
 
 
+class _StubSettingsWithPrompt(EvaluationSettings):
+    prompt_settings_main: PromptSettings
+
+
 def _stub_input() -> TextComplexityEvaluationInput:
     return TextComplexityEvaluationInput(
         text=TextInputField(spec=TextInputSpec(name="text"), value="hello world"),
@@ -159,6 +164,80 @@ class TestBaseEvaluatorInit:
     def test_omitted_constructor_default_falls_back_to_class_attribute(self, config):
         ev = _StubEvaluator(config)
         assert ev.default_evaluation_settings is _StubEvaluator.default_evaluation_settings
+
+    def test_init_raises_when_default_settings_need_missing_provider(self, config):
+        settings = _StubSettingsWithPrompt(
+            prompt_settings_main=PromptSettings(
+                provider_type=LLMProvider.GOOGLE,
+                model="gemini-2.0-flash",
+                temperature=0.0,
+            )
+        )
+
+        class _EvaluatorWithPromptSettings(
+            BaseEvaluator[
+                TextComplexityEvaluationInput, TextComplexityResult, _StubSettingsWithPrompt
+            ]
+        ):
+            metadata = _StubEvaluator.metadata
+            default_evaluation_settings = settings
+
+            async def evaluate_impl(self, input, evaluation_settings, evaluation_metadata):
+                raise NotImplementedError
+
+        with pytest.raises(ConfigurationError, match="Google provider config is not set"):
+            _EvaluatorWithPromptSettings(config)
+
+    def test_init_passes_when_required_provider_configured(self):
+        config = create_config_no_telemetry(
+            google_llm_provider_config=GoogleLLMProviderConfig(api_key="test-key"),
+        )
+        settings = _StubSettingsWithPrompt(
+            prompt_settings_main=PromptSettings(
+                provider_type=LLMProvider.GOOGLE,
+                model="gemini-2.0-flash",
+                temperature=0.0,
+            )
+        )
+
+        class _EvaluatorWithPromptSettings(
+            BaseEvaluator[
+                TextComplexityEvaluationInput, TextComplexityResult, _StubSettingsWithPrompt
+            ]
+        ):
+            metadata = _StubEvaluator.metadata
+            default_evaluation_settings = settings
+
+            async def evaluate_impl(self, input, evaluation_settings, evaluation_metadata):
+                raise NotImplementedError
+
+        _EvaluatorWithPromptSettings(config)
+
+
+class TestEvaluateConfigValidation:
+    def test_evaluate_raises_when_override_settings_need_missing_provider(self, config):
+        settings = _StubSettingsWithPrompt(
+            prompt_settings_main=PromptSettings(
+                provider_type=LLMProvider.GOOGLE,
+                model="gemini-2.0-flash",
+                temperature=0.0,
+            )
+        )
+
+        class _EvaluatorWithPromptSettings(
+            BaseEvaluator[
+                TextComplexityEvaluationInput, TextComplexityResult, _StubSettingsWithPrompt
+            ]
+        ):
+            metadata = _StubEvaluator.metadata
+            default_evaluation_settings = _StubSettings()
+
+            async def evaluate_impl(self, input, evaluation_settings, evaluation_metadata):
+                raise NotImplementedError
+
+        ev = _EvaluatorWithPromptSettings(config)
+        with pytest.raises(ConfigurationError, match="Google provider config is not set"):
+            ev.evaluate_sync(_stub_input(), evaluation_settings=settings)
 
 
 # ---------------------------------------------------------------------------
@@ -280,6 +359,49 @@ class TestStubEvaluateErrorHandling:
         assert captured
         assert captured[-1].status == Status.failed
         assert captured[-1].error_details
+
+    def test_configuration_failure_emits_end_log_with_failed_status(self, config):
+        captured: list = []
+
+        class _Capture(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                meta = getattr(record, "evaluation_metadata", None)
+                if meta is not None and record.getMessage() == "evaluation end":
+                    captured.append(meta)
+
+        settings = _StubSettingsWithPrompt(
+            prompt_settings_main=PromptSettings(
+                provider_type=LLMProvider.GOOGLE,
+                model="gemini-2.0-flash",
+                temperature=0.0,
+            )
+        )
+
+        class _EvaluatorWithPromptSettings(
+            BaseEvaluator[
+                TextComplexityEvaluationInput, TextComplexityResult, _StubSettingsWithPrompt
+            ]
+        ):
+            metadata = _StubEvaluator.metadata
+            default_evaluation_settings = _StubSettings()
+
+            async def evaluate_impl(self, input, evaluation_settings, evaluation_metadata):
+                raise NotImplementedError
+
+        ev = _EvaluatorWithPromptSettings(config)
+        h = _Capture()
+        ev.config.logger.addHandler(h)
+        ev.config.logger.setLevel(logging.INFO)
+        try:
+            with pytest.raises(ConfigurationError, match="Google provider config is not set"):
+                ev.evaluate_sync(_stub_input(), evaluation_settings=settings)
+        finally:
+            ev.config.logger.removeHandler(h)
+
+        assert captured
+        assert captured[-1].status == Status.failed
+        assert captured[-1].error_details == "ConfigurationError"
+        assert "Google provider config" not in captured[-1].error_details
 
 
 # ---------------------------------------------------------------------------
