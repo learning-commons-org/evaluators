@@ -16,9 +16,7 @@ make help     # every target, with the common workflows spelled out
 - `_generated_*_settings.py` — `make generate-settings`
 - `contracts.toml` — a bundled copy, `make sync-settings`
 
-Both derive from `sdks/settings/`, which is shared with the TypeScript SDK.
-After editing any TOML there: `make build` (does both), then `make verify`.
-`make check-build` is the CI guard that catches a stale checkout.
+Both derive from `sdks/settings/`, which is shared with the TypeScript SDK. After editing any TOML there: `make build` (does both), then `make verify`. `make check-build` is the CI guard that catches a stale checkout.
 
 Mypy targets 3.10 even when you run it on a newer interpreter.
 
