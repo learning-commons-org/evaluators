@@ -28,7 +28,7 @@ on drift and **does not auto-fix it** — the hash is a deliberate tripwire, so
 recompute it by hand when you change prompt text:
 
 ```shell
-shasum -a 256 <domain>/<skill-modality>/<evaluator>/system.txt
+shasum -a 256 evals/<domain>/<skill-modality>/<evaluator>/system.txt
 ```
 
 The same check verifies that placeholders in `config.json` and `{vars}` in the
