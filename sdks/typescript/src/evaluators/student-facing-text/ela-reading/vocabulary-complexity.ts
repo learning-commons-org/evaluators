@@ -239,7 +239,6 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
         metadata: {
           stage_details: stageDetails,
         },
-        inputText: text,
       }).catch(() => {
       });
 
@@ -279,7 +278,6 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
         tokenUsage: totalTokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,
-        inputText: text,
       }).catch(() => {
       });
 

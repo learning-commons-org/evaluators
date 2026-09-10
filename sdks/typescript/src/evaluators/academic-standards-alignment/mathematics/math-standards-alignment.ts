@@ -662,7 +662,6 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         provider: this.detailProvider.label,
         tokenUsage,
         metadata: { stage_details: stageDetails },
-        inputText: question,
       }).catch(() => undefined);
 
       return this.envelope(
@@ -688,7 +687,6 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         tokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,
-        inputText: question,
       }).catch(() => undefined);
 
       if (error instanceof EvaluatorError) throw error;

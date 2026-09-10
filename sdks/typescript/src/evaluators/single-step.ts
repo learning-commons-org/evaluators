@@ -247,7 +247,6 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string>,
           provider: this.provider.label,
           tokenUsage,
           metadata: { stage_details: stageDetails },
-          inputText: text,
         }).catch(() => undefined);
 
         this.logger.info(`${LABEL} evaluation completed successfully`, {
@@ -289,7 +288,6 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string>,
           tokenUsage,
           errorCode: error instanceof Error ? error.name : 'UnknownError',
           metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,
-          inputText: text,
         }).catch(() => undefined);
 
         if (error instanceof EvaluatorError) throw error;

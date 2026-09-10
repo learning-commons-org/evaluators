@@ -296,7 +296,7 @@ Every evaluator takes the same options:
 | `modelOverride` | Run every call on a different `{ provider, model }`; `provider` is the exported `Provider` enum |
 | `llmProvider` | Bring your own provider (see below) |
 | `maxRetries` | Retries per failed call (default 2, so 3 attempts) |
-| `telemetry` | `true`, `false`, or `TelemetryOptions` (default on, without input recording) |
+| `telemetry` | `true`, `false`, or `TelemetryOptions` (default on) |
 | `logger` / `logLevel` | Inject a logger, or set the console logger's level with the exported `LogLevel` enum (default `LogLevel.WARN`) |
 
 `TelemetryOptions` and `Logger` are both exported. Their shapes:
@@ -304,7 +304,6 @@ Every evaluator takes the same options:
 ```typescript
 interface TelemetryOptions {
   enabled?: boolean;              // default true
-  recordInputs?: boolean;         // default false: input text is not sent unless you opt in
   learningCommonsApiKey?: string; // set: events are attributed to you. unset: anonymous
 }
 
@@ -315,6 +314,10 @@ interface Logger {              // LogContext is { evaluator?, operation?, error
   error(message: string, context?: LogContext): void;
 }
 ```
+
+Telemetry never includes the text you evaluate. The event carries its length, the evaluator, the
+grade level you passed, the provider, latency, status, any error class name, token counts, and the
+SDK version.
 
 Telemetry failures are logged at `warn` and never affect an evaluation, so a restricted-egress
 environment will see a warning per call at the default level; `telemetry: false` silences it.
