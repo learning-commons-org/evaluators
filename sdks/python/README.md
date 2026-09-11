@@ -42,12 +42,11 @@ For full implementation details, check out the [Python SDK docs](https://docs.le
 
 ## More resources
 
-- [Local development](./docs/local-development.md) – Local setup, testing, and development
-- [Evaluators](./docs/evaluators.md) — Shipped evaluators with their inputs, outputs, and evaluation settings
-- [Running evaluations](./docs/running-evaluations.md) — Sync / async usage and per-call settings overrides
-- [Results](./docs/results.md) — `EvaluationResult` shape and metadata
-- [Configuration](./docs/configuration.md) — Provider configs, `EvaluatorConfig`, evaluation settings, logging
-- [Error handling](./docs/error-handling.md) — Exception hierarchy, retries, and sanitization
+- [Evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction) — Shipped evaluators and how they work
+- [Configuration](https://docs.learningcommons.org/evaluators/sdk-api-reference/python/configuration) — Provider configs, `EvaluatorConfig`, evaluation settings, logging, and per-call overrides
+- [Outputs](https://docs.learningcommons.org/evaluators/sdk-api-reference/python/outputs) — `EvaluationResult` shape and metadata
+- [Error handling](https://docs.learningcommons.org/evaluators/sdk-api-reference/python/error-handling) — Exception hierarchy and retries
+- [Local development](./docs/local-development.md) — Repo-only: local setup, testing, and adding evaluators
 
 ## License
 
