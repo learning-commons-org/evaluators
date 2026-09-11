@@ -2,6 +2,9 @@
  * Streamlined test utilities for evaluator testing
  */
 
+import { readOutcome, type DeclaredOutcome } from '../../src/schemas/outcome.js';
+import type { EvaluationResult } from '../../src/schemas/index.js';
+
 export interface TestAttempt<T> {
   attempt: number;
   result: T;
@@ -105,21 +108,67 @@ export async function runTestWithRetry<TInput, TOutput>(
  */
 export interface BaseTestCase {
   id: string;
-  text: string;
+  /** The primary text. Omit when the evaluator takes something else — see `inputs`. */
+  text?: string;
   grade?: string; // Optional: some evaluators need it, some don't
+  /**
+   * The whole input object, for evaluators that take something other than `text` — the
+   * feedback family takes `student_text` and `feedback_text`. Passed verbatim, so the
+   * schema rejects a wrong key rather than the harness silently sending `text`.
+   */
+  inputs?: Record<string, string>;
   expected: string; // Expected output value (checked on each attempt)
   acceptable?: string[]; // Acceptable adjacent values (checked if no expected match after all retries)
 }
 
 /**
+ * The only surface the harness uses: a single `evaluate` call. Narrower than the evaluator
+ * classes themselves, so any evaluator satisfies it without the harness depending on which
+ * one it was handed.
+ */
+export interface TestableEvaluator {
+  evaluate(input: Record<string, unknown>): Promise<EvaluationResult<Record<string, unknown>>>;
+}
+
+/**
+ * The object a case is evaluated with: `inputs` verbatim when given, otherwise the
+ * `text` (+ `grade_level`) shape the text-taking evaluators declare.
+ */
+function evaluatorInputs(testCase: BaseTestCase): Record<string, string> {
+  if (testCase.inputs) return testCase.inputs;
+
+  // Not defaulted to '': an empty string is a valid input, so a case missing both fields
+  // would read as a real evaluation of empty text — a failing verdict pointing at the
+  // evaluator rather than at the case that is malformed.
+  if (testCase.text === undefined) {
+    throw new Error(
+      `Test case "${testCase.id}" declares neither \`text\` nor \`inputs\`, ` +
+        'so the harness has nothing to evaluate.',
+    );
+  }
+
+  return testCase.grade
+    ? { text: testCase.text, grade_level: testCase.grade }
+    : { text: testCase.text };
+}
+
+/**
  * Configuration for running evaluator tests
  */
-export interface EvaluatorTestConfig<TEvaluator = any> {
+export interface EvaluatorTestConfig<TEvaluator extends TestableEvaluator = TestableEvaluator> {
   /** The evaluator instance to test */
   evaluator: TEvaluator;
 
-  /** Function to extract the result to compare from evaluation output */
-  extractResult: (evalResult: any) => string;
+  /**
+   * How to read the value being compared. Defaults to the field the evaluator's contract
+   * names in `outcome.score`, which is what a caller reads and what the batch report shows.
+   * Pass this only to assert on something other than the declared verdict.
+   *
+   * Typed as the envelope rather than `any` so an extractor reaching for a field the
+   * envelope does not carry is a compile error instead of a run that silently compares
+   * `undefined` against every expected value.
+   */
+  extractResult?: (evalResult: EvaluationResult<Record<string, unknown>>) => string;
 
   /** Maximum retry attempts (default: 3) */
   maxAttempts?: number;
@@ -139,10 +188,7 @@ export interface EvaluatorTestConfig<TEvaluator = any> {
  *     grade: '3',
  *     expected: 'very complex'
  *   },
- *   {
- *     evaluator: vocabularyEvaluator,
- *     extractResult: (r) => r.score
- *   }
+ *   { evaluator: vocabularyEvaluator }
  * );
  *
  * // Grade level evaluator
@@ -152,10 +198,7 @@ export interface EvaluatorTestConfig<TEvaluator = any> {
  *     text: 'Sample text...',
  *     expected: '6-8'
  *   },
- *   {
- *     evaluator: gradeLevelEvaluator,
- *     extractResult: (r) => r.score.grade
- *   }
+ *   { evaluator: gradeLevelEvaluator }
  * );
  * ```
  */
@@ -163,8 +206,18 @@ export async function runEvaluatorTest(
   testCase: BaseTestCase,
   config: EvaluatorTestConfig
 ): Promise<TestResult<string>> {
-  const { evaluator, extractResult, maxAttempts = 3 } = config;
+  const { evaluator, maxAttempts = 3 } = config;
   const compareFn = defaultCompareFn;
+
+  // The declared outcome travels with the class, so the verdict field comes from the
+  // contract rather than being named per suite.
+  const declaredOutcome = (
+    evaluator.constructor as { metadata?: { outcome?: DeclaredOutcome } }
+  ).metadata?.outcome;
+  const extractResult =
+    config.extractResult ??
+    ((evalResult: EvaluationResult<Record<string, unknown>>) =>
+      readOutcome(evalResult, declaredOutcome).score ?? 'undefined');
 
   // Buffer logs to print atomically at the end (prevents interleaving in parallel tests)
   const logBuffer: string[] = [];
@@ -183,9 +236,7 @@ export async function runEvaluatorTest(
 
   // Phase 1: Try to match expected value (short-circuit on match)
   for (let attemptNum = 1; attemptNum <= maxAttempts; attemptNum++) {
-    const result = testCase.grade
-      ? await evaluator.evaluate(testCase.text, testCase.grade)
-      : await evaluator.evaluate(testCase.text);
+    const result = await evaluator.evaluate(evaluatorInputs(testCase));
 
     const actualValue = extractResult(result);
     const isExpectedMatch = compareFn(actualValue, testCase.expected);

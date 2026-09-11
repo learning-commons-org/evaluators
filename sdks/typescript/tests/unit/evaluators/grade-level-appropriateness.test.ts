@@ -1,18 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/grade-level-appropriateness.js';
+import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/grade-level-appropriateness.js';
 import { ConfigurationError, InputValidationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
+import CONFIG from '../../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/config.json';
 
-/**
- * Comprehensive unit tests for GradeLevelAppropriatenessEvaluator
- *
- * These tests verify:
- * - Constructor validation
- * - Successful evaluation flow (single stage)
- * - Error handling (LLM failures)
- * - Telemetry behavior
- * - Response structure
- */
+// Read from the contract, not restated: hardcoding it here is how the SDK came to ship
+// a different model from the one declared without any test objecting.
+const DECLARED = CONFIG.steps[0].model;
+const MODEL_LABEL = `${DECLARED.provider}:${DECLARED.name}`;
 
 // Mock providers
 const createMockProvider = (config?: { type?: string; model?: string }): LLMProvider => ({
@@ -73,12 +68,12 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       // Mock grade level response
       vi.mocked(mockProvider.generateStructured).mockResolvedValue({
         data: {
-          grade: '6-8',
-          alternative_grade: '4-5',
+          grade_band: '6-8',
+          alternative_grade_band: '4-5',
           scaffolding_needed: 'Pre-teach gravitational forces; Use visual diagrams of moon-sun-earth system',
           reasoning: 'The text discusses gravitational forces and celestial mechanics, which are appropriate for middle school science curriculum.',
         },
-        model: 'gemini-2.5-pro',
+        model: DECLARED.name,
         usage: {
           inputTokens: 200,
           outputTokens: 150,
@@ -87,17 +82,17 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       });
 
       // Execute evaluation (no grade parameter needed)
-      const result = await evaluator.evaluate(testText);
+      const result = await evaluator.evaluate({ text: testText });
 
       // Verify result structure
-      expect(result.result.grade).toBe('6-8');
+      expect(result.result.grade_band).toBe('6-8');
       expect(result.result).toBeDefined();
-      expect(result.result!.grade).toBe('6-8');
-      expect(result.result!.alternative_grade).toBe('4-5');
+      expect(result.result!.grade_band).toBe('6-8');
+      expect(result.result!.alternative_grade_band).toBe('4-5');
       expect(result.result!.scaffolding_needed).toContain('gravitational forces');
       expect(result.result.reasoning).toContain('gravitational forces');
       expect(result.metadata).toBeDefined();
-      expect(result.metadata.model).toBe('google:gemini-2.5-pro');
+      expect(result.metadata.model).toBe(MODEL_LABEL);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
       expect(result.metadata.tokenUsage.inputTokens).toBe(200);
       expect(result.metadata.tokenUsage.outputTokens).toBe(150);
@@ -110,12 +105,12 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
 
   describe('Input Validation', () => {
     it('should throw InputValidationError for empty text', async () => {
-      await expect(evaluator.evaluate(''))
+      await expect(evaluator.evaluate({ text: '' }))
         .rejects.toThrow(InputValidationError);
     });
 
     it('should throw InputValidationError for whitespace-only text', async () => {
-      await expect(evaluator.evaluate('   '))
+      await expect(evaluator.evaluate({ text: '   ' }))
         .rejects.toThrow(InputValidationError);
     });
   });
@@ -130,7 +125,7 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       );
 
       // Should propagate the error
-      await expect(evaluator.evaluate(testText))
+      await expect(evaluator.evaluate({ text: testText }))
         .rejects.toThrow('API timeout');
     });
 
@@ -140,17 +135,17 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
     it('should return correct result structure', async () => {
       vi.mocked(mockProvider.generateStructured).mockResolvedValue({
         data: {
-          grade: '9-10',
-          alternative_grade: '6-8',
+          grade_band: '9-10',
+          alternative_grade_band: '6-8',
           scaffolding_needed: 'Pre-teach advanced vocabulary; Provide background context',
           reasoning: 'Detailed reasoning about grade appropriateness',
         },
-        model: 'gemini-2.5-pro',
+        model: DECLARED.name,
         usage: { inputTokens: 200, outputTokens: 150 },
         latencyMs: 800,
       });
 
-      const result = await evaluator.evaluate('Test text here');
+      const result = await evaluator.evaluate({ text: 'Test text here' });
 
       // Verify result structure
       expect(result).toHaveProperty('evaluator');
@@ -159,11 +154,10 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result).not.toHaveProperty('score');
 
       // Verify score is the grade string
-      expect(result.result.grade).toBe('9-10');
+      expect(result.result.grade_band).toBe('9-10');
 
-      // Verify _internal structure (GradeLevelAppropriateness)
-      expect(result.result).toHaveProperty('grade');
-      expect(result.result).toHaveProperty('alternative_grade');
+      expect(result.result).toHaveProperty('grade_band');
+      expect(result.result).toHaveProperty('alternative_grade_band');
       expect(result.result).toHaveProperty('scaffolding_needed');
       expect(result.result).toHaveProperty('reasoning');
 
@@ -172,14 +166,13 @@ describe('GradeLevelAppropriatenessEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toHaveProperty('processingTimeMs');
 
       // Verify metadata values
-      expect(result.metadata.model).toBe('google:gemini-2.5-pro');
+      expect(result.metadata.model).toBe(MODEL_LABEL);
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
       expect(result.metadata.tokenUsage.inputTokens).toBe(200);
       expect(result.metadata.tokenUsage.outputTokens).toBe(150);
 
-      // Verify _internal values
-      expect(result.result!.grade).toBe('9-10');
-      expect(result.result!.alternative_grade).toBe('6-8');
+      expect(result.result!.grade_band).toBe('9-10');
+      expect(result.result!.alternative_grade_band).toBe('6-8');
       expect(result.result!.scaffolding_needed).toBeTruthy();
     });
   });

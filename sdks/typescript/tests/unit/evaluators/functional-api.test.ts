@@ -8,6 +8,13 @@ import {
   evaluateSentenceStructure,
   evaluateBackgroundKnowledgeDemands,
   evaluateVocabularyComplexity,
+  evaluateRevisionAccuracy,
+  evaluateRevisionActionability,
+  evaluateRevisionManageability,
+  evaluateStrengthAcknowledgment,
+  evaluateStudentResponseSpecificity,
+  evaluateToneAppropriateness,
+  evaluateWithholdingAnswers,
 } from '../../../src/evaluators/index.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
@@ -36,17 +43,14 @@ vi.mock('../../../src/telemetry/client.js', () => ({
 // Superset of every evaluator's output shape, so one stub serves all of them.
 const RESPONSE = {
   data: {
-    complexity_level: 'Very complex',
     complexity_score: 'very_complex',
-    grade: '6-8',
-    alternative_grade: '9-10',
+    grade_band: '6-8',
+    alternative_grade_band: '9-10',
     scaffolding_needed: 'none',
     reasoning: 'because',
     grade_context: 'above grade',
     details: { detailed_summary: [], adjustment_and_scaffolding: [], recommended_use_cases: [] },
     assumption: 'students know this',
-    // Sentence Structure's second stage reports its verdict as `answer`.
-    answer: 'Very Complex',
     // Sentence Structure computes engineered features from its first-stage
     // output, so every count it divides by has to be present and non-zero.
     num_sentences: 2,
@@ -78,6 +82,8 @@ const RESPONSE = {
     num_multi_concept_sentences: 1,
     num_cleft_sentences: 0,
     max_clauses_in_any_sentence: 2,
+    // The feedback family's verdict.
+    quality_score: 1,
   },
   model: 'gemini-3-flash-preview',
   usage: { inputTokens: 10, outputTokens: 5 },
@@ -105,7 +111,7 @@ beforeEach(() => {
 });
 
 describe('functional API wrappers', () => {
-  // Each takes (text, gradeLevel, config) and must reach the LLM with both.
+  // Each takes ({ text, grade_level }, config); both inputs must reach the LLM.
   it.each([
     ['evaluateMeaningDirectness', evaluateMeaningDirectness],
     ['evaluateReferenceKnowledgeDemands', evaluateReferenceKnowledgeDemands],
@@ -114,12 +120,10 @@ describe('functional API wrappers', () => {
     ['evaluateSentenceStructure', evaluateSentenceStructure],
     ['evaluateBackgroundKnowledgeDemands', evaluateBackgroundKnowledgeDemands],
     ['evaluateVocabularyComplexity', evaluateVocabularyComplexity],
-  ])('%s forwards text and gradeLevel and returns a result', async (_name, fn) => {
-    const result = await (fn as (t: string, g: string, c: typeof CONFIG) => Promise<unknown>)(
-      TEXT,
-      GRADE_LEVEL,
-      CONFIG
-    );
+  ])('%s forwards its inputs and returns a result', async (_name, fn) => {
+    const result = await (
+      fn as (i: { text: string; grade_level: string }, c: typeof CONFIG) => Promise<unknown>
+    )({ text: TEXT, grade_level: GRADE_LEVEL }, CONFIG);
 
     expect(result).toBeDefined();
     expect(mockProvider.generateStructured).toHaveBeenCalled();
@@ -134,15 +138,48 @@ describe('functional API wrappers', () => {
 
   // Grade-free by design: it decides the grade level rather than being told one.
   it('evaluateGradeLevelAppropriateness takes no gradeLevel', async () => {
-    const result = await evaluateGradeLevelAppropriateness(TEXT, CONFIG);
+    const result = await evaluateGradeLevelAppropriateness({ text: TEXT }, CONFIG);
 
-    expect(result.result.grade).toBe('6-8');
+    expect(result.result.grade_band).toBe('6-8');
     expect(mockProvider.generateStructured).toHaveBeenCalledTimes(1);
   });
 
   it('propagates a validation failure rather than swallowing it', async () => {
-    await expect(evaluateMeaningDirectness('', GRADE_LEVEL, CONFIG)).rejects.toThrow(
-      /empty|whitespace/i
-    );
+    await expect(
+      evaluateMeaningDirectness({ text: '', grade_level: GRADE_LEVEL }, CONFIG),
+    ).rejects.toThrow(/empty|whitespace/i);
+  });
+});
+
+describe('functional API wrappers — feedback family', () => {
+  const STUDENT_TEXT = 'My dog is brown. He runs fast. I like him a lot.';
+  const FEEDBACK_TEXT = 'Try adding a topic sentence so the reader knows your argument.';
+
+  // These take ({ student_text, feedback_text }, config): two texts and no grade, so a
+  // wrapper that dropped or swapped one would still produce a result.
+  it.each([
+    ['evaluateRevisionAccuracy', evaluateRevisionAccuracy],
+    ['evaluateRevisionActionability', evaluateRevisionActionability],
+    ['evaluateRevisionManageability', evaluateRevisionManageability],
+    ['evaluateStrengthAcknowledgment', evaluateStrengthAcknowledgment],
+    ['evaluateStudentResponseSpecificity', evaluateStudentResponseSpecificity],
+    ['evaluateToneAppropriateness', evaluateToneAppropriateness],
+    ['evaluateWithholdingAnswers', evaluateWithholdingAnswers],
+  ])('%s forwards both texts and returns a result', async (_name, fn) => {
+    const result = await (
+      fn as (
+        i: { student_text: string; feedback_text: string },
+        c: typeof CONFIG,
+      ) => Promise<unknown>
+    )({ student_text: STUDENT_TEXT, feedback_text: FEEDBACK_TEXT }, CONFIG);
+
+    expect(result).toBeDefined();
+
+    const prompts = vi
+      .mocked(mockProvider.generateStructured)
+      .mock.calls.flatMap((call) => call[0].messages.map((m) => m.content))
+      .join('\n');
+    expect(prompts).toContain(STUDENT_TEXT);
+    expect(prompts).toContain(FEEDBACK_TEXT);
   });
 });

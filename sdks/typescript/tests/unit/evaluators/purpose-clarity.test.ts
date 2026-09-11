@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createHash } from 'node:crypto';
-import { PurposeClarityEvaluator } from '../../../src/evaluators/purpose-clarity.js';
+
+/** The declared grade type. Cast onto it to drive the *runtime* rejection path,
+ * which the literal union would otherwise make unreachable from TypeScript. */
+type GradeLevelInput = '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | '11' | '12';
+import { runPreprocessingStep } from '../../../src/features/preprocessing.js';
+import CONFIG from '../../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';
+import { PurposeClarityEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/purpose-clarity.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
-import CONFIG from '../../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json';
-import { getSystemPrompt, getUserPrompt } from '../../../src/prompts/purpose-clarity/index.js';
 
 const STEP = CONFIG.steps[0];
 
@@ -55,10 +58,12 @@ const MOCK_RESPONSE = {
 
 // --- Constructor ---
 
+const FK_TEXT = 'The quick brown fox jumps over the lazy dog.';
+
 describe('PurposeClarityEvaluator - Constructor', () => {
   it('throws when Google API key is missing', () => {
     expect(() => new PurposeClarityEvaluator({ googleApiKey: '' })).toThrow(
-      /Google API key is required/,
+      /Missing required credential: googleApiKey/,
     );
   });
 });
@@ -93,32 +98,6 @@ describe('PurposeClarityEvaluator - Metadata', () => {
   });
 });
 
-// --- Prompt integrity (contract test) ---
-
-describe('PurposeClarityEvaluator - Prompt contract', () => {
-  it('system prompt SHA256 matches config.json declaration', () => {
-    const expectedSha = CONFIG.steps[0].prompt.messages[0].sha256;
-    const actualSha = createHash('sha256').update(getSystemPrompt({})).digest('hex');
-    expect(actualSha).toBe(expectedSha);
-  });
-
-  it('user prompt SHA256 matches config.json declaration', () => {
-    const expectedSha = CONFIG.steps[0].prompt.messages[1].sha256;
-    const actualSha = createHash('sha256').update(getUserPrompt({})).digest('hex');
-    expect(actualSha).toBe(expectedSha);
-  });
-
-  it('user prompt substitutes {text}, {grade_level}, and {fk_score}', () => {
-    const prompt = getUserPrompt({ text: 'Sample text here.', grade_level: '5', fk_score: '3.14' });
-    expect(prompt).toContain('Sample text here.');
-    expect(prompt).toContain('5');
-    expect(prompt).toContain('3.14');
-    expect(prompt).not.toContain('{text}');
-    expect(prompt).not.toContain('{grade_level}');
-    expect(prompt).not.toContain('{fk_score}');
-  });
-});
-
 // --- LLM call contract ---
 
 describe('PurposeClarityEvaluator - LLM call contract', () => {
@@ -139,7 +118,7 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
   it('calls provider once with model from config.json', async () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
 
-    await evaluator.evaluate('When going to the beach, find out which ones have lifeguards.', '3');
+    await evaluator.evaluate({ text: 'When going to the beach, find out which ones have lifeguards.', grade_level: '3' });
 
     expect(mockProvider.generateStructured).toHaveBeenCalledTimes(1);
   });
@@ -147,7 +126,7 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
   it('passes temperature from config.json', async () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
 
-    await evaluator.evaluate('When going to the beach, find out which ones have lifeguards.', '3');
+    await evaluator.evaluate({ text: 'When going to the beach, find out which ones have lifeguards.', grade_level: '3' });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
     expect(call.temperature).toBe(STEP.generation.temperature);
@@ -158,7 +137,7 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
     const text = 'Pins are made of either brass or iron wire.';
 
-    await evaluator.evaluate(text, '4');
+    await evaluator.evaluate({ text: text, grade_level: '4' });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
     expect(call.messages[1].content).toContain(text);
@@ -167,7 +146,7 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
   it('includes grade_level (not grade) in user prompt', async () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
 
-    await evaluator.evaluate('Some sample text for testing purposes.', '7');
+    await evaluator.evaluate({ text: 'Some sample text for testing purposes.', grade_level: '7' });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
     expect(call.messages[1].content).toContain('7');
@@ -177,16 +156,26 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
   it('includes computed fk_score in user prompt', async () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
 
-    await evaluator.evaluate('The quick brown fox jumps over the lazy dog.', '5');
+    await evaluator.evaluate({ text: FK_TEXT, grade_level: '5' });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
-    expect(call.messages[1].content).toMatch(/\d+(\.\d+)?/);
+    // The value the contract's own preprocessing produces, not just "some number" — the
+    // grade level alone satisfied that, so the assertion held with preprocessing off.
+    const fkStep = CONFIG.preprocessing.find((p) => p.id === 'fk_score')!;
+    const expected = String(runPreprocessingStep(FK_TEXT, fkStep.implementation.typescript));
+
+    expect(call.messages[1].content).toContain(expected);
+    expect(call.messages[1].content).not.toContain('{fk_score}');
+    // The declared inputs, at the point they reach the model.
+    expect(call.messages[1].content).toContain(FK_TEXT);
+    expect(call.messages[1].content).not.toContain('{text}');
+    expect(call.messages[1].content).not.toContain('{grade_level}');
   });
 
   it('maps LLM response to result shape', async () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
 
-    const result = await evaluator.evaluate('When going to the beach, find out which ones have lifeguards.', '3');
+    const result = await evaluator.evaluate({ text: 'When going to the beach, find out which ones have lifeguards.', grade_level: '3' });
 
     expect(result.result.complexity_score).toBe('slightly_complex');
     expect(result.result.reasoning).toBe(MOCK_RESPONSE.data.reasoning);
@@ -224,9 +213,7 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
       latencyMs: 300,
     });
 
-    const result = await overrideEvaluator.evaluate(
-      'When going to the beach, find out which ones have lifeguards.', '3'
-    );
+    const result = await overrideEvaluator.evaluate({ text: 'When going to the beach, find out which ones have lifeguards.', grade_level: '3' });
 
     expect(result.metadata.model).toBe('anthropic:claude-haiku-4-5-20251001');
   });
@@ -235,7 +222,7 @@ describe('PurposeClarityEvaluator - LLM call contract', () => {
     vi.mocked(mockProvider.generateStructured).mockResolvedValue(MOCK_RESPONSE);
 
     await expect(
-      evaluator.evaluate('Some text long enough to evaluate.', '5'),
+      evaluator.evaluate({ text: 'Some text long enough to evaluate.', grade_level: '5' }),
     ).resolves.toBeDefined();
   });
 });
@@ -254,22 +241,22 @@ describe('PurposeClarityEvaluator - Validation', () => {
   });
 
   it('rejects grade below 3', async () => {
-    await expect(evaluator.evaluate('Some text.', '2')).rejects.toThrow(/Invalid grade/);
+    await expect(evaluator.evaluate({ text: 'Some text.', grade_level: '2' as GradeLevelInput })).rejects.toThrow(/Invalid grade/);
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
   it('rejects grade above 12', async () => {
-    await expect(evaluator.evaluate('Some text.', '13')).rejects.toThrow(/Invalid grade/);
+    await expect(evaluator.evaluate({ text: 'Some text.', grade_level: '13' as GradeLevelInput })).rejects.toThrow(/Invalid grade/);
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
   it('rejects empty text', async () => {
-    await expect(evaluator.evaluate('', '5')).rejects.toThrow();
+    await expect(evaluator.evaluate({ text: '', grade_level: '5' })).rejects.toThrow();
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
   it('rejects whitespace-only text', async () => {
-    await expect(evaluator.evaluate('   ', '5')).rejects.toThrow(/empty or contain only whitespace/);
+    await expect(evaluator.evaluate({ text: '   ', grade_level: '5' })).rejects.toThrow(/empty or contain only whitespace/);
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
@@ -277,7 +264,7 @@ describe('PurposeClarityEvaluator - Validation', () => {
     vi.mocked(mockProvider.generateStructured).mockRejectedValue(new Error('API timeout'));
 
     await expect(
-      evaluator.evaluate('The beach is a fun place to swim and play in the sun.', '4'),
+      evaluator.evaluate({ text: 'The beach is a fun place to swim and play in the sun.', grade_level: '4' }),
     ).rejects.toThrow('API timeout');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getAvailableGroups, BatchEvaluator, Provider } from '../../../src/batch/index.js';
+import { getFamilies, getFamily, BatchEvaluator, Provider } from '../../../src/batch/index.js';
 import type { BatchInput, BatchConfig, BatchResult } from '../../../src/batch/index.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import type { EvaluatorFamily, FamilyRow, TaskOutcome } from '../../../src/batch/families/family.js';
@@ -57,46 +57,46 @@ function fakeProvider(): LLMProvider {
   };
 }
 
-describe('getAvailableGroups', () => {
-  it('returns at least one group', () => {
-    expect(getAvailableGroups().length).toBeGreaterThan(0);
+describe('getFamilies', () => {
+  it('returns at least one family', () => {
+    expect(getFamilies().length).toBeGreaterThan(0);
   });
 
-  it('includes the text-complexity group', () => {
-    const ids = getAvailableGroups().map((g) => g.id);
-    expect(ids).toContain('text-complexity');
+  it('includes the text-complexity family', () => {
+    expect(getFamilies().map((f) => f.id)).toContain('text-complexity');
   });
 
-  it('each group has required metadata fields', () => {
-    for (const g of getAvailableGroups()) {
-      expect(g.id).toBeTruthy();
-      expect(g.name).toBeTruthy();
-      expect(g.description).toBeTruthy();
-      expect(Array.isArray(g.evaluatorIds)).toBe(true);
-      expect(g.evaluatorIds.length).toBeGreaterThan(0);
-      expect(typeof g.requiresGoogleKey).toBe('boolean');
-      expect(typeof g.requiresOpenAIKey).toBe('boolean');
-      expect(typeof g.maxInputRows).toBe('number');
-      expect(g.maxInputRows).toBeGreaterThan(0);
+  it('each family has required metadata fields', () => {
+    for (const f of getFamilies()) {
+      expect(f.id).toBeTruthy();
+      expect(f.name).toBeTruthy();
+      expect(f.description).toBeTruthy();
+      expect(f.members.length).toBeGreaterThan(0);
+      expect(typeof f.maxInputRows).toBe('number');
+      expect(f.maxInputRows).toBeGreaterThan(0);
     }
   });
 
-  it('text-complexity group contains vocabulary, sentence-structure, and grade-level-appropriateness', () => {
-    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-    expect(group.evaluatorIds).toContain(VocabularyComplexityEvaluator.metadata.id);
-    expect(group.evaluatorIds).toContain(SentenceStructureEvaluator.metadata.id);
-    expect(group.evaluatorIds).toContain(GradeLevelAppropriatenessEvaluator.metadata.id);
+  it('text-complexity family contains vocabulary, sentence-structure, and grade-level-appropriateness', () => {
+    const family = getFamily('text-complexity');
+    expect(family.members.map((m) => m.id)).toContain(VocabularyComplexityEvaluator.metadata.id);
+    expect(family.members.map((m) => m.id)).toContain(SentenceStructureEvaluator.metadata.id);
+    expect(family.members.map((m) => m.id)).toContain(GradeLevelAppropriatenessEvaluator.metadata.id);
   });
 
-  it('text-complexity group requires both Google and OpenAI keys', () => {
-    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-    expect(group.requiresGoogleKey).toBe(true);
-    expect(group.requiresOpenAIKey).toBe(true);
+  it('text-complexity family requires both Google and OpenAI keys', () => {
+    // A family derives its keys from its members' declared providers, rather than the two
+    // booleans the removed group shape carried — which had no Anthropic field at all.
+    const family = getFamily('text-complexity');
+    const keys = family.requiredKeys(family.members.map((m) => m.id));
+
+    expect(keys).toContain(Provider.Google);
+    expect(keys).toContain(Provider.OpenAI);
   });
 
-  it('text-complexity group enforces a row limit of 50', () => {
-    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-    expect(group.maxInputRows).toBe(50);
+  it('text-complexity family enforces a row limit of 50', () => {
+    const family = getFamily('text-complexity');
+    expect(family.maxInputRows).toBe(50);
   });
 });
 
@@ -112,53 +112,53 @@ describe('BatchEvaluator.evaluate() — input validation', () => {
   });
 
   it('throws when input row count exceeds the group maxInputRows', async () => {
-    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-    const tooMany = makeInputs(group.maxInputRows + 1);
+    const family = getFamily('text-complexity');
+    const tooMany = makeInputs(family.maxInputRows + 1);
 
-    await expect(evaluator.evaluate(tooMany, group.id))
-      .rejects.toThrow(`Input exceeds limit for "${group.id}"`);
+    await expect(evaluator.evaluate(tooMany, family.id))
+      .rejects.toThrow(`Input exceeds limit for "${family.id}"`);
   });
 
   it('does not throw the limit error when input count equals maxInputRows', async () => {
-    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-    const atLimit = makeInputs(group.maxInputRows);
+    const family = getFamily('text-complexity');
+    const atLimit = makeInputs(family.maxInputRows);
     const boundary = new BatchEvaluator({ llmProvider: fakeProvider(), telemetry: false });
 
-    await expect(boundary.evaluate(atLimit, group.id)).resolves.toBeDefined();
+    await expect(boundary.evaluate(atLimit, family.id)).resolves.toBeDefined();
   });
 
   it('error message mentions the bypassRowLimit escape hatch', async () => {
-    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-    const tooMany = makeInputs(group.maxInputRows + 1);
+    const family = getFamily('text-complexity');
+    const tooMany = makeInputs(family.maxInputRows + 1);
 
-    await expect(evaluator.evaluate(tooMany, group.id))
+    await expect(evaluator.evaluate(tooMany, family.id))
       .rejects.toThrow(/bypassRowLimit/);
   });
 
   it('explicitly setting bypassRowLimit: false still throws on overflow', async () => {
-    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-    const tooMany = makeInputs(group.maxInputRows + 1);
+    const family = getFamily('text-complexity');
+    const tooMany = makeInputs(family.maxInputRows + 1);
     const strict = new BatchEvaluator({
       googleApiKey: 'fake-google-key',
       openaiApiKey: 'fake-openai-key',
       bypassRowLimit: false,
     });
 
-    await expect(strict.evaluate(tooMany, group.id))
-      .rejects.toThrow(`Input exceeds limit for "${group.id}"`);
+    await expect(strict.evaluate(tooMany, family.id))
+      .rejects.toThrow(`Input exceeds limit for "${family.id}"`);
   });
 
   it('bypassRowLimit: true skips the row limit check', async () => {
-    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-    const tooMany = makeInputs(group.maxInputRows + 1);
+    const family = getFamily('text-complexity');
+    const tooMany = makeInputs(family.maxInputRows + 1);
     const bypassed = new BatchEvaluator({
       llmProvider: fakeProvider(),
       telemetry: false,
       bypassRowLimit: true,
     });
 
-    const output = await bypassed.evaluate(tooMany, group.id);
-    const expectedTasks = tooMany.length * group.evaluatorIds.length;
+    const output = await bypassed.evaluate(tooMany, family.id);
+    const expectedTasks = tooMany.length * family.members.map((m) => m.id).length;
     // The bypass is proven by all rows being processed (totalTasks reflects the
     // over-limit input) rather than the run throwing the limit error.
     expect(output.summary.totalTasks).toBe(expectedTasks);

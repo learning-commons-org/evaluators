@@ -1,3 +1,5 @@
+export { getEvaluators, getEvaluator } from './registry.js';
+
 export {
   BaseEvaluator,
   Provider,
@@ -10,51 +12,102 @@ export {
 export {
   VocabularyComplexityEvaluator,
   evaluateVocabularyComplexity,
-} from './vocabulary-complexity.js';
+  type VocabularyComplexityInput,
+} from './student-facing-text/ela-reading/vocabulary-complexity.js';
 
 export {
   SentenceStructureEvaluator,
   evaluateSentenceStructure,
-} from './sentence-structure.js';
+  type SentenceStructureInput,
+} from './student-facing-text/ela-reading/sentence-structure.js';
 
 export {
   GradeLevelAppropriatenessEvaluator,
   evaluateGradeLevelAppropriateness,
-} from './grade-level-appropriateness.js';
+  type GradeLevelAppropriatenessInput,
+} from './student-facing-text/ela-reading/grade-level-appropriateness.js';
 
 export {
   BackgroundKnowledgeDemandsEvaluator,
   evaluateBackgroundKnowledgeDemands,
-} from './background-knowledge-demands.js';
+  type BackgroundKnowledgeDemandsInput,
+} from './student-facing-text/ela-reading/background-knowledge-demands.js';
 
 export {
   MeaningDirectnessEvaluator,
   evaluateMeaningDirectness,
-} from './meaning-directness.js';
+  type MeaningDirectnessInput,
+} from './student-facing-text/ela-reading/meaning-directness.js';
 
 export {
   PurposeClarityEvaluator,
   evaluatePurposeClarity,
-} from './purpose-clarity.js';
+  type PurposeClarityInput,
+} from './student-facing-text/ela-reading/purpose-clarity.js';
 
 export {
   ReferenceKnowledgeDemandsEvaluator,
   evaluateReferenceKnowledgeDemands,
-} from './reference-knowledge-demands.js';
+  type ReferenceKnowledgeDemandsInput,
+} from './student-facing-text/ela-reading/reference-knowledge-demands.js';
 
 export {
   OrganizationalStructureEvaluator,
   evaluateOrganizationalStructure,
-} from './organizational-structure.js';
+  type OrganizationalStructureInput,
+} from './student-facing-text/ela-reading/organizational-structure.js';
+
+export {
+  RevisionAccuracyEvaluator,
+  evaluateRevisionAccuracy,
+  type RevisionAccuracyInput,
+} from './feedback/ela-writing/revision-accuracy.js';
+
+export {
+  RevisionActionabilityEvaluator,
+  evaluateRevisionActionability,
+  type RevisionActionabilityInput,
+} from './feedback/ela-writing/revision-actionability.js';
+
+export {
+  RevisionManageabilityEvaluator,
+  evaluateRevisionManageability,
+  type RevisionManageabilityInput,
+} from './feedback/ela-writing/revision-manageability.js';
+
+export {
+  StrengthAcknowledgmentEvaluator,
+  evaluateStrengthAcknowledgment,
+  type StrengthAcknowledgmentInput,
+} from './feedback/ela-writing/strength-acknowledgment.js';
+
+export {
+  StudentResponseSpecificityEvaluator,
+  evaluateStudentResponseSpecificity,
+  type StudentResponseSpecificityInput,
+} from './feedback/ela-writing/student-response-specificity.js';
+
+export {
+  ToneAppropriatenessEvaluator,
+  evaluateToneAppropriateness,
+  type ToneAppropriatenessInput,
+} from './feedback/ela-writing/tone-appropriateness.js';
+
+export {
+  WithholdingAnswersEvaluator,
+  evaluateWithholdingAnswers,
+  type WithholdingAnswersInput,
+} from './feedback/ela-writing/withholding-answers.js';
 
 export {
   MathStandardsAlignmentEvaluator,
   evaluateMathStandardsAlignment,
   type MathStandardsAlignmentEvaluatorConfig,
   type LearningComponentResult,
-  type StandardAlignmentResult,
+  type MathStandardsAlignmentResult,
   type QuestionItem,
   type QuestionBankResult,
   type QuestionResult,
   type QuestionBankOptions,
-} from './math/standards-alignment.js';
+  type MathStandardsAlignmentInput,
+} from './academic-standards-alignment/mathematics/math-standards-alignment.js';

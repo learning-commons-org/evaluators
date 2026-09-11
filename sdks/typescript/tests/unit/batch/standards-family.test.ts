@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
 import { STANDARDS_FAMILY } from '../../../src/batch/families/standards.js';
 import { QTC_FAMILY } from '../../../src/batch/families/qtc.js';
@@ -77,14 +79,23 @@ describe('STANDARDS_FAMILY.createRunner — provider-key forwarding', () => {
 });
 
 describe('STANDARDS_FAMILY.runTask', () => {
+  /** A full `evaluate()` envelope, which is what the runner now has to unwrap. */
   const ALIGNMENT = {
-    statementCode: '3.MD.C.7.d',
-    learningComponents: [
-      { identifier: 'lc-1', description: 'a', reasoning: 'r', aligned: true, feedback: '' },
-      { identifier: 'lc-2', description: 'b', reasoning: 'r', aligned: false, feedback: 'revise' },
-    ],
-    alignedCount: 1,
-    totalCount: 2,
+    evaluator: 'math-standards-alignment',
+    result: {
+      statement_code: '3.MD.C.7.d',
+      learning_components: [
+        { identifier: 'lc-1', description: 'a', reasoning: 'r', aligned: true, feedback: '' },
+        { identifier: 'lc-2', description: 'b', reasoning: 'r', aligned: false, feedback: 'revise' },
+      ],
+      aligned_count: 1,
+      total_count: 2,
+    },
+    metadata: {
+      model: 'anthropic:claude-x',
+      processingTimeMs: 1,
+      tokenUsage: { inputTokens: 10, outputTokens: 20 },
+    },
   };
 
   /** The runner builds a real evaluator; swap it for a stub so no network is needed. */
@@ -101,33 +112,76 @@ describe('STANDARDS_FAMILY.runTask', () => {
   it('reports aligned/total as the score and carries the full verdict as payload', async () => {
     const evaluate = vi.fn().mockResolvedValue(ALIGNMENT);
     const outcome = await runnerWithStub(evaluate).runTask(
-      row({ question: 'What is the area?', statementCode: '3.MD.C.7.d', jurisdiction: Jurisdiction.Utah }),
+      row({ question: 'What is the area?', statement_code: '3.MD.C.7.d', jurisdiction: Jurisdiction.Utah }),
       MEMBER,
     );
 
-    expect(evaluate).toHaveBeenCalledWith('What is the area?', '3.MD.C.7.d', Jurisdiction.Utah);
+    expect(evaluate).toHaveBeenCalledWith({
+      question: 'What is the area?',
+      statement_code: '3.MD.C.7.d',
+      jurisdiction: Jurisdiction.Utah,
+    });
     expect(outcome.score).toBe('1/2');
     expect(outcome.reasoning).toContain('1 of 2');
     expect(outcome.payload).toMatchObject({
       question: 'What is the area?',
       jurisdiction: Jurisdiction.Utah,
-      alignedCount: 1,
-      totalCount: 2,
+      aligned_count: 1,
+      total_count: 2,
     });
+    // The payload is written verbatim to results.json, so spreading the envelope instead of
+    // its `result` would add `evaluator`/`metadata` columns to a partner-facing artefact.
+    expect(Object.keys(outcome.payload as object).sort()).toEqual([
+      'aligned_count',
+      'jurisdiction',
+      'learning_components',
+      'question',
+      'statement_code',
+      'total_count',
+    ]);
   });
 
   it('defaults an absent jurisdiction to Multi-State', async () => {
     const evaluate = vi.fn().mockResolvedValue(ALIGNMENT);
-    await runnerWithStub(evaluate).runTask(row({ question: 'q', statementCode: '3.MD.C.7.d' }), MEMBER);
+    await runnerWithStub(evaluate).runTask(row({ question: 'q', statement_code: '3.MD.C.7.d' }), MEMBER);
 
-    expect(evaluate).toHaveBeenCalledWith('q', '3.MD.C.7.d', Jurisdiction.MultiState);
+    expect(evaluate).toHaveBeenCalledWith({
+      question: 'q',
+      statement_code: '3.MD.C.7.d',
+      jurisdiction: Jurisdiction.MultiState,
+    });
   });
 
   it('rejects an unrecognised jurisdiction instead of passing it to the Knowledge Graph', async () => {
     const evaluate = vi.fn();
     await expect(
-      runnerWithStub(evaluate).runTask(row({ question: 'q', statementCode: 'x', jurisdiction: 'Utahh' }), MEMBER),
+      runnerWithStub(evaluate).runTask(row({ question: 'q', statement_code: 'x', jurisdiction: 'Utahh' }), MEMBER),
     ).rejects.toThrow(/Invalid jurisdiction "Utahh"/);
     expect(evaluate).not.toHaveBeenCalled();
+  });
+});
+
+describe('the standards report reads the fields the formatter emits', () => {
+  // The report filtered and displayed `it.grade`; the formatter emits `gradeLevel`. Since
+  // `it.grade` was always undefined, selecting a grade filtered *everything* out rather
+  // than filtering. Nothing failed because the filter is browser JS in a template, which
+  // no test executes — so this asserts on the template text, as the ordering check does.
+  const template = readFileSync(
+    join(process.cwd(), 'src/batch/families/standards-report.html'),
+    'utf-8',
+  );
+
+  it('never reads a bare `grade` off a row', () => {
+    expect(template).not.toMatch(/\bit\.grade\b/);
+  });
+
+  it('reads gradeLevel, which is what standards-output.ts writes', () => {
+    expect(template).toContain('it.gradeLevel');
+
+    const formatter = readFileSync(
+      join(process.cwd(), 'src/batch/families/standards-output.ts'),
+      'utf-8',
+    );
+    expect(formatter, 'the formatter must still emit that field').toContain('gradeLevel:');
   });
 });

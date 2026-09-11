@@ -1,7 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { VocabularyComplexityEvaluator } from '../../../src/evaluators/vocabulary-complexity.js';
-import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/background-knowledge-demands.js';
-import { VALIDATION_LIMITS, Provider, BaseEvaluator } from '../../../src/evaluators/base.js';
+
+/** The declared grade type. These cases feed it invalid values on purpose, to prove the
+ * runtime check still rejects what the literal union now also rejects at compile time. */
+type GradeLevelInput = '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | '11' | '12';
+import { VocabularyComplexityEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/vocabulary-complexity.js';
+import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/background-knowledge-demands.js';
+import { MeaningDirectnessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/meaning-directness.js';
+import { Provider, BaseEvaluator } from '../../../src/evaluators/base.js';
+import MD_INPUT_SCHEMA from '../../../../../evals/student-facing-text/ela-reading/meaning-directness/input_schema.json';
+
+// Read from the contract, not restated: the bound is the evaluator's, not a global.
+const MAX_TEXT_LENGTH = MD_INPUT_SCHEMA.properties.text.maxLength;
 import { ConfigurationError, InputValidationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import { createProvider } from '../../../src/providers/index.js';
@@ -49,6 +58,21 @@ describe('Configuration Validation', () => {
       googleApiKey: 'test-google-key',
       openaiApiKey: '',
     })).toThrow(ConfigurationError);
+  });
+});
+
+describe('Input validation runs before anything reads the inputs', () => {
+  // Regression: the guard existed but every evaluator destructured `input` first, so a
+  // non-object raised a TypeError before validation ran. Testing validateInputs alone
+  // passed; nothing tested the path a caller actually takes.
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['a string', 'just some text'],
+  ])('rejects %s through evaluate() with a canonical error', async (_label, bad) => {
+    const evaluator = new MeaningDirectnessEvaluator({ googleApiKey: 'k', telemetry: false });
+
+    await expect(evaluator.evaluate(bad as never)).rejects.toThrow(InputValidationError);
   });
 });
 
@@ -156,7 +180,7 @@ describe('ModelOverride', () => {
       vi.mocked(evaluator.provider.generateStructured).mockRejectedValueOnce(notFoundError);
 
       await expect(
-        evaluator.evaluate('This is a sample text long enough to pass validation.', '5')
+        evaluator.evaluate({ text: 'This is a sample text long enough to pass validation.', grade_level: '5' })
       ).rejects.toThrow(ConfigurationError);
     });
   });
@@ -183,8 +207,8 @@ describe('Input Validation - Text Validation', () => {
       ['newlines only', '\n\n\n'],
       ['mixed whitespace', '  \t\n  '],
     ])('should reject %s', async (_label, text) => {
-      await expect(evaluator.evaluate(text, '5'))
-        .rejects.toThrow('Text cannot be empty or contain only whitespace');
+      await expect(evaluator.evaluate({ text: text, grade_level: '5' }))
+        .rejects.toThrow('text cannot be empty or contain only whitespace');
     });
   });
 
@@ -193,17 +217,17 @@ describe('Input Validation - Text Validation', () => {
     // longer a validation failure. Meaningful minimums are declared in each
     // evaluator's input schema.
     it('does not reject short text as invalid input', async () => {
-      const error = await evaluator.evaluate('Hello wo', '5').catch((e) => e);
+      const error = await evaluator.evaluate({ text: 'Hello wo', grade_level: '5' }).catch((e) => e);
       expect(error).not.toBeInstanceOf(InputValidationError);
     });
   });
 
   describe('Maximum length validation', () => {
-    it(`should reject text longer than ${VALIDATION_LIMITS.MAX_TEXT_LENGTH.toLocaleString()} characters`, async () => {
-      const longText = 'a'.repeat(VALIDATION_LIMITS.MAX_TEXT_LENGTH + 1);
+    it(`should reject text longer than ${MAX_TEXT_LENGTH} characters`, async () => {
+      const longText = 'a'.repeat(MAX_TEXT_LENGTH + 1);
 
-      await expect(evaluator.evaluate(longText, '5'))
-        .rejects.toThrow(new RegExp(`Text is too long\\. Maximum length is ${VALIDATION_LIMITS.MAX_TEXT_LENGTH.toLocaleString()} characters, received ${(VALIDATION_LIMITS.MAX_TEXT_LENGTH + 1).toLocaleString()} characters`));
+      await expect(evaluator.evaluate({ text: longText, grade_level: '5' }))
+        .rejects.toThrow('text is too long. Maximum length is 10000 characters.');
     });
   });
 });
@@ -229,8 +253,8 @@ describe('Input Validation - Grade Validation', () => {
     ])('should reject grade %s (below minimum)', async (_label, grade) => {
       const validText = 'This is a sample text for testing.';
 
-      await expect(evaluator.evaluate(validText, grade))
-        .rejects.toThrow(`Invalid grade level "${grade}". Supported grade levels for this evaluator: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12`);
+      await expect(evaluator.evaluate({ text: validText, grade_level: grade as GradeLevelInput }))
+        .rejects.toThrow(`Invalid grade_level "${grade}". Accepted values: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12.`);
     });
 
     it.each([
@@ -239,8 +263,8 @@ describe('Input Validation - Grade Validation', () => {
     ])('should reject grade %s (above maximum)', async (_label, grade) => {
       const validText = 'This is a sample text for testing.';
 
-      await expect(evaluator.evaluate(validText, grade))
-        .rejects.toThrow(`Invalid grade level "${grade}". Supported grade levels for this evaluator: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12`);
+      await expect(evaluator.evaluate({ text: validText, grade_level: grade as GradeLevelInput }))
+        .rejects.toThrow(`Invalid grade_level "${grade}". Accepted values: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12.`);
     });
 
     it.each([
@@ -250,8 +274,8 @@ describe('Input Validation - Grade Validation', () => {
     ])('should reject grade %s (invalid format)', async (_label, grade) => {
       const validText = 'This is a sample text for testing.';
 
-      await expect(evaluator.evaluate(validText, grade))
-        .rejects.toThrow(`Invalid grade level "${grade}". Supported grade levels for this evaluator: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12`);
+      await expect(evaluator.evaluate({ text: validText, grade_level: grade as GradeLevelInput }))
+        .rejects.toThrow(`Invalid grade_level "${grade}". Accepted values: 3, 4, 5, 6, 7, 8, 9, 10, 11, 12.`);
     });
   });
 });

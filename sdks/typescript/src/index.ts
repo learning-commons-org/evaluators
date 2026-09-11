@@ -3,11 +3,9 @@ export type {
   EvaluationResult,
   EvaluationMetadata,
   EvaluationTokenUsage,
-  EvaluationFailure,
 } from './schemas/index.js';
-
-export { TextComplexityLevel, GradeBand } from './schemas/index.js';
-export { readOutcome, type Outcome } from './schemas/index.js';
+export type { GradeBand } from './schemas/index.js';
+export { readOutcome, type Outcome, type DeclaredOutcome } from './schemas/index.js';
 
 // Error types
 export {
@@ -54,46 +52,84 @@ export type {
   ProviderConfig,
 } from './providers/index.js';
 
-export { Providers } from './providers/index.js';
-
 // Sentence structure exports
-export type {
-  SentenceAnalysis,
-  ComplexityClassification,
-  SentenceFeatures,
-} from './schemas/sentence-structure.js';
+export {
+  SentenceStructureOutputSchema,
+  type SentenceStructureResult,
+} from './schemas/student-facing-text/ela-reading/sentence-structure.js';
 
+// Its intermediate types: the first step's analysis, and the features computed from it.
+// `ComplexityClassification` is gone — the final output is `SentenceStructureResult`.
 export {
   SentenceAnalysisSchema,
-  ComplexityClassificationSchema,
-} from './schemas/sentence-structure.js';
+  type SentenceAnalysis,
+  type SentenceFeatures,
+} from './schemas/student-facing-text/ela-reading/sentence-structure-steps.js';
 
 // Vocabulary Complexity exports
-export type { VocabularyComplexityInternal } from './schemas/vocabulary-complexity.js';
+export type { VocabularyComplexityResult } from './schemas/student-facing-text/ela-reading/vocabulary-complexity.js';
 
 // Background Knowledge Demands exports
-export type { BackgroundKnowledgeDemandsInternal } from './schemas/background-knowledge-demands.js';
+export type { BackgroundKnowledgeDemandsResult } from './schemas/student-facing-text/ela-reading/background-knowledge-demands.js';
 
 // Meaning Directness exports
-export type { MeaningDirectnessInternal } from './schemas/meaning-directness.js';
+export type { MeaningDirectnessResult } from './schemas/student-facing-text/ela-reading/meaning-directness.js';
 
 // Grade Level Appropriateness exports
-export type { GradeLevelAppropriatenessInternal } from './schemas/grade-level-appropriateness.js';
+export type { GradeLevelAppropriatenessResult } from './schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
 
-export { GradeLevelAppropriatenessOutputSchema } from './schemas/grade-level-appropriateness.js';
+export { GradeLevelAppropriatenessOutputSchema } from './schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
+export { BackgroundKnowledgeDemandsOutputSchema } from './schemas/student-facing-text/ela-reading/background-knowledge-demands.js';
+export { MeaningDirectnessOutputSchema } from './schemas/student-facing-text/ela-reading/meaning-directness.js';
+export { OrganizationalStructureOutputSchema } from './schemas/student-facing-text/ela-reading/organizational-structure.js';
+export { PurposeClarityOutputSchema } from './schemas/student-facing-text/ela-reading/purpose-clarity.js';
+export { ReferenceKnowledgeDemandsOutputSchema } from './schemas/student-facing-text/ela-reading/reference-knowledge-demands.js';
+export { VocabularyComplexityOutputSchema } from './schemas/student-facing-text/ela-reading/vocabulary-complexity.js';
 
 // Purpose Clarity exports
-export type { PurposeClarityInternal } from './schemas/purpose-clarity.js';
+export type { PurposeClarityResult } from './schemas/student-facing-text/ela-reading/purpose-clarity.js';
 
 // Reference Knowledge Demands exports
-export type { ReferenceKnowledgeDemandsInternal } from './schemas/reference-knowledge-demands.js';
+export type { ReferenceKnowledgeDemandsResult } from './schemas/student-facing-text/ela-reading/reference-knowledge-demands.js';
 
 // Organizational Structure exports
-export type { OrganizationalStructureInternal } from './schemas/organizational-structure.js';
+export type { OrganizationalStructureResult } from './schemas/student-facing-text/ela-reading/organizational-structure.js';
+
+// Feedback exports
+export type { RevisionAccuracyResult } from './schemas/feedback/ela-writing/revision-accuracy.js';
+export { RevisionAccuracyOutputSchema } from './schemas/feedback/ela-writing/revision-accuracy.js';
+export type { RevisionActionabilityResult } from './schemas/feedback/ela-writing/revision-actionability.js';
+export { RevisionActionabilityOutputSchema } from './schemas/feedback/ela-writing/revision-actionability.js';
+export type { RevisionManageabilityResult } from './schemas/feedback/ela-writing/revision-manageability.js';
+export { RevisionManageabilityOutputSchema } from './schemas/feedback/ela-writing/revision-manageability.js';
+export type { StrengthAcknowledgmentResult } from './schemas/feedback/ela-writing/strength-acknowledgment.js';
+export { StrengthAcknowledgmentOutputSchema } from './schemas/feedback/ela-writing/strength-acknowledgment.js';
+export type { StudentResponseSpecificityResult } from './schemas/feedback/ela-writing/student-response-specificity.js';
+export { StudentResponseSpecificityOutputSchema } from './schemas/feedback/ela-writing/student-response-specificity.js';
+export type { ToneAppropriatenessResult } from './schemas/feedback/ela-writing/tone-appropriateness.js';
+export { ToneAppropriatenessOutputSchema } from './schemas/feedback/ela-writing/tone-appropriateness.js';
+export type { WithholdingAnswersResult } from './schemas/feedback/ela-writing/withholding-answers.js';
+export { WithholdingAnswersOutputSchema } from './schemas/feedback/ela-writing/withholding-answers.js';
 
 export {
   VocabularyComplexityEvaluator,
   evaluateVocabularyComplexity,
+  type BackgroundKnowledgeDemandsInput,
+  type GradeLevelAppropriatenessInput,
+  type MathStandardsAlignmentInput,
+  type MeaningDirectnessInput,
+  type OrganizationalStructureInput,
+  type PurposeClarityInput,
+  type ReferenceKnowledgeDemandsInput,
+  type RevisionAccuracyInput,
+  type RevisionActionabilityInput,
+  type RevisionManageabilityInput,
+  type SentenceStructureInput,
+  type StrengthAcknowledgmentInput,
+  type StudentResponseSpecificityInput,
+  type ToneAppropriatenessInput,
+  type VocabularyComplexityInput,
+  type WithholdingAnswersInput,
   SentenceStructureEvaluator,
   evaluateSentenceStructure,
   BackgroundKnowledgeDemandsEvaluator,
@@ -108,11 +144,25 @@ export {
   evaluateReferenceKnowledgeDemands,
   OrganizationalStructureEvaluator,
   evaluateOrganizationalStructure,
+  RevisionAccuracyEvaluator,
+  evaluateRevisionAccuracy,
+  RevisionActionabilityEvaluator,
+  evaluateRevisionActionability,
+  RevisionManageabilityEvaluator,
+  evaluateRevisionManageability,
+  StrengthAcknowledgmentEvaluator,
+  evaluateStrengthAcknowledgment,
+  StudentResponseSpecificityEvaluator,
+  evaluateStudentResponseSpecificity,
+  ToneAppropriatenessEvaluator,
+  evaluateToneAppropriateness,
+  WithholdingAnswersEvaluator,
+  evaluateWithholdingAnswers,
   MathStandardsAlignmentEvaluator,
   evaluateMathStandardsAlignment,
   type MathStandardsAlignmentEvaluatorConfig,
   type LearningComponentResult,
-  type StandardAlignmentResult,
+  type MathStandardsAlignmentResult,
   type QuestionItem,
   type QuestionBankResult,
   type QuestionResult,
@@ -122,6 +172,8 @@ export {
   type ModelOverride,
   type TelemetryOptions,
   type EvaluatorMetadata,
+  getEvaluators,
+  getEvaluator,
 } from './evaluators/index.js';
 
 // Features

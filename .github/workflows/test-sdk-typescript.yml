@@ -6,14 +6,18 @@ on:
       - main
     paths:
       - 'sdks/typescript/**'
-      - 'evals/prompts/**'
-      - 'evals/student-facing-text/**'
+      # The whole corpus: the SDK compiles every contract's config.json and prompt .txt
+      # into dist/, so any of them can change what the package does. Listing domains
+      # individually meant a new one silently ran no TypeScript CI at all.
+      - 'evals/**'
       - '.github/workflows/test-sdk-typescript.yml'
   pull_request:
     paths:
       - 'sdks/typescript/**'
-      - 'evals/prompts/**'
-      - 'evals/student-facing-text/**'
+      # The whole corpus: the SDK compiles every contract's config.json and prompt .txt
+      # into dist/, so any of them can change what the package does. Listing domains
+      # individually meant a new one silently ran no TypeScript CI at all.
+      - 'evals/**'
       - '.github/workflows/test-sdk-typescript.yml'
 
 permissions:
@@ -70,6 +74,12 @@ jobs:
       - name: 🔎 Type check
         run: npm run typecheck
 
+      # The committed Zod schemas are generated from the evaluator contracts. Editing a
+      # contract's descriptions changes what the model is asked for, and nothing else
+      # fails when the generated file drifts behind.
+      - name: 🧬 Generated schemas match their contracts
+        run: npm run generate:schemas:check
+
   test:
     name: ⚡ Unit Tests (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
@@ -122,6 +132,18 @@ jobs:
 
       - name: 🏗️ Build package
         run: npm run build
+
+      # The declarations can only be checked against a build, and the test job above runs
+      # before this one without building — so a dist-dependent assertion placed there would
+      # silently skip on every run.
+      - name: 📜 Verify the published declarations
+        run: npm run verify:dist
+
+      # The exports map is the one thing a consumer cannot work around: a wrong `types`
+      # condition made every CJS TypeScript consumer fail to compile while the runtime was
+      # fine. These two check the resolution modes we cannot practically install in CI.
+      - name: 📦 Verify the published package metadata
+        run: npm run verify:package
 
       # Temporarily disabled - integration tests take too long in CI
       # - name: ⚡ Run integration tests (against dist/)

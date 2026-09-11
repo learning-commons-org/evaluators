@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getAvailableGroups, BatchEvaluator } from '../../../src/batch/index.js';
+import { getFamily, BatchEvaluator } from '../../../src/batch/index.js';
 import type { BatchInput } from '../../../src/batch/index.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
@@ -10,7 +10,7 @@ import type { LLMProvider } from '../../../src/providers/base.js';
  * single-evaluator coverage in tests/unit/evaluators/llm-provider.test.ts.
  */
 
-const GROUP = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+const FAMILY = getFamily('text-complexity');
 
 function makeFakeProvider(label = 'vertex:gemini-2.5-pro') {
   const generateStructured = vi.fn().mockResolvedValue({
@@ -50,10 +50,10 @@ describe('BatchConfig.llmProvider — bring-your-own-provider', () => {
     const { provider, generateStructured } = makeFakeProvider();
     const batch = new BatchEvaluator({ llmProvider: provider, telemetry: false });
 
-    const { summary } = await batch.evaluate(makeInputs(1), GROUP.id);
+    const { summary } = await batch.evaluate(makeInputs(1), FAMILY.id);
 
     // One task per evaluator in the group, all attempted (no missing-key crash).
-    expect(summary.totalTasks).toBe(GROUP.evaluatorIds.length);
+    expect(summary.totalTasks).toBe(FAMILY.members.length);
     expect(generateStructured).toHaveBeenCalled();
   });
 
@@ -63,9 +63,9 @@ describe('BatchConfig.llmProvider — bring-your-own-provider', () => {
 
     // One task per member, all attempted, and the injected provider was used
     // (no keys were supplied, so nothing could fall back to a real provider).
-    const { results } = await batch.evaluate(makeInputs(1), GROUP.id);
+    const { results } = await batch.evaluate(makeInputs(1), FAMILY.id);
 
-    expect(results).toHaveLength(GROUP.evaluatorIds.length);
+    expect(results).toHaveLength(FAMILY.members.length);
     expect(generateStructured).toHaveBeenCalled();
     expect(results.some((r) => r.status === 'success')).toBe(true);
   });
@@ -74,7 +74,7 @@ describe('BatchConfig.llmProvider — bring-your-own-provider', () => {
     const { provider } = makeFakeProvider();
     const batch = new BatchEvaluator({ llmProvider: provider, telemetry: false });
 
-    const { results } = await batch.evaluate(makeInputs(1), GROUP.id);
+    const { results } = await batch.evaluate(makeInputs(1), FAMILY.id);
 
     for (const r of results) {
       expect(r.error ?? '').not.toMatch(/API key/i);

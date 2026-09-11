@@ -1,12 +1,15 @@
 """Validate each evaluator's fixtures.json.
 
-Two layers, mirroring eval-config:
+Three layers, the first two mirroring eval-config:
   - shared structure: every case is {id, input, expected} per the shared
     evals/_schemas/fixtures.schema.json.
   - per-evaluator binding: each case's `input` must satisfy that evaluator's own
     input_schema.json, and each field in `expected` must satisfy the matching
     property in its output_schema.json. (`expected` is a subset of the full
     output — just the label(s) — so we validate present fields, not requireds.)
+  - outcome coverage: if the config declares `outcome.score`, every case must pin
+    that field. It is the only part of the output stable enough to assert, so a
+    fixture that omits it asserts nothing a caller depends on.
 """
 
 from __future__ import annotations
@@ -64,8 +67,12 @@ class EvalFixtures(Check):
             return  # per-case binding below assumes well-formed cases
 
         # Layer 2: bind input/expected to this evaluator's own schemas.
+        # Layer 3: every case pins the declared outcome score.
         input_validator = self._validator_for(config, base, "input_schema")
         expected_validator = self._expected_validator(config, base)
+        # Absent for evaluators whose payload has no single verdict field, such as
+        # Math Standards Alignment; `outcome` is optional in the config schema.
+        score_field = (config.get("outcome") or {}).get("score")
         for case in fixtures:
             cid = case.get("id", "?")
             if input_validator:
@@ -74,6 +81,11 @@ class EvalFixtures(Check):
             if expected_validator:
                 for err in expected_validator.iter_errors(case.get("expected", {})):
                     fail(f"{rel}[{cid}].expected: {self._loc(err)}: {err.message}")
+            if score_field and score_field not in case.get("expected", {}):
+                fail(
+                    f"{rel}[{cid}].expected: missing {score_field!r}, "
+                    f"the outcome score declared in config.json"
+                )
 
     def _validator_for(self, config: dict, base: str, key: str):
         ref = config.get(key, {})

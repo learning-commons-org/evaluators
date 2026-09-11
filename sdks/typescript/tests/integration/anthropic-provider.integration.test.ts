@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { Provider, type BaseEvaluatorConfig } from '../../src/evaluators/base.js';
 import type { EvaluationResult } from '../../src/schemas/index.js';
 import { readOutcome } from '../../src/schemas/index.js';
-import { GradeLevelAppropriatenessEvaluator } from '../../src/evaluators/grade-level-appropriateness.js';
-import { MeaningDirectnessEvaluator } from '../../src/evaluators/meaning-directness.js';
-import { BackgroundKnowledgeDemandsEvaluator } from '../../src/evaluators/background-knowledge-demands.js';
-import { SentenceStructureEvaluator } from '../../src/evaluators/sentence-structure.js';
-import { PurposeClarityEvaluator } from '../../src/evaluators/purpose-clarity.js';
-import { VocabularyComplexityEvaluator } from '../../src/evaluators/vocabulary-complexity.js';
+import { GradeLevelAppropriatenessEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/grade-level-appropriateness.js';
+import { MeaningDirectnessEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/meaning-directness.js';
+import { BackgroundKnowledgeDemandsEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/background-knowledge-demands.js';
+import { SentenceStructureEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/sentence-structure.js';
+import { PurposeClarityEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/purpose-clarity.js';
+import { VocabularyComplexityEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/vocabulary-complexity.js';
 
 /**
  * Anthropic provider integration tests (live API). Structured output on Anthropic is
@@ -47,18 +47,18 @@ function anthropicConfig(): BaseEvaluatorConfig {
 
 /** Per-entry `run` so each evaluator is called with its real arity — GLA takes only `text`. */
 const EVALUATORS: Array<{
-  metadata: { id: string; name: string };
+  metadata: { id: string; name: string; outcome?: { score: string; reasoning: string } };
   run: (config: BaseEvaluatorConfig) => Promise<EvaluationResult<unknown>>;
 }> = [
   {
     metadata: GradeLevelAppropriatenessEvaluator.metadata,
-    run: (c) => new GradeLevelAppropriatenessEvaluator(c).evaluate(SAMPLE_TEXT),
+    run: (c) => new GradeLevelAppropriatenessEvaluator(c).evaluate({ text: SAMPLE_TEXT }),
   },
-  { metadata: MeaningDirectnessEvaluator.metadata, run: (c) => new MeaningDirectnessEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { metadata: BackgroundKnowledgeDemandsEvaluator.metadata, run: (c) => new BackgroundKnowledgeDemandsEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { metadata: SentenceStructureEvaluator.metadata, run: (c) => new SentenceStructureEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { metadata: PurposeClarityEvaluator.metadata, run: (c) => new PurposeClarityEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
-  { metadata: VocabularyComplexityEvaluator.metadata, run: (c) => new VocabularyComplexityEvaluator(c).evaluate(SAMPLE_TEXT, GRADE) },
+  { metadata: MeaningDirectnessEvaluator.metadata, run: (c) => new MeaningDirectnessEvaluator(c).evaluate({ text: SAMPLE_TEXT, grade_level: GRADE }) },
+  { metadata: BackgroundKnowledgeDemandsEvaluator.metadata, run: (c) => new BackgroundKnowledgeDemandsEvaluator(c).evaluate({ text: SAMPLE_TEXT, grade_level: GRADE }) },
+  { metadata: SentenceStructureEvaluator.metadata, run: (c) => new SentenceStructureEvaluator(c).evaluate({ text: SAMPLE_TEXT, grade_level: GRADE }) },
+  { metadata: PurposeClarityEvaluator.metadata, run: (c) => new PurposeClarityEvaluator(c).evaluate({ text: SAMPLE_TEXT, grade_level: GRADE }) },
+  { metadata: VocabularyComplexityEvaluator.metadata, run: (c) => new VocabularyComplexityEvaluator(c).evaluate({ text: SAMPLE_TEXT, grade_level: GRADE }) },
 ];
 
 describeIntegration('Anthropic provider — all text-complexity evaluators (live API)', () => {
@@ -71,7 +71,7 @@ describeIntegration('Anthropic provider — all text-complexity evaluators (live
         // readOutcome is the only generic way to reach a verdict now that the
         // envelope carries the payload as its contract declares it. Asserting
         // through it here covers every evaluator's payload shape at once.
-        const outcome = readOutcome(result);
+        const outcome = readOutcome(result, metadata.outcome);
 
         expect(outcome.score).toBeTruthy();
         expect(outcome.reasoning.length).toBeGreaterThan(0);

@@ -12,18 +12,9 @@ import {
   type DependencyId,
 } from '../errors.js';
 import { createLogger, LogLevel, type Logger } from '../logger.js';
+import { configFieldFor } from './credentials.js';
 import { createProvider } from '../providers/index.js';
 import type { LLMProvider } from '../providers/index.js';
-
-/**
- * Validation constants for input text
- */
-export const VALIDATION_LIMITS = {
-  /** Minimum text length in characters */
-  MIN_TEXT_LENGTH: 1,
-  /** Maximum text length in characters */
-  MAX_TEXT_LENGTH: 10_000,
-} as const;
 
 /**
  * Supported LLM providers
@@ -76,9 +67,9 @@ type NormalizedTelemetryOptions = Required<Pick<TelemetryOptions, 'enabled' | 'r
  * - The override is evaluator-wide, not per call site. `VocabularyComplexityEvaluator`
  *   deliberately uses three models (Gemini 2.5 Pro for grade levels 3-4, GPT-4.1 for
  *   5-12, GPT-4o for background knowledge); an override collapses all three.
- * - `PurposeClarityEvaluator` takes its model from the shared cross-language eval config
- *   (`evals/student-facing-text/ela-reading/purpose-clarity/config.json`), so overriding it diverges from that
- *   rather than from a hardcoded default.
+ * - Every evaluator on `defineSingleStepEvaluator` takes its model from its own contract
+ *   (`evals/<domain>/<skill>/<evaluator>/config.json`), so an override diverges from the
+ *   shared cross-language config rather than from an SDK default.
  */
 export interface ModelOverride {
   provider: Provider;
@@ -138,7 +129,7 @@ export interface BaseEvaluatorConfig {
   maxRetries?: number;
 
   /**
-   * Telemetry configuration (default: all enabled)
+   * Telemetry configuration (default: enabled, without input recording)
    *
    * Can be:
    * - `true`: Enable with defaults (recordInputs: false)
@@ -188,8 +179,26 @@ export interface EvaluatorMetadata {
   readonly name: string;
   /** Brief description of what the evaluator does */
   readonly description: string;
-  /** Supported grade levels (e.g., ['3', '4', '5', ...]) */
+  /**
+   * The grades this evaluator is built for, as its contract declares them.
+   *
+   * Not a validation set, and not necessarily the grades you may pass: an evaluator that
+   * takes no grade at all still reports what it targets. Where a `grade_level` input
+   * exists, the accepted values are its schema enum, and that is what rejects a bad one.
+   */
   readonly supportedGrades: readonly string[];
+  /**
+   * Which output properties carry the verdict and its rationale, as the evaluator's
+   * contract declares them. Absent for an evaluator whose output is not a single
+   * judgement, which is why {@link readOutcome} can report no verdict.
+   */
+  readonly outcome?: { readonly score: string; readonly reasoning: string };
+  /**
+   * Canonical config keys for non-LLM services this evaluator calls, from its
+   * contract. LLM keys are not listed — those follow `defaultProviders`, which a model
+   * override narrows; these it does not touch.
+   */
+  readonly requiredCredentials?: readonly string[];
   /** Providers required by this evaluator's default configuration */
   readonly defaultProviders: readonly Provider[];
 }
@@ -197,11 +206,11 @@ export interface EvaluatorMetadata {
 /**
  * Abstract base class for all evaluators
  *
- * Provides common functionality:
- * - Telemetry setup and event sending
- * - Text validation
- * - Grade validation (with overridable default)
- * - Metadata creation
+ * Provides credential and modelOverride validation, provider construction, telemetry, and
+ * grade-level validation for the bulk math paths that still need it.
+ *
+ * Input validation lives in `inputs.ts` (`validateInputs`), driven by each contract's
+ * `input_schema.json`; metadata is a static block each evaluator declares.
  *
  * Concrete evaluators must implement:
  * - static metadata: Provide evaluator metadata (see EvaluatorMetadata interface)
@@ -227,7 +236,9 @@ export abstract class BaseEvaluator {
    * ```typescript
    * class MyEvaluator extends BaseEvaluator {
    *   static readonly metadata = {
-   *     id: 'my-evaluator',
+   *     id: 'student_facing_text.ela_reading.my_evaluator',
+   *     stableId: '00000000-0000-0000-0000-000000000000',
+   *     idHistory: [],
    *     name: 'My Evaluator',
    *     description: 'Does something useful',
    *     supportedGrades: ['3', '4', '5'],
@@ -365,45 +376,56 @@ export abstract class BaseEvaluator {
   }
 
   /**
-   * Validate that the required API key is present.
-   * When modelOverride is set, checks the override provider's key.
-   * Otherwise checks the keys required by the evaluator's default providers.
-   * @throws {ConfigurationError} If a required key is missing
+   * Validate that every credential this evaluator needs was supplied.
+   *
+   * Requirements are derived, not listed: the LLM keys come from the providers its
+   * steps use, and the non-LLM ones from the contract's `required_credentials`. A model
+   * override replaces the former and leaves the latter alone, so an override cannot
+   * skip a credential for a service the evaluator still calls.
+   *
+   * @throws {ConfigurationError} If a required credential is missing
    */
   private validateApiKeys(config: BaseEvaluatorConfig): void {
-    const keyFor: Record<Provider, string | undefined> = {
-      [Provider.OpenAI]: config.openaiApiKey?.trim() || undefined,
-      [Provider.Google]: config.googleApiKey?.trim() || undefined,
-      [Provider.Anthropic]: config.anthropicApiKey?.trim() || undefined,
-    };
-    const humanName: Record<Provider, string> = {
-      [Provider.OpenAI]: 'OpenAI API key',
-      [Provider.Google]: 'Google API key',
-      [Provider.Anthropic]: 'Anthropic API key',
-    };
-    const configKey: Record<Provider, string> = {
-      [Provider.OpenAI]: 'openaiApiKey',
-      [Provider.Google]: 'googleApiKey',
-      [Provider.Anthropic]: 'anthropicApiKey',
+    // The one table that has to exist: these are the SDK's own config fields, which
+    // cannot be indexed dynamically. Names and messages are derived from the canonical
+    // key, so no per-provider table.
+    const provided: Record<string, string | undefined> = {
+      openaiApiKey: config.openaiApiKey,
+      googleApiKey: config.googleApiKey,
+      anthropicApiKey: config.anthropicApiKey,
+      learningCommonsApiKey: config.learningCommonsApiKey,
     };
 
-    if (config.modelOverride) {
-      if (!keyFor[config.modelOverride.provider]) {
-        throw new ConfigurationError(
-          `${humanName[config.modelOverride.provider]} is required when using modelOverride with provider "${config.modelOverride.provider}". Pass ${configKey[config.modelOverride.provider]} in config.`
-        );
-      }
-      return;
-    }
+    const providers = config.modelOverride
+      ? [config.modelOverride.provider]
+      : this.metadata.defaultProviders;
 
-    for (const provider of this.metadata.defaultProviders) {
-      if (!keyFor[provider]) {
+    const satisfied = new Set(this.credentialsSatisfiedByInjection(config));
+    const required = [
+      ...providers.map((provider) => `${provider}_api_key`),
+      ...(this.metadata.requiredCredentials ?? []).filter((key) => !satisfied.has(key)),
+    ];
+
+    for (const canonical of required) {
+      const field = configFieldFor(canonical);
+      if (!provided[field]?.trim()) {
         throw new ConfigurationError(
-          // No " evaluator" suffix: registry names already end in "Evaluator".
-          `${humanName[provider]} is required for ${this.metadata.name}. Pass ${configKey[provider]} in config.`
+          `Missing required credential: ${field}. Required by ${this.metadata.name}.`,
         );
       }
     }
+  }
+
+  /**
+   * Credentials a subclass no longer needs because the caller injected the client that
+   * would have used them.
+   *
+   * Reads only `config`, since this runs from the base constructor before the subclass
+   * is initialised. Same rule as an injected `llmProvider`: whoever supplies the client
+   * owns its auth.
+   */
+  protected credentialsSatisfiedByInjection(_config: BaseEvaluatorConfig): readonly string[] {
+    return [];
   }
 
   /**
@@ -437,7 +459,7 @@ export abstract class BaseEvaluator {
 
   /**
    * Get the evaluator type identifier from metadata
-   * @returns The evaluator type ID (e.g., "vocabulary", "sentence-structure")
+   * @returns The dotted registry id, e.g. "student_facing_text.ela_reading.sentence_structure"
    */
   protected getEvaluatorType(): string {
     return this.metadata.id;
@@ -471,37 +493,6 @@ export abstract class BaseEvaluator {
     // which is also the right answer when there is no model id to strip.
     const model = label.slice(separator + 1);
     return { dependency: prefix as DependencyId, model: model === '' ? label : model };
-  }
-
-  /**
-   * Validate text meets requirements
-   * Default implementation - can be overridden by concrete evaluators
-   *
-   * @throws {InputValidationError} If text is invalid
-   */
-  protected validateText(text: string): void {
-    this.logger.debug('Validating text input', {
-      evaluator: this.getEvaluatorType(),
-      operation: 'validateText',
-      textLength: text.length,
-    });
-
-    // Rejected, not repaired — the bounds below measure the text as sent.
-    if (!text.trim()) {
-      throw new InputValidationError('Text cannot be empty or contain only whitespace');
-    }
-
-    if (text.length < VALIDATION_LIMITS.MIN_TEXT_LENGTH) {
-      throw new InputValidationError(
-        `Text is too short. Minimum length is ${VALIDATION_LIMITS.MIN_TEXT_LENGTH} characters, received ${text.length} characters`
-      );
-    }
-
-    if (text.length > VALIDATION_LIMITS.MAX_TEXT_LENGTH) {
-      throw new InputValidationError(
-        `Text is too long. Maximum length is ${VALIDATION_LIMITS.MAX_TEXT_LENGTH.toLocaleString()} characters, received ${text.length.toLocaleString()} characters`
-      );
-    }
   }
 
   /**

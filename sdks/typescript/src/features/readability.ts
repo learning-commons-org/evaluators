@@ -2,8 +2,11 @@ import nlp from 'compromise';
 import { syllable } from 'syllable';
 
 /**
- * Calculate Flesch-Kincaid Grade Level
- * Equivalent to Python's textstat.flesch_kincaid_grade()
+ * Flesch-Kincaid grade level over compromise + syllable.
+ *
+ * Approximates Python's `textstat.flesch_kincaid_grade()` but does not match it, and is not
+ * the implementation the contract declares. One caller remains — vocabulary-complexity,
+ * which is the sole entry left in PREPROCESSING_GAPS in registry-conformance.test.ts.
  */
 export function calculateFleschKincaidGrade(text: string): number {
   return calculateReadabilityMetrics(text).fleschKincaidGrade;
@@ -46,4 +49,22 @@ export function calculateReadabilityMetrics(text: string): ReadabilityMetrics {
     avgSyllablesPerWord,
     fleschKincaidGrade: Math.round(Math.max(0, fkGrade) * 100) / 100,
   };
+}
+
+/**
+ * The deterministic counts the sentence-structure contract binds to `{ground_truth_counts}`.
+ *
+ * The prompt instructs the model to treat these as a reference rather than a constraint, so
+ * the block's field names and order are part of the prompt's contract, not a display choice.
+ */
+export function formatGroundTruthCounts(text: string): string {
+  const metrics = calculateReadabilityMetrics(text);
+
+  return [
+    `num_sentences: ${metrics.sentenceCount}`,
+    `num_words: ${metrics.wordCount}`,
+    `num_char: ${metrics.characterCount}`,
+    `num_syllable: ${metrics.syllableCount}`,
+    `flesch_kincaid_grade: ${metrics.fleschKincaidGrade}`,
+  ].join('\n');
 }

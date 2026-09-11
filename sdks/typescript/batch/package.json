@@ -1,0 +1,6 @@
+{
+  "//": "Subpath stub for resolvers that ignore `exports` (webpack 4, browserify, tools built on `resolve`). Modern resolvers use the root exports map and never read this file.",
+  "main": "../dist/batch/index.cjs",
+  "module": "../dist/batch/index.js",
+  "types": "../dist/batch/index.d.ts"
+}

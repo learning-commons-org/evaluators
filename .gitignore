@@ -6,8 +6,11 @@ __pycache__/
 # Jupyter Notebook
 .ipynb_checkpoints/
 
-# Environment variables
-.env
+# Environment variables. `.env*` so variants (.env.local, .env.test) are covered too —
+# exact `.env` left every other spelling committable. Templates are negated so they stay
+# tracked: demos/typescript/.env.example, evals/.env.example, sdks/typescript/.env.test.example.
+.env*
+!.env*.example
 
 # macOS
 .DS_Store

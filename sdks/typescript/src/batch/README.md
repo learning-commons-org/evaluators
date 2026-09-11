@@ -9,7 +9,7 @@ A *family* is a set of evaluators that share an input contract, credential needs
 | Family (`--family`) | Members | Required CSV columns | Keys |
 | --- | --- | --- | --- |
 | `text-complexity` | student_facing_text.ela_reading.grade_level_appropriateness, student_facing_text.ela_reading.background_knowledge_demands, student_facing_text.ela_reading.vocabulary_complexity, student_facing_text.ela_reading.sentence_structure, student_facing_text.ela_reading.meaning_directness, student_facing_text.ela_reading.purpose_clarity, student_facing_text.ela_reading.organizational_structure, student_facing_text.ela_reading.reference_knowledge_demands | `text`, `grade_level` | Google + OpenAI |
-| `math-standards-alignment` | academic_standards_alignment.mathematics.math_standards_alignment | `question`, `statementCode` (aliases: `ccss_standard`, `text`); optional `jurisdiction` (default `Multi-State`), `grade_level`, `id` | Anthropic + Learning Commons (Knowledge Graph) |
+| `math-standards-alignment` | academic_standards_alignment.mathematics.math_standards_alignment | `question`, `statement_code` (aliases: `statementCode`, `ccss_standard`, `standard`); optional `jurisdiction` (default `Multi-State`), `grade_level`, `id` | Anthropic + Learning Commons (Knowledge Graph) |
 
 Column matching is case-insensitive and alias-aware; the canonical column wins when both it and an alias are present.
 
@@ -27,13 +27,13 @@ evaluators-batch corpus.csv \
   --output-dir ./out --yes
 
 # Run only some members of a family (avoids paying for evaluators you don't need)
-evaluators-batch texts.csv --family text-complexity --evaluator vocabulary,conventionality --yes
+evaluators-batch texts.csv --family text-complexity --evaluator student_facing_text.ela_reading.vocabulary_complexity --yes
 
 # Model override: a shortcode (haiku, opus) or provider:model
 evaluators-batch texts.csv --family text-complexity --model anthropic:claude-opus-4-8 --yes
 ```
 
-`-y`/`--yes` (or the absence of a TTY, e.g. CI) enables non-interactive mode: no prompts, and a clear error on any missing required input. Each run writes `results.csv`, `results.json`, and `results.html` to the output directory. The `math-standards-alignment` report is a verdict browser (per-item aligned/total with expandable per-component reasoning); the JSON carries full per-component detail plus each row's original columns so results join back to the source corpus.
+`-y`/`--yes` (or the absence of a TTY, e.g. CI) enables non-interactive mode: no prompts, and a clear error on any missing required input. Each run writes `results.csv` and `results.json`; `text-complexity` and `math-standards-alignment` also write `results.html`. The `math-standards-alignment` report is a verdict browser (per-item aligned/total with expandable per-component reasoning); the JSON carries full per-component detail plus each row's original columns so results join back to the source corpus.
 
 Run `evaluators-batch --help` for the full flag list.
 

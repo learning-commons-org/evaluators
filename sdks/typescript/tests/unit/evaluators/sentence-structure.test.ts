@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { SentenceStructureEvaluator } from '../../../src/evaluators/sentence-structure.js';
+import { SentenceStructureEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/sentence-structure.js';
 import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import CONFIG from '../../../../../evals/student-facing-text/ela-reading/sentence-structure/config.json';
@@ -7,17 +7,6 @@ import CONFIG from '../../../../../evals/student-facing-text/ela-reading/sentenc
 // Derived from the contract rather than copied from it, so a model re-pin in
 // config.json surfaces here instead of the test quietly asserting a stale value.
 const EXPECTED_MODEL = `${CONFIG.steps[0].model.provider}:${CONFIG.steps[0].model.name}`;
-
-/**
- * Comprehensive unit tests for SentenceStructureEvaluator
- *
- * These tests verify:
- * - Constructor validation
- * - Successful evaluation flow (both stages)
- * - Error handling (LLM failures)
- * - Telemetry behavior
- * - Response structure
- */
 
 // Helper to create minimal valid sentence analysis mock
 const createMockSentenceAnalysis = () => ({
@@ -127,7 +116,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
         })
         .mockResolvedValueOnce({
           data: {
-            answer: 'Slightly complex',
+            complexity_score: 'slightly_complex',
             reasoning: 'The text uses simple sentence structures appropriate for third grade.',
           },
           model: 'gpt-4o',
@@ -136,10 +125,10 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
         });
 
       // Execute evaluation
-      const result = await evaluator.evaluate(testText, testGrade);
+      const result = await evaluator.evaluate({ text: testText, grade_level: testGrade });
 
       // Verify result structure
-      expect(result.result.answer).toBe('Slightly complex');
+      expect(result.result.complexity_score).toBe('slightly_complex');
       expect(result.result.reasoning).toContain('simple sentence structures');
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe(EXPECTED_MODEL);
@@ -169,7 +158,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       );
 
       // Should propagate the error
-      await expect(evaluator.evaluate(testText, testGrade))
+      await expect(evaluator.evaluate({ text: testText, grade_level: testGrade }))
         .rejects.toThrow('API timeout');
 
       // Provider called once (stage 1 only)
@@ -191,7 +180,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
         .mockRejectedValueOnce(new Error('Schema validation failed'));
 
       // Should propagate the error
-      await expect(evaluator.evaluate(testText, testGrade))
+      await expect(evaluator.evaluate({ text: testText, grade_level: testGrade }))
         .rejects.toThrow('Schema validation failed');
 
       // Provider called twice (stage 1 completed, stage 2 failed)
@@ -211,7 +200,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
         })
         .mockResolvedValueOnce({
           data: {
-            answer: 'Moderately complex',
+            complexity_score: 'moderately_complex',
             reasoning: 'Detailed reasoning here',
           },
           model: 'gpt-4o',
@@ -219,7 +208,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
           latencyMs: 500,
         });
 
-      const result = await evaluator.evaluate('Test text here', '5');
+      const result = await evaluator.evaluate({ text: 'Test text here', grade_level: '5' });
 
       // Verify result structure
       expect(result).toHaveProperty('evaluator');
@@ -251,13 +240,13 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
           latencyMs: 1,
         })
         .mockResolvedValueOnce({
-          data: { answer: 'Moderately complex', reasoning: 'why' },
+          data: { complexity_score: 'moderately_complex', reasoning: 'why' },
           model: 'gpt-4o',
           usage: { inputTokens: 1, outputTokens: 1 },
           latencyMs: 1,
         });
 
-      await evaluator.evaluate('The cat sat on the mat. It was sleeping.', '7');
+      await evaluator.evaluate({ text: 'The cat sat on the mat. It was sleeping.', grade_level: '7' });
 
       const sent = vi
         .mocked(mockProvider.generateStructured)

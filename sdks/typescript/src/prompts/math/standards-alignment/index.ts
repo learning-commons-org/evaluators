@@ -5,10 +5,21 @@ import CONFIG from '../../../../../../evals/academic-standards-alignment/mathema
 import INPUT_SCHEMA from '../../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/input_schema.json';
 import { createHash } from 'node:crypto';
 
-const STEP_ID = 'evaluate_math_standards_alignment';
-const _step = CONFIG.steps.find((s) => s.id === STEP_ID);
-if (!_step) throw new Error(`Step "${STEP_ID}" not found in math-standards-alignment config.json`);
-export const STEP = _step;
+function requireStep(id: string) {
+  const step = CONFIG.steps.find((s) => s.id === id);
+  if (!step) throw new Error(`Step "${id}" not found in math-standards-alignment config.json`);
+  return step;
+}
+
+/** The detail step: one model call per question/standard pair. */
+export const STEP = requireStep('evaluate_math_standards_alignment');
+
+/**
+ * The coarse pre-filter step. It declares its own model and temperature, which are the same
+ * as the detail step's today — reading them rather than inheriting is what makes a future
+ * re-pin of one take effect without silently changing the other.
+ */
+export const COARSE_STEP = requireStep('coarse_filter');
 
 /** SHA-256 over all prompt files — stable cache key for downstream tools. */
 export const PROMPT_CHECKSUM = createHash('sha256')
@@ -20,7 +31,7 @@ export const MAX_QUESTION_LENGTH: number = INPUT_SCHEMA.properties.question.maxL
 
 const DETAIL_PLACEHOLDER_KEYS = Object.keys(STEP.prompt.placeholders) as string[];
 const SYSTEM_PLACEHOLDER_KEYS: string[] = [];
-const COARSE_PLACEHOLDER_KEYS = ['question', 'standards'];
+const COARSE_PLACEHOLDER_KEYS = Object.keys(COARSE_STEP.prompt.placeholders) as string[];
 
 function replace(template: string, keys: readonly string[], inputs: Record<string, string>): string {
   return keys.reduce(

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SentenceStructureEvaluator } from '../../src/evaluators/sentence-structure.js';
+import { SentenceStructureEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/sentence-structure.js';
 import { ConfigurationError } from '../../src/errors.js';
 import { Provider } from '../../src/evaluators/base.js';
 
@@ -38,18 +38,38 @@ describeIntegration('modelOverride — model validity (live API)', () => {
       telemetry: false,
     });
 
-    const result = await evaluator.evaluate(SAMPLE_TEXT, '5');
-    expect(result.result.answer).toBeDefined();
+    const result = await evaluator.evaluate({ text: SAMPLE_TEXT, grade_level: '5' });
+    expect(result.result.complexity_score).toBeDefined();
     expect(result.metadata.model).toMatch(/^openai:gpt-4o-mini/);
   }, TEST_TIMEOUT_MS);
 
-  it('throws ConfigurationError for a non-existent model override', async () => {
-    const evaluator = new SentenceStructureEvaluator({
-      openaiApiKey: process.env.OPENAI_API_KEY!,
-      modelOverride: { provider: Provider.OpenAI, model: 'gpt-this-model-does-not-exist-9999' },
-      telemetry: false,
-    });
+  // Each provider rejects an unknown model differently, and the classifier reaches the same
+  // verdict by two different routes: OpenAI answers 400 and has to be read from the error
+  // body (`param: 'model'`), while Anthropic and Google answer 404 and are classified on
+  // status alone. Covering only OpenAI left the 404 route unexercised live, and vice versa.
+  const REJECTION_CASES = [
+    { provider: Provider.OpenAI, keyField: 'openaiApiKey', envVar: 'OPENAI_API_KEY', model: 'gpt-this-model-does-not-exist-9999' },
+    { provider: Provider.Anthropic, keyField: 'anthropicApiKey', envVar: 'ANTHROPIC_API_KEY', model: 'claude-this-model-does-not-exist-9999' },
+    { provider: Provider.Google, keyField: 'googleApiKey', envVar: 'GOOGLE_API_KEY', model: 'gemini-this-model-does-not-exist-9999' },
+  ] as const;
 
-    await expect(evaluator.evaluate(SAMPLE_TEXT, '5')).rejects.toThrow(ConfigurationError);
-  }, TEST_TIMEOUT_MS);
+  for (const { provider, keyField, envVar, model } of REJECTION_CASES) {
+    const apiKey = process.env[envVar];
+
+    it.skipIf(!apiKey)(
+      `throws ConfigurationError for a non-existent ${provider} model override`,
+      async () => {
+        const evaluator = new SentenceStructureEvaluator({
+          [keyField]: apiKey,
+          modelOverride: { provider, model },
+          telemetry: false,
+        });
+
+        await expect(evaluator.evaluate({ text: SAMPLE_TEXT, grade_level: '5' })).rejects.toThrow(
+          ConfigurationError
+        );
+      },
+      TEST_TIMEOUT_MS
+    );
+  }
 });

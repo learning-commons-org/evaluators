@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/background-knowledge-demands.js';
+import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/background-knowledge-demands.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
@@ -23,7 +23,7 @@ vi.mock('../../../src/telemetry/client.js', () => ({
 describe('BackgroundKnowledgeDemandsEvaluator - Constructor Validation', () => {
   it('should throw with specific message when Google API key is missing', () => {
     expect(() => new BackgroundKnowledgeDemandsEvaluator({ googleApiKey: '' })).toThrow(
-      `Google API key is required for ${BackgroundKnowledgeDemandsEvaluator.metadata.name}. Pass googleApiKey in config.`
+      `Missing required credential: googleApiKey. Required by ${BackgroundKnowledgeDemandsEvaluator.metadata.name}.`
     );
   });
 });
@@ -69,7 +69,7 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
         curriculum_check: 'Specialized high school level — hydraulics is not standard K-8 curriculum.',
         assumptions_and_scaffolding: 'Author assumes knowledge of fluid dynamics and mechanical engineering.',
         friction_analysis: 'Difficulty comes from actual knowledge demands, not just vocabulary.',
-        complexity_score: 'Very complex',
+        complexity_score: 'very_complex',
         reasoning: 'The text requires specialized knowledge of hydraulic systems.',
       },
       model: 'gemini-3-flash-preview',
@@ -77,9 +77,9 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
       latencyMs: 800,
     });
 
-    const result = await evaluator.evaluate(testText, testGrade);
+    const result = await evaluator.evaluate({ text: testText, grade_level: testGrade });
 
-    expect(result.result.complexity_score).toBe('Very complex');
+    expect(result.result.complexity_score).toBe('very_complex');
     expect(result.result.reasoning).toContain('hydraulic systems');
     expect(result.metadata.model).toBe('google:gemini-3-flash-preview');
     expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
@@ -109,7 +109,7 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
         curriculum_check: 'Standard.',
         assumptions_and_scaffolding: 'None.',
         friction_analysis: 'Low.',
-        complexity_score: 'Slightly complex',
+        complexity_score: 'slightly_complex',
         reasoning: 'Simple text.',
       },
       model: 'claude-haiku-4-5-20251001',
@@ -117,9 +117,7 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
       latencyMs: 400,
     });
 
-    const result = await overrideEvaluator.evaluate(
-      'The mitochondria is the powerhouse of the cell.', '5'
-    );
+    const result = await overrideEvaluator.evaluate({ text: 'The mitochondria is the powerhouse of the cell.', grade_level: '5' });
 
     expect(result.metadata.model).toBe('anthropic:claude-haiku-4-5-20251001');
   });
@@ -127,12 +125,12 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
   it('should propagate LLM API errors', async () => {
     vi.mocked(mockProvider.generateStructured).mockRejectedValue(new Error('API timeout'));
 
-    await expect(evaluator.evaluate('The mitochondria is the powerhouse of the cell.', '5'))
+    await expect(evaluator.evaluate({ text: 'The mitochondria is the powerhouse of the cell.', grade_level: '5' }))
       .rejects.toThrow('API timeout');
   });
 
   it('should not call provider when input validation fails', async () => {
-    await expect(evaluator.evaluate('', '5')).rejects.toThrow();
+    await expect(evaluator.evaluate({ text: '', grade_level: '5' })).rejects.toThrow();
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
@@ -142,7 +140,7 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
       curriculum_check: 'Standard K-8 curriculum.',
       assumptions_and_scaffolding: 'Assumes basic biology knowledge.',
       friction_analysis: 'Difficulty mainly from vocabulary.',
-      complexity_score: 'Moderately complex' as const,
+      complexity_score: 'moderately_complex' as const,
       reasoning: 'Detailed reasoning here.',
     };
 
@@ -153,7 +151,7 @@ describe('BackgroundKnowledgeDemandsEvaluator - Evaluation Flow', () => {
       latencyMs: 800,
     });
 
-    const result = await evaluator.evaluate('The mitochondria is the powerhouse of the cell.', '5');
+    const result = await evaluator.evaluate({ text: 'The mitochondria is the powerhouse of the cell.', grade_level: '5' });
 
     expect(result.result).toEqual(mockData);
   });

@@ -1,19 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { VocabularyComplexityEvaluator } from '../../../src/evaluators/vocabulary-complexity.js';
+import { VocabularyComplexityEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/vocabulary-complexity.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
-
-/**
- * Comprehensive unit tests for VocabularyComplexityEvaluator
- *
- * These tests verify:
- * - Constructor validation
- * - Successful evaluation flow (both stages)
- * - Error handling (LLM failures, validation errors)
- * - Telemetry behavior (success/error cases)
- * - Token usage aggregation
- * - Edge cases
- */
 
 // Mock providers
 const createMockProvider = (config?: { type?: string; model?: string }): LLMProvider => ({
@@ -41,14 +29,14 @@ describe('VocabularyComplexityEvaluator - Constructor Validation', () => {
     expect(() => new VocabularyComplexityEvaluator({
       googleApiKey: '',
       openaiApiKey: 'test-openai-key',
-    })).toThrow(`Google API key is required for ${VocabularyComplexityEvaluator.metadata.name}. Pass googleApiKey in config.`);
+    })).toThrow(`Missing required credential: googleApiKey. Required by ${VocabularyComplexityEvaluator.metadata.name}.`);
   });
 
   it('should throw error when OpenAI API key is missing', () => {
     expect(() => new VocabularyComplexityEvaluator({
       googleApiKey: 'test-google-key',
       openaiApiKey: '',
-    })).toThrow(`OpenAI API key is required for ${VocabularyComplexityEvaluator.metadata.name}. Pass openaiApiKey in config.`);
+    })).toThrow(`Missing required credential: openaiApiKey. Required by ${VocabularyComplexityEvaluator.metadata.name}.`);
   });
 
 });
@@ -98,7 +86,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       // Mock complexity evaluation response
       vi.mocked(mockComplexityProvider.generateStructured).mockResolvedValue({
         data: {
-          complexity_score: 'Moderately complex',
+          complexity_score: 'moderately_complex',
           reasoning: 'The text uses grade-appropriate vocabulary.',
           factors: ['Academic terminology', 'Clear structure'],
         },
@@ -111,14 +99,16 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       });
 
       // Execute evaluation
-      const result = await evaluator.evaluate(testText, testGrade);
+      const result = await evaluator.evaluate({ text: testText, grade_level: testGrade });
 
       // Verify result structure
-      expect(result.result.complexity_score).toBe('Moderately complex');
+      expect(result.result.complexity_score).toBe('moderately_complex');
       expect(result.result.reasoning).toContain('grade-appropriate vocabulary');
       expect(result.metadata).toBeDefined();
       expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20+openai:gpt-4.1-2025-04-14');
-      expect(result.metadata.processingTimeMs).toBeGreaterThan(0);
+      // Not > 0: with both providers mocked and this branch computing no readability
+      // score, the whole evaluation can finish inside one clock tick.
+      expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
       // Token usage is aggregated across both stages: background (100/50) + complexity (200/100)
       expect(result.metadata.tokenUsage.inputTokens).toBe(300);
       expect(result.metadata.tokenUsage.outputTokens).toBe(150);
@@ -152,7 +142,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       );
 
       // Should propagate the error
-      await expect(evaluator.evaluate(testText, testGrade))
+      await expect(evaluator.evaluate({ text: testText, grade_level: testGrade }))
         .rejects.toThrow('API timeout');
 
       // Verify complexity provider was never called
@@ -176,7 +166,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       );
 
       // Should propagate the error
-      await expect(evaluator.evaluate(testText, testGrade))
+      await expect(evaluator.evaluate({ text: testText, grade_level: testGrade }))
         .rejects.toThrow('Schema validation failed');
 
       // Verify background provider was called (stage 1 completed)
@@ -195,7 +185,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
 
       vi.mocked(mockComplexityProvider.generateStructured).mockResolvedValue({
         data: {
-          complexity_score: 'Moderately complex',
+          complexity_score: 'moderately_complex',
           reasoning: 'Detailed reasoning here',
           factors: ['Factor 1', 'Factor 2'],
         },
@@ -204,7 +194,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
         latencyMs: 800,
       });
 
-      const result = await evaluator.evaluate('Test text here', '5');
+      const result = await evaluator.evaluate({ text: 'Test text here', grade_level: '5' });
 
       // Verify result structure
       expect(result).toHaveProperty('evaluator');
@@ -240,13 +230,13 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
         latencyMs: 300,
       });
       vi.mocked(complexityProvider.generateStructured).mockResolvedValue({
-        data: { complexity_score: 'Slightly complex', reasoning: 'Simple.', factors: [] },
+        data: { complexity_score: 'slightly_complex', reasoning: 'Simple.', factors: [] },
         model: 'gpt-4o-mini',
         usage: { inputTokens: 200, outputTokens: 80 },
         latencyMs: 400,
       });
 
-      const result = await overrideEvaluator.evaluate('Test text here', '5');
+      const result = await overrideEvaluator.evaluate({ text: 'Test text here', grade_level: '5' });
 
       // All providers resolve to the same model under override — label is a single entry
       expect(result.metadata.model).toBe('openai:gpt-4o-mini');
@@ -260,7 +250,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       });
 
       const mockComplexityData = {
-        complexity_score: 'Moderately complex',
+        complexity_score: 'moderately_complex',
         reasoning: 'Detailed reasoning',
         factors: ['Factor 1', 'Factor 2'],
         analysis: 'Deep analysis',
@@ -273,10 +263,72 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
         latencyMs: 800,
       });
 
-      const result = await evaluator.evaluate('Test text here', '5');
+      const result = await evaluator.evaluate({ text: 'Test text here', grade_level: '5' });
 
       // Verify internal data is included
       expect(result.result).toEqual(mockComplexityData);
     });
   });
+});
+
+describe('VocabularyComplexityEvaluator - complexity model per grade', () => {
+  // The grade picks the complexity model, and the reported label has to name the one that
+  // ran. Every other test in this file uses grade 5+, so the grades 3-4 branch went
+  // unexercised and reported the grade 5-12 model for a year.
+  const BACKGROUND = 'openai:gpt-4o-2024-11-20';
+
+  const CASES = [
+    { grade: '3', provider: 'grades34ComplexityProvider', model: 'google:gemini-2.5-pro' },
+    { grade: '4', provider: 'grades34ComplexityProvider', model: 'google:gemini-2.5-pro' },
+    { grade: '5', provider: 'otherGradesComplexityProvider', model: 'openai:gpt-4.1-2025-04-14' },
+    { grade: '12', provider: 'otherGradesComplexityProvider', model: 'openai:gpt-4.1-2025-04-14' },
+  ] as const;
+
+  it.each(CASES)(
+    'grade $grade runs $model and reports it',
+    async ({ grade, provider, model }) => {
+      const evaluator = new VocabularyComplexityEvaluator({
+        googleApiKey: 'test-google-key',
+        openaiApiKey: 'test-openai-key',
+        telemetry: false,
+      });
+
+      const providers = evaluator as unknown as Record<string, LLMProvider>;
+      const background = providers.backgroundKnowledgeProvider;
+      const complexity = providers[provider];
+      const unused =
+        providers[
+          provider === 'grades34ComplexityProvider'
+            ? 'otherGradesComplexityProvider'
+            : 'grades34ComplexityProvider'
+        ];
+
+      vi.mocked(background.generateText).mockResolvedValue({
+        text: 'Students know weather words.',
+        usage: { inputTokens: 10, outputTokens: 5 },
+        latencyMs: 1,
+      });
+      vi.mocked(complexity.generateStructured).mockResolvedValue({
+        data: {
+          tier_2_words: 'gather',
+          tier_3_words: 'none',
+          archaic_words: 'none',
+          other_complex_words: 'none',
+          complexity_score: 'moderately_complex',
+          reasoning: 'Grade-appropriate vocabulary.',
+        },
+        model: 'whatever-the-provider-says',
+        usage: { inputTokens: 20, outputTokens: 10 },
+        latencyMs: 1,
+      });
+
+      const result = await evaluator.evaluate({ text: 'The storm gathered offshore.', grade_level: grade });
+
+      // The model that ran.
+      expect(complexity.generateStructured).toHaveBeenCalledTimes(1);
+      expect(unused.generateStructured).not.toHaveBeenCalled();
+      // The model that is reported. These two disagreeing is the bug.
+      expect(result.metadata.model).toBe(`${BACKGROUND}+${model}`);
+    },
+  );
 });

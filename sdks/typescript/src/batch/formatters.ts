@@ -1,6 +1,9 @@
 import type { BatchOutput, BatchResult } from './types.js';
 import reportTemplate from './report-template.html';
-import { GradeLevelAppropriatenessEvaluator } from '../evaluators/grade-level-appropriateness.js';
+import { injectReportData, toInlineJson } from './report-injection.js';
+import { GradeLevelAppropriatenessEvaluator } from '../evaluators/student-facing-text/ela-reading/grade-level-appropriateness.js';
+import { GradeLevelAppropriatenessOutputSchema } from '../schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
+import { QTC_FAMILY } from './families/qtc.js';
 
 // ---- Constants ----
 
@@ -9,8 +12,12 @@ import { GradeLevelAppropriatenessEvaluator } from '../evaluators/grade-level-ap
 // column instead of failing.
 const GLA_EVALUATOR_ID = GradeLevelAppropriatenessEvaluator.metadata.id;
 
-const GRADE_BANDS = ['K-1', '2-3', '4-5', '6-8', '9-10', '11-CCR'] as const;
-type GradeBand = typeof GRADE_BANDS[number];
+// Read from GLA's generated schema, which is the contract that defines the bands. The
+// report indexes into this list to derive on-band/adjacent/off-target, so a band the
+// contract gains but this list lacks would index to -1 and render as "Off Target" — a
+// plausible-looking verdict rather than a failure.
+const GRADE_BANDS = GradeLevelAppropriatenessOutputSchema.shape.grade_band.options;
+type GradeBand = (typeof GRADE_BANDS)[number];
 
 // Complexity string scores → numeric
 const COMPLEXITY_SCORE_MAP: Record<string, number> = {
@@ -58,9 +65,9 @@ function getGLAStatus(inputGrade: string, glaBand: string): 'on-band' | 'adjacen
 }
 
 function complexityToNumeric(score: string): number | undefined {
-  // Underscores are folded so the contract's `slightly_complex` and the spaced form
-  // the not-yet-generated schemas still return both resolve. An unrecognised score
-  // drops the row from every aggregate, so this must accept both spellings.
+  // Scores arrive as the contract's `slightly_complex`. Underscores are folded to reach
+  // the space-separated map keys, and the historical spaced spelling still resolves for
+  // older CSV/JSON inputs. An unrecognised score drops the row from every aggregate.
   return COMPLEXITY_SCORE_MAP[score.toLowerCase().trim().replace(/_/g, ' ')];
 }
 
@@ -168,7 +175,7 @@ export interface ReportMeta {
 }
 
 /**
- * Generic machine-readable output for the text-complexity family: one entry per
+ * Machine-readable output for any family without a projection of its own: one entry per
  * (row, evaluator) with score/reasoning plus the untouched original row.
  */
 export function formatAsJSON(output: BatchOutput, meta: ReportMeta): string {
@@ -357,6 +364,9 @@ export function formatAsHTML(output: BatchOutput, meta: ReportMeta): string {
       groupId: meta.groupId,
       evaluatorIds: allEvaluatorIds,
       evaluatorNames: allEvaluatorIds.map(evaluatorDisplayName),
+      // The column order travels with the data rather than being restated in the
+      // template, so a member added to the family is ordered without a second edit.
+      evaluatorOrder: QTC_FAMILY.members.map((m) => m.id),
       totalRows: meta.totalInputRows,
       processedRows,
       erroredRows,
@@ -394,18 +404,5 @@ export function formatAsHTML(output: BatchOutput, meta: ReportMeta): string {
     },
   };
 
-  // Inject serialized data into the template.
-  // Unicode-escape < > & so the JSON is safe inside a <script> tag even if
-  // the data contains HTML-like strings (prevents </script> injection).
-  const safeJson = JSON.stringify(reportData)
-    .replace(/</g, '\\u003c')
-    .replace(/>/g, '\\u003e')
-    .replace(/&/g, '\\u0026');
-
-  const INJECTION_MARKER = 'var REPORT_DATA = null; // __REPLACED_BY_FORMATTER__';
-  if (!reportTemplate.includes(INJECTION_MARKER)) {
-    throw new Error('Report template injection marker not found — template may be corrupted');
-  }
-
-  return reportTemplate.replace(INJECTION_MARKER, `var REPORT_DATA = ${safeJson};`);
+  return injectReportData(reportTemplate, toInlineJson(reportData), 'Text complexity');
 }

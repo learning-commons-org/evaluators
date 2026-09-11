@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { MeaningDirectnessEvaluator } from '../../../src/evaluators/meaning-directness.js';
+import { MeaningDirectnessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/meaning-directness.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 // Mock providers
@@ -22,7 +22,7 @@ vi.mock('../../../src/telemetry/client.js', () => ({
 describe('MeaningDirectnessEvaluator - Constructor Validation', () => {
   it('should throw with specific message when Google API key is missing', () => {
     expect(() => new MeaningDirectnessEvaluator({ googleApiKey: '' })).toThrow(
-      `Google API key is required for ${MeaningDirectnessEvaluator.metadata.name}. Pass googleApiKey in config.`
+      `Missing required credential: googleApiKey. Required by ${MeaningDirectnessEvaluator.metadata.name}.`
     );
   });
 });
@@ -70,7 +70,7 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
         ],
         grade_context: 'Sustained irony and abstract social critique exceed typical Grade 10 expectations.',
         instructional_insights: 'Pre-teach the rhetorical device of irony; discuss the author\'s implied argument before reading.',
-        complexity_score: 'Very complex',
+        complexity_score: 'very_complex',
         reasoning: 'The text relies heavily on sustained irony and implicit comparisons that require readers to infer the author\'s critical stance.',
       },
       model: 'gemini-3-flash-preview',
@@ -78,9 +78,9 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
       latencyMs: 900,
     });
 
-    const result = await evaluator.evaluate(testText, testGrade);
+    const result = await evaluator.evaluate({ text: testText, grade_level: testGrade });
 
-    expect(result.result.complexity_score).toBe('Very complex');
+    expect(result.result.complexity_score).toBe('very_complex');
     expect(result.result.reasoning).toContain('irony');
     expect(result.metadata.model).toBe('google:gemini-3-flash-preview');
     expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
@@ -99,12 +99,12 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
     vi.mocked(mockProvider.generateStructured).mockRejectedValue(new Error('API timeout'));
 
     await expect(
-      evaluator.evaluate('The cat sat on the mat outside.', '5')
+      evaluator.evaluate({ text: 'The cat sat on the mat outside.', grade_level: '5' })
     ).rejects.toThrow('API timeout');
   });
 
   it('should not call provider when input validation fails', async () => {
-    await expect(evaluator.evaluate('', '5')).rejects.toThrow();
+    await expect(evaluator.evaluate({ text: '', grade_level: '5' })).rejects.toThrow();
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
@@ -113,7 +113,7 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
       conventionality_features: ['literal narrative', 'concrete actions'],
       grade_context: 'Text uses mostly literal, accessible language for Grade 5.',
       instructional_insights: 'No special scaffolding needed for conventionality.',
-      complexity_score: 'Slightly complex' as const,
+      complexity_score: 'slightly_complex' as const,
       reasoning: 'The text is largely explicit and literal with minimal figurative language.',
     };
 
@@ -124,7 +124,7 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
       latencyMs: 700,
     });
 
-    const result = await evaluator.evaluate('Clouds form when water evaporates and rises into the sky.', '5');
+    const result = await evaluator.evaluate({ text: 'Clouds form when water evaporates and rises into the sky.', grade_level: '5' });
 
     expect(result.result).toEqual(mockData);
     expect(result.result.conventionality_features).toEqual(['literal narrative', 'concrete actions']);
@@ -138,7 +138,7 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
         conventionality_features: ['figurative language'],
         grade_context: 'Appropriate for grade 7.',
         instructional_insights: 'Discuss metaphors before reading.',
-        complexity_score: 'Moderately complex',
+        complexity_score: 'moderately_complex',
         reasoning: 'Some figurative language present.',
       },
       model: 'gemini-3-flash-preview',
@@ -147,10 +147,15 @@ describe('MeaningDirectnessEvaluator - Evaluation Flow', () => {
     });
 
     const testText = 'The minutes crept by as the castle grew into its place in the fog-shrouded distance.';
-    await evaluator.evaluate(testText, '7');
+    await evaluator.evaluate({ text: testText, grade_level: '7' });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0];
-    // The user prompt should contain the FK score (a number)
-    expect(call[0].messages[1].content).toMatch(/\d+(\.\d+)?/);
+
+    // The exact value the contract's declared implementation produces for this text
+    // (`text-readability.fleschKincaidGrade`, rounded to 2dp). A loose `/\d+(\.\d+)?/`
+    // here passed with preprocessing switched off entirely, because the grade level in
+    // the same prompt satisfied it.
+    expect(call[0].messages[1].content).toContain('6.8');
+    expect(call[0].messages[1].content).not.toContain('{fk_score}');
   });
 });

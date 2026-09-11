@@ -1,20 +1,21 @@
 export {
-  TextComplexityLevel,
   type EvaluationResult,
   type EvaluationMetadata,
   type EvaluationTokenUsage,
-  type EvaluationFailure,
 } from './outputs.js';
 
 export {
-  GradeBand,
   GradeLevelAppropriatenessOutputSchema,
-  type GradeLevelAppropriatenessInternal,
-} from './grade-level-appropriateness.js';
+  type GradeLevelAppropriatenessResult,
+} from './student-facing-text/ela-reading/grade-level-appropriateness.js';
+import type { GradeLevelAppropriatenessResult as GLAResult } from './student-facing-text/ela-reading/grade-level-appropriateness.js';
+
+/** The grade bands the contract declares, derived from the generated schema so it cannot drift. */
+export type GradeBand = GLAResult['grade_band'];
 
 export {
   PurposeClarityOutputSchema,
-  type PurposeClarityInternal,
-} from './purpose-clarity.js';
+  type PurposeClarityResult,
+} from './student-facing-text/ela-reading/purpose-clarity.js';
 
-export { readOutcome, type Outcome } from './outcome.js';
+export { readOutcome, type Outcome, type DeclaredOutcome } from './outcome.js';

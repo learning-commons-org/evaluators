@@ -1,6 +1,7 @@
 import type { BatchOutput, BatchResult } from '../types.js';
 import { STANDARDS_COLUMNS, type StandardsVerdict } from './standards.js';
 import standardsReportTemplate from './standards-report.html';
+import { injectReportData, toInlineJson } from '../report-injection.js';
 
 /** Metadata shared by every output projection. */
 export interface StandardsOutputMeta {
@@ -26,7 +27,7 @@ interface StandardsRow {
   alignedCount: number | null;
   totalCount: number | null;
   error: string | null;
-  learningComponents: StandardsVerdict['learningComponents'];
+  learningComponents: StandardsVerdict['learning_components'];
   originalRow: Record<string, unknown>;
 }
 
@@ -59,14 +60,14 @@ function toRow(result: BatchResult): StandardsRow {
     id: column(result, 'id'),
     gradeLevel: result.gradeLevel || column(result, 'grade_level'),
     // Keep context on error rows, which carry no verdict to read from.
-    statementCode: verdict?.statementCode ?? column(result, 'statementCode'),
+    statementCode: verdict?.statement_code ?? column(result, 'statement_code'),
     jurisdiction: verdict?.jurisdiction ?? column(result, 'jurisdiction'),
     question: verdict?.question ?? result.text ?? column(result, 'question'),
     status: result.status,
-    alignedCount: verdict ? verdict.alignedCount : null,
-    totalCount: verdict ? verdict.totalCount : null,
+    alignedCount: verdict ? verdict.aligned_count : null,
+    totalCount: verdict ? verdict.total_count : null,
     error: result.status === 'error' ? result.error ?? 'Unknown error' : null,
-    learningComponents: verdict?.learningComponents ?? [],
+    learningComponents: verdict?.learning_components ?? [],
     originalRow: original,
   };
 }
@@ -186,8 +187,6 @@ export function formatStandardsCSV(output: BatchOutput): string {
 
 // --- HTML ------------------------------------------------------------------
 
-const INJECTION_MARKER = 'var REPORT_DATA = null; // __REPLACED_BY_FORMATTER__';
-
 /**
  * Self-contained verdict browser: per-item aligned/total with expandable
  * per-component reasoning/feedback, filterable by standard and grade level. Reports
@@ -210,25 +209,5 @@ export function formatStandardsHTML(output: BatchOutput, meta: StandardsOutputMe
     items: rows,
   };
 
-  const safeJson = JSON.stringify(reportData)
-    .replace(/</g, '\\u003c')
-    .replace(/>/g, '\\u003e')
-    .replace(/&/g, '\\u0026')
-    // U+2028/U+2029 are valid JSON but break inline <script> parsing pre-ES2019.
-    .replace(/\u2028/g, '\\u2028')
-    .replace(/\u2029/g, '\\u2029');
-
-  return injectReportData(standardsReportTemplate, safeJson);
-}
-
-/** Takes the template as a parameter so the corruption guard is reachable in tests. */
-export function injectReportData(template: string, payload: string): string {
-  if (!template.includes(INJECTION_MARKER)) {
-    throw new Error('Standards report template injection marker not found — template may be corrupted');
-  }
-  // Replacer function, not a string: as a string, `$$`/`$&`/`` $` ``/`$'` in the
-  // payload are substitution patterns. `$$x^2$$` in a question would render as
-  // `$x^2$`, and `$'` splices the template tail — including `</script>` — into the
-  // inline script, defeating the escaping applied to the payload.
-  return template.replace(INJECTION_MARKER, () => `var REPORT_DATA = ${payload};`);
+  return injectReportData(standardsReportTemplate, toInlineJson(reportData), 'Standards');
 }

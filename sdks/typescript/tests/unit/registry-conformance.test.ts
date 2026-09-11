@@ -3,6 +3,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import * as exported from '../../src/evaluators/index.js';
+import * as packageRoot from '../../src/index.js';
 import {
   GradeLevelAppropriatenessEvaluator,
   BackgroundKnowledgeDemandsEvaluator,
@@ -14,17 +15,33 @@ import {
   VocabularyComplexityEvaluator,
   MathStandardsAlignmentEvaluator,
 } from '../../src/evaluators/index.js';
+import { RevisionAccuracyEvaluator } from '../../src/evaluators/feedback/ela-writing/revision-accuracy.js';
+import { RevisionActionabilityEvaluator } from '../../src/evaluators/feedback/ela-writing/revision-actionability.js';
+import { RevisionManageabilityEvaluator } from '../../src/evaluators/feedback/ela-writing/revision-manageability.js';
+import { StrengthAcknowledgmentEvaluator } from '../../src/evaluators/feedback/ela-writing/strength-acknowledgment.js';
+import { StudentResponseSpecificityEvaluator } from '../../src/evaluators/feedback/ela-writing/student-response-specificity.js';
+import { ToneAppropriatenessEvaluator } from '../../src/evaluators/feedback/ela-writing/tone-appropriateness.js';
+import { WithholdingAnswersEvaluator } from '../../src/evaluators/feedback/ela-writing/withholding-answers.js';
+import { RevisionAccuracyOutputSchema } from '../../src/schemas/feedback/ela-writing/revision-accuracy.js';
+import { RevisionActionabilityOutputSchema } from '../../src/schemas/feedback/ela-writing/revision-actionability.js';
+import { RevisionManageabilityOutputSchema } from '../../src/schemas/feedback/ela-writing/revision-manageability.js';
+import { StrengthAcknowledgmentOutputSchema } from '../../src/schemas/feedback/ela-writing/strength-acknowledgment.js';
+import { StudentResponseSpecificityOutputSchema } from '../../src/schemas/feedback/ela-writing/student-response-specificity.js';
+import { ToneAppropriatenessOutputSchema } from '../../src/schemas/feedback/ela-writing/tone-appropriateness.js';
+import { WithholdingAnswersOutputSchema } from '../../src/schemas/feedback/ela-writing/withholding-answers.js';
+import { QTC_FAMILY } from '../../src/batch/families/qtc.js';
 import { InputValidationError } from '../../src/errors.js';
 import { readOutcome } from '../../src/schemas/outcome.js';
+import { runPreprocessingStep } from '../../src/features/preprocessing.js';
 import type { EvaluationResult } from '../../src/schemas/index.js';
-import { BackgroundKnowledgeDemandsOutputSchema } from '../../src/schemas/background-knowledge-demands.js';
-import { GradeLevelAppropriatenessOutputSchema } from '../../src/schemas/grade-level-appropriateness.js';
-import { MeaningDirectnessOutputSchema } from '../../src/schemas/meaning-directness.js';
-import { OrganizationalStructureOutputSchema } from '../../src/schemas/organizational-structure.js';
-import { PurposeClarityOutputSchema } from '../../src/schemas/purpose-clarity.js';
-import { ReferenceKnowledgeDemandsOutputSchema } from '../../src/schemas/reference-knowledge-demands.js';
-import { VocabularyComplexityOutputSchema } from '../../src/schemas/vocabulary-complexity.js';
-import { ComplexityClassificationSchema } from '../../src/schemas/sentence-structure.js';
+import { BackgroundKnowledgeDemandsOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/background-knowledge-demands.js';
+import { GradeLevelAppropriatenessOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
+import { MeaningDirectnessOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/meaning-directness.js';
+import { OrganizationalStructureOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/organizational-structure.js';
+import { PurposeClarityOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/purpose-clarity.js';
+import { ReferenceKnowledgeDemandsOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/reference-knowledge-demands.js';
+import { VocabularyComplexityOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/vocabulary-complexity.js';
+import { SentenceStructureOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/sentence-structure.js';
 
 interface EvaluatorClass {
   metadata: {
@@ -39,7 +56,6 @@ interface EvaluatorClass {
 }
 import {
   formatAsHTML,
-  getFamilies,
   type BatchOutput,
   type ReportMeta,
 } from '../../src/batch/index.js';
@@ -48,7 +64,7 @@ import {
 const constructed: Array<{ type: string; model: string }> = [];
 
 /** Records the generation settings of every LLM call an evaluator makes. */
-const llmCalls: Array<{ temperature?: number }> = [];
+const llmCalls: Array<{ temperature?: number; messages?: Array<{ role: string; content: string }> }> = [];
 
 vi.mock('../../src/providers/index.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
@@ -58,8 +74,8 @@ vi.mock('../../src/providers/index.js', async (importOriginal) => {
       constructed.push({ type: config.type, model: config.model });
       return {
         label: `${config.type}:${config.model}`,
-        generateStructured: vi.fn(async (request: { temperature?: number }) => {
-          llmCalls.push({ temperature: request.temperature });
+        generateStructured: vi.fn(async (request: { temperature?: number; messages?: Array<{ role: string; content: string }> }) => {
+          llmCalls.push({ temperature: request.temperature, messages: request.messages });
           return {
             data: {},
             model: config.model,
@@ -110,13 +126,10 @@ const EVALUATORS = (Object.values(exported) as unknown[])
  * unimplemented and unmentioned.
  */
 const UNIMPLEMENTED = new Set<string>([
-  'feedback.ela_writing.revision_accuracy',
-  'feedback.ela_writing.revision_actionability',
-  'feedback.ela_writing.revision_manageability',
-  'feedback.ela_writing.strength_acknowledgment',
-  'feedback.ela_writing.student_response_specificity',
-  'feedback.ela_writing.tone_appropriateness',
-  'feedback.ela_writing.withholding_answers',
+  // Contract landed first so the rubric, schemas and fixtures could be reviewed by the
+  // people who own them. The TypeScript evaluator follows in its own PR; drop this entry
+  // when it does.
+  'durable_skills.ela_writing.critical_thinking',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -138,33 +151,14 @@ const SENTENCE_ID = SentenceStructureEvaluator.metadata.id;
 
 /** Evaluators whose constructed models or temperatures differ from their contract. */
 const MODEL_GAPS = new Set<string>([
-  // Ships gemini-2.5-pro @ 0.25; the contract declares gemini-3.6-flash @ 1.
-  GLA_ID,
+  // Empty: every evaluator constructs the model its contract declares.
 ]);
 
-/** Evaluators whose `supportedGrades` does not describe their declared inputs. */
+/** Evaluators whose `supportedGrades` does not match the grades their contract declares. */
 const GRADE_GAPS = new Set<string>([
-  // `supported_grades` here describes what `evaluateByGradeLevel` accepts — a bulk
-  // capability outside the one-to-one contract, whose shape is still open (Q-12).
-  // `evaluate()` itself takes no grade, and the input schema correctly declares none.
-  MATH_ID,
+  // Empty: every evaluator publishes the grades its contract declares.
 ]);
 
-/**
- * `evaluatorId::field` pairs whose declared bounds the SDK does not enforce.
- *
- * §4.1 requires each text input to be validated against its own registry-declared
- * limits; the SDK applies one global pair to every input, so a contract asking for
- * anything narrower is silently ignored.
- */
-const LIMIT_GAPS = new Set<string>([
-  // Declare `text.minLength: 10`; the SDK enforces 1, so it accepts input these
-  // contracts reject. The other four ela-reading evaluators declare 1 and agree.
-  `${GLA_ID}::text`,
-  `${BKD_ID}::text`,
-  `${MD_ID}::text`,
-  `${SENTENCE_ID}::text`,
-]);
 
 
 
@@ -175,30 +169,49 @@ const LIMIT_GAPS = new Set<string>([
  * schema regenerated from its contract would silently mislabel every text in that band.
  */
 const BAND_GAPS = new Set<string>([
-  // The contract declares `11-12`; the SDK schema and the report both say `11-CCR`.
-  '11-12',
-]);
-
-/**
- * Family members absent from the report's `EVALUATOR_ORDER`.
- *
- * An absent member sorts to index 999, so its column appears in arbitrary order rather
- * than failing.
- */
-const ORDER_GAPS = new Set<string>([
-  PurposeClarityEvaluator.metadata.id,
-  OrganizationalStructureEvaluator.metadata.id,
-  ReferenceKnowledgeDemandsEvaluator.metadata.id,
-  // The standards family has its own report, which does not use this ordering.
-  MathStandardsAlignmentEvaluator.metadata.id,
+  // Empty: the report recognises every band the contracts declare.
 ]);
 
 /**
  * Evaluators sending a temperature their contract does not declare.
  */
 const TEMPERATURE_GAPS = new Set<string>([
-  // Sends 0.25; the contract declares 1.
-  GLA_ID,
+  // Empty: every evaluator sends the temperature its contract declares.
+]);
+
+/**
+ * Evaluators whose schema module does not export `<Evaluator>OutputSchema`, and so has no
+ * `<Evaluator>Result` for a caller to name the payload with.
+ */
+const RESULT_NAME_GAPS = new Set<string>([
+  // Assembles its payload from per-component results, so there is no single schema.
+  MATH_ID,
+]);
+
+/**
+ * Evaluators whose schema offers different values than the contract declares.
+ */
+const ENUM_VALUE_GAPS = new Set<string>([
+  // Empty: every evaluator offers exactly the values its contract declares.
+]);
+
+/**
+ * Evaluators that do not compute a declared preprocessing step the way the contract says.
+ */
+const PREPROCESSING_GAPS = new Set<string>([
+  // Multi-step, so it cannot move to the factory until step `condition` semantics are
+  // settled; until then it calls the hand-rolled `calculateFleschKincaidGrade` rather than
+  // the declared `text-readability.fleschKincaidGrade`. Neither matches Python's textstat:
+  // over the fixture corpus the declared library is out by 1.03 grade levels on average
+  // and the hand-rolled one by 0.54, so closing this gap alone does not give parity.
+  VocabularyComplexityEvaluator.metadata.id,
+]);
+
+/**
+ * Evaluators whose schema rejects the values its own contract fixtures record.
+ */
+const FIXTURE_VALUE_GAPS = new Set<string>([
+  // Empty: every schema accepts the values its own fixtures record.
 ]);
 
 /**
@@ -212,6 +225,13 @@ const TEMPERATURE_GAPS = new Set<string>([
  * schema to compare.
  */
 const SDK_OUTPUT_SCHEMAS: Record<string, { shape: Record<string, unknown> }> = {
+  [RevisionAccuracyEvaluator.metadata.id]: RevisionAccuracyOutputSchema,
+  [RevisionActionabilityEvaluator.metadata.id]: RevisionActionabilityOutputSchema,
+  [RevisionManageabilityEvaluator.metadata.id]: RevisionManageabilityOutputSchema,
+  [StrengthAcknowledgmentEvaluator.metadata.id]: StrengthAcknowledgmentOutputSchema,
+  [StudentResponseSpecificityEvaluator.metadata.id]: StudentResponseSpecificityOutputSchema,
+  [ToneAppropriatenessEvaluator.metadata.id]: ToneAppropriatenessOutputSchema,
+  [WithholdingAnswersEvaluator.metadata.id]: WithholdingAnswersOutputSchema,
   [BackgroundKnowledgeDemandsEvaluator.metadata.id]: BackgroundKnowledgeDemandsOutputSchema,
   [GradeLevelAppropriatenessEvaluator.metadata.id]: GradeLevelAppropriatenessOutputSchema,
   [MeaningDirectnessEvaluator.metadata.id]: MeaningDirectnessOutputSchema,
@@ -219,17 +239,9 @@ const SDK_OUTPUT_SCHEMAS: Record<string, { shape: Record<string, unknown> }> = {
   [PurposeClarityEvaluator.metadata.id]: PurposeClarityOutputSchema,
   [ReferenceKnowledgeDemandsEvaluator.metadata.id]: ReferenceKnowledgeDemandsOutputSchema,
   [VocabularyComplexityEvaluator.metadata.id]: VocabularyComplexityOutputSchema,
-  [SentenceStructureEvaluator.metadata.id]: ComplexityClassificationSchema,
+  [SentenceStructureEvaluator.metadata.id]: SentenceStructureOutputSchema,
 };
 
-/** Evaluators whose sent schema does not match their contract's declared payload. */
-const SCHEMA_GAPS = new Set<string>([
-  // Sends `grade` / `alternative_grade`; the contract declares `grade_band` /
-  // `alternative_grade_band`, and its enum says `11-12` where the SDK says `11-CCR`.
-  GLA_ID,
-  // Sends `answer`; the contract declares `complexity_score`.
-  SENTENCE_ID,
-]);
 
 // ---------------------------------------------------------------------------
 // Contract loading
@@ -255,6 +267,17 @@ interface Contract {
       generation?: { temperature?: number };
       optional?: boolean;
     }>;
+    preprocessing?: Array<{
+      id: string;
+      implementation?: {
+        typescript?: {
+          library: string;
+          function: string;
+          post_transform?: { type: string; precision?: number };
+        };
+      };
+    }>;
+    outcome?: { score: string; reasoning: string };
   };
   inputSchema: { properties: Record<string, Record<string, unknown>>; required?: string[] };
   outputSchema: {
@@ -300,16 +323,33 @@ const cases = EVALUATORS.map((E) => ({ name: E.metadata.name, E }));
  * Math is absent: its inputs are a question and a standard code, and it calls the
  * Knowledge Graph before any model. Naming inputs will make this map derivable.
  */
+/** Stands in for the teacher comment the feedback family judges. */
+const FEEDBACK_TEXT = 'Try adding a topic sentence so the reader knows your argument.';
+
 const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknown>> = {
-  [GLA_ID]: (E, text) => construct(E).evaluate(text),
-  [BKD_ID]: (E, text) => construct(E).evaluate(text, '5'),
-  [MD_ID]: (E, text) => construct(E).evaluate(text, '5'),
-  [OrganizationalStructureEvaluator.metadata.id]: (E, text) => construct(E).evaluate(text, '5'),
-  [PurposeClarityEvaluator.metadata.id]: (E, text) => construct(E).evaluate(text, '5'),
+  [GLA_ID]: (E, text) => construct(E).evaluate({ text }),
+  [BKD_ID]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
+  [MD_ID]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
+  [OrganizationalStructureEvaluator.metadata.id]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
+  [PurposeClarityEvaluator.metadata.id]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
   [ReferenceKnowledgeDemandsEvaluator.metadata.id]: (E, text) =>
-    construct(E).evaluate(text, '5'),
-  [SENTENCE_ID]: (E, text) => construct(E).evaluate(text, '5'),
-  [VocabularyComplexityEvaluator.metadata.id]: (E, text) => construct(E).evaluate(text, '5'),
+    construct(E).evaluate({ text, grade_level: '5' }),
+  [SENTENCE_ID]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
+  [VocabularyComplexityEvaluator.metadata.id]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
+  [RevisionAccuracyEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
+  [RevisionActionabilityEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
+  [RevisionManageabilityEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
+  [StrengthAcknowledgmentEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
+  [StudentResponseSpecificityEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
+  [ToneAppropriatenessEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
+  [WithholdingAnswersEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
 };
 
 /**
@@ -346,6 +386,64 @@ describe('every evaluator has a contract at the derived path', () => {
   });
 });
 
+describe('evaluator and schema modules sit at the derived path', () => {
+  // The module's location is derived from its id by the same rule as its contract's, so
+  // a contract that moves takes its module with it and neither can drift from the other.
+  // It also removes a collision: two evaluators can share a last id segment.
+  //
+  // Not covered by the compiler: a module moved *with* its imports fixed typechecks
+  // cleanly, and only this notices.
+  it.each(cases)('$name', ({ E }) => {
+    const relative = E.metadata.id.split('.').map((s) => s.replace(/_/g, '-'));
+
+    for (const kind of ['evaluators', 'schemas']) {
+      const module = join(process.cwd(), 'src', kind, ...relative) + '.ts';
+
+      expect(existsSync(module), `no ${kind} module at ${module}`).toBe(true);
+    }
+  });
+});
+
+describe('the payload type is named after the evaluator', () => {
+  // A caller reads the payload out of EvaluationResult<T>, so T is public API and needs a
+  // name they can import. Deriving it from the evaluator's own name is what makes that
+  // predictable, and it is the name the generator emits.
+  //
+  // Type names are erased at runtime, so this checks the schema export they come from.
+  it.each(cases)('$name', ({ E }) => {
+    const relative = E.metadata.id.split('.').map((s) => s.replace(/_/g, '-'));
+    const module = join(process.cwd(), 'src', 'schemas', ...relative) + '.ts';
+    const source = readFileSync(module, 'utf-8');
+
+    const className = relative[relative.length - 1]
+      .split('-')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join('');
+
+    const declaresSchema = source.includes(`export const ${className}OutputSchema`);
+    const declaresResult = source.includes(`export type ${className}Result`);
+
+    if (RESULT_NAME_GAPS.has(E.metadata.id)) {
+      expect(
+        declaresSchema && declaresResult,
+        `${E.metadata.name} now names its payload after itself — drop it from RESULT_NAME_GAPS`,
+      ).toBe(false);
+      return;
+    }
+
+    expect(declaresSchema, `${module} does not export ${className}OutputSchema`).toBe(true);
+    expect(declaresResult, `${module} does not export ${className}Result`).toBe(true);
+
+    // Declaring it is not the same as publishing it. Nine of the fifteen schemas reached the
+    // barrel and six did not, so callers of those six dimensions had no runtime schema at
+    // all — and nothing here noticed, because this test only ever read the schema module.
+    expect(
+      `${className}OutputSchema` in packageRoot,
+      `${className}OutputSchema is declared but not exported from the package`,
+    ).toBe(true);
+  });
+});
+
 describe('identity matches the contract', () => {
   it.each(cases)('$name', ({ E }) => {
     const { config } = contractFor(E.metadata.id);
@@ -360,22 +458,34 @@ describe('identity matches the contract', () => {
 
 describe('supported grades match the contract', () => {
   it.each(cases)('$name', ({ E }) => {
-    const { config, inputSchema } = contractFor(E.metadata.id);
+    const { config } = contractFor(E.metadata.id);
 
-    // A grade-free evaluator declares no `grade_level` input; its contract's
-    // supported_grades then describes output bands, not accepted input.
-    const takesGrade = 'grade_level' in inputSchema.properties;
-    const declared = takesGrade
-      ? ((inputSchema.properties.grade_level.enum as string[]) ??
-         config.evaluator.supported_grades)
-      : [];
-
+    // What the evaluator targets, which the contract states outright rather than implying.
+    // The grade input's enum is a different question -- the set a caller may pass -- and it
+    // is absent for the evaluators that take no grade, which is why deriving this field
+    // from it published `[]` for eight of them.
     expectAgainstContract(
       GRADE_GAPS.has(E.metadata.id),
       [...E.metadata.supportedGrades],
-      declared,
-      `${E.metadata.name} supportedGrades`,
+      config.evaluator.supported_grades,
+      `${E.metadata.name} supportedGrades vs the grades its contract declares`,
     );
+  });
+
+  // The two are separate fields with separate jobs, and `config.schema.json` requires them
+  // to agree wherever both exist: "when the evaluator accepts one,
+  // `input_schema.properties.grade_level.enum` is the accepted set and the two must agree".
+  // Nothing checked that directly, so the field the SDK no longer reads could drift.
+  it.each(cases)('$name accepts exactly the grades it declares support for', ({ E }) => {
+    const { config, inputSchema } = contractFor(E.metadata.id);
+    const accepted = inputSchema.properties.grade_level?.enum as string[] | undefined;
+
+    if (accepted === undefined) return;
+
+    expect(
+      [...accepted].sort(),
+      `${E.metadata.name}: grade_level enum vs evaluator.supported_grades`,
+    ).toEqual([...config.evaluator.supported_grades].sort());
   });
 });
 
@@ -408,12 +518,100 @@ describe('the schema the SDK sends matches the contract', () => {
     const sentFields = Object.keys(SDK_OUTPUT_SCHEMAS[E.metadata.id].shape).sort();
     const declared = Object.keys(outputSchema.properties).sort();
 
-    expectAgainstContract(
-      SCHEMA_GAPS.has(E.metadata.id),
-      sentFields,
-      declared,
-      `${E.metadata.name} sent payload fields`,
+    expect(sentFields, `${E.metadata.name} sent payload fields`).toEqual(declared);
+  });
+
+  // Field names are only half of it: a field can carry the right name and offer the model
+  // the wrong choices. `11-CCR` for a contract declaring `11-12` passed the check above.
+  it.each(withSchema)('$name enum values', ({ E }) => {
+    const { outputSchema } = contractFor(E.metadata.id);
+    const defs = (outputSchema.$defs ?? {}) as Record<string, { enum?: unknown[] }>;
+    const shape = SDK_OUTPUT_SCHEMAS[E.metadata.id].shape as Record<string, unknown>;
+
+    const mismatched = Object.entries(outputSchema.properties).flatMap(([field, spec]) => {
+      const ref = typeof spec.$ref === 'string' ? spec.$ref.replace('#/$defs/', '') : undefined;
+      const declared = (ref ? defs[ref]?.enum : (spec as { enum?: unknown[] }).enum) as
+        | unknown[]
+        | undefined;
+      if (!declared) return [];
+
+      const options = (shape[field] as { options?: unknown[] } | undefined)?.options;
+      if (!options) {
+        return [`${field}: schema offers no choices, contract declares ${declared.length}`];
+      }
+
+      // A string enum becomes z.enum, whose options are the values. An integer enum
+      // cannot — Zod enums are strings — so it becomes a union of z.literal, whose
+      // options are the literal schemas. Both have to compare against the contract.
+      const sent = options.map((option) =>
+        option !== null && typeof option === 'object'
+          ? (option as { value: unknown }).value
+          : option,
+      );
+
+      const same = sent.length === declared.length && sent.every((v, i) => v === declared[i]);
+      return same
+        ? []
+        : [`${field}: sent ${JSON.stringify(sent)}, declared ${JSON.stringify(declared)}`];
+    });
+
+    if (ENUM_VALUE_GAPS.has(E.metadata.id)) {
+      expect(
+        mismatched,
+        `${E.metadata.name} now offers the declared values — drop it from ENUM_VALUE_GAPS`,
+      ).not.toEqual([]);
+      return;
+    }
+
+    expect(mismatched, `${E.metadata.name} offers values its contract does not declare`).toEqual(
+      [],
     );
+  });
+});
+
+describe('the schema accepts the values the contract fixtures record', () => {
+  // The comparison above matches field *names*. This checks the values: a fixture's
+  // `expected` is what the model returned for a real input, so a schema that rejects it
+  // is a schema the model cannot satisfy.
+  //
+  // Unit tests cannot catch this — they mock the provider, so the payload is passed
+  // through without ever meeting the schema.
+  const withSchema = cases.filter(({ E }) => SDK_OUTPUT_SCHEMAS[E.metadata.id]);
+
+  it.each(withSchema)('$name', ({ E }) => {
+    const { dir } = contractFor(E.metadata.id);
+    const fixtures = JSON.parse(readFileSync(join(dir, 'fixtures.json'), 'utf-8')) as Array<{
+      id: string;
+      expected: Record<string, unknown>;
+    }>;
+    const shape = SDK_OUTPUT_SCHEMAS[E.metadata.id].shape as Record<
+      string,
+      { safeParse(value: unknown): { success: boolean } }
+    >;
+
+    // A field the schema does not have is a failure, not something to skip: the contract
+    // recorded the model returning it. Whole-object parsing is not an option here — every
+    // `expected` is a partial assertion, missing between one and five required fields.
+    const rejected = fixtures.flatMap(({ id, expected }) =>
+      Object.entries(expected).flatMap(([field, value]) => {
+        const fieldSchema = shape[field];
+        if (!fieldSchema) return [`${id}: ${field} is absent from the schema`];
+        if (!fieldSchema.safeParse(value).success) {
+          return [`${id}: ${field}=${JSON.stringify(value)}`];
+        }
+        return [];
+      }),
+    );
+
+    if (FIXTURE_VALUE_GAPS.has(E.metadata.id)) {
+      expect(
+        rejected,
+        `${E.metadata.name} now accepts its fixtures — drop it from FIXTURE_VALUE_GAPS`,
+      ).not.toEqual([]);
+      return;
+    }
+
+    expect(rejected, `${E.metadata.name} rejects its own contract fixtures`).toEqual([]);
   });
 });
 
@@ -440,9 +638,13 @@ describe('readOutcome finds a verdict in the payload the SDK actually returns', 
       },
     } as EvaluationResult;
 
+    // Read from the contract, not from metadata: this asserts the declaration and the
+    // payload agree, which is exactly what would drift.
+    const { outcome } = contractFor(E.metadata.id).config;
+
     expect(
-      readOutcome(envelope).score,
-      `${E.metadata.name}: readOutcome found no verdict in the payload the SDK returns`,
+      readOutcome(envelope, outcome).score,
+      `${E.metadata.name}: the payload the SDK returns has no ${outcome?.score ?? 'declared verdict'}`,
     ).toBeDefined();
   });
 });
@@ -471,8 +673,16 @@ describe('every contract is implemented or explicitly listed as not', () => {
   )('$label', ({ dir }) => {
     const id = JSON.parse(readFileSync(join(dir, 'config.json'), 'utf-8')).evaluator.id;
 
+    if (contractIds.includes(id)) {
+      expect(
+        UNIMPLEMENTED.has(id),
+        `"${id}" is implemented — drop it from UNIMPLEMENTED`,
+      ).toBe(false);
+      return;
+    }
+
     expect(
-      contractIds.includes(id) || UNIMPLEMENTED.has(id),
+      UNIMPLEMENTED.has(id),
       `"${id}" has a contract but no implementation and is not in UNIMPLEMENTED`,
     ).toBe(true);
   });
@@ -513,6 +723,50 @@ describe('constructed models match the contract', () => {
   });
 });
 
+/**
+ * The report data a generated HTML file ships, parsed back out of it.
+ *
+ * The marker is asserted rather than assumed: absent, `indexOf` gives -1 and the slice
+ * reaches `JSON.parse` as garbage, so the failure would name a syntax error instead of the
+ * marker that moved. `injectReportData` names it on the write side for the same reason.
+ */
+interface ParsedReport {
+  meta: Record<string, string[] | undefined>;
+  fullResults: { rows: Record<string, unknown>[] };
+}
+
+function parseReportData(html: string): ParsedReport {
+  const marker = 'var REPORT_DATA = ';
+  const at = html.indexOf(marker);
+  expect(at, `"${marker}" not found in the generated report`).toBeGreaterThan(-1);
+
+  const line = html.slice(at + marker.length, html.indexOf('\n', at));
+  return JSON.parse(line.endsWith(';') ? line.slice(0, -1) : line);
+}
+
+/**
+ * The `meta` the text-complexity report actually ships. Read from the emitted file rather
+ * than from the formatter's inputs, so the assertion covers the injection too.
+ */
+function reportMetaFor(evaluatorIds: string[]): Record<string, string[] | undefined> {
+  const output = {
+    results: [],
+    summary: { totalTasks: 0, successful: 0, failed: 0, durationMs: 1, resultsPerEvaluator: {} },
+  } as unknown as BatchOutput;
+
+  const meta = {
+    reportId: 'r',
+    generatedAt: 'now',
+    csvPath: '/tmp/in.csv',
+    totalInputRows: 0,
+    groupId: QTC_FAMILY.id,
+    evaluatorIds,
+    evaluatorNames: evaluatorIds,
+  } as unknown as ReportMeta;
+
+  return parseReportData(formatAsHTML(output, meta)).meta;
+}
+
 describe('the report recognises every grade band the contract declares', () => {
   const glaContract = contractFor(GLA_ID);
   const bands = ((glaContract.outputSchema.$defs?.GradeBand as { enum?: string[] })?.enum ??
@@ -552,11 +806,7 @@ describe('the report recognises every grade band the contract declares', () => {
       evaluatorNames: ['GLA'],
     } as unknown as ReportMeta;
 
-    const html = formatAsHTML(output, meta);
-    const marker = 'var REPORT_DATA = ';
-    const start = html.indexOf(marker) + marker.length;
-    const line = html.slice(start, html.indexOf('\n', start));
-    const data = JSON.parse(line.endsWith(';') ? line.slice(0, -1) : line);
+    const data = parseReportData(formatAsHTML(output, meta));
 
     // A grade inside the band must read as on-band. An unresolved band indexes to -1,
     // which the report renders as the verdict "Off Target" — a plausible-looking answer.
@@ -570,30 +820,131 @@ describe('the report recognises every grade band the contract declares', () => {
 });
 
 describe('the report can order every family member', () => {
-  // EVALUATOR_ORDER lives in the report template as a plain JS literal, so nothing
-  // typechecks it against the families. A member missing from it sorts to index 999
-  // and lands in arbitrary order — visible only to someone reading the report.
+  // The order now travels with the report data, derived from the family definition, so
+  // membership cannot drift. What can still break is the wiring: the template reading a
+  // literal again, or the formatter not emitting the field. A member the report cannot
+  // order sorts to index 999 and lands in arbitrary order — visible only to someone
+  // reading the report, which is why this is asserted rather than left to review.
   const template = readFileSync(join(process.cwd(), 'src/batch/report-template.html'), 'utf-8');
-  const marker = 'const EVALUATOR_ORDER = [';
-  const at = template.indexOf(marker);
 
-  it('finds the ordering array in the template', () => {
-    // Without this, a moved or reformatted marker would surface as "every member is
-    // absent" and send the reader looking in the wrong place.
-    expect(at, `"${marker}" not found in report-template.html`).toBeGreaterThan(-1);
+  it('takes its ordering from the report data, not a literal in the template', () => {
+    expect(template).toContain('REPORT_DATA.meta.evaluatorOrder');
   });
 
-  const declared = at === -1 ? '' : template.slice(at, template.indexOf(']', at));
+  it('has no second copy of the order to fall out of step', () => {
+    // A literal list of ids next to EVALUATOR_ORDER is what this change removed; the
+    // mock's own copy is exempt because it stands in for absent data, not for the order.
+    const at = template.indexOf('const EVALUATOR_ORDER');
+    const declaration = template.slice(at, template.indexOf(';', at));
+    expect(declaration).not.toMatch(/student_facing_text\./);
+  });
 
-  const members = getFamilies().flatMap((f) => f.members.map((m) => ({ family: f.id, id: m.id })));
+  // Only the text-complexity family renders this template: standards has its own report
+  // and the feedback family has none yet, so neither consults this ordering.
+  //
+  // Asserted once, not per member: the emitted order and the family definition are the
+  // same list, so there is no independent expectation to compare a member against. What
+  // this does catch is the formatter omitting or truncating the field, which is what
+  // would put a member back at index 999.
+  it('ships every family member in the order the family declares', () => {
+    const emitted = reportMetaFor(QTC_FAMILY.members.map((m) => m.id)).evaluatorOrder;
 
-  it.each(members)('$family / $id', ({ id }) => {
-    expectAgainstContract(
-      ORDER_GAPS.has(id),
-      declared.includes(`'${id}'`),
-      true,
-      `"${id}" is absent from the report's EVALUATOR_ORDER`,
-    );
+    expect(emitted).toEqual(QTC_FAMILY.members.map((m) => m.id));
+  });
+});
+
+describe('the reported model matches the contract steps that apply', () => {
+  // A step can be conditional on an input, so which model runs depends on that input and
+  // the reported model has to follow. Every other invocation in this suite passes
+  // grade_level '5', which is why a conditional branch reporting the wrong model survived.
+  //
+  // Derived from the contract, so an evaluator that gains a conditional step is covered
+  // without touching this test.
+  const perGrade = cases.flatMap(({ name, E }) => {
+    if (!INVOKE[E.metadata.id]) return [];
+    const { config } = contractFor(E.metadata.id);
+    const grades = [
+      ...new Set(config.steps.flatMap((step) => (step.condition?.in ?? []).map(String))),
+    ];
+    return grades.map((grade) => ({ name, E, grade }));
+  });
+
+  it('finds at least one conditional step to exercise', () => {
+    // If this fails the suite below is vacuous — either the contracts lost their
+    // conditions or the derivation above stopped matching them.
+    expect(perGrade.length).toBeGreaterThan(0);
+  });
+
+  it.each(perGrade)('$name at grade $grade', async ({ E, grade }) => {
+    const { config } = contractFor(E.metadata.id);
+    const applies = (step: (typeof config.steps)[number]) =>
+      !step.condition ||
+      (step.condition.input === 'grade_level' && step.condition.in.map(String).includes(grade));
+
+    const expected = config.steps
+      .filter(applies)
+      .map((step) => `${step.model.provider}:${step.model.name}`)
+      .join('+');
+
+    const result = (await construct(E).evaluate({
+      text: 'The storm gathered offshore and the harbour emptied before dusk.',
+      grade_level: grade,
+    })) as { metadata: { model: string } };
+
+    expect(result.metadata.model, `${E.metadata.name} at grade ${grade}`).toBe(expected);
+  });
+});
+
+describe('every declared preprocessing value reaches the prompt', () => {
+  // Preprocessing feeds a number into a sha256-pinned prompt, so a step that silently
+  // stops running, or runs a different implementation, changes what the model is asked
+  // without changing anything a schema or a hash would notice.
+  const withPreprocessing = cases.filter(({ E }) => {
+    if (!INVOKE[E.metadata.id]) return false;
+    // Sentence Structure's first stage reads array fields off the model response, and the
+    // shared mock returns `data: {}`, so it throws before any prompt is built. Its
+    // declared libraries (compromise+syllable, raw-loader, custom) have no adapter in
+    // runPreprocessingStep either, so this check could not drive it in any case.
+    if (E.metadata.id === SENTENCE_ID) return false;
+    return (contractFor(E.metadata.id).config.preprocessing ?? []).length > 0;
+  });
+
+  it('finds evaluators with declared preprocessing', () => {
+    expect(withPreprocessing.length).toBeGreaterThan(0);
+  });
+
+  const TEXT =
+    'A thousand years ago boys and girls did not learn to read. Books were scarce and ' +
+    'precious, and only a few men could read them. Each book was written by hand.';
+
+  it.each(withPreprocessing)('$name', async ({ E }) => {
+    const { config } = contractFor(E.metadata.id);
+    llmCalls.length = 0;
+
+    await INVOKE[E.metadata.id](E, TEXT);
+
+    const prompts = llmCalls.flatMap((c) => (c.messages ?? []).map((m) => m.content)).join('\n');
+
+    const missing = (config.preprocessing ?? [])
+      .flatMap((step) => {
+        const impl = step.implementation?.typescript;
+        if (!impl) return [];
+        const value = String(runPreprocessingStep(TEXT, impl));
+        return prompts.includes(value) ? [] : [step];
+      })
+      .map((step) => step.id);
+
+    if (PREPROCESSING_GAPS.has(E.metadata.id)) {
+      expect(
+        missing,
+        `${E.metadata.name} now matches its declared preprocessing — drop it from PREPROCESSING_GAPS`,
+      ).not.toEqual([]);
+      return;
+    }
+
+    expect(missing, `${E.metadata.name}: declared preprocessing absent from the prompt`).toEqual([]);
+    // A placeholder left in the prompt means substitution silently did not happen.
+    expect(prompts, `${E.metadata.name}: unsubstituted placeholder`).not.toMatch(/\{[a-z_]+\}/);
   });
 });
 
@@ -639,16 +990,61 @@ describe('a declared minimum length is enforced', () => {
 
     // Asserting on the error type, not on whether the call resolved: a stubbed provider
     // can fail an evaluation for reasons that have nothing to do with validation.
-    if (LIMIT_GAPS.has(`${E.metadata.id}::text`)) {
-      expect(
-        rejectedForLength,
-        `${E.metadata.name} now enforces its declared minLength ${min} — delete its LIMIT_GAPS entry`,
-      ).toBe(false);
-    } else {
-      expect(
-        rejectedForLength,
-        `${E.metadata.name} accepts text shorter than the minLength ${min} its contract declares`,
-      ).toBe(true);
+    expect(
+      rejectedForLength,
+      `${E.metadata.name} accepts text shorter than the minLength ${min} its contract declares`,
+    ).toBe(true);
+  });
+});
+
+describe('the public surface offers no value a contract does not declare', () => {
+  // `TextComplexityLevel` shipped a Title Case enum — 'Slightly complex' — while every
+  // contract declares snake_case. Nothing read it, so nothing failed; the only cost fell on
+  // callers who typed against it and got values no evaluator returns. This catches the next
+  // one at the point it is exported rather than after it ships.
+  const declaredValues = new Set<string>();
+  for (const { E } of cases) {
+    const { outputSchema } = contractFor(E.metadata.id);
+    const collect = (node: unknown): void => {
+      if (Array.isArray(node)) {
+        node.forEach(collect);
+        return;
+      }
+      if (node === null || typeof node !== 'object') return;
+      const record = node as Record<string, unknown>;
+      if (Array.isArray(record.enum)) {
+        for (const value of record.enum) if (typeof value === 'string') declaredValues.add(value);
+      }
+      Object.values(record).forEach(collect);
+    };
+    collect(outputSchema);
+  }
+
+  it('found the values the contracts declare', () => {
+    // Without this the assertion below passes for an empty set.
+    expect(declaredValues.size).toBeGreaterThan(5);
+    expect(declaredValues).toContain('slightly_complex');
+  });
+
+  it('exports no verdict-shaped value the contracts never use', async () => {
+    const surface = (await import('../../src/index.js')) as Record<string, unknown>;
+
+    // A Zod enum on the public surface whose options describe a verdict must offer the
+    // values the contracts declare. Anything else is a spelling only the SDK believes in.
+    const offenders: string[] = [];
+    for (const [name, exported] of Object.entries(surface)) {
+      const options = (exported as { options?: unknown })?.options;
+      if (!Array.isArray(options) || options.length === 0) continue;
+      if (!options.every((o): o is string => typeof o === 'string')) continue;
+
+      const unknownValues = options.filter((o) => !declaredValues.has(o));
+      // Only flag an enum that looks like a verdict: every value unknown to every
+      // contract, while a case-folded form of one is declared.
+      const looksLikeVerdict = unknownValues.length === options.length &&
+        options.some((o) => declaredValues.has(o.toLowerCase().replace(/ /g, '_')));
+      if (looksLikeVerdict) offenders.push(`${name}: ${options.join(', ')}`);
     }
+
+    expect(offenders, 'these export values no contract declares').toEqual([]);
   });
 });

@@ -1,19 +1,37 @@
 {
   "name": "@learning-commons/evaluators",
-  "version": "0.8.0",
+  "version": "1.0.0",
   "description": "TypeScript SDK for Learning Commons educational evaluators",
   "type": "module",
+  "main": "./dist/index.cjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./batch": {
-      "types": "./dist/batch/index.d.ts",
-      "import": "./dist/batch/index.js",
-      "require": "./dist/batch/index.cjs"
+      "import": {
+        "types": "./dist/batch/index.d.ts",
+        "default": "./dist/batch/index.js"
+      },
+      "require": {
+        "types": "./dist/batch/index.d.cts",
+        "default": "./dist/batch/index.cjs"
+      }
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "batch": [
+        "./dist/batch/index.d.ts"
+      ]
     }
   },
   "sideEffects": false,
@@ -22,20 +40,24 @@
   },
   "files": [
     "dist",
+    "batch/package.json",
     "README.md",
+    "MIGRATION.md",
     "CHANGELOG.md",
     "LICENSE",
     "src/batch/README.md"
   ],
   "scripts": {
-    "//generate:schemas": "Disabled: the output filename derives from evaluator.id, which the taxonomy rename changes, so this would emit purpose_clarity.ts alongside the committed purpose.ts. Re-enable when the generator is expanded to cover every config-contract evaluator. tsx scripts/generate-schema.ts ../../evals/student-facing-text/ela-reading/purpose-clarity/config.json",
-    "//generate:schemas:check": "Disabled with generate:schemas above. tsx scripts/generate-schema.ts --check ../../evals/student-facing-text/ela-reading/purpose-clarity/config.json",
+    "generate:schemas": "tsx scripts/generate-schema.ts --all",
+    "generate:schemas:check": "tsx scripts/generate-schema.ts --all --check",
     "generate:kg-types": "openapi-typescript https://docs.learningcommons.org/api-reference/knowledge-graph-api/openapi.yaml -o src/knowledge-graph/kg-api.d.ts",
     "build": "tsup",
+    "verify:dist": "vitest run tests/declarations",
+    "verify:package": "publint --strict && attw --pack . && node scripts/verify-package.mjs",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
-    "test:integration": "RUN_INTEGRATION_TESTS=true vitest run tests/integration",
+    "test:integration": "RUN_INTEGRATION_TESTS=true vitest run --dir tests/integration",
     "test:integration:dist": "npm run build && RUN_INTEGRATION_TESTS=true vitest run --config vitest.ci.config.ts",
     "test:all": "RUN_INTEGRATION_TESTS=true vitest run",
     "test:watch": "vitest",
@@ -65,10 +87,11 @@
   },
   "homepage": "https://github.com/learning-commons-org/evaluators/tree/main/sdks/typescript#readme",
   "peerDependencies": {
-    "@ai-sdk/anthropic": ">=4.0.0",
-    "@ai-sdk/google": ">=4.0.0",
-    "@ai-sdk/openai": ">=4.0.0",
-    "ai": ">=7.0.0"
+    "@ai-sdk/anthropic": ">=4.0.0 <5",
+    "@ai-sdk/google": ">=4.0.0 <5",
+    "@ai-sdk/openai": ">=4.0.0 <5",
+    "ai": ">=7.0.0 <8",
+    "zod": "^4.1.8"
   },
   "peerDependenciesMeta": {
     "@ai-sdk/openai": {
@@ -88,16 +111,16 @@
     "p-limit": "^7.3.0",
     "prompts": "^2.4.2",
     "syllable": "^5.0.1",
-    "text-readability": "^1.1.1",
-    "zod": "^4.4.3"
+    "text-readability": "^1.1.1"
   },
   "devDependencies": {
     "@ai-sdk/anthropic": "^4.0.2",
     "@ai-sdk/google": "^4.0.2",
     "@ai-sdk/openai": "^4.0.3",
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^26.0.0",
     "@types/prompts": "^2.4.9",
-    "@eslint/js": "^10.0.1",
     "@typescript-eslint/eslint-plugin": "^8.59.4",
     "@typescript-eslint/parser": "^8.59.4",
     "@vitest/coverage-v8": "^4.0.17",
@@ -106,10 +129,12 @@
     "globals": "^17.6.0",
     "json-schema-to-zod": "^2.8.1",
     "openapi-typescript": "^7.13.0",
+    "publint": "^0.3.24",
     "tsup": "^8.0.1",
     "tsx": "^4.21.0",
     "typescript": "^5.3.3",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.17",
+    "zod": "^4.4.3"
   },
   "overrides": {
     "@redocly/openapi-core": {
@@ -117,6 +142,6 @@
     }
   },
   "engines": {
-    "node": ">=20.19.0"
+    "node": "^20.19.0 || >=22.12.0"
   }
 }

@@ -52,6 +52,10 @@
   "output_schema": {
     "$ref": "output_schema.json"
   },
+  "outcome": {
+    "score": "grade_band",
+    "reasoning": "reasoning"
+  },
   "fixtures": {
     "path": "fixtures.json"
   }

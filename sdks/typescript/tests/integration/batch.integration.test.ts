@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as path from 'path';
-import { BatchEvaluator, getAvailableGroups, parseCSV } from '../../src/batch/index.js';
+import { BatchEvaluator, getFamily, parseCSV } from '../../src/batch/index.js';
 import type { BatchInput } from '../../src/batch/index.js';
 
 /**
@@ -41,11 +41,11 @@ describeIntegration('Batch Evaluator - Integration', () => {
       telemetry: false,
     });
 
-    const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+    const family = getFamily('text-complexity');
     console.log('\n' + '='.repeat(80));
     console.log('BATCH EVALUATOR - INTEGRATION TEST');
     console.log('='.repeat(80));
-    console.log(`Group: ${group.name} (${group.evaluatorIds.join(', ')})`);
+    console.log(`Group: ${family.name} (${family.members.map((m) => m.id).join(', ')})`);
     console.log('='.repeat(80));
   });
 
@@ -58,8 +58,8 @@ describeIntegration('Batch Evaluator - Integration', () => {
       console.log(`\n📊 Processing ${inputs.length} rows...`);
 
       const startTime = Date.now();
-      const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
-      const output = await evaluator.evaluate(inputs, group.id, {
+      const family = getFamily('text-complexity');
+      const output = await evaluator.evaluate(inputs, family.id, {
         onProgress: (result) => {
           console.log(`  ✓ Row ${result.rowIndex} [${result.evaluatorId}] - ${result.status}: ${result.score || result.error}`);
         },
@@ -74,14 +74,14 @@ describeIntegration('Batch Evaluator - Integration', () => {
       expect(output.summary).toBeDefined();
 
       // Should have 2 rows × 3 evaluators = 6 results
-      expect(output.results).toHaveLength(inputs.length * group.evaluatorIds.length);
+      expect(output.results).toHaveLength(inputs.length * family.members.map((m) => m.id).length);
 
       // Verify each result has expected fields
       for (const result of output.results) {
         expect(result.rowIndex).toBeGreaterThan(0);
         expect(result.text).toBeTruthy();
         expect(result.gradeLevel).toBeTruthy();
-        expect(group.evaluatorIds).toContain(result.evaluatorId);
+        expect(family.members.map((m) => m.id)).toContain(result.evaluatorId);
         expect(result.status).toMatch(/success|error/);
         expect(result.processingTimeMs).toBeGreaterThan(0);
 
@@ -94,11 +94,11 @@ describeIntegration('Batch Evaluator - Integration', () => {
       }
 
       // Verify summary — 2 rows × 3 evaluators = 6 tasks
-      const expectedTasks = inputs.length * group.evaluatorIds.length;
+      const expectedTasks = inputs.length * family.members.map((m) => m.id).length;
       expect(output.summary.totalTasks).toBe(expectedTasks);
       expect(output.summary.successful + output.summary.failed).toBe(expectedTasks);
       expect(output.summary.durationMs).toBeGreaterThan(0);
-      for (const id of group.evaluatorIds) {
+      for (const id of family.members.map((m) => m.id)) {
         expect(output.summary.resultsPerEvaluator).toHaveProperty(id);
       }
 
@@ -118,27 +118,27 @@ describeIntegration('Batch Evaluator - Integration', () => {
   it(
     'should run all evaluators in the group and include each in results',
     async () => {
-      const group = getAvailableGroups().find((g) => g.id === 'text-complexity')!;
+      const family = getFamily('text-complexity');
 
       // Single row — verify all group evaluators ran
       const inputs: BatchInput[] = [
         { rowIndex: 1, columns: { text: 'The cat sat on the mat.', grade_level: '3' }, originalRow: { text: 'The cat sat on the mat.', grade_level: '3' } },
       ];
 
-      console.log(`\n📊 Processing 1 row with ${group.evaluatorIds.length} evaluators...`);
+      console.log(`\n📊 Processing 1 row with ${family.members.map((m) => m.id).length} evaluators...`);
 
-      const output = await evaluator.evaluate(inputs, group.id, {
+      const output = await evaluator.evaluate(inputs, family.id, {
         onProgress: (result) => {
           console.log(`  ✓ ${result.evaluatorId} - ${result.status}: ${result.score || result.error}`);
         },
       });
 
       // Should have 1 result per evaluator in the group
-      expect(output.results).toHaveLength(group.evaluatorIds.length);
+      expect(output.results).toHaveLength(family.members.map((m) => m.id).length);
 
       // Verify every evaluator in the group produced a result
       const ranEvaluatorIds = output.results.map((r) => r.evaluatorId);
-      for (const id of group.evaluatorIds) {
+      for (const id of family.members.map((m) => m.id)) {
         expect(ranEvaluatorIds).toContain(id);
       }
 
