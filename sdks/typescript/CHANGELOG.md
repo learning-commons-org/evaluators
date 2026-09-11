@@ -2,6 +2,13 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
+## [1.1.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v1.0.0...sdks-typescript-v1.1.0) (2026-09-11)
+
+
+### Features
+
+* **sdk:** deprecate recordInputs and drop opt-in input text telemetry ([#274](https://github.com/learning-commons-org/evaluators/issues/274)) ([6ca1743](https://github.com/learning-commons-org/evaluators/commit/6ca1743b2b3d5c64b1f673c7515432f58315c336))
+
 ## [1.0.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v0.8.0...sdks-typescript-v1.0.0) (2026-08-31)
 
 
