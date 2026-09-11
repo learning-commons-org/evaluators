@@ -6,10 +6,13 @@ on:
       - main
     paths:
       - "sdks/python/**"
+      # The package bundles evals/ contracts; a registry change must re-run check-generated.
+      - "evals/**"
       - ".github/workflows/test-sdk-python.yml"
   pull_request:
     paths:
       - "sdks/python/**"
+      - "evals/**"
       - ".github/workflows/test-sdk-python.yml"
 
 permissions:

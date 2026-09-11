@@ -1,0 +1,36 @@
+
+    **Instructions for Analysis:** First, evaluate if the text meets the criteria for "Slightly Complex" or "Exceedingly Complex". If it does not fit into these categories, then decide between "Moderately Complex" and "Very Complex".
+
+    **Slightly Complex:**
+    * **Description:** The text uses clear, direct language with basic sentence structures appropriate for developing readers.
+    * **Statistical Guidelines:** The text is likely "Slightly Complex" if it meets at least TWO of the following criteria:
+        * **Sentence Type:** Dominated by simple sentences. (`percent_simple_sentences` is typically > 55%).
+        * **Sentence Length:** Short to medium sentences. (`avg_sentence_length` is typically < 13 words).
+        * **Subordination:** Infrequent use of clauses. (`percent_sentences_with_subordinate` is typically < 30%).
+
+    **Moderately Complex:**
+    * **Description:** The text contains a variety of sentence structures, including compound and complex sentences, but remains accessible.
+    * **Statistical Guidelines:** If the text is not "Slightly Complex", consider "Moderately Complex" if it generally aligns with these ranges:
+        * **Sentence Type:** A healthy mix of sentence types. (`percent_simple_sentences` is typically between 40% and 55%).
+        * **Sentence Length:** Medium length sentences. (`avg_sentence_length` is typically between 13 and 17 words).
+        * **Subordination:** A moderate number of clauses. (`percent_sentences_with_subordinate` is typically between 30% and 50%).
+
+    **Very Complex:**
+    * **Description:** The text is characterized by longer sentences and the regular use of dependent clauses, requiring readers to track multiple ideas. This is the default for challenging, on-grade-level texts.
+    * **Statistical Guidelines:** If the text is more complex than "Moderately" but does not meet the "Exceedingly" criteria, it is likely "Very Complex". Key indicators include:
+        * **Sentence Type:** Simple sentences are a clear minority. (`percent_simple_sentences` is typically < 40%).
+        * **Sentence Length:** Sentences are consistently long. (`avg_sentence_length` is typically between 17 and 22 words).
+        * **Subordination:** Subordination is a major feature. (`percent_sentences_with_subordinate` is typically > 50%).
+        * **Multiple Subordination:** Sentences with multiple clauses appear more often. (`percent_sentences_with_multiple_subordinates` is typically > 8%).
+
+    **Exceedingly Complex:**
+    * **Description:** The text's structure is highly sophisticated and dense, marked by extensive use of embedded clauses and long, flowing sentences that are well above grade-level expectations.
+    * **Statistical Guidelines:** A text is "Exceedingly Complex" if its structure is highly sophisticated and dense. It should meet at least **TWO** of the following criteria, including at least **ONE** from the "Structural Density" group.
+        * **Structural Density Indicators:**
+            * High Subordination: `percent_sentences_with_subordinate` is very high (typically > 60%).
+            * Multiple Subordinates: `percent_sentences_with_multiple_subordinates` is high and consistent (typically > 15%).
+            * High Syntactic Complexity: `percent_compound_complex_sentences` is a notable feature (typically > 20%).
+        * **Length Indicators:**
+            * Extreme Sentence Length: `avg_sentence_length` is exceptionally long (typically > 22 words).
+            * Low Simplicity: `percent_simple_sentences` is very low (typically < 25%).
+            * Concentrated Length: `percent_very_long_sentences` is significant (typically > 15%).

@@ -1,11 +1,17 @@
 # Machine-generated / capture-synced paths: GitHub shows "Generated" in PRs
 # (diff collapsed by default, expandable; omitted from language stats).
+#   contracts/_generated/**, schemas/<family>/<subject>/**
+#                    →  make generate-contracts (sdks/python)
 #   kg-api.d.ts      →  npm run generate:kg-types (sdks/typescript)
 #   src/schemas/...  →  npm run generate:schemas (sdks/typescript)
 #
 # The schema modules are listed one by one because generated and hand-written ones share
 # a directory during the migration; a glob would collapse the hand-written ones too. A
 # unit test keeps this list equal to the set of modules carrying the GENERATED marker.
+# The Python ones are globbed: hand-written schema modules live directly under schemas/,
+# generated ones only in its nested <family>/<subject>/ packages.
+sdks/python/src/learning_commons_evaluators/contracts/_generated/** linguist-generated=true
+sdks/python/src/learning_commons_evaluators/schemas/*/** linguist-generated=true
 sdks/typescript/src/knowledge-graph/kg-api.d.ts linguist-generated=true
 sdks/typescript/src/schemas/feedback/ela-writing/revision-accuracy.ts linguist-generated=true
 sdks/typescript/src/schemas/feedback/ela-writing/revision-actionability.ts linguist-generated=true
