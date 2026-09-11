@@ -32,7 +32,10 @@ export interface TelemetryOptions {
   /** Enable telemetry (default: true) */
   enabled?: boolean;
 
-  /** Record input text in telemetry (default: false) */
+  /**
+   * @deprecated Ignored, and removed in the next major. Telemetry does not
+   * send the text you evaluate.
+   */
   recordInputs?: boolean;
 
   /**
@@ -45,7 +48,7 @@ export interface TelemetryOptions {
 /**
  * Telemetry options after defaults are applied. The key remains optional.
  */
-type NormalizedTelemetryOptions = Required<Pick<TelemetryOptions, 'enabled' | 'recordInputs'>> &
+type NormalizedTelemetryOptions = Required<Pick<TelemetryOptions, 'enabled'>> &
   Pick<TelemetryOptions, 'learningCommonsApiKey'>;
 
 /**
@@ -129,10 +132,10 @@ export interface BaseEvaluatorConfig {
   maxRetries?: number;
 
   /**
-   * Telemetry configuration (default: enabled, without input recording)
+   * Telemetry configuration (default: enabled)
    *
    * Can be:
-   * - `true`: Enable with defaults (recordInputs: false)
+   * - `true`: Enable with defaults
    * - `false`: Disable completely
    * - `TelemetryOptions`: Granular control
    */
@@ -438,21 +441,18 @@ export abstract class BaseEvaluator {
     if (telemetry === false) {
       return {
         enabled: false,
-        recordInputs: false,
       };
     }
 
     if (telemetry === true || telemetry === undefined) {
       return {
         enabled: true,
-        recordInputs: false,
       };
     }
 
     // Handle granular config object
     return {
       enabled: telemetry.enabled ?? true,
-      recordInputs: telemetry.recordInputs ?? false,
       learningCommonsApiKey: telemetry.learningCommonsApiKey,
     };
   }
@@ -574,7 +574,6 @@ export abstract class BaseEvaluator {
     errorCode?: string;
     tokenUsage?: TokenUsage;
     metadata?: TelemetryMetadata;
-    inputText?: string;
   }): Promise<void> {
     if (!this.telemetryClient) {
       return;
@@ -595,8 +594,6 @@ export abstract class BaseEvaluator {
       token_usage: params.tokenUsage,
       metadata: params.metadata,
       model_override: this.config.modelOverride ? true : undefined,
-      // Include input text only if recording is enabled
-      input_text: this.config.telemetry.recordInputs ? params.inputText : undefined,
     });
   }
 }

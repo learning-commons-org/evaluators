@@ -65,7 +65,6 @@ export interface TelemetryEvent {
   token_usage?: TokenUsage; // Aggregated across all stages and attempts
   metadata?: TelemetryMetadata; // Optional per-stage breakdown
   model_override?: boolean; // true when the caller supplied a modelOverride
-  input_text?: string; // Input text (only if recordInputs enabled)
 }
 
 /**
