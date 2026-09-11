@@ -2,6 +2,14 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
+## [1.1.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v1.0.0...sdks-typescript-v1.1.0) (2026-09-11)
+
+
+### Features
+
+* **evals:** add Critical Thinking onto the shared evaluator contract ([#188](https://github.com/learning-commons-org/evaluators/issues/188)) ([02d1a3c](https://github.com/learning-commons-org/evaluators/commit/02d1a3ced12d5985cc3ca0b0608e02cc7622244d))
+* **sdk:** stop recording raw input text in telemetry ([#274](https://github.com/learning-commons-org/evaluators/issues/274)) ([6ca1743](https://github.com/learning-commons-org/evaluators/commit/6ca1743b2b3d5c64b1f673c7515432f58315c336))
+
 ## [1.0.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v0.8.0...sdks-typescript-v1.0.0) (2026-08-31)
 
 
