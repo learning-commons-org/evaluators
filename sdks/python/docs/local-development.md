@@ -25,7 +25,7 @@ make test     # pytest only
 
 From `sdks/python/`:
 
-- `make lint` — Ruff on `src/`, `tests/`, `scripts/`
+- `make lint` — Ruff on `src/` and `tests/`
 - `make format` / `make format-check` — Ruff formatter
 - `make typecheck` — Mypy
 - `make pip-check` — `pip check`
