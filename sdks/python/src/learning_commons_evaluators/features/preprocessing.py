@@ -7,6 +7,7 @@ one adapter; to support a new ``post_transform`` type, add one handler.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 
 from learning_commons_evaluators.contracts.loader import Implementation, PostTransform
@@ -27,7 +28,14 @@ _LIBRARY_ADAPTERS: dict[str, Callable[[str, str], float]] = {
 
 
 def _round(value: float, transform: PostTransform) -> float:
-    return round(value, transform.precision or 0)
+    """Round half up, as JavaScript's ``Math.round(value * factor) / factor`` does.
+
+    Python's ``round`` is ties-to-even, so ``round(0.125, 2)`` is ``0.12`` where the
+    TypeScript SDK computes ``0.13``; the contract's ``round`` must mean one operation in
+    both SDKs or the two bind different text for the same input.
+    """
+    factor = 10 ** (transform.precision or 0)
+    return math.floor(value * factor + 0.5) / factor
 
 
 _POST_TRANSFORMS: dict[str, Callable[[float, PostTransform], float]] = {
