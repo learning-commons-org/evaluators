@@ -35,10 +35,8 @@ async def test_binds_both_texts(providers: ProviderFactory) -> None:
     assert user["content"] == template.replace("{student_text}", STUDENT).replace(
         "{feedback_text}", FEEDBACK
     )
-    assert (
-        "{" not in user["content"].replace("{student_text}", "").replace("{feedback_text}", "")
-        or True
-    )
+    assert "{student_text}" not in user["content"]
+    assert "{feedback_text}" not in user["content"]
     assert system["content"] == evaluator.contract.document("system.txt")
     assert providers.last.calls[0]["temperature"] == 1
 
