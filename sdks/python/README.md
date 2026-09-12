@@ -14,7 +14,8 @@ Requires **Python 3.10+**. Provider API keys are passed in at runtime (not bundl
 
 ## More resources
 
-- [Local development](./docs/local-development.md) – Local setup, testing, and development
+- [Local development](./docs/local-development.md) – Local setup, testing, regenerating from `evals/`
+- [Error handling](./docs/error-handling.md) — Exception hierarchy, retries, and how provider failures are classified
 - [Evaluator contracts](../../evals/README.md) — The shared `evals/` registry every SDK is built from
 
 ## License

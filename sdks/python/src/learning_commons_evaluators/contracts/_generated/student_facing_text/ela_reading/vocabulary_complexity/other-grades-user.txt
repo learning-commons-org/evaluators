@@ -1,0 +1,9 @@
+Below is the text you need to evaluate. It is intended for grade {grade_level}.
+
+As you read the text, you can assume the student has the following background knowledge about the text — this background knowledge influences which words from the text are familiar versus unfamiliar for the student: {student_background_knowledge}
+
+[BEGIN TEXT]
+{text}
+[END TEXT]
+
+In your response, when specifying the level of complexity, be sure to use only a single integer (e.g. 2) and don't include any other text (e.g. don't say "level 2").
