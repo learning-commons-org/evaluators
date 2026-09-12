@@ -21,11 +21,6 @@
 #    artifacts will exit 0 at publish. Add a step that runs
 #    `test -n "$(ls dist/*.whl 2>/dev/null)"` etc. before publish.
 #
-# 4. Harden `sdks/python/scripts/generate_settings.py --check` — exits 0 when
-#    `sdks/settings/` is missing or empty. A future refactor that
-#    renames/removes that directory would slip past CI. Add an explicit
-#    "directory exists and has evaluators" assertion to the script.
-#
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Publish Python SDK
