@@ -64,6 +64,10 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
     Pass ``default_evaluation_settings`` at construction to override the class-level
     defaults for that instance (used when :meth:`evaluate` is called without
     ``evaluation_settings``).
+
+    Raises:
+        ConfigurationError: Default evaluation settings require an LLM provider
+            that is not configured on ``config``.
     """
 
     config: EvaluatorConfig
@@ -79,7 +83,12 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         self.config = config
         if default_evaluation_settings is not None:
             self.default_evaluation_settings = default_evaluation_settings
-        # TODO: validate config
+        settings_for_validation = (
+            default_evaluation_settings
+            if default_evaluation_settings is not None
+            else self.__class__.default_evaluation_settings
+        )
+        config.validate_supports_evaluation_settings(settings_for_validation)
 
     async def evaluate(
         self,
@@ -130,6 +139,7 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
             extra={"evaluation_metadata": evaluation_metadata},
         )
         try:
+            self.config.validate_supports_evaluation_settings(evaluation_settings)
             input.validate()
             result = await self.evaluate_impl(input, evaluation_settings, evaluation_metadata)
             evaluation_metadata.status = Status.succeeded

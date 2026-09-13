@@ -16,7 +16,22 @@ openai_config = OpenAILLMProviderConfig(api_key="...")
 anthropic_config = AnthropicLLMProviderConfig(api_key="...")
 ```
 
-If a prompt step requires a provider that is missing from `EvaluatorConfig`, evaluation raises `ConfigurationError`.
+If a prompt step requires a provider that is missing from `EvaluatorConfig`, construction or evaluation raises `ConfigurationError`.
+
+### Provider config validation
+
+When you construct an evaluator (or call `evaluate` / `evaluate_sync`), the SDK checks that every `LLMProvider` referenced by a `PromptSettings` field on the active `EvaluationSettings` has a matching provider config on `EvaluatorConfig`. For example, the vocabulary evaluator’s defaults use both Google and OpenAI, so both `google_llm_provider_config` and `openai_llm_provider_config` must be set; conventionality only needs Google.
+
+Declare each prompt step as a `PromptSettings` field on your settings model (typically named `prompt_settings_*`). The base class uses those fields to determine which provider configs must be present on `EvaluatorConfig`.
+
+Validation runs:
+
+- In `BaseEvaluator.__init__` against the resolved default evaluation settings (constructor override or the subclass class attribute).
+- At the start of each `evaluate()` call against the settings used for that run (including per-call `evaluation_settings` overrides).
+
+If a required provider is missing, construction or evaluation raises `ConfigurationError` with the same message used at LLM call time (for example, `Google provider config is not set on EvaluatorConfig`). You can also call `config.validate_supports_evaluation_settings(settings)` directly before constructing an evaluator.
+
+Only providers actually used in the settings object are required — you do not need to configure every provider on every evaluator.
 
 ## EvaluatorConfig factories
 
@@ -59,6 +74,8 @@ evaluator = ConventionalityEvaluator(config, default_evaluation_settings=setting
 
 result = evaluator.evaluate_sync(input)  # uses instance default
 ```
+
+If `other_settings` references a provider that is not on `config`, `evaluate_sync` raises `ConfigurationError` before any LLM call. The same applies when you pass `default_evaluation_settings` at construction: every provider in those settings must be configured on `config`.
 
 The SDK deep-copies defaults before each run so in-memory settings objects are not mutated by evaluation.
 

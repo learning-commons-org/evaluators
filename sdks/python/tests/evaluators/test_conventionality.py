@@ -4,11 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from learning_commons_evaluators import (
-    ConventionalityEvaluationInput,
-    ConventionalityEvaluator,
-    create_config_no_telemetry,
-)
+from learning_commons_evaluators import ConventionalityEvaluationInput, ConventionalityEvaluator
 from learning_commons_evaluators.schemas.conventionality import ConventionalityOutput
 from learning_commons_evaluators.schemas.errors import ConfigurationError
 from learning_commons_evaluators.schemas.metadata import Status
@@ -33,9 +29,8 @@ def _make_mock_output():
 
 
 class TestConventionalityEvaluator:
-    def test_evaluate_returns_evaluation_result(self):
-        config = create_config_no_telemetry()
-        evaluator = ConventionalityEvaluator(config)
+    def test_evaluate_returns_evaluation_result(self, config_with_google):
+        evaluator = ConventionalityEvaluator(config_with_google)
         inp = ConventionalityEvaluationInput(text=_SAMPLE_TEXT, grade=5)
         with patch.object(evaluator, "execute_prompt_chain_step", return_value=_make_mock_output()):
             result = evaluator.evaluate_sync(inp)
@@ -45,7 +40,7 @@ class TestConventionalityEvaluator:
         assert result.metadata.status == Status.succeeded
         assert result.metadata.evaluator_metadata.id == "conventionality"
 
-    def test_evaluate_with_explicit_settings(self):
+    def test_evaluate_with_explicit_settings(self, config_with_google):
         from learning_commons_evaluators.schemas.config import (
             LLMProvider,
             PromptSettings,
@@ -54,8 +49,7 @@ class TestConventionalityEvaluator:
             ConventionalityEvaluationSettings,
         )
 
-        config = create_config_no_telemetry()
-        evaluator = ConventionalityEvaluator(config)
+        evaluator = ConventionalityEvaluator(config_with_google)
         settings = ConventionalityEvaluationSettings(
             prompt_settings_step_conventionality_evaluation=PromptSettings(
                 provider_type=LLMProvider.GOOGLE,
@@ -68,8 +62,8 @@ class TestConventionalityEvaluator:
             result = evaluator.evaluate_sync(inp, evaluation_settings=settings)
         assert result.metadata.status == Status.succeeded
 
-    def test_metadata_and_default_settings(self):
-        evaluator = ConventionalityEvaluator(create_config_no_telemetry())
+    def test_metadata_and_default_settings(self, config_with_google):
+        evaluator = ConventionalityEvaluator(config_with_google)
         assert evaluator.metadata.id == "conventionality"
         assert evaluator.metadata.version == "0.1"
         assert evaluator.default_evaluation_settings is not None

@@ -23,11 +23,7 @@ copy), then run ``make sync-settings`` from ``sdks/python/`` to update the bundl
 copy.
 """
 
-from learning_commons_evaluators import (
-    ConventionalityEvaluationInput,
-    ConventionalityEvaluator,
-    create_config_no_telemetry,
-)
+from learning_commons_evaluators import ConventionalityEvaluationInput, ConventionalityEvaluator
 from learning_commons_evaluators.schemas.metadata import Status
 
 from .conventionality import (
@@ -38,7 +34,7 @@ from .harness import ContractTestHarness
 
 
 class TestConventionalityContract:
-    def test_turnip_grade4(self) -> None:
+    def test_turnip_grade4(self, config_with_google) -> None:
         """Turnip classroom narrative, grade 4.
 
         Verifies:
@@ -49,8 +45,7 @@ class TestConventionalityContract:
         """
         case = load_conventionality_turnip_case()
 
-        config = create_config_no_telemetry()
-        evaluator = ConventionalityEvaluator(config)
+        evaluator = ConventionalityEvaluator(config_with_google)
         inp = ConventionalityEvaluationInput(
             text=case.input["text"],
             grade=case.input["grade"],

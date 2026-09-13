@@ -41,3 +41,5 @@ settings.prompt_settings_step_conventionality_evaluation = replace(
 )
 result = evaluator.evaluate_sync(input, evaluation_settings=settings)
 ```
+
+If `settings` references a provider that is not on `config`, evaluation raises `ConfigurationError` before any LLM call (see [Provider config validation](./configuration.md#provider-config-validation)).

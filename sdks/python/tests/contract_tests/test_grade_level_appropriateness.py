@@ -26,7 +26,6 @@ bundled copy.
 from learning_commons_evaluators import (
     GradeLevelAppropriatenessEvaluationInput,
     GradeLevelAppropriatenessEvaluator,
-    create_config_no_telemetry,
 )
 from learning_commons_evaluators.schemas.metadata import Status
 
@@ -38,7 +37,7 @@ from .harness import ContractTestHarness
 
 
 class TestGradeLevelAppropriatenessContract:
-    def test_trees_passage(self) -> None:
+    def test_trees_passage(self, config_with_google) -> None:
         """Simple trees informational passage.
 
         Verifies:
@@ -49,8 +48,7 @@ class TestGradeLevelAppropriatenessContract:
         """
         case = load_gla_trees_case()
 
-        config = create_config_no_telemetry()
-        evaluator = GradeLevelAppropriatenessEvaluator(config)
+        evaluator = GradeLevelAppropriatenessEvaluator(config_with_google)
         inp = GradeLevelAppropriatenessEvaluationInput(
             text=case.input["text"],
         )

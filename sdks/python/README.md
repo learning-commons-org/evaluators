@@ -42,7 +42,7 @@ For full implementation details, check out the [Python SDK docs](https://docs.le
 
 ## More resources
 
-- [Local development](./docs/local-development.md) – Local setup, testing, and development
+- [Local development](./docs/local-development.md) – Local setup, testing, and development
 - [Evaluators](./docs/evaluators.md) — Shipped evaluators with their inputs, outputs, and evaluation settings
 - [Running evaluations](./docs/running-evaluations.md) — Sync / async usage and per-call settings overrides
 - [Results](./docs/results.md) — `EvaluationResult` shape and metadata
