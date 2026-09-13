@@ -48,6 +48,13 @@ from learning_commons_evaluators.schemas.metadata import (
 from learning_commons_evaluators.schemas.text_complexity import (
     TextComplexityEvaluationInput,
 )
+from learning_commons_evaluators.schemas.ts_telemetry import (
+    EvaluationTelemetryStatus,
+    TelemetryEvent,
+    TelemetryMetadataPayload,
+    TelemetryStageDetail,
+    TelemetryTokenUsage,
+)
 
 __all__ = [
     "AnyInputSpec",
@@ -66,6 +73,7 @@ __all__ = [
     "EvaluationMetadata",
     "EvaluationResult",
     "EvaluationSettings",
+    "EvaluationTelemetryStatus",
     "EvaluatorMetadata",
     "EvaluatorMaturity",
     "GradeInputField",
@@ -77,6 +85,10 @@ __all__ = [
     "PROMPT_STEP_EXTRA_TOKEN_USAGE",
     "Status",
     "StepMetadata",
+    "TelemetryEvent",
+    "TelemetryMetadataPayload",
+    "TelemetryStageDetail",
+    "TelemetryTokenUsage",
     "TextComplexityEvaluationInput",
     "TextInputField",
     "TokenUsage",
