@@ -196,6 +196,14 @@ class TestLookups:
         assert condition.values == ["3", "4"]
         assert condition.holds({"grade_level": "3"})
 
+    def test_condition_holds_for_an_int_grade_and_never_for_a_missing_one(self) -> None:
+        # A typed input model carries grade_level as an int; the comparison is on tokens.
+        condition = Condition.model_validate({"input": "grade_level", "in": ["3", "4"]})
+        assert condition.holds({"grade_level": 4})
+        assert not condition.holds({"grade_level": 5})
+        assert not condition.holds({"grade_level": None})
+        assert not condition.holds({})
+
     def test_unknown_contract(self) -> None:
         with pytest.raises(FileNotFoundError, match="No bundled contract for 'nope.nope.nope'"):
             load_contract("nope.nope.nope")

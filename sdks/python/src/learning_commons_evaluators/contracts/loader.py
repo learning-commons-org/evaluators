@@ -9,6 +9,7 @@ and registry-side CI owns the strict check.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from functools import cache
 from importlib import resources
 from typing import TYPE_CHECKING, Any, Literal
@@ -64,8 +65,12 @@ class Condition(_ContractModel):
         # The schema admits numbers; inputs are compared as the strings the caller passes.
         return [str(v) for v in raw] if isinstance(raw, list) else raw
 
-    def holds(self, fields: dict[str, str]) -> bool:
-    def holds(self, fields: dict[str, object]) -> bool:
+    def holds(self, fields: Mapping[str, object]) -> bool:
+        """Whether the named input's value is one of ``values``.
+
+        Compared as strings, so a caller's ``grade_level=5`` and the validated ``"5"`` both
+        match the tokens the contract declares; a missing input never holds.
+        """
         value = fields.get(self.input)
         return value is not None and str(value) in self.values
 
