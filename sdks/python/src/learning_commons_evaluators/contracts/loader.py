@@ -65,7 +65,9 @@ class Condition(_ContractModel):
         return [str(v) for v in raw] if isinstance(raw, list) else raw
 
     def holds(self, fields: dict[str, str]) -> bool:
-        return fields.get(self.input) in self.values
+    def holds(self, fields: dict[str, object]) -> bool:
+        value = fields.get(self.input)
+        return value is not None and str(value) in self.values
 
 
 class PromptMessage(_ContractModel):
