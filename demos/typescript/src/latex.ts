@@ -32,7 +32,7 @@ const EXTRA_SYMBOLS: [RegExp, string][] = [[/\\Box\b/g, '□']];
 // CASE standard descriptions wrap examples in Markdown emphasis
 // ("*For example, ….*"). Markers must hug non-space text so a bare
 // multiplication asterisk ("3 * 4") is left alone.
-const EMPHASIS_RE = /\*(\S(?:[^*]*\S)?)\*/g;
+const EMPHASIS_RE = /(?<![A-Za-z0-9])\*(\S(?:[^*]*\S)?)\*(?![A-Za-z0-9])/g;
 
 const DELIMITED_MATH_RE = /\\[([]\s*([\s\S]*?)\s*\\[)\]]/g;
 
