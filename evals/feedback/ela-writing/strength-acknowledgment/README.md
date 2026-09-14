@@ -1,4 +1,4 @@
-# [Strength Acknowledgement](https://docs.learningcommons.org/evaluators/feedback-evaluators/strength-acknowledgement)
+# [Strength Acknowledgment](https://docs.learningcommons.org/evaluators/feedback-evaluators/strength-acknowledgement)
 
 Evaluates whether feedback identifies what the student did well.
 

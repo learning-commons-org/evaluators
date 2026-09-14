@@ -2,7 +2,7 @@
 
 Scores AI-generated writing feedback across dimensions like actionability, tone, and manageability.
 
-- [Strength Acknowledgement](./ela-writing/strength-acknowledgment/)
+- [Strength Acknowledgment](./ela-writing/strength-acknowledgment/)
 - [Revision Actionability](./ela-writing/revision-actionability/)
 - [Student Response Specificity](./ela-writing/student-response-specificity/)
 - [Revision Accuracy](./ela-writing/revision-accuracy/)

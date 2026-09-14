@@ -168,7 +168,7 @@ ToneAppropriateness  neutral_professional_language, targets_work_not_student,
 To enumerate them for any evaluator, read its exported schema:
 `Object.keys(ToneAppropriatenessOutputSchema.shape.key_features.shape)`.
 
-`metadata.model` names every model that ran, joined by `+` when an evaluator uses more than one — so a multi-step evaluator reports e.g. `openai:gpt-4o-…+openai:gpt-4.1-…`. Which models run can also depend on the input: Vocabulary Complexity takes a different branch for grades 3-4 than for 5-12. The **Required key** column below is what you must supply, not a promise about which provider serves a given call: construction validates the union of keys an evaluator could need across all its branches, so Vocabulary Complexity demands both keys even at a grade where only one provider runs. Model strings come from each evaluator's contract and change with it, so treat `metadata.model` as the record of what actually ran rather than something to assert on. When you need one comparable value per evaluation regardless of evaluator, use `readOutcome`:
+`metadata.model` names every model that ran, joined by `+` when an evaluator uses more than one — so a multi-step evaluator reports e.g. `openai:gpt-4o-…+openai:gpt-4.1-…`. Which models run can also depend on the input: Vocabulary Complexity takes a different branch for grades 3-4 than for 5-12. The **Default provider** column below is what each evaluator's contract declares, and you must supply a key for every provider listed — not a promise about which one serves a given call: construction validates the union of keys an evaluator could need across all its branches, so Vocabulary Complexity demands both keys even at a grade where only one provider runs. Model strings come from each evaluator's contract and change with it, so treat `metadata.model` as the record of what actually ran rather than something to assert on. When you need one comparable value per evaluation regardless of evaluator, use `readOutcome`:
 
 ```typescript
 import { readOutcome, VocabularyComplexityEvaluator } from "@learning-commons/evaluators";
@@ -193,39 +193,42 @@ helper across several evaluators.
 Text complexity — how demanding a text is for a given grade. Each takes `{ text, grade_level }` and returns a `complexity_score` on a four-level scale — `slightly_complex`, `moderately_complex`, `very_complex`, `exceedingly_complex` — with `reasoning`. Purpose Clarity's `complexity_score` has a fifth possible value, `more_context_needed`, so a
 switch over the four above will not be exhaustive for it.
 
-| Evaluator | Grades | Required key | Docs |
+| Evaluator | Grades | Default provider | Docs |
 | --- | --- | --- | --- |
-| `BackgroundKnowledgeDemandsEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/subject-matter-knowledge/about-this-evaluator) |
-| `MeaningDirectnessEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/conventionality/about-this-evaluator) |
-| `OrganizationalStructureEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/organizational-structure) |
-| `PurposeClarityEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/purpose/about-this-evaluator) |
-| `ReferenceKnowledgeDemandsEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/intertextuality) |
-| `SentenceStructureEvaluator` | 3–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/sentence-structure-evaluator/about-this-evaluator) |
-| `VocabularyComplexityEvaluator` | 3–12 | Google + OpenAI | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/vocabulary-evaluator/about-this-evaluator) |
+| `BackgroundKnowledgeDemandsEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/background-knowledge-demands) |
+| `MeaningDirectnessEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/meaning-directness) |
+| `OrganizationalStructureEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/organizational-structure) |
+| `PurposeClarityEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/purpose-clarity) |
+| `ReferenceKnowledgeDemandsEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/reference-knowledge-demands) |
+| `SentenceStructureEvaluator` | 3–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/sentence-structure) |
+| `VocabularyComplexityEvaluator` | 3–12 | Google + OpenAI | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/vocabulary-complexity) |
 
 Grade band — takes `{ text }` only, and determines the grade rather than judging against one. Returns `grade_band`, `alternative_grade_band`, `scaffolding_needed`, `reasoning`. Bands are `K-1`, `2-3`, `4-5`, `6-8`, `9-10`, `11-12` — spans on the CCSS text-complexity scale, not single grades.
 
-| Evaluator | Grades | Required key | Docs |
+| Evaluator | Grades | Default provider | Docs |
 | --- | --- | --- | --- |
-| `GradeLevelAppropriatenessEvaluator` | K–12 | Google | [Link](https://docs.learningcommons.org/evaluators/literacy-evaluators/grade-level-appropriateness-evaluator/about-this-evaluator) |
+| `GradeLevelAppropriatenessEvaluator` | K–12 | Google | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/grade-level-appropriateness) |
 
 Feedback quality — judges a teacher comment on a student's writing. Each takes `{ student_text, feedback_text }` and returns a binary `quality_score` with `reasoning`, `key_features` and `proposed_adjustment`.
 
-| Evaluator | Grades | Required key |
-| --- | --- | --- |
-| `RevisionAccuracyEvaluator` | 6–12 | OpenAI |
-| `RevisionActionabilityEvaluator` | 6–12 | OpenAI |
-| `RevisionManageabilityEvaluator` | 6–12 | OpenAI |
-| `StrengthAcknowledgmentEvaluator` | 6–12 | OpenAI |
-| `StudentResponseSpecificityEvaluator` | 6–12 | OpenAI |
-| `ToneAppropriatenessEvaluator` | 6–12 | OpenAI |
-| `WithholdingAnswersEvaluator` | 6–12 | OpenAI |
+<!-- TODO: the strength-acknowledgement docs slug carries an "e" the SDK, contracts and repo
+     directories do not. Drop it here once the Mintlify page is renamed. -->
+
+| Evaluator | Grades | Default provider | Docs |
+| --- | --- | --- | --- |
+| `RevisionAccuracyEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-accuracy) |
+| `RevisionActionabilityEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-actionability) |
+| `RevisionManageabilityEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-manageability) |
+| `StrengthAcknowledgmentEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/strength-acknowledgement) |
+| `StudentResponseSpecificityEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/student-response-specificity) |
+| `ToneAppropriatenessEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/tone-appropriateness) |
+| `WithholdingAnswersEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/withholding-answers) |
 
 Standards alignment — checks a math item against a standard, component by component.
 
-| Evaluator | Grades | Required key | Also needs |
-| --- | --- | --- | --- |
-| `MathStandardsAlignmentEvaluator` | K–12 | Anthropic | `learningCommonsApiKey` (Knowledge Graph) |
+| Evaluator | Grades | Default provider | Also needs | Docs |
+| --- | --- | --- | --- | --- |
+| `MathStandardsAlignmentEvaluator` | K–12 | Anthropic | `learningCommonsApiKey` (Knowledge Graph) | [Link](https://docs.learningcommons.org/evaluators/academic-standards-evaluators/math-standards-alignment) |
 
 ```typescript
 import { MathStandardsAlignmentEvaluator, Jurisdiction } from "@learning-commons/evaluators";
@@ -288,6 +291,10 @@ does this need". Provider keys follow `defaultProviders`: `["google"]` means sup
 ## Configuration
 
 Every evaluator takes the same options:
+
+<!-- TODO: one credential, three names — `learningCommonsApiKey` here, `KG_API_KEY` in the
+     evals notebooks, `PLATFORM_API_KEY` in demos/typescript. Standardize on
+     LEARNING_COMMONS_API_KEY across all three. -->
 
 | Option | Purpose |
 | --- | --- |
@@ -437,66 +444,15 @@ const output = await new BatchEvaluator({
 console.log(`${output.summary.successful}/${output.summary.totalTasks} succeeded`);
 ```
 
-`getFamilies()` lists the three families; `getFamily(id)` gives one family's members and column
-spec if you need to inspect it before running:
-
-```typescript
-getFamilies().map((f) => f.id);          // ["text-complexity", "math-standards-alignment", "feedback"]
-getFamily("feedback").members.length;    // 7
-getFamily("text-complexity").columns;    // [{ name, required, aliases?, default? }, ...]
-```
-
-Note that **`text-complexity` has eight members**: the seven complexity evaluators plus Grade
-Level Appropriateness, which the tables above list separately because it determines a grade
-rather than judging against one. It ignores the required `grade_level` column, which the other
-seven need. Use `--evaluator` to run a subset.
-
-To format results yourself rather than letting the command write them:
-
-```typescript
-import { renderOutputs, type ReportMeta } from "@learning-commons/evaluators/batch";
-
-const meta: ReportMeta = {
-  csvPath: "./input.csv",      // recorded in the report header
-  groupId: "text-complexity",  // the family id
-  reportId: "run-2026-08-31",
-  generatedAt: new Date(),
-  totalInputRows: rows.length,
-};
-
-const { csv, json, html } = renderOutputs("text-complexity", output, meta);
-```
-
-`html` is absent for families without a report of their own. `formatAsCSV(output)`,
-`formatAsJSON(output, meta)` and `formatAsHTML(output, meta)` are the individual projections.
-
-The same thing is available as a command, installed as `evaluators-batch`. This is what
-writes `results.csv`, `results.json`, and — for `text-complexity` and
-`math-standards-alignment` — `results.html`:
+The same engine is installed as the `evaluators-batch` command, which writes the files for you:
 
 ```bash
 npx evaluators-batch input.csv --family text-complexity --output-dir ./results -y
-npx evaluators-batch --help
 ```
 
-`-y` makes it non-interactive: without it, it prompts on a TTY for anything missing. Off a TTY
-it does not hang; it exits 1 naming what is absent, e.g. `Specify --family`. Pass `-y`
-anyway so a scripted run fails on the missing input rather than on a prompt it cannot answer.
-Keys come from `--google-api-key` and friends or from the matching environment variables. Each family has a row limit — 50 for `text-complexity` and `feedback`, 5000 for
-`math-standards-alignment`, and `getFamily(id).maxInputRows` is authoritative.
-`--bypass-row-limit` lifts it.
-
-The CSV's columns depend on the family. `getFamily(id).columns` is authoritative:
-
-| Family | Required columns | Optional |
-| --- | --- | --- |
-| `text-complexity` | `text`, `grade_level` | — |
-| `feedback` | `student_text`, `feedback_text` | — |
-| `math-standards-alignment` | `question` (or `text`), `statement_code` (or `statementCode`, `ccss_standard`, `standard`) | `jurisdiction` (default Multi-State), `grade_level`, `id` (or `item_id`) |
-
-Those outputs are a flattened per-row summary — score, reasoning and status — not the full
-payloads, and their shape differs between the standards family and the others. For full
-payloads, call the evaluators directly.
+See the [batch evaluator README](./src/batch/README.md) for the three families and their CSV
+columns, the full flag list, and the rest of the programmatic API — `getFamily`,
+`renderOutputs` and the formatters.
 
 ## Errors
 

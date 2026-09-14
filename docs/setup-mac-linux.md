@@ -27,14 +27,31 @@ pip install -r evals/requirements.txt
 
 ## 3. Set your API keys
 
-We are using **both** OpenAI and Google Gemini for different evaluators. You need API keys from both platforms:
+Different evaluators call different providers, so which keys you need depends on which notebooks you plan to run:
 
-- OpenAI: [https://platform.openai.com/](https://platform.openai.com/)
-- Gemini: [https://aistudio.google.com/](https://aistudio.google.com/)
+| Key | Needed by | Where to get it |
+| :-- | :-------- | :-------------- |
+| `GOOGLE_API_KEY` | Most Student-Facing Text evaluators | [Google AI Studio](https://aistudio.google.com/) |
+| `OPENAI_API_KEY` | Sentence Structure, Vocabulary Complexity, and all Feedback evaluators | [OpenAI Platform](https://platform.openai.com/) |
+| `ANTHROPIC_API_KEY` | Math Standards Alignment, Critical Thinking | [Anthropic Console](https://console.anthropic.com/) |
+| `KG_API_KEY` | Math Standards Alignment (Knowledge Graph standards lookup) | [Learning Commons Platform](https://platform.learningcommons.org) |
 
-Set the key(s) as environment variables in your shell session:
+<!-- TODO: KG_API_KEY is the same credential the TypeScript SDK calls `learningCommonsApiKey`
+     and demos/typescript calls `PLATFORM_API_KEY`. Standardize on LEARNING_COMMONS_API_KEY. -->
+
+Set the key(s) you need as environment variables in your shell session:
 
 ```shell
-export OPENAI_API_KEY="sk-your-key-here"
 export GOOGLE_API_KEY="your-key-here"
+export OPENAI_API_KEY="sk-your-key-here"
+export ANTHROPIC_API_KEY="sk-ant-your-key-here"
+export KG_API_KEY="your-key-here"
 ```
+
+## 4. Start Jupyter Lab
+
+```shell
+jupyter lab
+```
+
+This opens at `http://localhost:8888`. Browse into `evals/` and open the `example_notebook.ipynb` of the evaluator you want to try.
