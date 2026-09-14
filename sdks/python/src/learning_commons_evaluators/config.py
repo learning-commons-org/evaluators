@@ -28,11 +28,13 @@ class ModelOverride:
 
 @dataclass(frozen=True)
 class TelemetryOptions:
-    """Granular telemetry settings (§3). Emission lands with the telemetry phase."""
+    """Granular telemetry settings (§3). Emission lands with the telemetry phase.
+
+    Telemetry never carries the text being evaluated: there is no option to record raw
+    inputs, matching the TypeScript SDK, which removed its equivalent for trust reasons.
+    """
 
     enabled: bool = True
-    #: Include verbatim caller inputs in telemetry events. Off by default.
-    record_raw_inputs: bool = False
     #: Opt in to identified telemetry, attributed to this Learning Commons user.
     learning_commons_api_key: str | None = None
 

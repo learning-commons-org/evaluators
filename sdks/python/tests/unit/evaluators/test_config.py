@@ -31,7 +31,7 @@ class TestEvaluatorConfig:
     def test_telemetry_shorthands_normalise(self) -> None:
         assert EvaluatorConfig().telemetry_options == TelemetryOptions()
         assert EvaluatorConfig(telemetry=False).telemetry_options.enabled is False
-        granular = TelemetryOptions(record_raw_inputs=True, learning_commons_api_key="t")
+        granular = TelemetryOptions(learning_commons_api_key="t")
         assert EvaluatorConfig(telemetry=granular).telemetry_options is granular
 
     def test_defaults(self) -> None:
