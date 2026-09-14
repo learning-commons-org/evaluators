@@ -75,12 +75,17 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         contract = cls.contract
         name = contract.evaluator.name
 
+        # Exactly one step, and not an optional one: this base runs the step the convention
+        # names and nothing else, so any other step would be silently skipped while the
+        # metadata and credential checks described the whole contract.
         if len(contract.steps) != 1 or contract.steps[0].optional:
             raise ValueError(
-                f"{name} must declare exactly one non-optional step for SingleStepEvaluator."
+                f"{name} config.json declares {len(contract.steps)} step(s); SingleStepEvaluator "
+                "runs exactly one non-optional step. Use the multi-step base."
             )
         step = step_for(contract)
         if step.type != "llm" or step.prompt is None or step.model is None:
+            raise ValueError(f'Step "{step.id}" in {name} config.json is not an LLM step.')
         for placeholder, declared in step.prompt.placeholders.items():
             if declared.source.startswith("steps."):
                 raise ValueError(

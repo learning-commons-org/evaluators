@@ -151,6 +151,20 @@ class TestRefusesAContractItCannotRun:
         with pytest.raises(LookupError, match='Step "evaluate_thing" not found in Thing Evaluator'):
             define(steps=steps)
 
+    def test_refuses_a_contract_with_more_than_one_step(self) -> None:
+        raw = contract().model_dump(by_alias=True)
+        second = {**raw["steps"][0], "id": "second_call"}
+        with pytest.raises(
+            ValueError, match="declares 2 step\\(s\\); SingleStepEvaluator runs exactly one"
+        ):
+            define(steps=[raw["steps"][0], second])
+
+    def test_refuses_an_optional_only_step(self) -> None:
+        raw = contract().model_dump(by_alias=True)
+        raw["steps"][0]["optional"] = True
+        with pytest.raises(ValueError, match="exactly one non-optional step"):
+            define(steps=raw["steps"])
+
     def test_refuses_a_placeholder_that_reads_another_step(self) -> None:
         raw = contract().model_dump(by_alias=True)
         raw["steps"][0]["prompt"]["placeholders"]["extra"] = {
