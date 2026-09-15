@@ -97,7 +97,7 @@ npm install zod@^4          # then re-run the install above
 ```
 
 That is a major upgrade of a dependency you own, so review zod's own 3 to 4 notes for your
-call sites. Nothing needs fixing at *this* SDK's call sites; the schemas it exports are zod 4
+call sites. Nothing needs fixing at _this_ SDK's call sites; the schemas it exports are zod 4
 values, and once there is a single zod 4 copy they compose with yours directly.
 
 The floor is `zod@^4.1.8` rather than `^4.0.0` because `ai@7` itself requires
@@ -134,13 +134,16 @@ Every evaluator resolves to the same three-part envelope, so generic code works 
 
 ```typescript
 {
-  evaluator: string;   // registry id, e.g. "student_facing_text.ela_reading.vocabulary_complexity"
-  result: TResult;     // the evaluator's own payload, exactly as its output schema declares it
+  evaluator: string; // registry id, e.g. "student_facing_text.ela_reading.vocabulary_complexity"
+  result: TResult; // the evaluator's own payload, exactly as its output schema declares it
   metadata: {
-    model: string;             // "provider:model" that ran; "a+b" when several did
+    model: string; // "provider:model" that ran; "a+b" when several did
     processingTimeMs: number;
-    tokenUsage: { inputTokens: number; outputTokens: number };
-  };
+    tokenUsage: {
+      inputTokens: number;
+      outputTokens: number;
+    }
+  }
 }
 ```
 
@@ -171,14 +174,20 @@ To enumerate them for any evaluator, read its exported schema:
 `metadata.model` names every model that ran, joined by `+` when an evaluator uses more than one — so a multi-step evaluator reports e.g. `openai:gpt-4o-…+openai:gpt-4.1-…`. Which models run can also depend on the input: Vocabulary Complexity takes a different branch for grades 3-4 than for 5-12. The **Default provider** column below is what each evaluator's contract declares, and you must supply a key for every provider listed — not a promise about which one serves a given call: construction validates the union of keys an evaluator could need across all its branches, so Vocabulary Complexity demands both keys even at a grade where only one provider runs. Model strings come from each evaluator's contract and change with it, so treat `metadata.model` as the record of what actually ran rather than something to assert on. When you need one comparable value per evaluation regardless of evaluator, use `readOutcome`:
 
 ```typescript
-import { readOutcome, VocabularyComplexityEvaluator } from "@learning-commons/evaluators";
+import {
+  readOutcome,
+  VocabularyComplexityEvaluator,
+} from "@learning-commons/evaluators";
 
 const evaluation = await new VocabularyComplexityEvaluator({
   googleApiKey: process.env.GOOGLE_API_KEY,
   openaiApiKey: process.env.OPENAI_API_KEY,
 }).evaluate({ text, grade_level: "5" });
 
-const { score, reasoning } = readOutcome(evaluation, VocabularyComplexityEvaluator.metadata.outcome);
+const { score, reasoning } = readOutcome(
+  evaluation,
+  VocabularyComplexityEvaluator.metadata.outcome,
+);
 ```
 
 `score` is **always a string**, or `undefined` when the evaluator declares no single verdict.
@@ -193,45 +202,48 @@ helper across several evaluators.
 Text complexity — how demanding a text is for a given grade. Each takes `{ text, grade_level }` and returns a `complexity_score` on a four-level scale — `slightly_complex`, `moderately_complex`, `very_complex`, `exceedingly_complex` — with `reasoning`. Purpose Clarity's `complexity_score` has a fifth possible value, `more_context_needed`, so a
 switch over the four above will not be exhaustive for it.
 
-| Evaluator | Grades | Default provider | Docs |
-| --- | --- | --- | --- |
-| `BackgroundKnowledgeDemandsEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/background-knowledge-demands) |
-| `MeaningDirectnessEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/meaning-directness) |
-| `OrganizationalStructureEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/organizational-structure) |
-| `PurposeClarityEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/purpose-clarity) |
-| `ReferenceKnowledgeDemandsEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/reference-knowledge-demands) |
-| `SentenceStructureEvaluator` | 3–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/sentence-structure) |
-| `VocabularyComplexityEvaluator` | 3–12 | Google + OpenAI | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/vocabulary-complexity) |
+| Evaluator                             | Grades | Default provider | Docs                                                                                                            |
+| ------------------------------------- | ------ | ---------------- | --------------------------------------------------------------------------------------------------------------- |
+| `BackgroundKnowledgeDemandsEvaluator` | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/background-knowledge-demands) |
+| `MeaningDirectnessEvaluator`          | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/meaning-directness)           |
+| `OrganizationalStructureEvaluator`    | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/organizational-structure)     |
+| `PurposeClarityEvaluator`             | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/purpose-clarity)              |
+| `ReferenceKnowledgeDemandsEvaluator`  | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/reference-knowledge-demands)  |
+| `SentenceStructureEvaluator`          | 3–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/sentence-structure)           |
+| `VocabularyComplexityEvaluator`       | 3–12   | Google + OpenAI  | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/vocabulary-complexity)        |
 
 Grade band — takes `{ text }` only, and determines the grade rather than judging against one. Returns `grade_band`, `alternative_grade_band`, `scaffolding_needed`, `reasoning`. Bands are `K-1`, `2-3`, `4-5`, `6-8`, `9-10`, `11-12` — spans on the CCSS text-complexity scale, not single grades.
 
-| Evaluator | Grades | Default provider | Docs |
-| --- | --- | --- | --- |
-| `GradeLevelAppropriatenessEvaluator` | K–12 | Google | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/grade-level-appropriateness) |
+| Evaluator                            | Grades | Default provider | Docs                                                                                                           |
+| ------------------------------------ | ------ | ---------------- | -------------------------------------------------------------------------------------------------------------- |
+| `GradeLevelAppropriatenessEvaluator` | K–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/grade-level-appropriateness) |
 
 Feedback quality — judges a teacher comment on a student's writing. Each takes `{ student_text, feedback_text }` and returns a binary `quality_score` with `reasoning`, `key_features` and `proposed_adjustment`.
 
 <!-- TODO: the strength-acknowledgement docs slug carries an "e" the SDK, contracts and repo
      directories do not. Drop it here once the Mintlify page is renamed. -->
 
-| Evaluator | Grades | Default provider | Docs |
-| --- | --- | --- | --- |
-| `RevisionAccuracyEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-accuracy) |
-| `RevisionActionabilityEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-actionability) |
-| `RevisionManageabilityEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-manageability) |
-| `StrengthAcknowledgmentEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/strength-acknowledgement) |
-| `StudentResponseSpecificityEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/student-response-specificity) |
-| `ToneAppropriatenessEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/tone-appropriateness) |
-| `WithholdingAnswersEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/withholding-answers) |
+| Evaluator                             | Grades | Default provider | Docs                                                                                                 |
+| ------------------------------------- | ------ | ---------------- | ---------------------------------------------------------------------------------------------------- |
+| `RevisionAccuracyEvaluator`           | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-accuracy)            |
+| `RevisionActionabilityEvaluator`      | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-actionability)       |
+| `RevisionManageabilityEvaluator`      | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-manageability)       |
+| `StrengthAcknowledgmentEvaluator`     | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/strength-acknowledgement)     |
+| `StudentResponseSpecificityEvaluator` | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/student-response-specificity) |
+| `ToneAppropriatenessEvaluator`        | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/tone-appropriateness)         |
+| `WithholdingAnswersEvaluator`         | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/withholding-answers)          |
 
 Standards alignment — checks a math item against a standard, component by component.
 
-| Evaluator | Grades | Default provider | Also needs | Docs |
-| --- | --- | --- | --- | --- |
-| `MathStandardsAlignmentEvaluator` | K–12 | Anthropic | `learningCommonsApiKey` (Knowledge Graph) | [Link](https://docs.learningcommons.org/evaluators/academic-standards-evaluators/math-standards-alignment) |
+| Evaluator                         | Grades | Default provider | Also needs                                | Docs                                                                                                       |
+| --------------------------------- | ------ | ---------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `MathStandardsAlignmentEvaluator` | K–12   | Anthropic        | `learningCommonsApiKey` (Knowledge Graph) | [Link](https://docs.learningcommons.org/evaluators/academic-standards-evaluators/math-standards-alignment) |
 
 ```typescript
-import { MathStandardsAlignmentEvaluator, Jurisdiction } from "@learning-commons/evaluators";
+import {
+  MathStandardsAlignmentEvaluator,
+  Jurisdiction,
+} from "@learning-commons/evaluators";
 
 const { result } = await new MathStandardsAlignmentEvaluator({
   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
@@ -242,10 +254,12 @@ const { result } = await new MathStandardsAlignmentEvaluator({
   jurisdiction: Jurisdiction.MultiState,
 });
 
-console.log(`${result.aligned_count}/${result.total_count} learning components aligned`);
+console.log(
+  `${result.aligned_count}/${result.total_count} learning components aligned`,
+);
 ```
 
-`result` carries one verdict per learning component the standard declares, so you can see *which*
+`result` carries one verdict per learning component the standard declares, so you can see _which_
 part of the standard an item does and does not reach:
 
 ```jsonc
@@ -257,12 +271,12 @@ part of the standard an item does and does not reach:
       "description": "Find the area of rectilinear figures by decomposing them into non-overlapping parts and finding the area of each part",
       "reasoning": "The question presents an L-shaped playground explicitly described as two rectangular parts with no overlap...",
       "aligned": true,
-      "feedback": "Students must decompose the L-shape into two rectangles, find each area, and sum them."
-    }
+      "feedback": "Students must decompose the L-shape into two rectangles, find each area, and sum them.",
+    },
     // ...one entry per learning component
   ],
   "aligned_count": 3,
-  "total_count": 3       // a total_count of 0 means the standard has no components authored yet
+  "total_count": 3, // a total_count of 0 means the standard has no components authored yet
 }
 ```
 
@@ -286,31 +300,32 @@ getEvaluator("conventionality")?.name; // "Meaning Directness Evaluator"
 Both return metadata — `id`, `stableId`, `idHistory`, `name`, `description`, `supportedGrades`, `defaultProviders`, `requiredCredentials`, and `outcome` where the evaluator declares a single verdict. `requiredCredentials` lists only **non-LLM** services — it is `["learning_commons_api_key"]` for
 math standards alignment and `[]` for the other fifteen, so it is not the answer to "which keys
 does this need". Provider keys follow `defaultProviders`: `["google"]` means supply
-`googleApiKey`. To *run* an evaluator, import it by name: the metadata does not tell you which named inputs it takes, and each evaluator's are different.
+`googleApiKey`. To _run_ an evaluator, import it by name: the metadata does not tell you which named inputs it takes, and each evaluator's are different.
 
 ## Configuration
 
 Every evaluator takes the same options:
 
-| Option | Purpose |
-| --- | --- |
-| `googleApiKey` / `openaiApiKey` / `anthropicApiKey` | Keys for the providers the evaluator uses |
-| `learningCommonsApiKey` | Authorizes Learning Commons API calls, such as the Knowledge Graph |
-| `modelOverride` | Run every call on a different `{ provider, model }`; `provider` is the exported `Provider` enum |
-| `llmProvider` | Bring your own provider (see below) |
-| `maxRetries` | Retries per failed call (default 2, so 3 attempts) |
-| `telemetry` | `true`, `false`, or `TelemetryOptions` (default on) |
-| `logger` / `logLevel` | Inject a logger, or set the console logger's level with the exported `LogLevel` enum (default `LogLevel.WARN`) |
+| Option                                              | Purpose                                                                                                        |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `googleApiKey` / `openaiApiKey` / `anthropicApiKey` | Keys for the providers the evaluator uses                                                                      |
+| `learningCommonsApiKey`                             | Authorizes Learning Commons API calls, such as the Knowledge Graph                                             |
+| `modelOverride`                                     | Run every call on a different `{ provider, model }`; `provider` is the exported `Provider` enum                |
+| `llmProvider`                                       | Bring your own provider (see below)                                                                            |
+| `maxRetries`                                        | Retries per failed call (default 2, so 3 attempts)                                                             |
+| `telemetry`                                         | `true`, `false`, or `TelemetryOptions` (default on)                                                            |
+| `logger` / `logLevel`                               | Inject a logger, or set the console logger's level with the exported `LogLevel` enum (default `LogLevel.WARN`) |
 
 `TelemetryOptions` and `Logger` are both exported. Their shapes:
 
 ```typescript
 interface TelemetryOptions {
-  enabled?: boolean;              // default true
+  enabled?: boolean; // default true
   learningCommonsApiKey?: string; // set: events are attributed to you. unset: anonymous
 }
 
-interface Logger {              // LogContext is { evaluator?, operation?, error?, ...unknown }
+interface Logger {
+  // LogContext is { evaluator?, operation?, error?, ...unknown }
   debug(message: string, context?: LogContext): void;
   info(message: string, context?: LogContext): void;
   warn(message: string, context?: LogContext): void;
@@ -330,10 +345,15 @@ environment will see a warning per call at the default level; `telemetry: false`
 `Provider.Anthropic`, and `LogLevel.DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT`:
 
 ```typescript
-import { Provider, LogLevel, VocabularyComplexityEvaluator } from "@learning-commons/evaluators";
+import {
+  Provider,
+  LogLevel,
+  VocabularyComplexityEvaluator,
+} from "@learning-commons/evaluators";
 
 new VocabularyComplexityEvaluator({
-  googleApiKey, openaiApiKey,
+  googleApiKey,
+  openaiApiKey,
   modelOverride: { provider: Provider.Google, model: "gemini-2.5-flash" },
   logLevel: LogLevel.ERROR,
 });
@@ -351,13 +371,17 @@ Pass any object implementing `LLMProvider` and the evaluator routes every call t
 Three members are required, and the two methods are **not symmetrical**: `generateStructured`
 takes one object and must return a `model`, while `generateText` takes positional arguments and
 must not. `messages` includes the `system` turn, which most backends want as a separate
-argument. A `temperature` of `null` means *send no temperature at all* — some models reject an
+argument. A `temperature` of `null` means _send no temperature at all_ — some models reject an
 explicit value — so forward it conditionally rather than coercing it with `?? undefined`.
 
 ```typescript
 import { generateText, Output } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { SentenceStructureEvaluator, type LLMProvider, type Message } from "@learning-commons/evaluators";
+import {
+  SentenceStructureEvaluator,
+  type LLMProvider,
+  type Message,
+} from "@learning-commons/evaluators";
 
 /** `ai` takes the system turn as its own option; leaving it in `messages` is rejected. */
 function split(messages: Message[]) {
@@ -384,7 +408,10 @@ const myProvider: LLMProvider = {
     return {
       data: output,
       model: "gpt-4o-mini",
-      usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0 },
+      usage: {
+        inputTokens: usage.inputTokens ?? 0,
+        outputTokens: usage.outputTokens ?? 0,
+      },
       latencyMs: Date.now() - started,
     };
   },
@@ -399,20 +426,25 @@ const myProvider: LLMProvider = {
 
     return {
       text,
-      usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0 },
+      usage: {
+        inputTokens: usage.inputTokens ?? 0,
+        outputTokens: usage.outputTokens ?? 0,
+      },
       latencyMs: Date.now() - started,
     };
   },
 };
 
-const evaluation = await new SentenceStructureEvaluator({ llmProvider: myProvider }).evaluate({
+const evaluation = await new SentenceStructureEvaluator({
+  llmProvider: myProvider,
+}).evaluate({
   text: "The dog ran. It was fast. The children laughed at the sight of it.",
   grade_level: "5",
 });
 // evaluation.metadata.model === "byo:gpt-4o-mini"
 ```
 
-`schema` is a Zod schema, and because `zod` is a peer dependency it is an instance of *your*
+`schema` is a Zod schema, and because `zod` is a peer dependency it is an instance of _your_
 zod: the same copy your own code imports, which is what makes `Output.object({ schema })`
 above compile without conversion. A backend that needs another form can convert it with
 zod's own helpers (`z.toJSONSchema(schema)`). An object missing any of the three members
@@ -437,7 +469,9 @@ const output = await new BatchEvaluator({
   onProgress: (result) => console.log(result.evaluatorId, result.status),
 });
 
-console.log(`${output.summary.successful}/${output.summary.totalTasks} succeeded`);
+console.log(
+  `${output.summary.successful}/${output.summary.totalTasks} succeeded`,
+);
 ```
 
 The same engine is installed as the `evaluators-batch` command, which writes the files for you:
@@ -446,20 +480,19 @@ The same engine is installed as the `evaluators-batch` command, which writes the
 npx evaluators-batch input.csv --family text-complexity --output-dir ./results -y
 ```
 
-See the [batch evaluator README](./src/batch/README.md) for the three families and their CSV
-columns, the full flag list, and the rest of the programmatic API — `getFamily`,
-`renderOutputs` and the formatters.
+See the [batch evaluator README](./src/batch/README.md) for all evaluator families and their CSV columns, the full flag list, and the rest of the programmatic API (e.g., `getFamily`,
+`renderOutputs`, and the formatters).
 
 ## Errors
 
 Errors are grouped by fault domain, so you can catch by who is at fault rather than by individual failure. All extend `EvaluatorError`.
 
-| Class | Meaning |
-| --- | --- |
-| `ConfigurationError` | The SDK was set up wrong — missing key, conflicting options, a model the provider rejects |
-| `InputValidationError` | The input was rejected before any model ran; `StandardNotFoundError` is a subclass |
-| `EvaluationError` | The evaluation ran but could not be completed; `LLMOutputProcessingError` is a subclass |
-| `DependencyError` | Something the SDK depends on failed. Subclasses: `AuthenticationError`, `RateLimitError`, `NetworkError`, `RequestTimeoutError`, `LLMProviderError`, `KnowledgeGraphError` |
+| Class                  | Meaning                                                                                                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ConfigurationError`   | The SDK was set up wrong — missing key, conflicting options, a model the provider rejects                                                                                  |
+| `InputValidationError` | The input was rejected before any model ran; `StandardNotFoundError` is a subclass                                                                                         |
+| `EvaluationError`      | The evaluation ran but could not be completed; `LLMOutputProcessingError` is a subclass                                                                                    |
+| `DependencyError`      | Something the SDK depends on failed. Subclasses: `AuthenticationError`, `RateLimitError`, `NetworkError`, `RequestTimeoutError`, `LLMProviderError`, `KnowledgeGraphError` |
 
 A failed evaluation is also logged before it is thrown, so a caught error still prints an
 `[ERROR]` block at the default level. Pass `logLevel: LogLevel.SILENT` if you would rather
