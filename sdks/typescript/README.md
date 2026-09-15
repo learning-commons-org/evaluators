@@ -292,10 +292,6 @@ does this need". Provider keys follow `defaultProviders`: `["google"]` means sup
 
 Every evaluator takes the same options:
 
-<!-- TODO: one credential, three names — `learningCommonsApiKey` here, `KG_API_KEY` in the
-     evals notebooks, `PLATFORM_API_KEY` in demos/typescript. Standardize on
-     LEARNING_COMMONS_API_KEY across all three. -->
-
 | Option | Purpose |
 | --- | --- |
 | `googleApiKey` / `openaiApiKey` / `anthropicApiKey` | Keys for the providers the evaluator uses |

@@ -20,6 +20,8 @@ Column matching is case-insensitive and alias-aware; the canonical column wins w
 
 ## Usage
 
+No install needed — `npx evaluators-batch` runs it from any directory, and with no arguments it prompts for everything. The examples below omit the `npx` prefix.
+
 ```bash
 # Interactive: prompts for family, members, model, keys, output dir
 evaluators-batch
@@ -119,18 +121,6 @@ const { csv, json, html } = renderOutputs("text-complexity", output, meta);
 `html` is absent for families without a report of their own. `formatAsCSV(output)`, `formatAsJSON(output, meta)` and `formatAsHTML(output, meta)` are the individual projections.
 
 Those outputs are a flattened per-row summary — score, reasoning and status — not the full payloads, and their shape differs between the standards family and the others. For full payloads, call the evaluators directly.
-
-## Installation
-
-```bash
-# Install globally
-npm install -g @learning-commons/evaluators
-
-# Or run directly with npx
-npx evaluators-batch
-```
-
-Either form runs interactively from any directory when given no arguments.
 
 ## Documentation
 
