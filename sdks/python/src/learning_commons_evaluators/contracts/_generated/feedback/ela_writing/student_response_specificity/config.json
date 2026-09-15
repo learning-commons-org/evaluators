@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../_schemas/config.schema.json",
+  "evaluator": {
+    "id": "feedback.ela_writing.student_response_specificity",
+    "stable_id": "f81efc65-bbac-49a5-8f03-2440d4a4b5c8",
+    "id_history": [
+      "feedback.productive_coaching_writing_feedback.is_anchored_in_student_response"
+    ],
+    "name": "Student Response Specificity Evaluator",
+    "description": "Is the feedback clearly based on the student's specific response? (Key features generated from rubric text; concept paper did not list explicit key feature items.)",
+    "supported_grades": [
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "input_schema": {
+    "$ref": "input_schema.json"
+  },
+  "preprocessing": [],
+  "steps": [
+    {
+      "id": "evaluate_student_response_specificity",
+      "type": "llm",
+      "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
+      "prompt": {
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "df82c1b8d4116c307ea956bae349907c23e229a208373f8cc47c543ad29f6e7b"
+          },
+          {
+            "role": "user",
+            "source_path": "user.txt",
+            "sha256": "eaac7e6eadcc43716e4a98b9e7f34c493c1cbe46adb38367dd8697b904d11bfa"
+          }
+        ],
+        "placeholders": {
+          "student_text": {
+            "required": true,
+            "source": "input"
+          },
+          "feedback_text": {
+            "required": true,
+            "source": "input"
+          }
+        }
+      },
+      "model": {
+        "provider": "openai",
+        "name": "gpt-5.4-2026-03-05"
+      },
+      "generation": {
+        "temperature": 1
+      },
+      "parser": {
+        "kind": "structured_output"
+      }
+    }
+  ],
+  "output_schema": {
+    "$ref": "output_schema.json"
+  },
+  "outcome": {
+    "score": "quality_score",
+    "reasoning": "reasoning"
+  },
+  "fixtures": {
+    "path": "fixtures.json"
+  }
+}

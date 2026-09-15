@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "output_schema.json",
+  "title": "EvaluatorOutput",
+  "description": "Final evaluator output for the Background Knowledge Demands evaluator.",
+  "type": "object",
+  "required": [
+    "identified_topics",
+    "curriculum_check",
+    "assumptions_and_scaffolding",
+    "friction_analysis",
+    "complexity_score",
+    "reasoning"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "identified_topics": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "The core subjects/concepts found in the text."
+    },
+    "curriculum_check": {
+      "type": "string",
+      "description": "Whether the topics are standard K-8 knowledge or specialized high-school-level knowledge."
+    },
+    "assumptions_and_scaffolding": {
+      "type": "string",
+      "description": "What the author assumes the reader already knows versus what is explained in the text."
+    },
+    "friction_analysis": {
+      "type": "string",
+      "description": "Whether difficulty comes from vocabulary/sentence structure or from actual background knowledge demands."
+    },
+    "complexity_score": {
+      "type": "string",
+      "enum": ["slightly_complex", "moderately_complex", "very_complex", "exceedingly_complex"],
+      "description": "The background knowledge complexity level of the text."
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "A detailed synthesis of why the text fits the chosen complexity level."
+    }
+  }
+}

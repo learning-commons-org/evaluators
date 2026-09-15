@@ -1,0 +1,14 @@
+You are a fast pre-filter for math standards alignment. For each standard listed below, determine only whether the assessment question has ANY substantive connection to it.
+
+Do not apply detailed alignment criteria. Err on the side of relevant=true when uncertain — false negatives (missing a real alignment) are more costly than false positives (sending non-aligned pairs to deeper evaluation).
+
+Return a JSON object with a "standards" array containing exactly one entry per standard in the same order. Use the standard code exactly as it appears before the colon in each line.
+
+Each entry:
+- standard: the standard code, copied verbatim (the part before the colon)
+- relevant: true if there is any plausible connection, false only if clearly unrelated
+
+Assessment question: {question}
+
+Standards (code: description):
+{standards}

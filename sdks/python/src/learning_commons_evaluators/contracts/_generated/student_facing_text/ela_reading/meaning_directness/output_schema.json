@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "output_schema.json",
+  "title": "EvaluatorOutput",
+  "description": "Final evaluator output for the Meaning Directness evaluator.",
+  "type": "object",
+  "required": [
+    "reasoning",
+    "complexity_score",
+    "conventionality_features",
+    "grade_context",
+    "instructional_insights"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "reasoning": {
+      "type": "string",
+      "description": "A detailed explanation of the rating, citing specific features in the text and referencing the expert guardrails (e.g., noting if the text relies on abstract qualities/rhetorical idealization, if vocabulary/background knowledge demands make a literal text vague for the grade level, or if it is strictly concrete/procedural)."
+    },
+    "complexity_score": {
+      "type": "string",
+      "enum": ["slightly_complex", "moderately_complex", "very_complex", "exceedingly_complex"],
+      "description": "The conventionality complexity level of the text."
+    },
+    "conventionality_features": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "The specific language features driving the complexity (e.g., literal narrative, concrete actions, less familiar expressions, sustained irony, abstract qualities, rhetorical idealization, archaic phrasing) with direct quotes from the text."
+    },
+    "grade_context": {
+      "type": "string",
+      "description": "How the conventionality demands compare to general expectations for the provided target grade."
+    },
+    "instructional_insights": {
+      "type": "string",
+      "description": "Actionable pedagogical suggestions for scaffolding the conventionality features in the classroom."
+    }
+  }
+}
