@@ -2,6 +2,13 @@
 
 All notable changes to the `learning-commons-evaluators` Python SDK will be documented in this file.
 
+## [0.2.1](https://github.com/learning-commons-org/evaluators/compare/sdks-python-v0.2.0...sdks-python-v0.2.1) (2026-09-15)
+
+
+### Documentation
+
+* Audit READMEs for v1.0 launch ([#213](https://github.com/learning-commons-org/evaluators/issues/213)) ([7e0a650](https://github.com/learning-commons-org/evaluators/commit/7e0a65008075a479f512d2a8410ed116a76ce19d))
+
 ## [0.2.0](https://github.com/learning-commons-org/evaluators/compare/sdks-python-v0.1.0...sdks-python-v0.2.0) (2026-06-11)
 
 
