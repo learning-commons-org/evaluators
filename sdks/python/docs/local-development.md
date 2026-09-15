@@ -8,13 +8,13 @@
 - **`evaluators/`** — `BaseEvaluator` (config checks, provider construction), `SingleStepEvaluator` (the one-model-call flow), `MultiStepEvaluator` (steps in declared order, skipping any whose `condition` the inputs miss; placeholders resolved from inputs, preprocessing, and earlier steps' outputs), `inputs.py` (§4.1 validation), `registry.py` (`get_evaluators`, `get_evaluator` with `id_history`), and the concrete evaluators in nested `<family>/<subject>/` packages mirroring `evals/`. Both bases are declarative: an evaluator names its contract and its generated models, and everything else is read from the contract at class creation.
 - **`config.py`** — `EvaluatorConfig`, `ModelOverride`, `TelemetryOptions` (SDK spec §3).
 - **`schemas/evaluator.py`, `schemas/outcome.py`, `schemas/metadata.py`** — The result envelope, `read_outcome`, and static `EvaluatorMetadata`.
-- **`features/`** — Contract-declared preprocessing (`textstat` Flesch-Kincaid) bound into prompts.
+- **`features/`** — Contract-declared preprocessing bound into prompts: library computations (`textstat` Flesch-Kincaid) in `preprocessing.py`, and the functions a `custom` entry names — `readability.py` (the ground-truth counts block) and `sentence_features.py` (the ratios derived from a step's counts).
 - **`prompts/`** — Placeholder substitution, identical to the TypeScript renderer.
 - **`errors.py`** — The canonical error taxonomy (SDK spec §6) and `wrap_provider_error()`.
 - **`logger.py`** — Logging helpers following the stdlib library convention (`NullHandler`, no root configuration)
 - **`version.py`** — Package version and description
 
-The multi-step pilots (Vocabulary Complexity, Sentence Structure), telemetry emission, the Knowledge Graph client, and batch evaluation land in the following PRs.
+Telemetry emission, the Knowledge Graph client, and batch evaluation land in the following PRs.
 
 ## Development setup
 
@@ -68,13 +68,13 @@ Generated schema modules start with `# GENERATED — do not edit directly.` and 
 - `tests/unit/contracts/` — every bundled contract read back and cross-checked against `evals/` (sha256, placeholder sources, outcome fields), plus the generator's emitter on synthetic schemas.
 - `tests/unit/schemas/` — parser tests: hand-written payloads per `output_schema.json` against the generated `<Class>Output` models.
 - `tests/unit/evaluators/` — the single-step and multi-step flows on synthetic contracts, config and `model_override` checks, input validation, the registry, and `test_registry_conformance.py`: every contract in `evals/` has a registered class or an entry in its `UNIMPLEMENTED` allowlist, and porting an evaluator without deleting its entry fails the build.
-- `tests/unit/test_cross_sdk_prompts.py` — for every fixture, Python renders the prompt the TypeScript renderer would, with computed placeholders masked.
+- `tests/unit/test_cross_sdk_prompts.py` — for every fixture, and every step the inputs run, Python renders the prompt the TypeScript renderer would. Placeholders each SDK computes with its own language's library are masked, and so are step outputs, which would mean calling a model; the masked numbers' rounding is checked separately in the same file.
 - `tests/integration/` — live provider calls driven by `evals/**/fixtures.json`, skipped unless `RUN_INTEGRATION_TESTS=1` and the provider keys are set (`make integration-test`).
 
 ## Adding an evaluator
 
 1. The contract exists under `evals/<family>/<subject>/<evaluator>/` (that is the registry's job). Run `make generate-contracts` so its bundle and `<Class>Input` / `<Class>Output` models exist.
-2. Add `evaluators/<family>/<subject>/<evaluator>.py` declaring the class:
+2. Add `evaluators/<family>/<subject>/<evaluator>.py` declaring the class. For a contract with one step:
 
    ```python
    class PurposeClarityEvaluator(SingleStepEvaluator[PurposeClarityInput, PurposeClarityOutput]):
@@ -82,6 +82,27 @@ Generated schema modules start with `# GENERATED — do not edit directly.` and 
        input_model = PurposeClarityInput
        output_model = PurposeClarityOutput
    ```
+
+   For a contract with several, add `step_models` naming every declared step — `None` for one
+   that answers in prose — and `computations` for any function a `custom` preprocessing entry
+   names, keyed by the name it declares:
+
+   ```python
+   class SentenceStructureEvaluator(
+       MultiStepEvaluator[SentenceStructureInput, SentenceStructureOutput]
+   ):
+       contract = load_contract(EVALUATOR_ID)
+       input_model = SentenceStructureInput
+       output_model = SentenceStructureOutput
+       step_models = {
+           "sentence_analysis": SentenceAnalysis,
+           "classify_complexity": SentenceStructureOutput,
+       }
+       computations = {"compute_ground_truth_counts": compute_ground_truth_counts, ...}
+   ```
+
+   A step's own output model has no schema in the registry, so it is written by hand beside
+   the evaluator; the contract's `output_schema.json` describes the evaluator's result only.
 
 3. Register it in `evaluators/registry.py` and export it (class, input, output) from `evaluators/__init__.py` and the package barrel.
 4. Delete its id from `UNIMPLEMENTED` in `tests/unit/evaluators/test_registry_conformance.py`; the conformance, cross-SDK prompt, and integration suites pick it up automatically.
