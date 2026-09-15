@@ -3,20 +3,14 @@
 # All deferred from the initial 0.1.0 publish PR. Address together once
 # sdks-python-v0.1.0 has shipped to PyPI.
 #
-# 1. Remove `release-as: "0.1.0"` from release-please-config.json — sticky
-#    setting that pins every future release-please PR to 0.1.0 until removed.
-#    Required before any 0.1.1 / 0.2.0 can ship. Do this IMMEDIATELY after
-#    0.1.0 lands on PyPI; otherwise subsequent releases silently no-op
-#    (PyPI rejects duplicate version, `skip-existing: true` hides it).
-#
-# 2. Pin `workflow_dispatch` to a release tag. Today it checks out the
+# 1. Pin `workflow_dispatch` to a release tag. Today it checks out the
 #    dispatch ref (typically main HEAD), not the released tag — so a manual
 #    retry publishes whatever's currently on main, not the released version.
 #    Add `inputs.ref` (required string) to the trigger and pass it to
 #    actions/checkout. Or drop workflow_dispatch entirely and retry by
 #    deleting + recreating the GitHub Release.
 #
-# 3. Assert `dist/` is non-empty before the publish step. `skip-existing: true`
+# 2. Assert `dist/` is non-empty before the publish step. `skip-existing: true`
 #    masks broken builds — a `python -m build` that silently produces zero
 #    artifacts will exit 0 at publish. Add a step that runs
 #    `test -n "$(ls dist/*.whl 2>/dev/null)"` etc. before publish.
