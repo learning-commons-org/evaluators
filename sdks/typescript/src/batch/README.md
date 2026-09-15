@@ -94,10 +94,10 @@ console.log(`${output.summary.successful}/${output.summary.totalTasks} succeeded
 `getFamilies()` lists the three; `getFamily(id)` gives one family's members, column spec and row limit before you run:
 
 ```typescript
+import { getFamilies, getFamily } from "@learning-commons/evaluators/batch";
+
 getFamilies().map((f) => f.id);            // ["text-complexity", "math-standards-alignment", "feedback"]
 getFamily("feedback").members.length;      // 7
-getFamily("text-complexity").columns;      // [{ name, required, aliases?, default? }, ...]
-getFamily("text-complexity").maxInputRows; // 50
 ```
 
 ### Formatting results
