@@ -8,7 +8,7 @@ MYPY    := $(PYTHON) -m mypy
 #   src/learning_commons_evaluators/schemas/<family>/<subject>/*.py — pydantic Input/Output models
 # Both are committed; `make check-generated` fails CI when they drift from evals/.
 
-.PHONY: help build check-build test generate-contracts check-generated \
+.PHONY: help build check-build test integration-test generate-contracts check-generated \
         lint lint-fix format format-check typecheck pip-check verify coverage
 
 help:
@@ -26,7 +26,8 @@ help:
 	@echo "  verify             check-build + lint + format-check + typecheck + pip-check + test"
 	@echo "  coverage           Tests with coverage report (requires dev install)"
 	@echo ""
-	@echo "  test               Run the test suite"
+	@echo "  test               Run the test suite (live integration tests skip without keys)"
+	@echo "  integration-test   Live provider tests: needs RUN_INTEGRATION_TESTS=1 and GOOGLE_API_KEY / OPENAI_API_KEY"
 	@echo ""
 	@echo "  generate-contracts Re-bundle evals/ contracts and regenerate schema modules"
 	@echo "  check-generated    Verify generated files match evals/ (exits 1 if stale or orphaned)"
@@ -73,6 +74,9 @@ coverage:
 
 test:
 	$(PYTEST) tests/ -v
+
+integration-test:
+	RUN_INTEGRATION_TESTS=1 $(PYTEST) tests/integration -v
 
 # ── Code generation ───────────────────────────────────────────────────────────
 # Re-run when anything under evals/ changes. The generator verifies each prompt

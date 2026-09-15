@@ -171,7 +171,7 @@ class Preprocessing(_ContractModel):
         return self.implementation.get("python")
 
 
-class Outcome(_ContractModel):
+class DeclaredOutcome(_ContractModel):
     """Which output properties carry the verdict and its rationale."""
 
     score: str
@@ -191,7 +191,7 @@ class Contract(_ContractModel):
     output_schema: dict[str, Any]
     preprocessing: list[Preprocessing] = Field(default_factory=list)
     steps: list[Step]
-    outcome: Outcome | None = None
+    outcome: DeclaredOutcome | None = None
     fixtures: Fixtures | None = None
     #: Every file the contract names, by its ``source_path``, verbatim.
     documents: dict[str, str] = Field(default_factory=dict)
@@ -341,7 +341,7 @@ __all__ = [
     "Generation",
     "Implementation",
     "ModelSpec",
-    "Outcome",
+    "DeclaredOutcome",
     "Parser",
     "Placeholder",
     "PostTransform",
