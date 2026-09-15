@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from typing import Any, ClassVar
+
+from pydantic import BaseModel
 
 from learning_commons_evaluators.config import EvaluatorConfig, ModelOverride
 from learning_commons_evaluators.contracts.loader import Contract
@@ -113,13 +116,21 @@ class BaseEvaluator(ABC):
 
     # --- providers -----------------------------------------------------------------
 
-    def _create_configured_provider(self, default: Provider, default_model: str) -> LLMProvider:
-        """A provider for one step, honouring ``model_override`` when set."""
+    def effective_model(self, default: Provider, default_model: str) -> tuple[Provider, str]:
+        """The provider and model a step actually runs on, honouring ``model_override``.
+
+        Read by anything that needs to know what will be called rather than what the
+        contract declares — provider construction here, and the multi-step base's one
+        client per distinct model, which would otherwise key on a model an override replaced.
+        """
         override = self.config.model_override
         if override is not None and self._override_provider is not None:
-            provider, model = self._override_provider, override.model
-        else:
-            provider, model = default, default_model
+            return self._override_provider, override.model
+        return default, default_model
+
+    def _create_configured_provider(self, default: Provider, default_model: str) -> LLMProvider:
+        """A provider for one step, honouring ``model_override`` when set."""
+        provider, model = self.effective_model(default, default_model)
         return create_provider(
             ProviderConfig(
                 type=provider,
@@ -130,6 +141,21 @@ class BaseEvaluator(ABC):
         )
 
     # --- evaluation ----------------------------------------------------------------
+
+    @staticmethod
+    def _raw_fields(input: Any, fields: Mapping[str, Any]) -> Any:
+        """The caller's inputs, however they passed them, as one mapping to validate.
+
+        Accepting either form and rejecting both at once is a programmer error rather than
+        an evaluation failure, so it is raised as ``TypeError`` outside the error boundary.
+        """
+        if input is None:
+            return dict(fields)
+        if fields:
+            raise TypeError("Pass the input model or keyword fields, not both.")
+        if isinstance(input, BaseModel):
+            return input.model_dump(by_alias=True)
+        return input
 
     @abstractmethod
     async def evaluate(self, input: Any = None, /, **fields: Any) -> EvaluationResult[Any]:
