@@ -9,11 +9,15 @@ on:
       # The package bundles evals/ contracts; a registry change must re-run check-generated.
       - "evals/**"
       - ".github/workflows/test-sdk-python.yml"
+      # The coverage job uploads under the flags and thresholds this file defines.
+      - "codecov.yml"
   pull_request:
     paths:
       - "sdks/python/**"
       - "evals/**"
       - ".github/workflows/test-sdk-python.yml"
+      # The coverage job uploads under the flags and thresholds this file defines.
+      - "codecov.yml"
 
 permissions:
   contents: read
@@ -48,3 +52,40 @@ jobs:
 
       - name: make verify
         run: make verify
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/python
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install package and dev tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # The gate. `make coverage` exits non-zero below COV_MIN, so this step — not the
+      # Codecov status — is what holds the floor when Codecov is unreachable.
+      - name: make coverage
+        run: make coverage
+
+      # Reporting only: a Codecov outage must not turn a passing suite red. Runs even when
+      # the gate above failed, so a coverage drop still gets its per-line annotation.
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./sdks/python/coverage.xml
+          flags: python-sdk
+          name: python-sdk-coverage
+        continue-on-error: true

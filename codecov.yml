@@ -1,0 +1,75 @@
+# Codecov configuration for the monorepo.
+#
+# Both SDK test workflows are path-filtered, so a PR touching only one SDK uploads only
+# that SDK's report. Without per-flag carryforward, Codecov would read the absent SDK as
+# having lost all of its coverage and report a large phantom drop on every such PR. Each
+# flag therefore carries its last known report forward, and the repo-wide aggregate
+# statuses stay off so the two SDKs are never summed into one number.
+
+codecov:
+  # Codecov posts its statuses on the report it has, without waiting on the rest of CI.
+  # Left at the default, a failing TypeScript job would withhold the Python status and
+  # stall a Python PR on an unrelated suite.
+  require_ci_to_pass: false
+
+# coverage.py writes filenames relative to the directory `make` ran in, so the Python
+# report names files as `src/learning_commons_evaluators/...`. The upload is a `uses:`
+# step and so runs at the repo root, where nothing resolves those against sdks/python/ —
+# without this rewrite every `paths` filter below matches zero files and the status is
+# computed on an empty report. The TypeScript report needs no entry: vitest writes
+# absolute paths, which Codecov already resolves to repo-relative ones.
+fixes:
+  - "src/::sdks/python/src/"
+
+flags:
+  python-sdk:
+    paths:
+      - sdks/python/
+    carryforward: true
+  typescript-sdk:
+    paths:
+      - sdks/typescript/
+    carryforward: true
+
+coverage:
+  status:
+    project:
+      # No repo-wide status: it would mix the SDKs and fail a Python PR for a TypeScript gap.
+      default: false
+      python-sdk:
+        flags:
+          - python-sdk
+        paths:
+          - sdks/python/
+        # Exact, and equal to COV_MIN in sdks/python/Makefile. A threshold here would be
+        # slack against the target, letting a commit the Makefile gate fails pass Codecov.
+        target: 95%
+      typescript-sdk:
+        flags:
+          - typescript-sdk
+        paths:
+          - sdks/typescript/
+        target: auto
+        threshold: 1%
+        # Reports without blocking until the TypeScript suite has a floor of its own.
+        informational: true
+
+    patch:
+      default: false
+      python-sdk:
+        flags:
+          - python-sdk
+        paths:
+          - sdks/python/
+        target: 90%
+        threshold: 5%
+      typescript-sdk:
+        flags:
+          - typescript-sdk
+        paths:
+          - sdks/typescript/
+        informational: true
+
+comment:
+  layout: "condensed_header, flags, files"
+  require_changes: true
