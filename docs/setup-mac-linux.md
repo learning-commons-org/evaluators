@@ -27,17 +27,7 @@ pip install -r evals/requirements.txt
 
 ## 3. Set your API keys
 
-Different evaluators call different providers, so which keys you need depends on which notebooks you plan to run. Vocabulary Complexity appears twice: it needs both keys, because its grade 3–4 branch runs on Google and the rest on OpenAI.
-
-| Key | Needed by | Where to get it |
-| :-- | :-------- | :-------------- |
-| `GOOGLE_API_KEY` | Background Knowledge Demands, Grade Level Appropriateness, Meaning Directness, Organizational Structure, Purpose Clarity, Reference Knowledge Demands, Vocabulary Complexity | [Google AI Studio](https://aistudio.google.com/) |
-| `OPENAI_API_KEY` | Sentence Structure, Vocabulary Complexity, and all seven Feedback evaluators | [OpenAI Platform](https://platform.openai.com/) |
-| `ANTHROPIC_API_KEY` | Math Standards Alignment, Critical Thinking | [Anthropic Console](https://console.anthropic.com/) |
-| `KG_API_KEY` | Math Standards Alignment (Knowledge Graph standards lookup) | [Learning Commons Platform](https://platform.learningcommons.org) |
-
-<!-- TODO: KG_API_KEY is the same credential the TypeScript SDK calls `learningCommonsApiKey`
-     and demos/typescript calls `PLATFORM_API_KEY`. Standardize on LEARNING_COMMONS_API_KEY. -->
+Different evaluators call different providers, so which [API keys you need](https://docs.learningcommons.org/evaluators/getting-started/quickstart#required-api-keys) depends on which notebooks you plan to run.
 
 Set the key(s) you need as environment variables in your shell session:
 
