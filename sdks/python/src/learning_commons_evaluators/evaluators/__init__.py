@@ -8,6 +8,7 @@ from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.feedback.ela_writing.tone_appropriateness import (
     ToneAppropriatenessEvaluator,
 )
+from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
 from learning_commons_evaluators.evaluators.registry import (
     EVALUATORS,
     get_evaluator,
@@ -26,6 +27,7 @@ __all__ = [
     "EVALUATORS",
     "BaseEvaluator",
     "GradeLevelAppropriatenessEvaluator",
+    "MultiStepEvaluator",
     "PurposeClarityEvaluator",
     "SingleStepEvaluator",
     "ToneAppropriatenessEvaluator",

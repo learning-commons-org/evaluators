@@ -8,7 +8,11 @@ import pytest
 import textstat
 
 from learning_commons_evaluators.contracts.loader import Implementation
-from learning_commons_evaluators.features import format_number, run_preprocessing_step
+from learning_commons_evaluators.features import (
+    format_number,
+    round_half_up,
+    run_preprocessing_step,
+)
 
 TEXT = "Trees are important plants that grow in many parts of the world."
 
@@ -78,3 +82,36 @@ def test_unknown_library_function_and_transform_fail_loudly() -> None:
 )
 def test_format_number_matches_javascript_string(value: float, rendered: str) -> None:
     assert format_number(value) == rendered
+
+
+class TestRoundHalfUp:
+    """The SDK's one rounding operation, shared by the contract transform and features/."""
+
+    @pytest.mark.parametrize(
+        ("value", "places", "expected"),
+        [
+            (0.125, 2, 0.13),  # Python's round() gives 0.12
+            (0.135, 2, 0.14),
+            (0.95, 1, 1.0),  # 19/20: ties-to-even gives 0.9
+            (2.5, 0, 3.0),
+            (-0.125, 2, -0.12),  # half up, so toward zero for a negative tie
+            (7.0, 2, 7.0),
+        ],
+    )
+    def test_rounds_half_away_from_negative_infinity(
+        self, value: float, places: int, expected: float
+    ) -> None:
+        assert round_half_up(value, places) == expected
+
+    def test_is_what_the_contracts_post_transform_applies(self) -> None:
+        implementation = Implementation.model_validate(
+            {
+                "library": "textstat",
+                "function": "flesch_kincaid_grade",
+                "post_transform": {"type": "round", "precision": 2},
+            }
+        )
+        text = "The cat sat on the mat. It was sleeping quietly in the warm sun."
+        assert run_preprocessing_step(text, implementation) == round_half_up(
+            textstat.flesch_kincaid_grade(text), 2
+        )

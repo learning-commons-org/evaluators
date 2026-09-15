@@ -3,7 +3,8 @@
 from learning_commons_evaluators.features.preprocessing import (
     check_implementation,
     format_number,
+    round_half_up,
     run_preprocessing_step,
 )
 
-__all__ = ["check_implementation", "format_number", "run_preprocessing_step"]
+__all__ = ["check_implementation", "format_number", "round_half_up", "run_preprocessing_step"]
