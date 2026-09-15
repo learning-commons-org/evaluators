@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from learning_commons_evaluators.contracts.loader import DeclaredOutcome
 from learning_commons_evaluators.providers.base import Provider
+
+if TYPE_CHECKING:
+    from learning_commons_evaluators.contracts.loader import Contract
 
 
 @dataclass(frozen=True)
@@ -34,9 +39,36 @@ class EvaluatorMetadata:
     #: Providers the evaluator's default configuration calls, in step order.
     default_providers: tuple[Provider, ...]
 
+    @classmethod
+    def from_contract(
+        cls, contract: Contract, default_providers: Sequence[Provider]
+    ) -> EvaluatorMetadata:
+        """Everything static an evaluator publishes, read straight off its contract.
+
+        ``default_providers`` is the one fact the contract does not state directly: which
+        steps an evaluator actually runs is the evaluator's own decision, so each base
+        derives the providers from the steps it will call and passes them in.
+        """
+        return cls(
+            id=contract.evaluator.id,
+            stable_id=contract.evaluator.stable_id,
+            id_history=tuple(contract.evaluator.id_history),
+            name=contract.evaluator.name,
+            description=contract.evaluator.description,
+            supported_grades=tuple(contract.evaluator.supported_grades),
+            outcome=contract.outcome,
+            required_credentials=tuple(contract.required_credentials),
+            default_providers=tuple(default_providers),
+        )
+
     @property
     def slug(self) -> str:
         return self.id.rsplit(".", 1)[-1]
+
+    @property
+    def label(self) -> str:
+        """The name as logs say it: the contract names every evaluator "<Thing> Evaluator"."""
+        return self.name.removesuffix(" Evaluator")
 
 
 __all__ = ["EvaluatorMetadata"]

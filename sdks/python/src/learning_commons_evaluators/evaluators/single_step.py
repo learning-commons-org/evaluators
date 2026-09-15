@@ -67,7 +67,6 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
     _vendor: ClassVar[Provider]
     _preprocessing: ClassVar[tuple[Preprocessing, ...]]
     _text_field: ClassVar[str | None]
-    _label: ClassVar[str]
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -113,19 +112,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         cls._vendor = step.model.provider
         cls._preprocessing = tuple(contract.preprocessing)
         cls._text_field = primary_text_field(contract.input_schema)
-        # The contract names every evaluator "<Thing> Evaluator"; logs read as "<Thing>".
-        cls._label = name.removesuffix(" Evaluator")
-        cls.metadata = EvaluatorMetadata(
-            id=contract.evaluator.id,
-            stable_id=contract.evaluator.stable_id,
-            id_history=tuple(contract.evaluator.id_history),
-            name=name,
-            description=contract.evaluator.description,
-            supported_grades=tuple(contract.evaluator.supported_grades),
-            outcome=contract.outcome,
-            required_credentials=tuple(contract.required_credentials),
-            default_providers=(step.model.provider,),
-        )
+        cls.metadata = EvaluatorMetadata.from_contract(contract, (step.model.provider,))
 
     def __init__(self, config: Any = None, /, **fields: Any) -> None:
         super().__init__(config, **fields)
@@ -158,7 +145,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             grade_level = values.get("grade_level", "")
             self.logger.info(
                 "Starting %s evaluation",
-                self._label,
+                self.metadata.label,
                 extra={**context, "grade_level": grade_level, "text_length": len(text)},
             )
 
@@ -191,7 +178,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             outcome = self.metadata.outcome
             self.logger.info(
                 "%s evaluation completed successfully",
-                self._label,
+                self.metadata.label,
                 extra={
                     **context,
                     "grade_level": grade_level,
@@ -204,7 +191,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             elapsed_ms = int((time.perf_counter() - start) * 1000)
             self.logger.error(
                 "%s evaluation failed",
-                self._label,
+                self.metadata.label,
                 extra={
                     **context,
                     "grade_level": grade_level,
@@ -218,16 +205,6 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             raise wrap_provider_error(error, dependency=dependency, model=model) from error
 
     # --- pieces of the flow ------------------------------------------------------------
-
-    @staticmethod
-    def _raw_fields(input: Any, fields: Mapping[str, Any]) -> Any:
-        if input is None:
-            return dict(fields)
-        if fields:
-            raise TypeError("Pass the input model or keyword fields, not both.")
-        if isinstance(input, BaseModel):
-            return input.model_dump(by_alias=True)
-        return input
 
     def _prompt_inputs(self, values: Mapping[str, str]) -> dict[str, str]:
         """Every placeholder the step declares, resolved from the source the contract names."""
