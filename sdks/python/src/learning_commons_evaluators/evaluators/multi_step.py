@@ -469,7 +469,19 @@ def _check_steps(cls: type[MultiStepEvaluator[Any, Any]], contract: Contract) ->
             "runs more than one. Use the single-step base."
         )
 
-    declared = {step.id for step in contract.steps}
+    # A step id is the key the run stores a provider and an output under, so two steps
+    # sharing one would alias: the second's output would overwrite the first's, and the
+    # step_models check below would pass on a single entry covering both. Nothing else
+    # catches it — the registry schema does not require step ids to be unique.
+    declared: set[str] = set()
+    for step in contract.steps:
+        if step.id in declared:
+            raise ValueError(
+                f'Step "{step.id}" is declared twice in {name} config.json; a step id names '
+                "one step, and the run keys its provider and its output on that id."
+            )
+        declared.add(step.id)
+
     for step in contract.steps:
         if step.type != "llm" or step.prompt is None or step.model is None:
             raise ValueError(f'Step "{step.id}" in {name} config.json is not an LLM step.')
@@ -519,10 +531,50 @@ def _check_placeholder_source(placeholder: str, source: str, name: str, declared
         )
 
 
+def _check_entry_input(
+    entry: Preprocessing, name: str, steps: set[str], inputs: Mapping[str, Any]
+) -> None:
+    """Fail unless a computation entry reads something the contract actually has.
+
+    An entry's input is resolved from the validated caller inputs at evaluation, where an
+    undeclared name reads as the empty string: the computation then succeeds on it and
+    binds a plausible number, so a typo in the contract would reach the model as data
+    rather than as an error.
+    """
+    source = entry.input or ""
+    if not source:
+        raise ValueError(
+            f'Preprocessing "{entry.id}" in {name} config.json names no input to compute from.'
+        )
+    if source.startswith(_STEP_PREFIX):
+        step_id = step_id_of(source)
+        if step_id not in steps:
+            raise ValueError(
+                f'Preprocessing "{entry.id}" in {name} config.json reads step "{step_id}", '
+                "which it does not declare."
+            )
+        return
+    if source not in inputs:
+        raise ValueError(
+            f'Preprocessing "{entry.id}" in {name} config.json reads input "{source}", which '
+            "its input_schema does not declare."
+        )
+
+
 def _check_preprocessing(cls: type[MultiStepEvaluator[Any, Any]], contract: Contract) -> None:
     """Fail unless this evaluator supplies what every preprocessing entry needs."""
     name = contract.evaluator.name
+    steps = {step.id for step in contract.steps}
+    inputs: Mapping[str, Any] = contract.input_schema.get("properties", {})
     for entry in contract.preprocessing:
+        # As the single-step base does: an ``api`` entry has an endpoint, auth and
+        # pagination to honour, and running it as a local computation would quietly do
+        # something else. Three of them are declared in evals/ today, on math standards.
+        if entry.type != "computation":
+            raise ValueError(
+                f'Preprocessing "{entry.id}" in {name} config.json is an "{entry.type}" entry; '
+                "this base runs computations only."
+            )
         if not entry.output:
             raise ValueError(
                 f'Preprocessing "{entry.id}" in {name} config.json names no output, so no '
@@ -536,6 +588,7 @@ def _check_preprocessing(cls: type[MultiStepEvaluator[Any, Any]], contract: Cont
                 )
             contract.document(entry.source_path)  # raises, naming the file, if unbundled
             continue
+        _check_entry_input(entry, name, steps, inputs)
         if entry.python is None:
             raise ValueError(
                 f'Preprocessing "{entry.id}" in {name} config.json declares no Python '

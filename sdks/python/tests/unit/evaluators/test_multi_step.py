@@ -249,6 +249,50 @@ class TestRefusesAContractItCannotRun:
         with pytest.raises(ValueError, match='"rubric_low".*names no source_path'):
             define(preprocessing=raw["preprocessing"])
 
+    def test_refuses_a_duplicated_step_id(self) -> None:
+        # Two steps under one id would alias: the second's output overwrites the first's,
+        # and one step_models entry would satisfy the completeness check for both. The
+        # registry schema does not require step ids to be unique, so this is the only check.
+        raw = contract().model_dump(by_alias=True)
+        raw["steps"].append({**raw["steps"][0]})
+        with pytest.raises(ValueError, match='Step "notes" is declared twice'):
+            define(steps=raw["steps"])
+
+    def test_refuses_an_api_preprocessing_entry(self) -> None:
+        # As the single-step base does. An api entry has an endpoint, auth and pagination
+        # to honour; running it as a local computation would quietly do something else.
+        raw = contract().model_dump(by_alias=True)
+        raw["preprocessing"][0]["type"] = "api"
+        with pytest.raises(ValueError, match='"fk_score".*is an "api" entry'):
+            define(preprocessing=raw["preprocessing"])
+
+    def test_refuses_an_entry_reading_an_input_the_schema_does_not_declare(self) -> None:
+        # Resolved from the validated inputs at evaluation, where an undeclared name reads
+        # as "" and the computation returns a plausible number for it.
+        raw = contract().model_dump(by_alias=True)
+        raw["preprocessing"][0]["input"] = "txet"
+        with pytest.raises(ValueError, match='"fk_score".*reads input "txet"'):
+            define(preprocessing=raw["preprocessing"])
+
+    def test_refuses_an_entry_reading_a_step_the_contract_does_not_declare(self) -> None:
+        raw = contract().model_dump(by_alias=True)
+        raw["preprocessing"][3]["input"] = "steps.ghost.output"
+        with pytest.raises(ValueError, match='"shouted".*reads step "ghost"'):
+            define(preprocessing=raw["preprocessing"])
+
+    def test_refuses_a_computation_entry_with_no_input(self) -> None:
+        raw = contract().model_dump(by_alias=True)
+        raw["preprocessing"][0]["input"] = None
+        with pytest.raises(ValueError, match='"fk_score".*names no input to compute from'):
+            define(preprocessing=raw["preprocessing"])
+
+    def test_a_rubric_entry_is_not_input_checked_because_it_reads_none(self) -> None:
+        # Its value is the document; the contract names an input for documentation, and
+        # `condition` is what selects between entries.
+        raw = contract().model_dump(by_alias=True)
+        raw["preprocessing"][1]["input"] = "grade_level_typo"
+        assert define(preprocessing=raw["preprocessing"]).metadata.id == "demo.area.chain"
+
     def test_refuses_an_entry_that_names_no_output(self) -> None:
         raw = contract().model_dump(by_alias=True)
         raw["preprocessing"][0]["output"] = None
