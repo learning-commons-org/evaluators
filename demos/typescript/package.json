@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n server,web -c blue,green \"tsx watch server/index.ts\" \"vite\"",
+    "build": "vite build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
