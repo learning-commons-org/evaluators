@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "input_schema.json",
+  "title": "EvaluatorInput",
+  "description": "Runtime inputs for the Vocabulary Complexity evaluator. grade_level determines which branch (grades_3_4 or other_grades) actually runs -- see the condition on each vocab_complexity step in config.json.",
+  "type": "object",
+  "required": ["text", "grade_level"],
+  "additionalProperties": false,
+  "properties": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000,
+      "description": "The passage to evaluate for vocabulary complexity."
+    },
+    "grade_level": {
+      "type": "string",
+      "enum": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
+      "description": "Target student grade level."
+    }
+  }
+}

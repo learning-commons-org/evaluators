@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../_schemas/config.schema.json",
+  "evaluator": {
+    "id": "feedback.ela_writing.revision_actionability",
+    "stable_id": "7300245f-8e78-4743-9e76-3c965e5a5f1f",
+    "id_history": [
+      "feedback.productive_coaching_writing_feedback.is_actionable_revision"
+    ],
+    "name": "Revision Actionability Evaluator",
+    "description": "If revision is needed, does the feedback give a clear next step?",
+    "supported_grades": [
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "input_schema": {
+    "$ref": "input_schema.json"
+  },
+  "preprocessing": [],
+  "steps": [
+    {
+      "id": "evaluate_revision_actionability",
+      "type": "llm",
+      "description": "Single-call LLM step that produces the binary EvaluatorOutput JSON.",
+      "prompt": {
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "d4504cc6043706dfabeb753988c6008b87053ce26ae9dc80c960c9d761d9c3d1"
+          },
+          {
+            "role": "user",
+            "source_path": "user.txt",
+            "sha256": "eaac7e6eadcc43716e4a98b9e7f34c493c1cbe46adb38367dd8697b904d11bfa"
+          }
+        ],
+        "placeholders": {
+          "student_text": {
+            "required": true,
+            "source": "input"
+          },
+          "feedback_text": {
+            "required": true,
+            "source": "input"
+          }
+        }
+      },
+      "model": {
+        "provider": "openai",
+        "name": "gpt-5.4-2026-03-05"
+      },
+      "generation": {
+        "temperature": 1
+      },
+      "parser": {
+        "kind": "structured_output"
+      }
+    }
+  ],
+  "output_schema": {
+    "$ref": "output_schema.json"
+  },
+  "outcome": {
+    "score": "quality_score",
+    "reasoning": "reasoning"
+  },
+  "fixtures": {
+    "path": "fixtures.json"
+  }
+}
