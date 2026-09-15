@@ -1,22 +1,27 @@
-# Batch CSV Evaluator
+# Batch evaluator
 
 Evaluate rows from a CSV file with an **evaluator family**, writing results as CSV and JSON, plus HTML for the families that have a report.
 
 ## Evaluator families
 
-A *family* is a set of evaluators that share an input contract, credential needs, and report shape. Each run targets one family; you may run all of its members or a subset.
+A _family_ is a set of evaluators that share an input contract, credential needs, and report shape. Each run targets one family; you may run all of its members or a subset.
 
-| Family (`--family`) | Members | Required CSV columns | Keys | Max rows |
-| --- | --- | --- | --- | --- |
-| `text-complexity` | student_facing_text.ela_reading.grade_level_appropriateness, student_facing_text.ela_reading.background_knowledge_demands, student_facing_text.ela_reading.vocabulary_complexity, student_facing_text.ela_reading.sentence_structure, student_facing_text.ela_reading.meaning_directness, student_facing_text.ela_reading.purpose_clarity, student_facing_text.ela_reading.organizational_structure, student_facing_text.ela_reading.reference_knowledge_demands | `text`, `grade_level` | Google + OpenAI | 50 |
-| `feedback` | feedback.ela_writing.revision_accuracy, feedback.ela_writing.revision_actionability, feedback.ela_writing.revision_manageability, feedback.ela_writing.strength_acknowledgment, feedback.ela_writing.student_response_specificity, feedback.ela_writing.tone_appropriateness, feedback.ela_writing.withholding_answers | `student_text`, `feedback_text` | OpenAI | 50 |
-| `math-standards-alignment` | academic_standards_alignment.mathematics.math_standards_alignment | `question` (alias: `text`), `statement_code` (aliases: `statementCode`, `ccss_standard`, `standard`); optional `jurisdiction` (default `Multi-State`), `grade_level`, `id` (alias: `item_id`) | Anthropic + Learning Commons (Knowledge Graph) | 5000 |
+| Family (`--family`)        | Members                                                                                                                                                                                                                                                                                                                | Required CSV columns                                                                                                                                                                          | Keys                                           | Max rows |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | -------- |
+| `text-complexity`          | `student_facing_text.ela_reading.grade_level_appropriateness`                                                                                                                                                                                                                                                          | `text`                                                                                                                                                                                        | Google                                         | 50       |
+|                            | `student_facing_text.ela_reading.background_knowledge_demands`                                                                                                                                                                                                                                                         | `text`, `grade_level`                                                                                                                                                                         | Google                                         | 50       |
+|                            | `student_facing_text.ela_reading.vocabulary_complexity`                                                                                                                                                                                                                                                                | `text`, `grade_level`                                                                                                                                                                         | Google + OpenAI                                | 50       |
+|                            | `student_facing_text.ela_reading.sentence_structure`                                                                                                                                                                                                                                                                   | `text`, `grade_level`                                                                                                                                                                         | OpenAI                                         | 50       |
+|                            | `student_facing_text.ela_reading.meaning_directness`                                                                                                                                                                                                                                                                   | `text`, `grade_level`                                                                                                                                                                         | Google                                         | 50       |
+|                            | `student_facing_text.ela_reading.purpose_clarity`                                                                                                                                                                                                                                                                      | `text`, `grade_level`                                                                                                                                                                         | Google                                         | 50       |
+|                            | `student_facing_text.ela_reading.organizational_structure`                                                                                                                                                                                                                                                             | `text`, `grade_level`                                                                                                                                                                         | Google                                         | 50       |
+|                            | `student_facing_text.ela_reading.reference_knowledge_demands`                                                                                                                                                                                                                                                          | `text`, `grade_level`                                                                                                                                                                         | Google                                         | 50       |
+| `feedback`                 | feedback.ela_writing.revision_accuracy, feedback.ela_writing.revision_actionability, feedback.ela_writing.revision_manageability, feedback.ela_writing.strength_acknowledgment, feedback.ela_writing.student_response_specificity, feedback.ela_writing.tone_appropriateness, feedback.ela_writing.withholding_answers | `student_text`, `feedback_text`                                                                                                                                                               | OpenAI                                         | 50       |
+| `math-standards-alignment` | academic_standards_alignment.mathematics.math_standards_alignment                                                                                                                                                                                                                                                      | `question` (alias: `text`), `statement_code` (aliases: `statementCode`, `ccss_standard`, `standard`); optional `jurisdiction` (default `Multi-State`), `grade_level`, `id` (alias: `item_id`) | Anthropic + Learning Commons (Knowledge Graph) | 5000     |
 
 Column matching is case-insensitive and alias-aware; the canonical column wins when both it and an alias are present.
 
 `getFamily(id)` is authoritative for all of the above — `.members`, `.columns` and `.maxInputRows` come straight from the family definition. `--bypass-row-limit` lifts the row cap.
-
-`text-complexity` includes Grade Level Appropriateness, which determines a grade rather than judging against one, so it ignores the required `grade_level` column that the other seven members need. Use `--evaluator` to run a subset.
 
 ## Usage
 
@@ -47,19 +52,19 @@ evaluators-batch comments.csv --family feedback --openai-api-key "$OPENAI_API_KE
 
 ### Options
 
-| Flag | Default | Purpose |
-| --- | --- | --- |
-| `--family <id>` | prompted | Which family to run |
-| `--evaluator <id[,id...]>` | all members | Run a subset of the family (repeatable) |
-| `--model <alias\|provider:model>` | each evaluator's contract | Override the model for all members; shortcodes `haiku`, `opus` |
-| `--google-api-key` / `--openai-api-key` / `--anthropic-api-key` / `--learning-commons-api-key` | matching env var | Provider and Learning Commons credentials; the flag wins over the env var |
-| `--output-dir <path>` | `./batch-results-<timestamp>` | Where results are written |
-| `--concurrency <n>` | 3 | Max parallel evaluations |
-| `--max-retries <n>` | 2 | Retries per failed call |
-| `--bypass-row-limit` | off | Skip the per-family row cap |
-| `--no-telemetry` | telemetry on | Disable usage telemetry |
-| `-y`, `--yes` | off | Non-interactive: never prompt, error on missing input |
-| `--version` / `--help` | — | Print version / full flag list |
+| Flag                                                                                           | Default                       | Purpose                                                                   |
+| ---------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------- |
+| `--family <id>`                                                                                | prompted                      | Which family to run                                                       |
+| `--evaluator <id[,id...]>`                                                                     | all members                   | Run a subset of the family (repeatable)                                   |
+| `--model <alias\|provider:model>`                                                              | each evaluator's contract     | Override the model for all members; shortcodes `haiku`, `opus`            |
+| `--google-api-key` / `--openai-api-key` / `--anthropic-api-key` / `--learning-commons-api-key` | matching env var              | Provider and Learning Commons credentials; the flag wins over the env var |
+| `--output-dir <path>`                                                                          | `./batch-results-<timestamp>` | Where results are written                                                 |
+| `--concurrency <n>`                                                                            | 3                             | Max parallel evaluations                                                  |
+| `--max-retries <n>`                                                                            | 2                             | Retries per failed call                                                   |
+| `--bypass-row-limit`                                                                           | off                           | Skip the per-family row cap                                               |
+| `--no-telemetry`                                                                               | telemetry on                  | Disable usage telemetry                                                   |
+| `-y`, `--yes`                                                                                  | off                           | Non-interactive: never prompt, error on missing input                     |
+| `--version` / `--help`                                                                         | —                             | Print version / full flag list                                            |
 
 Unlike the SDK, the CLI reads credentials from the environment when the matching flag is absent.
 
@@ -86,7 +91,9 @@ const output = await new BatchEvaluator({
   onProgress: (result) => console.log(result.evaluatorId, result.status),
 });
 
-console.log(`${output.summary.successful}/${output.summary.totalTasks} succeeded`);
+console.log(
+  `${output.summary.successful}/${output.summary.totalTasks} succeeded`,
+);
 ```
 
 ### Inspecting families
@@ -96,8 +103,8 @@ console.log(`${output.summary.successful}/${output.summary.totalTasks} succeeded
 ```typescript
 import { getFamilies, getFamily } from "@learning-commons/evaluators/batch";
 
-getFamilies().map((f) => f.id);            // ["text-complexity", "math-standards-alignment", "feedback"]
-getFamily("feedback").members.length;      // 7
+getFamilies().map((f) => f.id); // ["text-complexity", "math-standards-alignment", "feedback"]
+getFamily("feedback").members.length; // 7
 ```
 
 ### Formatting results
@@ -105,11 +112,14 @@ getFamily("feedback").members.length;      // 7
 `renderOutputs` produces the same files the command writes:
 
 ```typescript
-import { renderOutputs, type ReportMeta } from "@learning-commons/evaluators/batch";
+import {
+  renderOutputs,
+  type ReportMeta,
+} from "@learning-commons/evaluators/batch";
 
 const meta: ReportMeta = {
-  csvPath: "./input.csv",      // recorded in the report header
-  groupId: "text-complexity",  // the family id
+  csvPath: "./input.csv", // recorded in the report header
+  groupId: "text-complexity", // the family id
   reportId: "run-2026-08-31",
   generatedAt: new Date(),
   totalInputRows: rows.length,
