@@ -298,9 +298,12 @@ class _ProviderSignals:
 def _cause_chain(error: BaseException) -> Iterator[BaseException]:
     """Walk the cause chain so a wrapped provider error is still classifiable.
 
-    Follows ``__cause__`` (``raise ... from``) and, when that is unset and not suppressed,
-    ``__context__`` (an exception raised while handling another), which is how Python's own
-    traceback display links them. Bounded and cycle-safe.
+    Follows ``__cause__`` only, i.e. explicit ``raise ... from``, as the TypeScript SDK
+    follows ``cause`` (§6.5). ``__context__`` is deliberately not followed: it records what
+    was being handled when an exception was raised, not why it was raised, so a bug of our
+    own inside an ``except httpx.TimeoutException:`` block would otherwise be classified as
+    a retryable timeout and resampled against a provider that is fine. Bounded and
+    cycle-safe.
     """
     seen: set[int] = set()
     current: BaseException | None = error
@@ -309,12 +312,7 @@ def _cause_chain(error: BaseException) -> Iterator[BaseException]:
         seen.add(id(current))
         yield current
         depth += 1
-        if current.__cause__ is not None:
-            current = current.__cause__
-        elif not current.__suppress_context__:
-            current = current.__context__
-        else:
-            current = None
+        current = current.__cause__
 
 
 def _sdk_class(module: str, name: str) -> type | None:

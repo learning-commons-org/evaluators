@@ -170,14 +170,37 @@ class TestStatusCodeClassification:
         assert isinstance(wrapped, RateLimitError)
         assert wrapped.retryable is True
 
-    def test_follows_implicit_context_when_no_explicit_cause(self) -> None:
-        # ``raise Wrapper()`` inside an ``except`` links via __context__; Python's own
-        # traceback shows that chain, so classification follows it too.
+    def test_does_not_follow_implicit_context(self) -> None:
+        # ``__context__`` is what was being handled, not a cause: a bug of our own raised
+        # while handling a timeout must not be classified as a retryable timeout and
+        # resampled against a provider that is fine. Only ``raise ... from`` is a cause.
+        try:
+            try:
+                raise httpx.ReadTimeout("upstream slow", request=_REQUEST)
+            except httpx.TimeoutException:
+                raise ValueError("bug in our own post-processing")  # noqa: B904
+        except ValueError as e:
+            wrapped = wrap_provider_error(e, **CONTEXT)
+        assert isinstance(wrapped, LLMProviderError)
+        assert wrapped.retryable is False
+
+    def test_from_none_and_no_from_classify_identically(self) -> None:
+        # Whether the raising code wrote ``from None`` is not a signal anyone sets to steer
+        # classification, so both forms land in the catch-all.
         try:
             try:
                 raise openai_error(429)
             except openai.APIStatusError:
-                raise RuntimeError("wrapped without from")  # noqa: B904
+                raise RuntimeError("wrapped with from None") from None
+        except RuntimeError as e:
+            assert isinstance(wrap_provider_error(e, **CONTEXT), LLMProviderError)
+
+    def test_follows_an_explicit_cause_through_our_own_wrapper(self) -> None:
+        try:
+            try:
+                raise openai_error(429)
+            except openai.APIStatusError as upstream:
+                raise RuntimeError("wrapped with from") from upstream
         except RuntimeError as e:
             assert isinstance(wrap_provider_error(e, **CONTEXT), RateLimitError)
 
