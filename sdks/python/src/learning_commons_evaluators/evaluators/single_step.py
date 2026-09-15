@@ -27,6 +27,7 @@ from learning_commons_evaluators.errors import EvaluatorError, wrap_provider_err
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.inputs import primary_text_field, validate_inputs
 from learning_commons_evaluators.features.preprocessing import (
+    check_implementation,
     format_number,
     run_preprocessing_step,
 )
@@ -99,6 +100,14 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                     f'Preprocessing "{entry.id}" in {name} config.json declares no Python '
                     "computation this evaluator can run."
                 )
+            # A library or transform this SDK lacks is our gap, not the provider's: fail
+            # here, at import, rather than inside the evaluation's error boundary.
+            try:
+                check_implementation(entry.python)
+            except NotImplementedError as gap:
+                raise NotImplementedError(
+                    f'Preprocessing "{entry.id}" in {name} config.json: {gap}'
+                ) from None
 
         cls._step = step
         cls._vendor = step.model.provider

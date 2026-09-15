@@ -174,6 +174,27 @@ class TestRefusesAContractItCannotRun:
         with pytest.raises(ValueError, match="reads another step"):
             define(**{k: raw[k] for k in ("steps",)})
 
+    @pytest.mark.parametrize(
+        ("patch", "message"),
+        [
+            ({"library": "nltk"}, 'Unsupported preprocessing library "nltk"'),
+            ({"function": "nope"}, 'Function "nope" not found in textstat'),
+            ({"post_transform": {"type": "floor"}}, 'Unsupported post_transform type "floor"'),
+        ],
+        ids=["library", "function", "transform"],
+    )
+    def test_refuses_preprocessing_this_sdk_cannot_run_at_class_creation(
+        self, patch: dict[str, Any], message: str
+    ) -> None:
+        # Our gap, not the provider's: it must never reach evaluate(), where the error
+        # boundary would attribute it to the model's vendor as an LLMProviderError.
+        raw = contract().model_dump(by_alias=True)
+        raw["preprocessing"][0]["implementation"]["python"].update(patch)
+        with pytest.raises(
+            NotImplementedError, match=f'Preprocessing "fk_score" in Thing Evaluator.*{message}'
+        ):
+            define(preprocessing=raw["preprocessing"])
+
     def test_refuses_preprocessing_without_a_python_computation(self) -> None:
         entry = {
             "id": "x",

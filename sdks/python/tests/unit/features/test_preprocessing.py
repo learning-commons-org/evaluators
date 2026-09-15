@@ -54,11 +54,13 @@ def test_without_a_transform_the_raw_value_is_returned() -> None:
 
 
 def test_unknown_library_function_and_transform_fail_loudly() -> None:
+    # NotImplementedError, not a provider error: the gap is this SDK's, and evaluators check
+    # it at class creation so it never reaches the evaluation's error boundary.
     with pytest.raises(
-        ValueError, match='Unsupported preprocessing library "nltk". Supported: textstat'
+        NotImplementedError, match='Unsupported preprocessing library "nltk". Supported: textstat'
     ):
         run_preprocessing_step(TEXT, Implementation(library="nltk", function="f"))
-    with pytest.raises(ValueError, match='Function "nope" not found in textstat'):
+    with pytest.raises(NotImplementedError, match='Function "nope" not found in textstat'):
         run_preprocessing_step(TEXT, Implementation(library="textstat", function="nope"))
     impl = Implementation.model_validate(
         {
@@ -67,7 +69,7 @@ def test_unknown_library_function_and_transform_fail_loudly() -> None:
             "post_transform": {"type": "floor"},
         }
     )
-    with pytest.raises(ValueError, match='Unsupported post_transform type "floor"'):
+    with pytest.raises(NotImplementedError, match='Unsupported post_transform type "floor"'):
         run_preprocessing_step(TEXT, impl)
 
 
