@@ -15,10 +15,11 @@ from pydantic import BaseModel
 
 from learning_commons_evaluators import (
     AuthenticationError,
+    ConfigurationError,
+    DependencyError,
     EvaluationResult,
     InputValidationError,
     LLMOutputProcessingError,
-    LLMProviderError,
     ModelOverride,
     Provider,
     read_outcome,
@@ -151,6 +152,12 @@ class ChainOutput(BaseModel):
     reasoning: str
 
 
+class Notes(BaseModel):
+    """A step output that is not the evaluator's result."""
+
+    notes: str
+
+
 class ChainInput(BaseModel):
     text: str
     grade_level: int
@@ -209,9 +216,51 @@ class TestRefusesAContractItCannotRun:
 
     def test_refuses_a_last_step_that_does_not_produce_the_output_model(self) -> None:
         with pytest.raises(
-            ValueError, match=r'last step of Chain Evaluator config.json, "rate", must produce'
+            ValueError, match=r'Step "rate" of Chain Evaluator config.json can end a run'
         ):
             define(step_models={"notes": ChainOutput, "rate": None})
+
+    def test_refuses_a_conditional_branch_ending_on_a_non_output_step(self) -> None:
+        # Shaped like Vocabulary Complexity: an unconditional first step, then one
+        # conditional step per grade band. Checking only the last declared step misses the
+        # grade-3 branch, which ends on notes_grade_3 and produces Notes.
+        raw = contract().model_dump(by_alias=True)
+        raw["steps"] = [
+            raw["steps"][0],
+            {
+                **contract().model_dump(by_alias=True)["steps"][0],
+                "id": "notes_grade_3",
+                "condition": {"input": "grade_level", "in": ["3"]},
+            },
+            {**raw["steps"][1], "condition": {"input": "grade_level", "in": ["4", "5"]}},
+        ]
+        with pytest.raises(ValueError, match='Step "notes_grade_3".*can end a run'):
+            define(
+                steps=raw["steps"],
+                step_models={"notes": None, "notes_grade_3": Notes, "rate": ChainOutput},
+            )
+
+    def test_accepts_a_branching_contract_whose_every_terminal_step_produces_the_output(
+        self,
+    ) -> None:
+        # Vocabulary Complexity's shape, which the simpler rule "every step from the last
+        # unconditional one onward" would wrongly reject: its last unconditional step is
+        # the prose one, and two conditional steps follow it.
+        raw = contract().model_dump(by_alias=True)
+        raw["steps"] = [
+            raw["steps"][0],
+            {
+                **raw["steps"][1],
+                "id": "rate_low",
+                "condition": {"input": "grade_level", "in": ["3"]},
+            },
+            {**raw["steps"][1], "condition": {"input": "grade_level", "in": ["4", "5"]}},
+        ]
+        evaluator = define(
+            steps=raw["steps"],
+            step_models={"notes": None, "rate_low": ChainOutput, "rate": ChainOutput},
+        )
+        assert evaluator.metadata.id == "demo.area.chain"
 
     def test_refuses_an_optional_step(self) -> None:
         raw = contract().model_dump(by_alias=True)
@@ -477,8 +526,9 @@ class TestFailures:
     async def test_a_failure_in_the_first_step_names_that_steps_vendor(
         self, providers: ProviderFactory
     ) -> None:
-        # Attributing to the evaluator's last provider instead would report Google, a
-        # service that was never called.
+        # Attributed by ``call_with_resampling``, which knows the client it called; the
+        # evaluate() boundary re-classifies nothing, so a provider failure arrives already
+        # mapped and carrying the right vendor.
         response = httpx2.Response(401, request=httpx2.Request("POST", "https://x"))
         providers.failures.append(openai.APIStatusError("nope", response=response, body=None))
         with pytest.raises(AuthenticationError) as failure:
@@ -511,14 +561,42 @@ class TestFailures:
         with pytest.raises(LLMOutputProcessingError):
             await define()(**KEYS, max_retries=0).evaluate(**INPUT)
 
-    async def test_a_contract_whose_branches_all_miss_fails_naming_the_evaluator(
+    async def test_a_contract_whose_branches_all_miss_is_a_contract_fault(
         self, providers: ProviderFactory
     ) -> None:
+        # Nothing ran, so nothing can be attributed: reporting a provider here would be a
+        # factual error about which service failed (spec §6.2), not just the wrong class.
+        # Both steps produce the output model, so the terminal-step rule accepts the
+        # contract — with every step conditional, either of them could end a run.
         raw = contract().model_dump(by_alias=True)
         for step in raw["steps"]:
             step["condition"] = {"input": "grade_level", "in": ["5"]}
-        evaluator = define(steps=raw["steps"])(**KEYS)
-        with pytest.raises(LLMProviderError, match="No step of Chain Evaluator runs"):
+        evaluator = define(
+            steps=raw["steps"], step_models={"notes": ChainOutput, "rate": ChainOutput}
+        )(**KEYS)
+        with pytest.raises(ConfigurationError, match="No step of Chain Evaluator runs") as failure:
+            await evaluator.evaluate(**INPUT)
+        assert not isinstance(failure.value, DependencyError)
+        assert providers.calls == []
+
+    async def test_a_required_placeholder_bound_to_an_optional_input_is_a_contract_fault(
+        self, providers: ProviderFactory
+    ) -> None:
+        # The schema makes `note` optional; the placeholder makes it required. Only a run
+        # that omits it can discover the disagreement, so unlike the refusals above this
+        # one cannot move to class creation — it is a runtime contract fault whatever else
+        # is checked there.
+        raw = contract().model_dump(by_alias=True)
+        raw["input_schema"]["properties"]["note"] = {"type": "string"}
+        raw["steps"][0]["prompt"]["placeholders"]["note"] = {
+            "required": True,
+            "source": "input.note",
+        }
+        raw["documents"]["notes-user.txt"] = "notes: {text} {note}"
+        evaluator = define(
+            steps=raw["steps"], documents=raw["documents"], input_schema=raw["input_schema"]
+        )(**KEYS)
+        with pytest.raises(ConfigurationError, match='Placeholder "note".*has no value'):
             await evaluator.evaluate(**INPUT)
 
     async def test_a_branch_ending_on_a_prose_step_fails_rather_than_returning_it(
@@ -526,10 +604,13 @@ class TestFailures:
     ) -> None:
         # The rating step is skipped for grade 3, so the run ends on the prose step, whose
         # answer is not the evaluator's result.
+        # Accepted at class creation: the trailing conditional step does produce the output
+        # model, so the terminal-step rule is satisfied. Only a grade the condition excludes
+        # reaches the end of the run on the prose step, which is why the runtime guard stays.
         raw = contract().model_dump(by_alias=True)
         raw["steps"][1]["condition"] = {"input": "grade_level", "in": ["5"]}
         evaluator = define(steps=raw["steps"])(**KEYS)
-        with pytest.raises(LLMProviderError, match="ends on a step whose output is not"):
+        with pytest.raises(ConfigurationError, match="ends on a step whose output is not"):
             await evaluator.evaluate(**INPUT)
 
     async def test_logs_never_carry_the_input_text(

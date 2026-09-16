@@ -23,7 +23,7 @@ from typing import Any, ClassVar, Generic, TypeVar, cast
 from pydantic import BaseModel
 
 from learning_commons_evaluators.contracts.loader import Contract, Preprocessing, Step
-from learning_commons_evaluators.errors import EvaluatorError, wrap_provider_error
+from learning_commons_evaluators.errors import ConfigurationError
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.inputs import primary_text_field, validate_inputs
 from learning_commons_evaluators.features.preprocessing import (
@@ -127,7 +127,8 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         """Evaluate the contract's inputs, passed as the typed input model or by name.
 
         :raises InputValidationError: an input is missing, unknown, or outside its schema.
-        :raises ConfigurationError: the provider rejected the configured model id.
+        :raises ConfigurationError: the provider rejected the configured model id, or a
+            required placeholder has no value from the source the contract names.
         :raises DependencyError: the provider call failed (``AuthenticationError``,
             ``RateLimitError``, ``NetworkError``, ``RequestTimeoutError``, ``LLMProviderError``).
         :raises LLMOutputProcessingError: the model's response failed its output schema
@@ -199,10 +200,11 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                     "processing_time_ms": elapsed_ms,
                 },
             )
-            if isinstance(error, EvaluatorError):
-                raise
-            dependency, model = provider_context(self.provider)
-            raise wrap_provider_error(error, dependency=dependency, model=model) from error
+            # Nothing is re-classified here. Every provider failure was already mapped by
+            # ``call_with_resampling``; anything else reaching this point is a fault in this
+            # SDK, and wrapping it as a provider error would name a service that did not
+            # fail (spec §6.2) and hide the bug.
+            raise
 
     # --- pieces of the flow ------------------------------------------------------------
 
@@ -228,7 +230,10 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                 value = computed.get(rest)
             if value is None:
                 if placeholder.required:
-                    raise ValueError(
+                    # The contract's own inconsistency, not a service's: registry data is
+                    # the caller's fault domain (spec §6.1), and stamping a provider on it
+                    # would name a dependency that did not fail (§6.2).
+                    raise ConfigurationError(
                         f'Placeholder "{name}" in {self.metadata.name} has no value '
                         f"from source {placeholder.source!r}."
                     )

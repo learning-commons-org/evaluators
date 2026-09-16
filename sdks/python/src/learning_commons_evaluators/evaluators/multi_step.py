@@ -43,7 +43,7 @@ from typing import Any, ClassVar, Generic, TypeVar, cast
 from pydantic import BaseModel
 
 from learning_commons_evaluators.contracts.loader import Contract, Preprocessing, Step
-from learning_commons_evaluators.errors import EvaluatorError, wrap_provider_error
+from learning_commons_evaluators.errors import ConfigurationError
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.inputs import primary_text_field, validate_inputs
 from learning_commons_evaluators.features.preprocessing import (
@@ -175,7 +175,10 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         """Evaluate the contract's inputs, passed as the typed input model or by name.
 
         :raises InputValidationError: an input is missing, unknown, or outside its schema.
-        :raises ConfigurationError: a provider rejected the configured model id.
+        :raises ConfigurationError: a provider rejected the configured model id, or the
+            contract is inconsistent for these inputs — no branch runs, a placeholder has
+            no value, or no single preprocessing entry produces one it needs. Registry data
+            is the caller's domain, not a service's (spec §6.1).
         :raises DependencyError: a provider call failed (``AuthenticationError``,
             ``RateLimitError``, ``NetworkError``, ``RequestTimeoutError``, ``LLMProviderError``).
         :raises LLMOutputProcessingError: a step's response failed its output schema after
@@ -184,9 +187,6 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         start = time.perf_counter()
         context = {"evaluator": self.metadata.id, "operation": "evaluate"}
         grade_level = ""
-        # The step currently running, which is the one to attribute a failure to; ``None``
-        # until the first one starts, when the failure can only be the caller's inputs.
-        running: Step | None = None
         completed = 0
         raw = self._raw_fields(input, fields)
         try:
@@ -206,7 +206,6 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             usage = TokenUsage(input_tokens=0, output_tokens=0)
 
             for step in plan:
-                running = step
                 provider = self._providers[step.id]
                 self.logger.debug(
                     "Running step %s", step.id, extra={**context, "operation": step.id}
@@ -225,7 +224,7 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
 
             final = outputs[plan[-1].id]
             if not isinstance(final, self.output_model):
-                raise ValueError(
+                raise ConfigurationError(
                     f'The last step {self.metadata.name} ran, "{plan[-1].id}", produces '
                     f"{type(final).__name__} rather than {self.output_model.__name__}; a branch "
                     "of its contract ends on a step whose output is not the evaluator's result."
@@ -271,13 +270,11 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                     "completed_steps": completed,
                 },
             )
-            if isinstance(error, EvaluatorError):
-                raise
-            # The step that was running, not the last one: with steps on different vendors,
-            # attributing to the final step would name a provider that was never called.
-            attributed = self._providers[(running or self._steps[0]).id]
-            dependency, model = provider_context(attributed)
-            raise wrap_provider_error(error, dependency=dependency, model=model) from error
+            # Nothing is re-classified here. Every provider failure was already mapped by
+            # ``call_with_resampling``, which knows which step's client raised it; anything
+            # else reaching this point is a fault in this SDK, and wrapping it as a provider
+            # error would name a service that did not fail (spec §6.2) and hide the bug.
+            raise
 
     # --- the run ------------------------------------------------------------------------
 
@@ -291,7 +288,7 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             step for step in self._steps if step.condition is None or step.condition.holds(values)
         ]
         if not plan:
-            raise ValueError(
+            raise ConfigurationError(
                 f"No step of {self.metadata.name} runs for these inputs; every step it "
                 "declares is conditional and none of the conditions hold."
             )
@@ -359,7 +356,7 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             value = self._resolve(name, placeholder.source, values, outputs, computed)
             if value is None:
                 if placeholder.required:
-                    raise ValueError(
+                    raise ConfigurationError(
                         f'Placeholder "{name}" in {self.metadata.name} has no value '
                         f"from source {placeholder.source!r}."
                     )
@@ -384,7 +381,7 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             return self._preprocess(source[len(_PREPROCESSING_PREFIX) :], values, outputs, computed)
         step_id = step_id_of(source)
         if step_id not in outputs:
-            raise ValueError(
+            raise ConfigurationError(
                 f'Placeholder "{name}" reads step "{step_id}", which has not run. Steps run '
                 f"in the order {self.metadata.name} declares them."
             )
@@ -415,13 +412,13 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         # Both are contract faults, and both would otherwise reach the model as an empty or
         # an arbitrary placeholder rather than as an error.
         if not applicable:
-            raise ValueError(
+            raise ConfigurationError(
                 f'No preprocessing entry of {self.metadata.name} produces "{output}" for '
                 "these inputs."
             )
         if len(applicable) > 1:
             named = ", ".join(entry.id for entry in applicable)
-            raise ValueError(
+            raise ConfigurationError(
                 f"{len(applicable)} preprocessing entries of {self.metadata.name} produce "
                 f'"{output}" for these inputs: {named}. Their conditions should be mutually '
                 "exclusive."
@@ -446,7 +443,7 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         if source.startswith(_STEP_PREFIX):
             step_id = step_id_of(source)
             if step_id not in outputs:
-                raise ValueError(
+                raise ConfigurationError(
                     f'Preprocessing "{entry.id}" of {self.metadata.name} reads "{source}", '
                     "which has not run yet."
                 )
@@ -505,14 +502,27 @@ def _check_steps(cls: type[MultiStepEvaluator[Any, Any]], contract: Contract) ->
             raise ValueError(
                 f'step_models names "{step_id}", which {name} config.json does not declare.'
             )
-    # The contract's own last step is the one that always ends a run, whatever branch the
-    # inputs take, so it is the one that has to produce the evaluator's result.
-    last = contract.steps[-1].id
-    if cls.step_models[last] is not cls.output_model:
-        raise ValueError(
-            f'The last step of {name} config.json, "{last}", must produce '
-            f"{cls.output_model.__name__}, which is what evaluate() returns."
-        )
+    # Which steps can end a run, and so have to produce the evaluator's result. Not simply
+    # the last declared one: when the trailing steps are conditional, whichever of them the
+    # inputs select is the terminal step, and there may be several. Nor every step from the
+    # last unconditional one onward, which would reject Vocabulary Complexity — its last
+    # unconditional step is background_knowledge, whose prose feeds the next prompt and is
+    # not the result. So: every step after the last unconditional one, and that step itself
+    # only when nothing follows it.
+    last_unconditional = max(
+        (i for i, step in enumerate(contract.steps) if step.condition is None), default=-1
+    )
+    terminal = list(range(last_unconditional + 1, len(contract.steps))) or [last_unconditional]
+    for index in terminal:
+        step = contract.steps[index]
+        if cls.step_models[step.id] is not cls.output_model:
+            raise ValueError(
+                f'Step "{step.id}" of {name} config.json can end a run, so it must produce '
+                f"{cls.output_model.__name__}, which is what evaluate() returns."
+            )
+    # A trailing group of conditional steps that does not cover the input schema's enum
+    # still lets a run end on the last unconditional step, which this rule exempts; that
+    # case is caught during the evaluation instead.
 
 
 def _check_placeholder_source(placeholder: str, source: str, name: str, declared: set[str]) -> None:
