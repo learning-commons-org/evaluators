@@ -3,6 +3,10 @@ PYTEST  := $(PYTHON) -m pytest
 RUFF    := $(PYTHON) -m ruff
 MYPY    := $(PYTHON) -m mypy
 
+# Floor for line coverage. The suite sits at 98%; the gap is headroom so a single
+# uncovered line does not block an otherwise good PR. Raise it, never lower it.
+COV_MIN ?= 95
+
 # Generated from the evals/ registry by scripts/generate_contracts.py:
 #   src/learning_commons_evaluators/contracts/_generated/**   — bundled contracts (package data)
 #   src/learning_commons_evaluators/schemas/<family>/<subject>/*.py — pydantic Input/Output models
@@ -24,7 +28,7 @@ help:
 	@echo "  typecheck          Mypy on src package + tests"
 	@echo "  pip-check          pip dependency consistency check"
 	@echo "  verify             check-build + lint + format-check + typecheck + pip-check + test"
-	@echo "  coverage           Tests with coverage report (requires dev install)"
+	@echo "  coverage           Tests with coverage; fails under COV_MIN ($(COV_MIN)%)"
 	@echo ""
 	@echo "  test               Run the test suite (live integration tests skip without keys)"
 	@echo "  integration-test   Live provider tests: needs RUN_INTEGRATION_TESTS=1 and GOOGLE_API_KEY / OPENAI_API_KEY"
@@ -68,7 +72,8 @@ pip-check:
 verify: check-build lint format-check typecheck pip-check test
 
 coverage:
-	$(PYTEST) tests/ -q --cov=learning_commons_evaluators --cov-report=term-missing
+	$(PYTEST) tests/ -q --cov=learning_commons_evaluators \
+	  --cov-report=term-missing --cov-report=xml --cov-fail-under=$(COV_MIN)
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 
