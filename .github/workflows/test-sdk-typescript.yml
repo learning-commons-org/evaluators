@@ -11,6 +11,8 @@ on:
       # individually meant a new one silently ran no TypeScript CI at all.
       - 'evals/**'
       - '.github/workflows/test-sdk-typescript.yml'
+      # The coverage job uploads under the flags and thresholds this file defines.
+      - 'codecov.yml'
   pull_request:
     paths:
       - 'sdks/typescript/**'
@@ -19,6 +21,8 @@ on:
       # individually meant a new one silently ran no TypeScript CI at all.
       - 'evals/**'
       - '.github/workflows/test-sdk-typescript.yml'
+      # The coverage job uploads under the flags and thresholds this file defines.
+      - 'codecov.yml'
 
 permissions:
   contents: read
