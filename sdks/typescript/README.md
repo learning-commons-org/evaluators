@@ -220,15 +220,12 @@ Grade band — takes `{ text }` only, and determines the grade rather than judgi
 
 Feedback quality — judges a teacher comment on a student's writing. Each takes `{ student_text, feedback_text }` and returns a binary `quality_score` with `reasoning`, `key_features` and `proposed_adjustment`.
 
-<!-- TODO: the strength-acknowledgement docs slug carries an "e" the SDK, contracts and repo
-     directories do not. Drop it here once the Mintlify page is renamed. -->
-
 | Evaluator                             | Grades | Default provider | Docs                                                                                                 |
 | ------------------------------------- | ------ | ---------------- | ---------------------------------------------------------------------------------------------------- |
 | `RevisionAccuracyEvaluator`           | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-accuracy)            |
 | `RevisionActionabilityEvaluator`      | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-actionability)       |
 | `RevisionManageabilityEvaluator`      | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-manageability)       |
-| `StrengthAcknowledgmentEvaluator`     | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/strength-acknowledgement)     |
+| `StrengthAcknowledgmentEvaluator`     | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/strength-acknowledgment)      |
 | `StudentResponseSpecificityEvaluator` | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/student-response-specificity) |
 | `ToneAppropriatenessEvaluator`        | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/tone-appropriateness)         |
 | `WithholdingAnswersEvaluator`         | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/withholding-answers)          |
