@@ -38,7 +38,7 @@ From `sdks/python/`:
 - `make format` / `make format-check` — Ruff formatter
 - `make typecheck` — Mypy
 - `make pip-check` — `pip check`
-- `make coverage` — tests with coverage report
+- `make coverage` — tests with coverage report; exits non-zero below `COV_MIN` (95%)
 
 ## Using the SDK before publishing
 
