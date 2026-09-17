@@ -1,10 +1,11 @@
-"""The base every evaluator builds on: configuration checks and provider construction."""
+"""The base every evaluator builds on: configuration checks, provider construction, telemetry."""
 
 from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from typing import Any, ClassVar
 
 from pydantic import BaseModel
@@ -22,10 +23,21 @@ from learning_commons_evaluators.providers import (
 )
 from learning_commons_evaluators.schemas.evaluator import EvaluationResult
 from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
+from learning_commons_evaluators.telemetry import (
+    COLLECTOR_ENDPOINT,
+    EvaluationStatus,
+    TelemetryClient,
+    TelemetryClientConfig,
+    TelemetryEvent,
+    TelemetryRun,
+    client_id,
+    sdk_version,
+    utc_timestamp,
+)
 
 
 class BaseEvaluator(ABC):
-    """Configuration validation, provider construction, and the ``evaluate`` contract.
+    """Configuration validation, provider construction, telemetry, and the ``evaluate`` contract.
 
     Construct with an :class:`EvaluatorConfig` or with its fields as keyword arguments::
 
@@ -57,6 +69,23 @@ class BaseEvaluator(ABC):
 
         self._override_provider = self._validate_model_override(config.model_override)
         self._validate_credentials()
+
+        telemetry = config.telemetry_options
+        # Disabled means disabled: no client, so nothing is built, queued, or sent, and the
+        # process never starts a sender thread on this evaluator's account.
+        self._telemetry: TelemetryClient | None = (
+            TelemetryClient(
+                TelemetryClientConfig(
+                    endpoint=COLLECTOR_ENDPOINT,
+                    client_id=client_id(),
+                    enabled=True,
+                    learning_commons_api_key=telemetry.learning_commons_api_key,
+                    logger=self.logger,
+                )
+            )
+            if telemetry.enabled
+            else None
+        )
 
         if config.model_override is not None:
             # Once, at construction (§3.2): evaluators are validated against their default
@@ -171,6 +200,58 @@ class BaseEvaluator(ABC):
                 model=model,
                 api_key=self.config.api_key_for(provider),
                 max_retries=self.config.max_retries,
+            )
+        )
+
+    # --- telemetry -----------------------------------------------------------------
+
+    @contextmanager
+    def _telemetry_run(self, provider: str) -> Iterator[TelemetryRun]:
+        """Report the evaluation running inside this block, however it ends.
+
+        One event per evaluation, assembled from what the block recorded on the
+        :class:`TelemetryRun` it yields. Emission lives here rather than in each evaluator,
+        so an evaluator reports by running its evaluation inside this block and an
+        evaluator added later cannot stay silent.
+
+        A failure emits an ``error`` event naming the error's class, then propagates
+        untouched: nothing about the result, or the exception, depends on what telemetry
+        did. ``BaseException`` — a cancellation, an interrupt — is left alone, because a
+        process being torn down is not an evaluation outcome to report.
+
+        :param provider: ``provider:model`` for the model that will be called, so a failure
+            before any step runs still names one.
+        """
+        run = TelemetryRun(provider=provider)
+        try:
+            yield run
+        except Exception as error:
+            self._emit(run, status="error", error_code=type(error).__name__)
+            raise
+        self._emit(run, status="success")
+
+    def _emit(
+        self, run: TelemetryRun, *, status: EvaluationStatus, error_code: str | None = None
+    ) -> None:
+        """Send one event for *run*. Does nothing when telemetry is off."""
+        if self._telemetry is None:
+            return
+        self._telemetry.send(
+            TelemetryEvent(
+                timestamp=utc_timestamp(),
+                sdk_version=sdk_version(),
+                evaluator_type=self.metadata.id,
+                grade=run.grade,
+                status=status,
+                # Every raise from an evaluation is an exception with a class, so the class
+                # name is always the code; there is no unknown-error case to stand in for.
+                error_code=error_code,
+                latency_ms=run.elapsed_ms,
+                text_length_chars=run.text_length,
+                provider=run.provider,
+                token_usage=run.token_usage,
+                stage_details=tuple(run.stages),
+                model_override=True if self.config.model_override is not None else None,
             )
         )
 
