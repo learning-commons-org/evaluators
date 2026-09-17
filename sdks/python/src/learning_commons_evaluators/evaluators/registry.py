@@ -14,6 +14,12 @@ from learning_commons_evaluators.evaluators.student_facing_text.ela_reading.grad
 from learning_commons_evaluators.evaluators.student_facing_text.ela_reading.purpose_clarity import (
     PurposeClarityEvaluator,
 )
+from learning_commons_evaluators.evaluators.student_facing_text.ela_reading.sentence_structure import (
+    SentenceStructureEvaluator,
+)
+from learning_commons_evaluators.evaluators.student_facing_text.ela_reading.vocabulary_complexity import (
+    VocabularyComplexityEvaluator,
+)
 from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
 
 #: Every evaluator, in taxonomy order. Adding an evaluator means adding it here; the
@@ -22,6 +28,8 @@ EVALUATORS: tuple[type[BaseEvaluator], ...] = (
     ToneAppropriatenessEvaluator,
     GradeLevelAppropriatenessEvaluator,
     PurposeClarityEvaluator,
+    SentenceStructureEvaluator,
+    VocabularyComplexityEvaluator,
 )
 
 

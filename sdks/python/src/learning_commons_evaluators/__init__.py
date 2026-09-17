@@ -42,8 +42,10 @@ from learning_commons_evaluators.evaluators import (
     GradeLevelAppropriatenessEvaluator,
     MultiStepEvaluator,
     PurposeClarityEvaluator,
+    SentenceStructureEvaluator,
     SingleStepEvaluator,
     ToneAppropriatenessEvaluator,
+    VocabularyComplexityEvaluator,
     get_evaluator,
     get_evaluators,
 )
@@ -78,6 +80,14 @@ from learning_commons_evaluators.schemas.student_facing_text.ela_reading.grade_l
 from learning_commons_evaluators.schemas.student_facing_text.ela_reading.purpose_clarity import (
     PurposeClarityInput,
     PurposeClarityOutput,
+)
+from learning_commons_evaluators.schemas.student_facing_text.ela_reading.sentence_structure import (
+    SentenceStructureInput,
+    SentenceStructureOutput,
+)
+from learning_commons_evaluators.schemas.student_facing_text.ela_reading.vocabulary_complexity import (
+    VocabularyComplexityInput,
+    VocabularyComplexityOutput,
 )
 
 __all__ = [
@@ -114,12 +124,18 @@ __all__ = [
     "RateLimitError",
     "RequestTimeoutError",
     "SDK_LOGGER_NAME",
+    "SentenceStructureEvaluator",
+    "SentenceStructureInput",
+    "SentenceStructureOutput",
     "SingleStepEvaluator",
     "StandardNotFoundError",
     "TelemetryOptions",
     "ToneAppropriatenessEvaluator",
     "ToneAppropriatenessInput",
     "ToneAppropriatenessOutput",
+    "VocabularyComplexityEvaluator",
+    "VocabularyComplexityInput",
+    "VocabularyComplexityOutput",
     "create_logger",
     "create_silent_logger",
     "get_evaluator",
