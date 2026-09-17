@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -16,10 +17,11 @@ import pytest
 import learning_commons_evaluators as sdk
 from learning_commons_evaluators import read_outcome
 from learning_commons_evaluators.contracts import load_contract
+from learning_commons_evaluators.contracts.loader import Step
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
 from learning_commons_evaluators.evaluators.registry import EVALUATORS, index_by_id
-from learning_commons_evaluators.evaluators.single_step import SingleStepEvaluator
+from learning_commons_evaluators.evaluators.single_step import SingleStepEvaluator, step_for
 from tests.unit.conftest import ProviderFactory
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
@@ -33,15 +35,11 @@ UNIMPLEMENTED: frozenset[str] = frozenset(
     {
         # Follow-on work in both SDKs (new family, claude-opus-5); on TS's allowlist too.
         "durable_skills.ela_writing.critical_thinking",
-        # Phase 1a PR 4: multi-step.
-        "student_facing_text.ela_reading.vocabulary_complexity",
-        # Phase 2.
-        "student_facing_text.ela_reading.meaning_directness",
         # Phase 3.
         "student_facing_text.ela_reading.background_knowledge_demands",
+        "student_facing_text.ela_reading.meaning_directness",
         "student_facing_text.ela_reading.organizational_structure",
         "student_facing_text.ela_reading.reference_knowledge_demands",
-        "student_facing_text.ela_reading.sentence_structure",
         # Phase 4.
         "feedback.ela_writing.revision_accuracy",
         "feedback.ela_writing.revision_actionability",
@@ -49,7 +47,7 @@ UNIMPLEMENTED: frozenset[str] = frozenset(
         "feedback.ela_writing.strength_acknowledgment",
         "feedback.ela_writing.student_response_specificity",
         "feedback.ela_writing.withholding_answers",
-        # Phase 5.
+        # Phase 5b.
         "academic_standards_alignment.mathematics.math_standards_alignment",
     }
 )
@@ -70,12 +68,30 @@ EXPORTED: list[type[BaseEvaluator]] = sorted(
 CONTRACT_DIRS = sorted(p.parent for p in EVALS_ROOT.glob("*/*/*/config.json"))
 
 
+def steps_run_by(evaluator: type[BaseEvaluator], inputs: Mapping[str, object]) -> list[Step]:
+    """The steps this evaluator runs for these inputs, read off the contract.
+
+    Derived here from ``config.json`` rather than asked of the evaluator, which is the whole
+    point: a single-step evaluator runs the one step its naming convention fixes, and a
+    multi-step one runs its steps in declared order, skipping any whose ``condition`` the
+    inputs do not satisfy. If the SDK disagrees, the checks below fail.
+    """
+    contract = load_contract(evaluator.metadata.id)
+    if not issubclass(evaluator, MultiStepEvaluator):
+        return [step_for(contract)]
+    return [
+        step
+        for step in contract.steps
+        if step.condition is None or step.condition.holds({k: str(v) for k, v in inputs.items()})
+    ]
+
+
 def _contract_id(directory: Path) -> str:
     return json.loads((directory / "config.json").read_text(encoding="utf-8"))["evaluator"]["id"]
 
 
 def test_discovery_finds_the_pilot() -> None:
-    assert len(EXPORTED) == 3
+    assert len(EXPORTED) == 5
     assert set(EXPORTED) == set(EVALUATORS)
 
 
@@ -127,7 +143,7 @@ class TestEachEvaluatorMatchesItsContract:
     def test_input_and_output_models_are_the_generated_ones(
         self, evaluator: type[BaseEvaluator]
     ) -> None:
-        assert issubclass(evaluator, SingleStepEvaluator)
+        assert issubclass(evaluator, (SingleStepEvaluator, MultiStepEvaluator))
         slug = evaluator.metadata.slug
         pascal = "".join(part.capitalize() for part in slug.split("_"))
         assert evaluator.input_model.__name__ == f"{pascal}Input"
@@ -148,7 +164,7 @@ class TestEachEvaluatorMatchesItsContract:
     def test_outcome_names_fields_the_output_model_has(
         self, evaluator: type[BaseEvaluator]
     ) -> None:
-        assert issubclass(evaluator, SingleStepEvaluator)
+        assert issubclass(evaluator, (SingleStepEvaluator, MultiStepEvaluator))
         outcome = evaluator.metadata.outcome
         assert outcome is not None, "every pilot evaluator produces a single judgement"
         assert outcome.score in evaluator.output_model.model_fields
@@ -170,25 +186,26 @@ class TestEachEvaluatorRunsItsContract:
         keys = {f"{p.value}_api_key": "test-key" for p in evaluator.metadata.default_providers}
         return evaluator(**keys)
 
-    async def test_the_temperature_sent_matches_the_contract(
+    async def test_it_runs_the_steps_the_contract_declares_at_their_temperature(
         self, providers: ProviderFactory, evaluator: type[BaseEvaluator]
     ) -> None:
-        contract = load_contract(evaluator.metadata.id)
-        step = contract.step(f"evaluate_{evaluator.metadata.slug}")
-        instance = self._construct(evaluator)
-        await instance.evaluate(**_fixture_input(evaluator.metadata.id))
-        assert providers.last.calls[0]["temperature"] == step.temperature
+        inputs = _fixture_input(evaluator.metadata.id)
+        await self._construct(evaluator).evaluate(**inputs)
+        plan = steps_run_by(evaluator, inputs)
+        assert [call["temperature"] for call in providers.calls] == [s.temperature for s in plan]
 
-    async def test_every_declared_placeholder_reaches_the_prompt(
+    async def test_every_declared_placeholder_reaches_its_step_prompt(
         self, providers: ProviderFactory, evaluator: type[BaseEvaluator]
     ) -> None:
-        contract = load_contract(evaluator.metadata.id)
-        step = contract.step(f"evaluate_{evaluator.metadata.slug}")
-        assert step.prompt is not None
-        await self._construct(evaluator).evaluate(**_fixture_input(evaluator.metadata.id))
-        rendered = "\n".join(m["content"] for m in providers.last.calls[0]["messages"])
-        for name in step.prompt.placeholders:
-            assert f"{{{name}}}" not in rendered, f"{name} was not substituted"
+        inputs = _fixture_input(evaluator.metadata.id)
+        await self._construct(evaluator).evaluate(**inputs)
+        plan = steps_run_by(evaluator, inputs)
+        assert len(providers.calls) == len(plan)
+        for call, step in zip(providers.calls, plan, strict=True):
+            assert step.prompt is not None
+            rendered = "\n".join(m["content"] for m in call["messages"])
+            for name in step.prompt.placeholders:
+                assert f"{{{name}}}" not in rendered, f"{step.id}: {name} was not substituted"
 
     async def test_read_outcome_finds_a_verdict_in_the_returned_payload(
         self, providers: ProviderFactory, evaluator: type[BaseEvaluator]

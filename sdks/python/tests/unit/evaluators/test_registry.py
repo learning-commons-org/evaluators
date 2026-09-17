@@ -7,7 +7,9 @@ import pytest
 from learning_commons_evaluators import (
     GradeLevelAppropriatenessEvaluator,
     PurposeClarityEvaluator,
+    SentenceStructureEvaluator,
     ToneAppropriatenessEvaluator,
+    VocabularyComplexityEvaluator,
     get_evaluator,
     get_evaluators,
 )
@@ -24,6 +26,8 @@ def test_lists_every_evaluator_in_taxonomy_order() -> None:
         "feedback.ela_writing.tone_appropriateness",
         "student_facing_text.ela_reading.grade_level_appropriateness",
         "student_facing_text.ela_reading.purpose_clarity",
+        "student_facing_text.ela_reading.sentence_structure",
+        "student_facing_text.ela_reading.vocabulary_complexity",
     ]
     assert [e.metadata for e in EVALUATORS] == list(get_evaluators())
 
@@ -44,6 +48,8 @@ def test_resolves_current_ids() -> None:
     [
         ("grade-level-appropriateness", GradeLevelAppropriatenessEvaluator),
         ("literacy.gla.purpose", PurposeClarityEvaluator),
+        ("sentence-structure", SentenceStructureEvaluator),
+        ("vocabulary", VocabularyComplexityEvaluator),
         (
             "feedback.productive_coaching_writing_feedback.is_tone_appropriate",
             ToneAppropriatenessEvaluator,
