@@ -23,7 +23,7 @@ from typing import Any, ClassVar, Generic, TypeVar, cast
 from pydantic import BaseModel
 
 from learning_commons_evaluators.contracts.loader import Contract, Preprocessing, Step
-from learning_commons_evaluators.errors import EvaluatorError, wrap_provider_error
+from learning_commons_evaluators.errors import ConfigurationError
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.inputs import primary_text_field, validate_inputs
 from learning_commons_evaluators.features.preprocessing import (
@@ -67,7 +67,6 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
     _vendor: ClassVar[Provider]
     _preprocessing: ClassVar[tuple[Preprocessing, ...]]
     _text_field: ClassVar[str | None]
-    _label: ClassVar[str]
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -113,19 +112,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         cls._vendor = step.model.provider
         cls._preprocessing = tuple(contract.preprocessing)
         cls._text_field = primary_text_field(contract.input_schema)
-        # The contract names every evaluator "<Thing> Evaluator"; logs read as "<Thing>".
-        cls._label = name.removesuffix(" Evaluator")
-        cls.metadata = EvaluatorMetadata(
-            id=contract.evaluator.id,
-            stable_id=contract.evaluator.stable_id,
-            id_history=tuple(contract.evaluator.id_history),
-            name=name,
-            description=contract.evaluator.description,
-            supported_grades=tuple(contract.evaluator.supported_grades),
-            outcome=contract.outcome,
-            required_credentials=tuple(contract.required_credentials),
-            default_providers=(step.model.provider,),
-        )
+        cls.metadata = EvaluatorMetadata.from_contract(contract, (step.model.provider,))
 
     def __init__(self, config: Any = None, /, **fields: Any) -> None:
         super().__init__(config, **fields)
@@ -140,7 +127,8 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         """Evaluate the contract's inputs, passed as the typed input model or by name.
 
         :raises InputValidationError: an input is missing, unknown, or outside its schema.
-        :raises ConfigurationError: the provider rejected the configured model id.
+        :raises ConfigurationError: the provider rejected the configured model id, or a
+            required placeholder has no value from the source the contract names.
         :raises DependencyError: the provider call failed (``AuthenticationError``,
             ``RateLimitError``, ``NetworkError``, ``RequestTimeoutError``, ``LLMProviderError``).
         :raises LLMOutputProcessingError: the model's response failed its output schema
@@ -158,7 +146,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             grade_level = values.get("grade_level", "")
             self.logger.info(
                 "Starting %s evaluation",
-                self._label,
+                self.metadata.label,
                 extra={**context, "grade_level": grade_level, "text_length": len(text)},
             )
 
@@ -167,7 +155,9 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             assert self._step.model is not None
             response = await call_with_resampling(
                 lambda: self.provider.generate_structured(
-                    messages, self.output_model, temperature=self._step.temperature
+                    messages,
+                    self.output_model,
+                    temperature=self.effective_temperature(self._step.temperature),
                 ),
                 max_retries=self.config.max_retries,
                 dependency=dependency,
@@ -191,7 +181,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             outcome = self.metadata.outcome
             self.logger.info(
                 "%s evaluation completed successfully",
-                self._label,
+                self.metadata.label,
                 extra={
                     **context,
                     "grade_level": grade_level,
@@ -204,7 +194,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             elapsed_ms = int((time.perf_counter() - start) * 1000)
             self.logger.error(
                 "%s evaluation failed",
-                self._label,
+                self.metadata.label,
                 extra={
                     **context,
                     "grade_level": grade_level,
@@ -212,22 +202,13 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                     "processing_time_ms": elapsed_ms,
                 },
             )
-            if isinstance(error, EvaluatorError):
-                raise
-            dependency, model = provider_context(self.provider)
-            raise wrap_provider_error(error, dependency=dependency, model=model) from error
+            # Nothing is re-classified here. Every provider failure was already mapped by
+            # ``call_with_resampling``; anything else reaching this point is a fault in this
+            # SDK, and wrapping it as a provider error would name a service that did not
+            # fail (spec §6.2) and hide the bug.
+            raise
 
     # --- pieces of the flow ------------------------------------------------------------
-
-    @staticmethod
-    def _raw_fields(input: Any, fields: Mapping[str, Any]) -> Any:
-        if input is None:
-            return dict(fields)
-        if fields:
-            raise TypeError("Pass the input model or keyword fields, not both.")
-        if isinstance(input, BaseModel):
-            return input.model_dump(by_alias=True)
-        return input
 
     def _prompt_inputs(self, values: Mapping[str, str]) -> dict[str, str]:
         """Every placeholder the step declares, resolved from the source the contract names."""
@@ -251,7 +232,10 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                 value = computed.get(rest)
             if value is None:
                 if placeholder.required:
-                    raise ValueError(
+                    # The contract's own inconsistency, not a service's: registry data is
+                    # the caller's fault domain (spec §6.1), and stamping a provider on it
+                    # would name a dependency that did not fail (§6.2).
+                    raise ConfigurationError(
                         f'Placeholder "{name}" in {self.metadata.name} has no value '
                         f"from source {placeholder.source!r}."
                     )

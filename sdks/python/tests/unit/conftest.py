@@ -28,6 +28,14 @@ class FakeProvider:
     payload: Callable[[type[BaseModel]], Any]
     calls: list[dict[str, Any]] = field(default_factory=list)
     failures: list[BaseException] = field(default_factory=list)
+    #: What ``generate_text`` answers, for the prose steps of a multi-step contract.
+    prose: str = "prose"
+    #: Shared with every fake from the same factory, so the run's order survives.
+    log: list[dict[str, Any]] = field(default_factory=list)
+
+    def _record(self, call: dict[str, Any]) -> None:
+        self.calls.append(call)
+        self.log.append(call)
 
     @property
     def label(self) -> str:
@@ -41,9 +49,7 @@ class FakeProvider:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> LLMResponse[Any]:
-        self.calls.append(
-            {"messages": list(messages), "schema": schema, "temperature": temperature}
-        )
+        self._record({"messages": list(messages), "schema": schema, "temperature": temperature})
         if self.failures:
             raise self.failures.pop(0)
         return LLMResponse(
@@ -60,7 +66,16 @@ class FakeProvider:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> TextGenerationResponse:
-        raise NotImplementedError
+        # Recorded alongside the structured calls, with ``schema`` absent, so a test reads
+        # one ordered record of everything the evaluator asked for.
+        self._record({"messages": list(messages), "schema": None, "temperature": temperature})
+        if self.failures:
+            raise self.failures.pop(0)
+        return TextGenerationResponse(
+            text=self.prose,
+            usage=TokenUsage(input_tokens=5, output_tokens=2),
+            latency_ms=8,
+        )
 
 
 @dataclass
@@ -70,9 +85,16 @@ class ProviderFactory:
     payload: Callable[[type[BaseModel]], Any]
     created: list[FakeProvider] = field(default_factory=list)
     failures: list[BaseException] = field(default_factory=list)
+    prose: str = "prose"
+    #: Every call made through this factory, in the order the evaluator made them. A
+    #: multi-step evaluator spreads its calls over one provider per model, so reading one
+    #: provider's own ``calls`` would drop the steps that ran on another.
+    calls: list[dict[str, Any]] = field(default_factory=list)
 
     def __call__(self, config: ProviderConfig) -> FakeProvider:
-        provider = FakeProvider(config, self.payload, failures=self.failures)
+        provider = FakeProvider(
+            config, self.payload, failures=self.failures, prose=self.prose, log=self.calls
+        )
         self.created.append(provider)
         return provider
 
