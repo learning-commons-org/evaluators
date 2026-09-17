@@ -16,7 +16,6 @@ SDK's ``defineSingleStepEvaluator`` factory.
 
 from __future__ import annotations
 
-import time
 from collections.abc import Mapping
 from typing import Any, ClassVar, Generic, TypeVar, cast
 
@@ -134,79 +133,80 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         :raises LLMOutputProcessingError: the model's response failed its output schema
             after ``max_retries`` immediate resamples.
         """
-        start = time.perf_counter()
         context = {"evaluator": self.metadata.id, "operation": "evaluate"}
-        grade_level = ""
         # Argument shape is a programmer error, raised as such; everything from validation
-        # on is an evaluation failure, logged and classified.
+        # on is an evaluation failure, logged, classified, and telemetered.
         raw = self._raw_fields(input, fields)
-        try:
-            values = validate_inputs(raw, self.contract.input_schema)
-            text = values.get(self._text_field, "") if self._text_field else ""
-            grade_level = values.get("grade_level", "")
-            self.logger.info(
-                "Starting %s evaluation",
-                self.metadata.label,
-                extra={**context, "grade_level": grade_level, "text_length": len(text)},
-            )
+        with self._telemetry_run(self.provider.label) as run:
+            try:
+                values = validate_inputs(raw, self.contract.input_schema)
+                text = values.get(self._text_field, "") if self._text_field else ""
+                run.text_length = len(text)
+                run.grade = values.get("grade_level", "")
+                self.logger.info(
+                    "Starting %s evaluation",
+                    self.metadata.label,
+                    extra={**context, "grade_level": run.grade, "text_length": run.text_length},
+                )
 
-            messages = self._render_messages(values)
-            dependency, model = provider_context(self.provider)
-            assert self._step.model is not None
-            response = await call_with_resampling(
-                lambda: self.provider.generate_structured(
-                    messages,
-                    self.output_model,
-                    temperature=self.effective_temperature(self._step.temperature),
-                ),
-                max_retries=self.config.max_retries,
-                dependency=dependency,
-                model=model,
-                logger=self.logger,
-            )
-
-            elapsed_ms = int((time.perf_counter() - start) * 1000)
-            result: EvaluationResult[Any] = EvaluationResult(
-                evaluator=self.metadata.id,
-                result=response.data,
-                metadata=EvaluationMetadata(
-                    model=self.provider.label,
-                    processing_time_ms=elapsed_ms,
-                    token_usage=EvaluationTokenUsage(
-                        input_tokens=response.usage.input_tokens,
-                        output_tokens=response.usage.output_tokens,
+                messages = self._render_messages(values)
+                dependency, model = provider_context(self.provider)
+                assert self._step.model is not None
+                response = await call_with_resampling(
+                    lambda: self.provider.generate_structured(
+                        messages,
+                        self.output_model,
+                        temperature=self.effective_temperature(self._step.temperature),
                     ),
-                ),
-            )
-            outcome = self.metadata.outcome
-            self.logger.info(
-                "%s evaluation completed successfully",
-                self.metadata.label,
-                extra={
-                    **context,
-                    "grade_level": grade_level,
-                    "score": getattr(response.data, outcome.score, None) if outcome else None,
-                    "processing_time_ms": elapsed_ms,
-                },
-            )
-            return cast(EvaluationResult[OutputT], result)
-        except Exception as error:
-            elapsed_ms = int((time.perf_counter() - start) * 1000)
-            self.logger.error(
-                "%s evaluation failed",
-                self.metadata.label,
-                extra={
-                    **context,
-                    "grade_level": grade_level,
-                    "error": type(error).__name__,
-                    "processing_time_ms": elapsed_ms,
-                },
-            )
-            # Nothing is re-classified here. Every provider failure was already mapped by
-            # ``call_with_resampling``; anything else reaching this point is a fault in this
-            # SDK, and wrapping it as a provider error would name a service that did not
-            # fail (spec §6.2) and hide the bug.
-            raise
+                    max_retries=self.config.max_retries,
+                    dependency=dependency,
+                    model=model,
+                    logger=self.logger,
+                )
+                run.step(self._step.id, self.provider.label, response.latency_ms, response.usage)
+
+                elapsed_ms = run.elapsed_ms
+                result: EvaluationResult[Any] = EvaluationResult(
+                    evaluator=self.metadata.id,
+                    result=response.data,
+                    metadata=EvaluationMetadata(
+                        model=self.provider.label,
+                        processing_time_ms=elapsed_ms,
+                        token_usage=EvaluationTokenUsage(
+                            input_tokens=response.usage.input_tokens,
+                            output_tokens=response.usage.output_tokens,
+                        ),
+                    ),
+                )
+                outcome = self.metadata.outcome
+                self.logger.info(
+                    "%s evaluation completed successfully",
+                    self.metadata.label,
+                    extra={
+                        **context,
+                        "grade_level": run.grade,
+                        "score": getattr(response.data, outcome.score, None) if outcome else None,
+                        "processing_time_ms": elapsed_ms,
+                    },
+                )
+                return cast(EvaluationResult[OutputT], result)
+            except Exception as error:
+                self.logger.error(
+                    "%s evaluation failed",
+                    self.metadata.label,
+                    extra={
+                        **context,
+                        "grade_level": run.grade,
+                        "error": type(error).__name__,
+                        "processing_time_ms": run.elapsed_ms,
+                    },
+                )
+                # Nothing is re-classified here. Every provider failure was already mapped by
+                # ``call_with_resampling``; anything else reaching this point is a fault in this
+                # SDK, and wrapping it as a provider error would name a service that did not
+                # fail (spec §6.2) and hide the bug. The event is emitted as it leaves the
+                # ``_telemetry_run`` block.
+                raise
 
     # --- pieces of the flow ------------------------------------------------------------
 
