@@ -2,7 +2,7 @@
 
 Python SDK for Learning Commons educational text evaluators. Every evaluator is built from its shared contract under [`evals/`](../../evals) (prompts, models, schemas) and returns the same result envelope as the [TypeScript SDK](../typescript).
 
-> **Under rebuild.** `main` carries the 1.0 rebuild in progress: three evaluators so far (`GradeLevelAppropriatenessEvaluator`, `PurposeClarityEvaluator`, `ToneAppropriatenessEvaluator`), with the rest following phase by phase. Nothing is published from this state; the last released version is [0.2.0 on PyPI](https://pypi.org/project/learning-commons-evaluators/0.2.0/), whose documentation remains on the [docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview).
+> **Under rebuild.** `main` carries the 1.0 rebuild in progress: five evaluators so far (`GradeLevelAppropriatenessEvaluator`, `PurposeClarityEvaluator`, `ToneAppropriatenessEvaluator`, `SentenceStructureEvaluator`, `VocabularyComplexityEvaluator`), with the rest following phase by phase. Nothing is published from this state; the last released version is [0.2.0 on PyPI](https://pypi.org/project/learning-commons-evaluators/0.2.0/), whose documentation remains on the [docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview).
 
 ## Installation
 
@@ -34,7 +34,7 @@ print(outcome.score)                        # the same verdict, as one comparabl
 
 `await evaluator.evaluate(...)` is the primary form; `evaluate_sync` wraps it for synchronous code. Inputs are the contract's names (`text`, `grade_level`, `student_text`, `feedback_text`), passed as keywords or as the evaluator's typed input model (`PurposeClarityInput`).
 
-Every `evaluate()` returns the same three-field envelope: `evaluator` (the registry id), `result` (the full structured output, as the contract's `output_schema.json` declares it), and `metadata` (`model`, `processing_time_ms`, `token_usage`).
+Every `evaluate()` returns the same three-field envelope: `evaluator` (the registry id), `result` (the full structured output, as the contract's `output_schema.json` declares it), and `metadata` (`model`, `processing_time_ms`, `token_usage`). An evaluator whose contract declares several steps sums the token usage across them, and `model` names every model that ran, joined with `+`.
 
 ## Configuration
 

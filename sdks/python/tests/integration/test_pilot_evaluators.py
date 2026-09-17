@@ -14,8 +14,10 @@ from typing import Any
 import pytest
 
 from learning_commons_evaluators import read_outcome
+from learning_commons_evaluators.contracts import Contract
+from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.registry import EVALUATORS
-from learning_commons_evaluators.evaluators.single_step import SingleStepEvaluator
+from learning_commons_evaluators.providers import provider_label
 from learning_commons_evaluators.schemas.student_facing_text.ela_reading.grade_level_appropriateness import (
     GradeBand,
 )
@@ -33,6 +35,26 @@ CASES = [
 ]
 
 
+def _expected_model(contract: Contract, inputs: dict[str, Any]) -> str:
+    """The label the envelope should carry, derived from the contract, not from the SDK.
+
+    Every model the steps these inputs run will use, deduplicated, in run order. Derived
+    per case rather than from ``contract.providers``, which is the distinct providers of
+    every *declared* step: for a branching contract that names one a conditional step
+    skipped, so it is not the same thing as what ran.
+    """
+    fields = {key: str(value) for key, value in inputs.items()}
+    labels: list[str] = []
+    for step in contract.steps:
+        if step.condition is not None and not step.condition.holds(fields):
+            continue
+        assert step.model is not None
+        label = provider_label(step.model.provider, step.model.name)
+        if label not in labels:
+            labels.append(label)
+    return "+".join(labels)
+
+
 def _adjacent(actual: str | None, expected: str) -> bool:
     if actual is None:
         return False
@@ -44,7 +66,7 @@ def _adjacent(actual: str | None, expected: str) -> bool:
 
 @pytest.mark.integration
 @pytest.mark.parametrize(("evaluator", "case"), CASES)
-async def test_fixture(evaluator: type[SingleStepEvaluator], case: dict[str, Any]) -> None:
+async def test_fixture(evaluator: type[BaseEvaluator], case: dict[str, Any]) -> None:
     contract = evaluator.contract
     assert contract.outcome is not None
     instance = evaluator(**keys_for(contract), telemetry=False)
@@ -54,7 +76,7 @@ async def test_fixture(evaluator: type[SingleStepEvaluator], case: dict[str, Any
     for _ in range(ATTEMPTS):
         evaluation = await instance.evaluate(**case["input"])
         assert evaluation.evaluator == contract.evaluator.id
-        assert evaluation.metadata.model.startswith(f"{contract.providers[0].value}:")
+        assert evaluation.metadata.model == _expected_model(contract, case["input"])
         assert evaluation.metadata.token_usage.output_tokens > 0
         outcome = read_outcome(evaluation, evaluator.metadata.outcome)
         verdicts.append(outcome.score)
