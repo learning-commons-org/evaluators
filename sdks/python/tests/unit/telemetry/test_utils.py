@@ -140,3 +140,30 @@ class TestWhereTheConfigLives:
         monkeypatch.setattr(utils, "os", SimpleNamespace(name="nt", environ={}))
 
         assert utils.config_file() == home / "learning-commons" / "config.json"
+
+
+class TestUtf16Length:
+    """``text_length_chars`` must mean the same count in both SDKs' events.
+
+    Python's ``len`` counts code points; JavaScript's ``String.length`` counts UTF-16 code
+    units. The TypeScript event is the oracle, so the Python count follows it.
+    """
+
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("", 0),
+            ("plain ascii", 11),
+            ("caf\u00e9", 4),  # BMP: one unit per character, same as len()
+            ("\U0001f389", 2),  # non-BMP: one code point, two UTF-16 code units
+            ("great job \U0001f389\U0001f331", 14),  # len() would say 12
+        ],
+    )
+    def test_counts_utf16_code_units(self, text: str, expected: int) -> None:
+        assert utils.utf16_length(text) == expected
+
+    def test_differs_from_len_only_outside_the_bmp(self) -> None:
+        ascii_text = "The cat sat on the mat."
+        assert utils.utf16_length(ascii_text) == len(ascii_text)
+        emoji = "done \U0001f389"
+        assert utils.utf16_length(emoji) == len(emoji) + 1

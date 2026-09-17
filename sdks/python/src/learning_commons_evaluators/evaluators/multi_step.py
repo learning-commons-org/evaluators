@@ -65,6 +65,7 @@ from learning_commons_evaluators.schemas.evaluator import (
     EvaluationTokenUsage,
 )
 from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
+from learning_commons_evaluators.telemetry.utils import utf16_length
 
 InputT = TypeVar("InputT", bound=BaseModel)
 OutputT = TypeVar("OutputT", bound=BaseModel)
@@ -191,7 +192,7 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             try:
                 values = validate_inputs(raw, self.contract.input_schema)
                 text = values.get(self._text_field, "") if self._text_field else ""
-                run.text_length = len(text)
+                run.text_length = utf16_length(text)
                 run.grade = values.get("grade_level", "")
                 self.logger.info(
                     "Starting %s evaluation",

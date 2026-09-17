@@ -42,6 +42,21 @@ def utc_timestamp() -> str:
     return f"{now:%Y-%m-%dT%H:%M:%S}.{now.microsecond // 1000:03d}Z"
 
 
+def utf16_length(text: str) -> int:
+    """The length JavaScript's ``String.length`` reports for ``text``.
+
+    Both SDKs' events reach one collector and are summed together, so
+    ``text_length_chars`` has to mean the same count in each. JavaScript counts UTF-16 code
+    units, where Python's ``len`` counts code points: an emoji is 2 there and 1 here. The
+    TypeScript event is the oracle, so this follows it.
+
+    The field's name overstates what either SDK measures — a non-BMP character is one
+    character and two code units — but renaming it is a change to the shared wire format,
+    and a silent disagreement between the SDKs is worse than an imprecise name.
+    """
+    return len(text.encode("utf-16-le")) // 2
+
+
 def config_file() -> Path:
     """The file holding the client id, at the path the TypeScript SDK uses."""
     if os.name == "nt":
