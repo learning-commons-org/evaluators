@@ -17,6 +17,7 @@ import learning_commons_evaluators as sdk
 from learning_commons_evaluators import read_outcome
 from learning_commons_evaluators.contracts import load_contract
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
+from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
 from learning_commons_evaluators.evaluators.registry import EVALUATORS, index_by_id
 from learning_commons_evaluators.evaluators.single_step import SingleStepEvaluator
 from tests.unit.conftest import ProviderFactory
@@ -60,7 +61,7 @@ EXPORTED: list[type[BaseEvaluator]] = sorted(
         for value in vars(sdk).values()
         if isinstance(value, type)
         and issubclass(value, BaseEvaluator)
-        and value not in (BaseEvaluator, SingleStepEvaluator)
+        and value not in (BaseEvaluator, SingleStepEvaluator, MultiStepEvaluator)
         and hasattr(value, "metadata")
     ),
     key=lambda e: e.metadata.id,
