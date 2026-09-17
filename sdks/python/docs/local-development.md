@@ -5,7 +5,7 @@
 - **`contracts/`** — The `evals/` registry as the package ships it. `contracts/_generated/<family>/<subject>/<evaluator>/` holds each contract's `config.json`, input and output schemas, and prompt files, copied verbatim by `make generate-contracts`; `contracts/loader.py` reads one back as a typed `Contract`.
 - **`schemas/<family>/<subject>/<evaluator>.py`** — Generated from each contract's schemas: pydantic `<Class>Input` and `<Class>Output` models.
 - **`providers/`** — The `LLMProvider` protocol and one adapter per native SDK (`openai_sdk.py`, `anthropic_sdk.py`, `google_genai.py`), `create_provider()`, and the resampling half of the retry split (`retry.py`).
-- **`evaluators/`** — `BaseEvaluator` (config checks, provider construction), `SingleStepEvaluator` (the one-model-call flow, declared per evaluator by naming its contract and generated models), `inputs.py` (§4.1 validation), `registry.py` (`get_evaluators`, `get_evaluator` with `id_history`), and the concrete evaluators in nested `<family>/<subject>/` packages mirroring `evals/`.
+- **`evaluators/`** — `BaseEvaluator` (config checks, provider construction), `SingleStepEvaluator` (the one-model-call flow), `MultiStepEvaluator` (steps in declared order, skipping any whose `condition` the inputs miss; placeholders resolved from inputs, preprocessing, and earlier steps' outputs), `inputs.py` (§4.1 validation), `registry.py` (`get_evaluators`, `get_evaluator` with `id_history`), and the concrete evaluators in nested `<family>/<subject>/` packages mirroring `evals/`. Both bases are declarative: an evaluator names its contract and its generated models, and everything else is read from the contract at class creation.
 - **`config.py`** — `EvaluatorConfig`, `ModelOverride`, `TelemetryOptions` (SDK spec §3).
 - **`schemas/evaluator.py`, `schemas/outcome.py`, `schemas/metadata.py`** — The result envelope, `read_outcome`, and static `EvaluatorMetadata`.
 - **`features/`** — Contract-declared preprocessing (`textstat` Flesch-Kincaid) bound into prompts.
@@ -14,7 +14,7 @@
 - **`logger.py`** — Logging helpers following the stdlib library convention (`NullHandler`, no root configuration)
 - **`version.py`** — Package version and description
 
-Multi-step evaluators (Vocabulary Complexity, Sentence Structure), telemetry emission, the Knowledge Graph client, and batch evaluation land in the following PRs.
+The multi-step pilots (Vocabulary Complexity, Sentence Structure), telemetry emission, the Knowledge Graph client, and batch evaluation land in the following PRs.
 
 ## Development setup
 
@@ -67,7 +67,7 @@ Generated schema modules start with `# GENERATED — do not edit directly.` and 
 - `tests/unit/providers/` — each adapter against a fake client, the factory, and the resampling loop.
 - `tests/unit/contracts/` — every bundled contract read back and cross-checked against `evals/` (sha256, placeholder sources, outcome fields), plus the generator's emitter on synthetic schemas.
 - `tests/unit/schemas/` — parser tests: hand-written payloads per `output_schema.json` against the generated `<Class>Output` models.
-- `tests/unit/evaluators/` — the single-step flow on a synthetic contract, config and `model_override` checks, input validation, the registry, and `test_registry_conformance.py`: every contract in `evals/` has a registered class or an entry in its `UNIMPLEMENTED` allowlist, and porting an evaluator without deleting its entry fails the build.
+- `tests/unit/evaluators/` — the single-step and multi-step flows on synthetic contracts, config and `model_override` checks, input validation, the registry, and `test_registry_conformance.py`: every contract in `evals/` has a registered class or an entry in its `UNIMPLEMENTED` allowlist, and porting an evaluator without deleting its entry fails the build.
 - `tests/unit/test_cross_sdk_prompts.py` — for every fixture, Python renders the prompt the TypeScript renderer would, with computed placeholders masked.
 - `tests/integration/` — live provider calls driven by `evals/**/fixtures.json`, skipped unless `RUN_INTEGRATION_TESTS=1` and the provider keys are set (`make integration-test`).
 

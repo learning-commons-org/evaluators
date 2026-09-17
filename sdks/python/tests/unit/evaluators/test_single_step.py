@@ -238,6 +238,15 @@ class TestReadsBehaviourFromTheContract:
         assert call["temperature"] == 0.5
         assert call["schema"] is ThingOutput
 
+    async def test_an_override_does_not_carry_the_contracts_temperature_across(
+        self, providers: ProviderFactory
+    ) -> None:
+        # The contract pins 0.5 for its own model; an override replaces the model, and
+        # whether that model accepts a temperature at all is a property of the model.
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        await define()(anthropic_api_key="a", model_override=override).evaluate(**INPUT)
+        assert providers.last.calls[0]["temperature"] is None
+
     async def test_renders_prompts_with_declared_placeholders_only(
         self, providers: ProviderFactory
     ) -> None:

@@ -32,15 +32,22 @@ _LIBRARY_ADAPTERS: dict[str, tuple[Callable[[str], object], Callable[[str, str],
 }
 
 
-def _round(value: float, transform: PostTransform) -> float:
+def round_half_up(value: float, places: int = 0) -> float:
     """Round half up, as JavaScript's ``Math.round(value * factor) / factor`` does.
 
     Python's ``round`` is ties-to-even, so ``round(0.125, 2)`` is ``0.12`` where the
-    TypeScript SDK computes ``0.13``; the contract's ``round`` must mean one operation in
-    both SDKs or the two bind different text for the same input.
+    TypeScript SDK computes ``0.13``. This is the SDK's one rounding operation: rounding a
+    computed value must mean the same thing wherever it happens, here and in the TypeScript
+    SDK, or the same input binds different text. On real ``textstat`` Flesch-Kincaid values
+    the two rules disagree about once in 150 inputs, so the choice is not academic.
     """
-    factor = 10 ** (transform.precision or 0)
+    factor = 10**places
     return math.floor(value * factor + 0.5) / factor
+
+
+def _round(value: float, transform: PostTransform) -> float:
+    """The contract's ``post_transform: round``, to the precision it declares."""
+    return round_half_up(value, transform.precision or 0)
 
 
 _POST_TRANSFORMS: dict[str, Callable[[float, PostTransform], float]] = {
@@ -100,4 +107,4 @@ def format_number(value: float) -> str:
     return repr(float(value))
 
 
-__all__ = ["check_implementation", "format_number", "run_preprocessing_step"]
+__all__ = ["check_implementation", "format_number", "round_half_up", "run_preprocessing_step"]

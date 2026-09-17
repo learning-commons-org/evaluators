@@ -40,6 +40,7 @@ from learning_commons_evaluators.errors import (
 from learning_commons_evaluators.evaluators import (
     BaseEvaluator,
     GradeLevelAppropriatenessEvaluator,
+    MultiStepEvaluator,
     PurposeClarityEvaluator,
     SingleStepEvaluator,
     ToneAppropriatenessEvaluator,
@@ -103,6 +104,7 @@ __all__ = [
     "LLMProviderError",
     "Logger",
     "ModelOverride",
+    "MultiStepEvaluator",
     "NetworkError",
     "Outcome",
     "Provider",
