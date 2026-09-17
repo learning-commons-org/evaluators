@@ -488,6 +488,46 @@ class TestEnvelope:
         evaluation = await define(steps=raw["steps"])(**KEYS).evaluate(**INPUT)
         assert evaluation.metadata.model == "openai:gpt-4o-2024-11-20"
 
+    async def test_an_override_does_not_carry_the_contracts_temperature_across(
+        self, providers: ProviderFactory
+    ) -> None:
+        # Which temperature a model even accepts is the model's property: the registry
+        # pins 0 for Haiku 4.5 and null for Opus 5, which rejects sampling parameters.
+        # Sending the declared value to a substituted model fails the call outright.
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        evaluator = define()(anthropic_api_key="a", model_override=override)
+        await evaluator.evaluate(**INPUT)
+        assert [call["temperature"] for call in providers.calls] == [None, None]
+
+    def test_the_override_warning_says_the_pinned_temperature_is_not_sent(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # Dropping it silently is the failure mode Principle 4 names; the TypeScript SDK's
+        # provider layer warns for the same reason. Said once at construction, per §3.2.
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            define()(anthropic_api_key="a", model_override=override)
+        [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert "temperature its contract pins (0, 0.5) is not sent" in record.getMessage()
+
+    def test_the_warning_claims_nothing_when_the_contract_pins_no_temperature(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        raw = contract().model_dump(by_alias=True)
+        for step in raw["steps"]:
+            step["generation"] = {"temperature": None}
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            define(steps=raw["steps"])(anthropic_api_key="a", model_override=override)
+        [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert "temperature" not in record.getMessage()
+
+    async def test_without_an_override_each_step_sends_what_its_contract_pins(
+        self, providers: ProviderFactory
+    ) -> None:
+        await define()(**KEYS).evaluate(**INPUT)
+        assert [call["temperature"] for call in providers.calls] == [0, 0.5]
+
     async def test_an_override_collapses_the_label_to_the_one_model_in_use(
         self, providers: ProviderFactory
     ) -> None:

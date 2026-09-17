@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from learning_commons_evaluators.config import EvaluatorConfig, ModelOverride
 from learning_commons_evaluators.contracts.loader import Contract
 from learning_commons_evaluators.errors import ConfigurationError
+from learning_commons_evaluators.features.preprocessing import format_number
 from learning_commons_evaluators.logger import get_logger
 from learning_commons_evaluators.providers import (
     LLMProvider,
@@ -62,9 +63,10 @@ class BaseEvaluator(ABC):
             # models only. Per-evaluation log lines carry the effective model.
             self.logger.warning(
                 "model_override is active: using %s:%s instead of the default model. "
-                "Evaluation quality may differ from recommended defaults.",
+                "Evaluation quality may differ from recommended defaults.%s",
                 self._override_provider.value if self._override_provider else "?",
                 config.model_override.model,
+                self._dropped_temperature_note(),
                 extra={"evaluator": self.metadata.id, "operation": "construct"},
             )
 
@@ -127,6 +129,38 @@ class BaseEvaluator(ABC):
         if override is not None and self._override_provider is not None:
             return self._override_provider, override.model
         return default, default_model
+
+    def _dropped_temperature_note(self) -> str:
+        """What the override warning adds when a declared temperature will not be sent.
+
+        Said once, at construction, alongside the override warning §3.2 requires — not per
+        call. Empty when the contract pins none, so the warning never claims to have
+        dropped something that was never there.
+        """
+        pinned = sorted({s.temperature for s in self.contract.steps if s.temperature is not None})
+        if not pinned:
+            return ""
+        # Rendered as the contract writes it — ``0``, not Python's ``0.0``.
+        values = ", ".join(format_number(value) for value in pinned)
+        return (
+            f" The temperature its contract pins ({values}) is not sent: whether a model"
+            " accepts one at all is that model's own property, so the override runs at the"
+            " provider's default sampling and its results are not reproducible the way the"
+            " default model's are."
+        )
+
+    def effective_temperature(self, declared: float | None) -> float | None:
+        """The temperature to send for a step, honouring ``model_override``.
+
+        A contract pins temperature for the model it declares, and which value is even
+        *accepted* is a property of that model: the registry pins ``0`` for Haiku 4.5 and
+        ``null`` for Opus 5, which rejects sampling parameters outright. An override
+        replaces the model, so the declared value is no longer known-valid for what will
+        actually run and is not carried across — §3 puts override quality in the caller's
+        hands, and sending a parameter the override model refuses fails the call rather
+        than degrading it.
+        """
+        return declared if self.config.model_override is None else None
 
     def _create_configured_provider(self, default: Provider, default_model: str) -> LLMProvider:
         """A provider for one step, honouring ``model_override`` when set."""

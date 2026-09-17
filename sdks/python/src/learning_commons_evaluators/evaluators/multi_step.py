@@ -300,9 +300,10 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         """One step's model call, resampled on an output the schema rejects (§6.3)."""
         dependency, model = provider_context(provider)
         schema = self.step_models[step.id]
+        temperature = self.effective_temperature(step.temperature)
         if schema is None:
             prose = await call_with_resampling(
-                lambda: provider.generate_text(messages, temperature=step.temperature),
+                lambda: provider.generate_text(messages, temperature=temperature),
                 max_retries=self.config.max_retries,
                 dependency=dependency,
                 model=model,
@@ -312,7 +313,7 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             # surrounding blank lines would read as structure it did not intend.
             return prose.text.strip(), prose.usage
         structured = await call_with_resampling(
-            lambda: provider.generate_structured(messages, schema, temperature=step.temperature),
+            lambda: provider.generate_structured(messages, schema, temperature=temperature),
             max_retries=self.config.max_retries,
             dependency=dependency,
             model=model,

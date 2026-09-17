@@ -155,7 +155,9 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             assert self._step.model is not None
             response = await call_with_resampling(
                 lambda: self.provider.generate_structured(
-                    messages, self.output_model, temperature=self._step.temperature
+                    messages,
+                    self.output_model,
+                    temperature=self.effective_temperature(self._step.temperature),
                 ),
                 max_retries=self.config.max_retries,
                 dependency=dependency,
