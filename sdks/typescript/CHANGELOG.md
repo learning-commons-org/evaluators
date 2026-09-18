@@ -2,6 +2,14 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
+## [1.1.1](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v1.1.0...sdks-typescript-v1.1.1) (2026-09-18)
+
+
+### Documentation
+
+* Audit READMEs for v1.0 launch ([#213](https://github.com/learning-commons-org/evaluators/issues/213)) ([7e0a650](https://github.com/learning-commons-org/evaluators/commit/7e0a65008075a479f512d2a8410ed116a76ce19d))
+* point text complexity links at the renamed docs site paths ([#294](https://github.com/learning-commons-org/evaluators/issues/294)) ([991dbc5](https://github.com/learning-commons-org/evaluators/commit/991dbc5a837114c7d973187750539a92bbbe1310))
+
 ## [1.1.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v1.0.0...sdks-typescript-v1.1.0) (2026-09-11)
 
 
