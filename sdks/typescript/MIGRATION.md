@@ -449,9 +449,8 @@ is no single model or duration to report.
 
   `getEvaluator` returns `undefined` for anything it cannot resolve rather than throwing, so
   check before use. `text-complexity` returns `undefined` — that was the removed composite,
-  not an evaluator. Former ids still resolve — the 0.8.0 ids in this table, and later
-  `student_facing_text.*` ids — so a class-name stem such as `smk` or `purpose` does not;
-  use the ids in the table.
+  not an evaluator. Each evaluator carries exactly one former id, so a class-name stem such as
+  `smk` or `purpose` does not resolve; use the ids in the table.
 
 The `@learning-commons/evaluators/batch` entry point and the `evaluators-batch` command both
 existed in 0.8.0, and are documented in the [README](./README.md) now. **Their API changed as

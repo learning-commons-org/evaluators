@@ -30,7 +30,7 @@ import type { SentenceStructureInput } from '../../../schemas/text-complexity/el
 export type { SentenceStructureInput };
 
 /**
- * Evaluates sentence structure complexity of a text relative to its target grade.
+ * Evaluates sentence structure complexity of a text.
  *
  * Two model calls, so the flow comes from {@link defineMultiStepEvaluator}: the first step
  * counts grammatical features, and the second classifies complexity against the rubric for

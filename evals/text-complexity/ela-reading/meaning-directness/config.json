@@ -3,7 +3,7 @@
   "evaluator": {
     "id": "text_complexity.ela_reading.meaning_directness",
     "stable_id": "51f25288-f80f-4948-84c7-d1527eee45b4",
-    "id_history": ["conventionality", "student_facing_text.ela_reading.meaning_directness"],
+    "id_history": ["conventionality"],
     "name": "Meaning Directness Evaluator",
     "description": "Evaluates how explicit, literal, and straightforward a text's meaning is versus how abstract, ironic, figurative, or archaic it is, producing a 4-level rubric rating with structured pedagogical detail.",
     "supported_grades": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]

@@ -3,7 +3,7 @@
   "evaluator": {
     "id": "text_complexity.ela_reading.sentence_structure",
     "stable_id": "f2fb2548-fdd2-4fad-a642-a996ba01d5ac",
-    "id_history": ["sentence-structure", "student_facing_text.ela_reading.sentence_structure"],
+    "id_history": ["sentence-structure"],
     "name": "Sentence Structure Evaluator",
     "description": "Evaluates sentence structure complexity of a text relative to its target grade, via a 2-stage pipeline: an LLM grammatical analysis (sentence types, clauses, phrases, transitions), then engineered feature ratios fed into a grade-specific rubric for a final complexity classification.",
     "supported_grades": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]

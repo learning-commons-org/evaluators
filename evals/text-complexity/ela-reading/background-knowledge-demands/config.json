@@ -3,7 +3,7 @@
   "evaluator": {
     "id": "text_complexity.ela_reading.background_knowledge_demands",
     "stable_id": "60ddf4c3-8425-40cc-bb42-a3975e20fd83",
-    "id_history": ["subject-matter-knowledge", "student_facing_text.ela_reading.background_knowledge_demands"],
+    "id_history": ["subject-matter-knowledge"],
     "name": "Background Knowledge Demands Evaluator",
     "description": "Evaluates the extent of background knowledge a text assumes readers already have, relative to its target grade, producing a 4-level rubric rating distinguishing Common/Standard knowledge from Specialized/Theoretical knowledge.",
     "supported_grades": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]

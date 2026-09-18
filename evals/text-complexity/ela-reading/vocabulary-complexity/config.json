@@ -4,8 +4,7 @@
     "id": "text_complexity.ela_reading.vocabulary_complexity",
     "stable_id": "d6f8e6d1-3d0d-4b6c-9a3a-2b7c9e6f1a4d",
     "id_history": [
-      "vocabulary",
-      "student_facing_text.ela_reading.vocabulary_complexity"
+      "vocabulary"
     ],
     "name": "Vocabulary Complexity Evaluator",
     "description": "Evaluates the complexity of a text's vocabulary relative to its target grade. Grades 3-4 and grades 5-12 use genuinely different prompts, models, and preprocessing, so the vocab_complexity step has two variants selected by the grade_level input via each variant's condition -- see vocab_complexity_grades_3_4 and vocab_complexity_other_grades below.",
