@@ -1,0 +1,286 @@
+[
+  {
+    "id": "SL-011_results",
+    "description": "How could baby dinosaurs live in the Arctic?",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 3/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the article PDF in a new tab](https://www.sciencejournalforkids.org/wp-content/uploads/2022/06/alaska_article.pdf)** This excerpt is the Results section and the opening of Discussion; Figure 2 appears in it.\n\n---\n\nResults\n\nWe discovered lots of tiny dinosaur bones and teeth (Figure 2). We found:\n\nRemains from dinosaurs which we think died while still in the egg. They must have nested in the Arctic.\n\nVery small teeth from both small and large dinosaur species. These teeth came from very young dinosaurs. This means they hatched there.\n\nFigure 2: Some of the dinosaur bones and teeth that we discovered, from both adult and very young dinosaurs.\n\nOur findings are the first evidence of dinosaur reproduction in the Arctic! We now think that at least seven dinosaur species living in the Arctic 70 million years ago also had their babies there.\n\nDiscussion\n\nWe found lots of remains of very young (baby) dinosaurs in the Arctic. We didn't think we'd find so many! We now know that the Prince Creek Formation in Alaska is an important place to find evidence for dinosaur reproduction.\n\nIt seems like dinosaurs didn't just live in the Arctic during the summer. They stayed there all year and survived the harsh winter. These dinosaurs must have been well adapted to survive the freezing temperatures, lack of sunlight, and shortage of food. Small dinosaurs may have hibernated in burrows during the winter.",
+      "grade_level": "5",
+      "graphics": [
+        "images/SL-011_results.png"
+      ],
+      "figure_labels": "Image 1"
+    },
+    "expected": {
+      "complexity_score": "moderately_complex"
+    }
+  },
+  {
+    "id": "SL-019_intro_methods",
+    "description": "How do pesticides get into honey?",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 3/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the article PDF in a new tab](https://www.sciencejournalforkids.org/wp-content/uploads/2019/09/pesticide_article.pdf)** This excerpt is the Introduction; Figures 1 and 2 appear in it.\n\n---\n\nIntroduction\n\nThanks to hard working honey bees, we have this delicious and beneficial food called honey (Fig. 1). As they collect nectar (the sugary liquid from flowers), they also transfer pollen (cells needed to make seeds) between plants (Fig. 2).\n\nFigure 1: Honey bees storing honey in their hive. They make it to keep their colony going during the winter when nectar and pollen are scarce.\n\nFigure 2: A honey bee collecting nectar and pollen from a flower. The bees attach the pollen to the hairs of their hind legs - can you see the big orange pollen \"baskets\"? A bee can carry her own weight in pollen on her legs! While she is collecting pollen for her own use, the bee often gets covered in pollen, which then helps pollinate the flowers the bee visit next.\n\nOne type of pesticide especially harmful to bees are so-called neonicotinoids. An important thing to remember is that these pesticides do not kill the bees outright. Instead, neonicotinoids mess with bees' brains - affecting their ability to learn and remember. That may be a death sentence for bees because they need to know how to return to their hives. The fewer bees return to hives, the less likely the hives are to survive.\n\nBut how do bees get these chemicals? Neonicotinoids are usually applied to seeds and are known as systemic pesticides. This means the plant absorbs them into all its parts, even into the nectar and pollen that bees collect and make into honey. By drinking the nectar and eating some of the pollen, and feeding some of the honey to their babies (scientists call these larvae), the bees take in the pesticides.\n\nIn 2014, not surprisingly, neonicotinoids showed up in about half of the honey produced in the UK. Alarmed by the risk to bees, the European Union banned three types of neonicotinoids on mass flowering crops that bees visit, including oilseed rape and sunflower.\n\nWe wanted to check the effectiveness of this policy. We expected some neonicotinoids that were applied before the ban to remain in the soil and show up in honey samples. Let's see if this was the case!",
+      "grade_level": "8",
+      "graphics": [
+        "images/SL-019_intro_methods_1.png",
+        "images/SL-019_intro_methods_2.png"
+      ],
+      "figure_labels": "Image 1, Image 2"
+    },
+    "expected": {
+      "complexity_score": "slightly_complex"
+    }
+  },
+  {
+    "id": "SL-023_results",
+    "description": "How much ocean should we protect?",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 3/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the article PDF in a new tab](https://www.sciencejournalforkids.org/wp-content/uploads/2019/09/target_mpa_article.pdf)** This excerpt is the Results section and the opening of Discussion; Figure 2 appears in it.\n\n---\n\nResults\n\nWe found a large variety in required percentage numbers of the area of ocean protection, dependent on the different scenarios considered by studies. However, despite the wide spread, the average was surprisingly consistent. As you can see in Figure 2, the studies suggested that, on average, 30-40 % of all oceans needed to be protected if we were to achieve any of the 5 important goals we listed above.\n\nFigure 2: Box plot showing how much of the ocean should be protected to reach a specific goal. The line in the middle is the median value (for which the number appears next to the box). The upper and lower ends of the box are the 75% and 25% percentile values, respectively.\n\nIf we wanted to achieve most of our goals, we would have to protect more than half of our oceans.\n\nDiscussion\n\nSo let's do a reality check: currently, less than 6% of all oceans are protected.\n\nAccording to our analysis of many different studies, this is absolutely insufficient to protect many important marine life forms or functions.\n\nAnd how about the 10% coverage currently suggested by the United Nations? While it is a good start, it would only meet a tiny fraction (3%) of our conservation goals. It is a step on the road to effective protection, not the destination.",
+      "grade_level": "10",
+      "graphics": [
+        "images/SL-023_results.png"
+      ],
+      "figure_labels": "Image 1"
+    },
+    "expected": {
+      "complexity_score": "moderately_complex"
+    }
+  },
+  {
+    "id": "GUT-34582_family",
+    "description": "Mozart: The Story of a Little Boy and His Sister Who Gave Concerts",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 3/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the book in a new tab](https://www.gutenberg.org/files/34582/34582-h/34582-h.htm)** This excerpt is from pages 5 to 7. Three pictures appear in it.\n\n---\n\nHere is Nannerl's picture when she grew up to be a young lady.\n\n![MOZART'S SISTER](https://www.gutenberg.org/files/34582/34582-h/images/illus04.jpg)\n\nMOZART'S SISTER.\n\nFather Mozart loved both of his children deeply and often played with them. The violin was the instrument he liked best and little Mozart had daily lessons in his home. Here we see him playing while his sister sings.\n\n![A MOZART FAMILY TRIO](https://www.gutenberg.org/files/34582/34582-h/images/illus05.jpg)\n\nA MOZART FAMILY TRIO.\n\nIn this picture we see Papa Mozart, who was a very fine player on the violin. Wolferl and Nannerl are playing the piano.\n\n![MOZART PLAYING WITH HIS FATHER AND SISTER](https://www.gutenberg.org/files/34582/34582-h/images/illus06.jpg)\n\nMOZART PLAYING WITH HIS FATHER AND SISTER.\n\nWhen Wolferl was nearly six his father took him and Nannerl on a concert tour. Everybody wanted to hear them play and they gave many concerts.\n\nWolferl spent all his boyhood with his music. He went to many places to play, even as far from Salzburg, in Austria (where he was born), as to Paris and London.\n\nEverywhere he went people were happy to see him and his sister and to hear them play. And they, too, were happy to play because they loved the music so much.\n\nWhen they reached Vienna they played for the Emperor and Empress.\n\nWhen Wolferl was presented to the Empress he jumped up into her lap and kissed her.\n\nWolferl was always busy composing music. But he played games and had a good time just like any other boy. When he was busy with his music, however, he never let his thoughts go to anything else.",
+      "grade_level": "4",
+      "graphics": [
+        "images/GUT-34582_family_1.jpg",
+        "images/GUT-34582_family_2.jpg",
+        "images/GUT-34582_family_3.jpg"
+      ],
+      "figure_labels": "Image 1, Image 2, Image 3"
+    },
+    "expected": {
+      "complexity_score": "slightly_complex"
+    }
+  },
+  {
+    "id": "SL-015_results",
+    "description": "How do bumble bees play?",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 3/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the article PDF in a new tab](https://www.sciencejournalforkids.org/wp-content/uploads/2024/04/bees-play_article.pdf)** This excerpt is the Results section and the opening of Discussion; Figure 2 appears in it, along with the cartoon header banner at the top of page 1.\n\n---\n\nResults\n\nQ: Did the bees play with the wooden balls? A: Yes! Across the 18-day experiment, the bees rolled the balls 910 times. One bee rolled a ball 117 times.\n\nQ: Did the bees really choose to roll the balls? A: The bees developed a preference for the mobile ball object area after they had rolled a ball. This suggests the bees returned because they wanted to roll the balls again.\n\nOther interesting results:\n\nBall rolls lasted 0.4-31 seconds (Fig. 2).\n\nFigure 2: The nine panels show the sequence of a ball-rolling action over approximately 4 seconds. (The time stamps are in red at the top left). The bee (a) approaches the wooden coloured ball, (b) touches the ball with her forelegs, (c) holds onto the ball using all of her legs, (d-h) rolls the ball past the yellow ball and (i) finishes rolling and leaves the ball.\n\nThe bees rolled the balls 2-601mm.\n\nBall rolling was most common in younger bees, particularly aged 3-7 days.\n\nBees had no ball color preference.\n\nDiscussion\n\nOur experiment showed that bees engage in object play behavior. This is because their ball rolling met the 5 rules of play.\n\nBall rolling had no functional outcome. The bees rolled the balls after eating. They did not extend proboscises onto them. Nor did they stop interacting with the balls after learning they were not edible.",
+      "grade_level": "5",
+      "graphics": [
+        "images/SL-015_results_1.png",
+        "images/SL-015_results_2.png"
+      ],
+      "figure_labels": "Image 1, Image 2"
+    },
+    "expected": {
+      "complexity_score": "moderately_complex"
+    }
+  },
+  {
+    "id": "GUT-34582_composed",
+    "description": "Mozart: The Story of a Little Boy and His Sister Who Gave Concerts",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 3/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the book in a new tab](https://www.gutenberg.org/files/34582/34582-h/34582-h.htm)** This excerpt is from pages 9 and 10. Two pictures appear in it.\n\n---\n\nIt is time now that we learned the birthday of Mozart. If we think of it every year on the 27th of January, it will be easy to remember it.\n\nIn what year was he born?\n\nHere is another picture of Mozart in 1766. How old was he then? (Beethoven was born four years afterward.)\n\n![MOZART IN 1766](https://www.gutenberg.org/files/34582/34582-h/images/illus10.jpg)\n\nMOZART IN 1766.\n\nWhen anyone is always busy at one thing he soon gets a lot done. As Wolferl grew and kept on writing music all the time he made a great many pieces. Some were short like a song, others were long like an opera. He wrote for the piano, the violin and the voice. And he composed operas, symphonies and ever so many other kinds of music.\n\nMozart liked to be alone when he was working upon his compositions. He used to go to a little house on the edge of Vienna and lock himself in. The people of the city of Salzburg, in Austria, took this house long after Mozart's death and moved it to a park where all may go to see it, just as we in America go to see the houses of William Penn, Lincoln and Washington.\n\n![WHERE MOZART COMPOSED](https://www.gutenberg.org/files/34582/34582-h/images/illus11.jpg)\n\nWHERE MOZART COMPOSED.\n\nCan you remember, without turning back, the year in which Mozart was born?\n\nSome other great musicians were alive at that time. And during his lifetime some were born who became great men.\n\nIn the year when Mozart was born both Handel and Haydn were living.",
+      "grade_level": "4",
+      "graphics": [
+        "images/GUT-34582_composed_1.jpg",
+        "images/GUT-34582_composed_2.jpg"
+      ],
+      "figure_labels": "Image 1, Image 2"
+    },
+    "expected": {
+      "complexity_score": "slightly_complex"
+    }
+  },
+  {
+    "id": "SL-016_methods",
+    "description": "How do chemicals affect animals (and their kids)?",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 3/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the article PDF in a new tab](https://www.sciencejournalforkids.org/wp-content/uploads/2022/07/cross_spp_article.pdf)** This excerpt is the Methods section and the opening of Results; Figure 2 appears in it.\n\n---\n\nMethods\n\nWe reviewed hundreds of articles on endocrine-disrupting chemicals. We focused on their multi- and transgenerational effects in various species. These include fish, frogs and toads, birds, and mammals. We wanted to compare the effects among different animals, since they reproduce in different ways (Figure 2).\n\nFigure 2: Animals with different reproductive strategies are exposed to endocrine disruptors and the effects pass on to their offspring.\n\nResults\n\nThere are many studies on the effects of EDCs on fish. A well-known EDC is Bisphenol A (BPA) - a chemical used in plastic production. It causes reduced fertility in three generations of fish! Prozac, a common antidepressant, reduces responses to stress. This effect can last for four generations! Low oxygen levels can also disrupt the endocrine system. Researchers have found that it could impair fish sperm in two generations. How do these effects pass to the later generations? We believe the cause is not genetic but epigenetic. This means the chemicals haven't changed the DNA code. Instead, they have altered the way the cells read it. It's like an on/off switch for genes.\n\nRats and mice are common animals used for research on EDCs. Pesticides, for example, can increase the risk of tumors even in the third generation. Plasticizers can cause decreased body weight for many generations. Bisphenol A also causes reduced fertility in three generations of male rats.",
+      "grade_level": "7",
+      "graphics": [
+        "images/SL-016_methods.png"
+      ],
+      "figure_labels": "Image 1"
+    },
+    "expected": {
+      "complexity_score": "very_complex"
+    }
+  },
+  {
+    "id": "SL-029_results",
+    "description": "What if a salmon meets a catfish?",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 3/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the article PDF in a new tab](https://www.sciencejournalforkids.org/wp-content/uploads/2019/09/Salmon_article.pdf)** This excerpt is the Results section; Figure 3 appears in it. Figure 3 has two panels, a and b.\n\n---\n\nResults\n\nHere's what we found out:\n\nMore and more catfish started to swim through the fishway from 1993 to 2016 (Fig. 3a).\n\nFigure 3: a) Number of Atlantic salmon (pink) and European catfish (blue) passing through the fishway in the River Garonne per year b) Proportion of each type of fish passing through in each month of the year.\n\nAlmost 95% of all catfish passed through between April and July, which also coincides with the time salmon migrate (although salmon start a bit earlier, in March) (Fig. 3b).\n\nUntil 2008, catfish made only a few downstream passages through the fishway. After 2008 we see more and more catfish traveling back and forth in the fishway.\n\nWe also see salmon going back and forth between the fish counting station in later years.\n\nSalmon travelled through the fishway primarily during the day (between 8am - 9pm), while catfish prefered to do so at night (between 11pm - 9am). However, in the most recent 3 years, we observed that more catfish pass through at the end of the day (between 5pm -10pm).\n\nIn the absence of catfish, salmon passed directly through the fishway without spending much time inside. However, when catfish were present, salmon started swimming back and forth and spent more time inside.\n\nCatfish tended to hang around the exit of the fishway.",
+      "grade_level": "8",
+      "graphics": [
+        "images/SL-029_results.png"
+      ],
+      "figure_labels": "Image 1"
+    },
+    "expected": {
+      "complexity_score": "moderately_complex"
+    }
+  },
+  {
+    "id": "VE-007",
+    "description": "Government expenditures on environmental protection",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 3/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the article in a new tab](https://visualizingenergy.org/government-expenditures-on-environmental-protection/)** This excerpt is the opening of the article. The article's graphics are interactive embeds and are not reproduced here; open the page to view them.\n\n---\n\nSpending by national governments on environmental protection began in the late 19th and early 20th centuries when concerns about public health and land conservation produced the first sanitation systems, national parks, and early regulatory agencies. But extensive environmental concern by governments began in the post-World War II era when rapid economic and population growth powered by fossil fuels led to widespread pollution and ecosystem degradation.\n\nRising public concern about pollution and ecological decline, fueled by events such as oil spills, air pollution emergencies, species extinction, and the publication of Silent Spring (1962), led many governments to institutionalize environmental protection. Early movers included Japan's Basic Law for Environmental Pollution Control (1967), the United States Endangered Species Act (1973), and Germany's Federal Environment Agency (1974).\n\nThe International Monetary Fund (IMF) maintains a database on spending by national governments on environmental protection that dates to the mid-1990s for several dozen countries. Expenditures are categorized as follows: waste management, wastewater management, pollution abatement, protection of biodiversity, R&D on environmental protection, and environmental protection \"not elsewhere classified.\"\n\nIn the EU expenditure on environmental protection ranged between 0.2% of GDP and 1.5% of GDP in 2023. The total expenditure was 142 billion euro (0.8% of GDP) in 2023.",
+      "grade_level": "12",
+      "graphics": [
+        "images/VE-007_1.png",
+        "images/VE-007_2.png"
+      ],
+      "figure_labels": "Image 1, Image 2"
+    },
+    "expected": {
+      "complexity_score": "moderately_complex"
+    }
+  },
+  {
+    "id": "GUT-35601_czerny",
+    "description": "Liszt: The Story of a Boy Who Became a Great Pianist and Teacher",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 3/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the book in a new tab](https://www.gutenberg.org/files/35601/35601-h/35601-h.htm)** This excerpt is from pages 4 and 5. Three pictures appear in it; two of them share one caption.\n\n---\n\nNow, long after Joseph Haydn's time, Adam Liszt, father of Franz, lived with the Esterhazy's. He was the family steward, having charge of all the property.\n\nAnd, too, he loved music. So we may believe that he told his little boy, Franz, about the great master Haydn. For Adam Liszt was not only a lover of music but he gave his son his first lessons in piano playing. Liszt's mother was of German blood. She was born in lower Austria.\n\n![LISZT'S MOTHER](https://www.gutenberg.org/files/35601/35601-h/images/illus04.png) ![LISZT'S FATHER](https://www.gutenberg.org/files/35601/35601-h/images/illus05.png)\n\nLISZT'S MOTHER AND FATHER\n\nLittle Franz practiced so faithfully and so eagerly, I am sure, that when he was only nine years of age he gave a concert in public. He played so well that some good friends offered to send him to Vienna where he could continue his studies.\n\nAnd so the little boy left home and began the studies that led him to become the greatest pianist of his time. His piano teacher was a man of whom almost everybody knows. Does he not have a round, good-natured face? And does he not look kind? Well, he could be severe when his pupil's lessons did not please him.\n\nHis name was Carl Czerny. Here is his picture.\n\n![CARL CZERNY](https://www.gutenberg.org/files/35601/35601-h/images/illus06.png)\n\nCARL CZERNY\n\nOn New Year's day of the year that little Franz was eleven years old he played in public in Vienna. It must have been a wonderful occasion. All the great people were there; and among them was one who was greatest of all, Beethoven.",
+      "grade_level": "4",
+      "graphics": [
+        "images/GUT-35601_czerny.png",
+        "images/GUT-35601_czerny_2.png",
+        "images/GUT-35601_czerny_3.png"
+      ],
+      "figure_labels": "Image 1, Image 2, Image 3"
+    },
+    "expected": {
+      "complexity_score": "slightly_complex"
+    }
+  },
+  {
+    "id": "VE-003",
+    "description": "Gender mainstreaming in clean energy: informal urban settlements in sub-Saharan Africa",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 3/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the article in a new tab](https://visualizingenergy.org/gender-mainstreaming-in-clean-energy-sub-saharan-africa/)** This excerpt is the opening of the article. The article's graphics are interactive embeds and are not reproduced here; open the page to view them.\n\n---\n\nIn 2021, about 2.3 billion people worldwide lack access to clean cooking. The use of inefficient, polluting fuels and technologies is a health risk and a major contributor to diseases and deaths, particularly for women and children in low- and middle-income countries. For these reasons, gender mainstreaming is an essential organizing principle for reducing inequity and achieving universal access to clean energy. Gender mainstreaming has many specific definitions but the core principle is simple: a gender equality perspective at all stages and levels of policies, programs, and projects.\n\nAccess to clean energy in urban informal settlements is a considerable challenge in many cities. An informal settlement is one where inhabitants have no security of tenure (they are \"squatters\" or informal renters); it lacks or is cut off from basic services such as clean water, sewers, paved roads, and electricity; and the housing may not comply with current planning and building regulations. The absence of reliable electricity is a formidable barrier to good health and poverty reduction. Without reliable electricity, for example, students struggle to study at night, workers struggle to perform their jobs (especially informal occupations characteristic of these settlements), and everyone faces personal safety threats from streets and public spaces that are not illuminated at night.\n\nA recent case study posed the following question: How do energy companies operating in informal urban settlements in sub-Saharan Africa integrate gender mainstreaming into their practices, and what design processes, methods, and tools do they use?",
+      "grade_level": "12",
+      "graphics": [
+        "images/VE-003_1.png",
+        "images/VE-003_2.png"
+      ],
+      "figure_labels": "Image 1, Image 2"
+    },
+    "expected": {
+      "complexity_score": "moderately_complex"
+    }
+  },
+  {
+    "id": "GUT-34582_story",
+    "description": "Mozart: The Story of a Little Boy and His Sister Who Gave Concerts",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 3/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the book in a new tab](https://www.gutenberg.org/files/34582/34582-h/34582-h.htm)** This excerpt is from pages 12 to 14. One picture appears in it.\n\n---\n\nFACTS ABOUT MOZART.\n\nRead these facts about Wolfgang Amadeus Mozart and try to write his story out of them, using your own words. When your story is finished, ask your mother or your teacher to read it. When you have made it, copy it on pages 14, 15 and 16.\n\n1. Full name: Wolfgang Amadeus Mozart.\n2. Born Jan. 27, 1756; died Dec. 5, 1791.\n3. The sister's name was Maria Anna.\n4. Maria Anna was five years older than Wolfgang.\n5. The pet names of the children were Wolferl and Nannerl.\n6. Little Mozart loved to hear his sister play.\n7. He started to study when he was four.\n8. Mozart went on a concert tour with his sister when he was six years old.\n9. When he was a child he visited many great cities, among them Paris, London and Vienna.\n10. Handel and Haydn were living when Mozart was born.\n11. Benjamin Franklin, George Washington, Patrick Henry, Thomas Jefferson and Walter Scott were all alive during the time of Mozart.\n12. Mozart was five years old when he wrote his first piece.\n\nTHE STORY OF MOZART\n\nWrite a short story about Mozart and his sister and copy it on these pages.\n\n![THE BOY MOZART PLAYING](https://www.gutenberg.org/files/34582/34582-h/images/illus13.jpg)\n\nTHE BOY MOZART PLAYING.",
+      "grade_level": "4",
+      "graphics": [
+        "images/GUT-34582_story.jpg"
+      ],
+      "figure_labels": "Image 1"
+    },
+    "expected": {
+      "complexity_score": "slightly_complex"
+    }
+  },
+  {
+    "id": "VE-019",
+    "description": "Which banks fund upstream oil and gas?",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 2/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the article in a new tab](https://visualizingenergy.org/which-banks-fund-upstream-oil-and-gas/)** This excerpt is the opening of the article. The article's graphics are interactive embeds and are not reproduced here; open the page to view them.\n\n---\n\nIn the decade from 2013 to 2023, global oil and gas consumption increased by about 14%. Rising consumption of oil and gas is antithetical to limiting global warming to between 1.5 to 2.5 degrees Celsius above pre-industrial levels in order to avert the worst impacts of climate change. Rising consumption begins with financing \"upstream\" activities, namely the exploration, extraction, and production of crude oil and natural gas. Much of that funding comes from the world's largest banks.\n\nJP Morgan Chase was the largest financer of upstream oil and gas activity from 2016 to 2023, supplying more than USD 67 billion to a diverse range of companies. Recipients included state-owned companies, such as the Saudi Arabian Oil Company (Saudi Aramco) and Petroleo Brasileiro SA (Petrobras), and private companies such as ExxonMobil, BP, and Shell.\n\nA coalition led by the Rainforest Action Network collected and analyzed the finance data, and pointed to some troubling trends beneath the data. First, some of the financing issued in 2023 matures after 2030, a key interim target date for reducing emissions, and after 2050, the widely adopted target date for global CO2 emissions to reach net zero. This raises questions about some bank's commitment to reaching net zero promptly.",
+      "grade_level": "12",
+      "graphics": [
+        "images/VE-019_1.png",
+        "images/VE-019_2.png"
+      ],
+      "figure_labels": "Image 1, Image 2"
+    },
+    "expected": {
+      "complexity_score": "very_complex"
+    }
+  },
+  {
+    "id": "VE-005",
+    "description": "Global natural gas flaring, 2012-2023",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 2/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the article in a new tab](https://visualizingenergy.org/natural-gas-flares/)** This excerpt is the opening of the article. The article's graphics are interactive embeds and are not reproduced here; open the page to view them.\n\n---\n\nCrude oil and natural gas are found trapped in geologic formations known as reservoirs. These two resources often occur together within the same reservoir. When a well is drilled to extract oil, some of the associated natural gas naturally rises to the surface along with it.\n\nFor a combination of safety, technological, economic, and regulatory reasons, this natural gas is often burned off at or near the wellhead - a process known as natural gas flaring. This practice results in an enormous waste of energy. In fact, the amount of gas flared globally each year contains enough energy to power the entire economy of sub-Saharan Africa.\n\nAnthropogenic methane is a potent greenhouse gas, contributing to approximately 30% of the global temperature increase since the Industrial Revolution. Gas flaring is an important component of total methane emissions.\n\nGas flares are identified by their heat signature, which can be detected using satellites equipped with specialized sensors. These satellites capture the infrared emissions produced by gas flaring at upstream oil and gas facilities.\n\nA heat map of approximately 145,000 gas flares detected by satellites from 2012 to 2023 highlights the widespread nature of this practice, with several major hot spots, including West Siberia in Russia; the Middle East; Alberta, Canada; and West Texas, North Dakota, and other major oil producing regions in the United States.",
+      "grade_level": "12",
+      "graphics": [
+        "images/VE-005_1.png",
+        "images/VE-005_2.png"
+      ],
+      "figure_labels": "Image 1, Image 2"
+    },
+    "expected": {
+      "complexity_score": "very_complex"
+    }
+  },
+  {
+    "id": "SL-031_results",
+    "description": "What makes some medicines too thick?",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 3/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the article PDF in a new tab](https://www.sciencejournalforkids.org/wp-content/uploads/2026/03/antibody-medicine_article.pdf)** This excerpt is the Results section and the opening of Discussion; Figure 3 appears in it.\n\n---\n\nResults\n\nWe found that the viscosity increased as the antibody concentration increased (see Fig. 3 on p.3). We also discovered that Model C matched our laboratory evidence the best.\n\nFigure 3: The relationship between antibody concentration and viscosity for Model C compared to laboratory results.\n\nWe saw that at high concentrations, antibodies formed temporary clusters. This was because of two things:\n\n1. Areas on the antibodies that had opposite charges interacted with each other.\n\n2. Areas on the antibodies interacted with ions in the solutions. This stabilized the antibodies and allowed them to stay clustered for longer, even if they had the same charge.\n\nDiscussion\n\nWe found that we needed to include ions in the solution to make a realistic model. When antibodies form temporary clusters, it can increase viscosity. This happens when areas on the antibodies interact with each other. Our results suggest they do this because of electrostatic interactions with each other and with ions in the solution. Future models should make sure to include both of these interactions.\n\nIt is important to continue developing models that align with experiments in the laboratory. This gives scientists a basic framework of the medicine's molecular properties.\n\nThen they can add or remove things from the model to see if it changes the viscosity.",
+      "grade_level": "10",
+      "graphics": [
+        "images/SL-031_results.png"
+      ],
+      "figure_labels": "Image 1"
+    },
+    "expected": {
+      "complexity_score": "moderately_complex"
+    }
+  },
+  {
+    "id": "SL-039_results",
+    "description": "Why do measles survivors get sicker?",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 2/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the article PDF in a new tab](https://www.sciencejournalforkids.org/wp-content/uploads/2020/05/antibodies_article.pdf)** This excerpt is the Methods and Results sections; Figure 2 appears in it.\n\n---\n\nMethods\n\nWe needed to take blood samples from children before and after they became infected with measles. But how could we know which children would get infected in the next outbreak? Here is how we found our sample population:\n\n1. We undertook a study that predicted who would come into contact with measles during an outbreak.\n\n2. We identified a couple of schools in the Netherlands where many parents didn't have their children vaccinated - these children would be most at risk during the next outbreak.\n\n3. The parents of 82 unvaccinated children allowed us to take a small blood sample from each child.\n\n4. During the next outbreak, 77 of those children (94%) did, in fact, get the disease.\n\n5. We then took blood samples from these children about 2-3 months after they recovered from the infection.\n\n6. We also compared these samples with samples taken from a few different types of control groups. (See Figure 2 for information about the control groups).\n\nFigure 2: Changes in the number of different types of antibodies during the second round of blood testing.\n\nWe also performed an experimental infection of four monkeys and examined their antibodies before and after the infection.\n\nResults\n\nMeasles significantly reduced the number of different types of antibodies in the children's blood (Fig. 2).\n\nThe virus eliminated 11-73% of the antibodies that were present before infection.",
+      "grade_level": "8",
+      "graphics": [
+        "images/SL-039_results.png"
+      ],
+      "figure_labels": "Image 1"
+    },
+    "expected": {
+      "complexity_score": "very_complex"
+    }
+  },
+  {
+    "id": "SL-014_methods",
+    "description": "How do bats work together?",
+    "source": "Use_of_Graphics_-_Sniff_Test_Sep_14_2026_16_07_Seung Yeon.csv (complexity_score_rating: Agree 3/3; majority threshold: 2/3); text and image references: evaluator_annotated_sniff_test_20260911.csv",
+    "input": {
+      "text": "**[Open the article PDF in a new tab](https://www.sciencejournalforkids.org/wp-content/uploads/2026/06/social-bats_article.pdf)** This excerpt is the Methods section and the opening of Results; Figure 1 appears in it, along with the cartoon header banner at the top of page 1.\n\n---\n\nMethods\n\nWe conducted our study in a forest in Costa Rica. We focused on one roost in the hollow of a tree that we found in November 2022. The roost was home to a family of four bats. There were two adults and two pups. In November 2023, we placed a wildlife camera inside the hollow tree. The camera recorded the bats for 60 days. The videos used infrared to capture the bats' behavior. The camera turned on when it sensed movement from the bats.\n\nAt the end of the recording period, we watched the videos. We classified the different behaviors observed into the following categories: social behaviors (see Fig. 1), food behaviors, play behaviors.\n\nFigure 1: In this example of social behavior, a bat wraps its wings around another bat - like a \"hug\". Photo: Marisa Tietge (Knornschild lab).\n\nWe also determined which bats participated in the behaviors. We took screenshots from the videos. To determine if a bat was an adult or a pup, we measured the distance between the eyes of each bat. The pups had a smaller distance between their eyes.\n\nResults\n\nSocial Behaviors: When the bats were social, they stayed close together. Often, one bat put its wing around another, like a human hug. The bats greeted each other with a \"hug\" when one bat returned to the roost. Sometimes they groomed each other. They also made vocalizations.",
+      "grade_level": "5",
+      "graphics": [
+        "images/SL-014_methods_1.png",
+        "images/SL-014_methods_2.png"
+      ],
+      "figure_labels": "Image 1, Image 2"
+    },
+    "expected": {
+      "complexity_score": "slightly_complex"
+    }
+  }
+]
