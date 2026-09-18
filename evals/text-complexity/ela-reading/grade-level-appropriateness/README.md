@@ -1,4 +1,4 @@
-# [Grade Level Appropriateness](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/grade-level-appropriateness) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->
+# [Grade Level Appropriateness](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/grade-level-appropriateness)
 
 Evaluates which grade band a text is appropriate for at independent reading, plus an alternative band reachable with scaffolding.
 

@@ -1,4 +1,4 @@
-# [Background Knowledge Demands](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/background-knowledge-demands) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->
+# [Background Knowledge Demands](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/background-knowledge-demands)
 
 Evaluates how much background knowledge a text assumes readers already have, relative to its target grade.
 

@@ -1,4 +1,4 @@
-# [Vocabulary Complexity](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/vocabulary-complexity) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->
+# [Vocabulary Complexity](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/vocabulary-complexity)
 
 Evaluates the complexity of a text's vocabulary relative to its target grade.
 

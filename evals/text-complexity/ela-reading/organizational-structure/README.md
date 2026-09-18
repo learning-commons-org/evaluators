@@ -1,4 +1,4 @@
-# [Organizational Structure](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/organizational-structure) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->
+# [Organizational Structure](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/organizational-structure)
 
 Evaluates how complex a text's organizational structure is for readers at the target grade.
 

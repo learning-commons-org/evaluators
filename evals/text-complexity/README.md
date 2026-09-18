@@ -1,4 +1,4 @@
-# [Text Complexity](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/introduction) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->
+# [Text Complexity](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/introduction)
 
 Measures qualitative text complexity across dimensions like sentence structure, vocabulary, and grade-level fit.
 

@@ -1,4 +1,4 @@
-# [Purpose Clarity](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/purpose-clarity) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->
+# [Purpose Clarity](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/purpose-clarity)
 
 Evaluates how clearly a text's purpose is conveyed for readers at the target grade.
 
