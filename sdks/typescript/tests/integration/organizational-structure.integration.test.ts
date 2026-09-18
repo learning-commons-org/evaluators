@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { OrganizationalStructureEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/organizational-structure.js';
+import { OrganizationalStructureEvaluator } from '../../src/evaluators/text-complexity/ela-reading/organizational-structure.js';
 import { runEvaluatorTest, type BaseTestCase } from '../utils/index.js';
 
 /**

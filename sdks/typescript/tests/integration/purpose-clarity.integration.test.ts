@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PurposeClarityEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/purpose-clarity.js';
+import { PurposeClarityEvaluator } from '../../src/evaluators/text-complexity/ela-reading/purpose-clarity.js';
 import { runEvaluatorTest, type BaseTestCase } from '../utils/index.js';
 
 /**

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MeaningDirectnessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/meaning-directness.js';
+import { MeaningDirectnessEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/meaning-directness.js';
 import { InputValidationError } from '../../../src/errors.js';
-import INPUT_SCHEMA from '../../../../../evals/student-facing-text/ela-reading/meaning-directness/input_schema.json';
+import INPUT_SCHEMA from '../../../../../evals/text-complexity/ela-reading/meaning-directness/input_schema.json';
 
 /**
  * Text bounds come from the evaluator's own `input_schema.json`, so the numbers here are

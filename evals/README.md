@@ -2,12 +2,12 @@
 
 Evaluators are thematically grouped into evaluator families:
 
-- [Student-Facing Text](./student-facing-text/)
+- [Text Complexity](./text-complexity/)
 - [Feedback](./feedback/)
 - [Academic Standards](./academic-standards-alignment/)
 - [Durable Skills](./durable-skills/)
 
-Each evaluator family has its own directory and contains its evaluators as nested folders (e.g., the [Student-Facing Text](./student-facing-text/) directory includes [Grade Level Appropriateness](./student-facing-text/ela-reading/grade-level-appropriateness), [Background Knowledge Demands](./student-facing-text/ela-reading/background-knowledge-demands), and other related evaluators).
+Each evaluator family has its own directory and contains its evaluators as nested folders (e.g., the [Text Complexity](./text-complexity/) directory includes [Grade Level Appropriateness](./text-complexity/ela-reading/grade-level-appropriateness), [Background Knowledge Demands](./text-complexity/ela-reading/background-knowledge-demands), and other related evaluators).
 
 Each evaluator subdirectory includes the following files:
 

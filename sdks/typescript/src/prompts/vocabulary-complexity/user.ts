@@ -1,6 +1,6 @@
-import USER_PROMPT_TEMPLATE_GRADES_3_4 from '../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/grades-3-4-user.txt';
-import USER_PROMPT_TEMPLATE_OTHER_GRADES from '../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/other-grades-user.txt';
-import CONFIG from '../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/config.json';
+import USER_PROMPT_TEMPLATE_GRADES_3_4 from '../../../../../evals/text-complexity/ela-reading/vocabulary-complexity/grades-3-4-user.txt';
+import USER_PROMPT_TEMPLATE_OTHER_GRADES from '../../../../../evals/text-complexity/ela-reading/vocabulary-complexity/other-grades-user.txt';
+import CONFIG from '../../../../../evals/text-complexity/ela-reading/vocabulary-complexity/config.json';
 import { requireConditionValues, requirePreprocessing } from '../../evaluators/multi-step.js';
 import { requireStep } from '../../evaluators/single-step.js';
 

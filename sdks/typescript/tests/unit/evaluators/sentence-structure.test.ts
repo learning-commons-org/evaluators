@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { SentenceStructureEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/sentence-structure.js';
+import { SentenceStructureEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/sentence-structure.js';
 import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
-import CONFIG from '../../../../../evals/student-facing-text/ela-reading/sentence-structure/config.json';
+import CONFIG from '../../../../../evals/text-complexity/ela-reading/sentence-structure/config.json';
 
 // Derived from the contract rather than copied from it, so a model re-pin in
 // config.json surfaces here instead of the test quietly asserting a stale value.

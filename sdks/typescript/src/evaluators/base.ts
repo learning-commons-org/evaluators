@@ -167,7 +167,7 @@ export interface BaseEvaluatorConfig {
 export interface EvaluatorMetadata {
   /**
    * Current dotted registry id, e.g.
-   * `student_facing_text.ela_reading.vocabulary_complexity`. Appears in results and
+   * `text_complexity.ela_reading.vocabulary_complexity`. Appears in results and
    * telemetry. May be renamed — the name is not the identity.
    */
   readonly id: string;
@@ -239,7 +239,7 @@ export abstract class BaseEvaluator {
    * ```typescript
    * class MyEvaluator extends BaseEvaluator {
    *   static readonly metadata = {
-   *     id: 'student_facing_text.ela_reading.my_evaluator',
+   *     id: 'text_complexity.ela_reading.my_evaluator',
    *     stableId: '00000000-0000-0000-0000-000000000000',
    *     idHistory: [],
    *     name: 'My Evaluator',
@@ -459,7 +459,7 @@ export abstract class BaseEvaluator {
 
   /**
    * Get the evaluator type identifier from metadata
-   * @returns The dotted registry id, e.g. "student_facing_text.ela_reading.sentence_structure"
+   * @returns The dotted registry id, e.g. "text_complexity.ela_reading.sentence_structure"
    */
   protected getEvaluatorType(): string {
     return this.metadata.id;

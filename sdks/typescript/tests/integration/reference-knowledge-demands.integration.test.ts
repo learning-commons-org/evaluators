@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ReferenceKnowledgeDemandsEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/reference-knowledge-demands.js';
+import { ReferenceKnowledgeDemandsEvaluator } from '../../src/evaluators/text-complexity/ela-reading/reference-knowledge-demands.js';
 import { runEvaluatorTest, type BaseTestCase } from '../utils/index.js';
 
 /**

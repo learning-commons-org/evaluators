@@ -439,18 +439,19 @@ is no single model or duration to report.
 
   | id stored by 0.8.0 | resolves to |
   | --- | --- |
-  | `vocabulary` | `student_facing_text.ela_reading.vocabulary_complexity` |
-  | `sentence-structure` | `student_facing_text.ela_reading.sentence_structure` |
-  | `subject-matter-knowledge` | `student_facing_text.ela_reading.background_knowledge_demands` |
-  | `conventionality` | `student_facing_text.ela_reading.meaning_directness` |
-  | `literacy.gla.purpose` | `student_facing_text.ela_reading.purpose_clarity` |
-  | `grade-level-appropriateness` | `student_facing_text.ela_reading.grade_level_appropriateness` |
+  | `vocabulary` | `text_complexity.ela_reading.vocabulary_complexity` |
+  | `sentence-structure` | `text_complexity.ela_reading.sentence_structure` |
+  | `subject-matter-knowledge` | `text_complexity.ela_reading.background_knowledge_demands` |
+  | `conventionality` | `text_complexity.ela_reading.meaning_directness` |
+  | `literacy.gla.purpose` | `text_complexity.ela_reading.purpose_clarity` |
+  | `grade-level-appropriateness` | `text_complexity.ela_reading.grade_level_appropriateness` |
   | `math.standards-alignment` | `academic_standards_alignment.mathematics.math_standards_alignment` |
 
   `getEvaluator` returns `undefined` for anything it cannot resolve rather than throwing, so
   check before use. `text-complexity` returns `undefined` — that was the removed composite,
-  not an evaluator. Each evaluator carries exactly one former id, so a class-name stem such as
-  `smk` or `purpose` does not resolve; use the ids in the table.
+  not an evaluator. Former ids still resolve — the 0.8.0 ids in this table, and later
+  `student_facing_text.*` ids — so a class-name stem such as `smk` or `purpose` does not;
+  use the ids in the table.
 
 The `@learning-commons/evaluators/batch` entry point and the `evaluators-batch` command both
 existed in 0.8.0, and are documented in the [README](./README.md) now. **Their API changed as
@@ -464,5 +465,5 @@ well**, which nothing above covers:
 | `BatchInput.text` / `.grade` | `BatchInput.columns: Record<string, string>`, a removal rather than the `grade` to `gradeLevel` rename in section 5 |
 
 The CLI gained `--family`, `--evaluator`, `--model`, `--learning-commons-api-key` and `-y`.
-`--evaluator` takes the full registry id (`student_facing_text.ela_reading.vocabulary_complexity`),
+`--evaluator` takes the full registry id (`text_complexity.ela_reading.vocabulary_complexity`),
 not the short name.

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/grade-level-appropriateness.js';
+import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/grade-level-appropriateness.js';
 import { ConfigurationError, InputValidationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
-import CONFIG from '../../../../../evals/student-facing-text/ela-reading/grade-level-appropriateness/config.json';
+import CONFIG from '../../../../../evals/text-complexity/ela-reading/grade-level-appropriateness/config.json';
 
 // Read from the contract, not restated: hardcoding it here is how the SDK came to ship
 // a different model from the one declared without any test objecting.
