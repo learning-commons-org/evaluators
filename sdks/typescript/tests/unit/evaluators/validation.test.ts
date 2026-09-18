@@ -3,11 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 /** The declared grade type. These cases feed it invalid values on purpose, to prove the
  * runtime check still rejects what the literal union now also rejects at compile time. */
 type GradeLevelInput = '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | '11' | '12';
-import { VocabularyComplexityEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/vocabulary-complexity.js';
-import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/background-knowledge-demands.js';
-import { MeaningDirectnessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/meaning-directness.js';
+import { VocabularyComplexityEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/vocabulary-complexity.js';
+import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/background-knowledge-demands.js';
+import { MeaningDirectnessEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/meaning-directness.js';
 import { Provider, BaseEvaluator } from '../../../src/evaluators/base.js';
-import MD_INPUT_SCHEMA from '../../../../../evals/student-facing-text/ela-reading/meaning-directness/input_schema.json';
+import MD_INPUT_SCHEMA from '../../../../../evals/text-complexity/ela-reading/meaning-directness/input_schema.json';
 
 // Read from the contract, not restated: the bound is the evaluator's, not a global.
 const MAX_TEXT_LENGTH = MD_INPUT_SCHEMA.properties.text.maxLength;

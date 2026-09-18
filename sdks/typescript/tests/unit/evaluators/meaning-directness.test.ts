@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { MeaningDirectnessEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/meaning-directness.js';
+import { MeaningDirectnessEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/meaning-directness.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 // Mock providers
@@ -29,7 +29,7 @@ describe('MeaningDirectnessEvaluator - Constructor Validation', () => {
 
 describe('MeaningDirectnessEvaluator - Metadata', () => {
   it('should have correct metadata', () => {
-    expect(MeaningDirectnessEvaluator.metadata.id).toBe('student_facing_text.ela_reading.meaning_directness');
+    expect(MeaningDirectnessEvaluator.metadata.id).toBe('text_complexity.ela_reading.meaning_directness');
     expect(MeaningDirectnessEvaluator.metadata.idHistory).toContain('conventionality');
     expect(MeaningDirectnessEvaluator.metadata.defaultProviders).toEqual(['google']);
     expect(MeaningDirectnessEvaluator.metadata.supportedGrades).toEqual([

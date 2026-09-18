@@ -1,8 +1,8 @@
 import type { BatchOutput, BatchResult } from './types.js';
 import reportTemplate from './report-template.html';
 import { injectReportData, toInlineJson } from './report-injection.js';
-import { GradeLevelAppropriatenessEvaluator } from '../evaluators/student-facing-text/ela-reading/grade-level-appropriateness.js';
-import { GradeLevelAppropriatenessOutputSchema } from '../schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
+import { GradeLevelAppropriatenessEvaluator } from '../evaluators/text-complexity/ela-reading/grade-level-appropriateness.js';
+import { GradeLevelAppropriatenessOutputSchema } from '../schemas/text-complexity/ela-reading/grade-level-appropriateness.js';
 import { QTC_FAMILY } from './families/qtc.js';
 
 // ---- Constants ----

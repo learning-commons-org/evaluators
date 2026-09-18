@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/background-knowledge-demands.js';
+import { BackgroundKnowledgeDemandsEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/background-knowledge-demands.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
@@ -30,7 +30,7 @@ describe('BackgroundKnowledgeDemandsEvaluator - Constructor Validation', () => {
 
 describe('BackgroundKnowledgeDemandsEvaluator - Metadata', () => {
   it('should have correct metadata', () => {
-    expect(BackgroundKnowledgeDemandsEvaluator.metadata.id).toBe('student_facing_text.ela_reading.background_knowledge_demands');
+    expect(BackgroundKnowledgeDemandsEvaluator.metadata.id).toBe('text_complexity.ela_reading.background_knowledge_demands');
     expect(BackgroundKnowledgeDemandsEvaluator.metadata.idHistory).toContain('subject-matter-knowledge');
     expect(BackgroundKnowledgeDemandsEvaluator.metadata.defaultProviders).toEqual(['google']);
     expect(BackgroundKnowledgeDemandsEvaluator.metadata.supportedGrades).toEqual([

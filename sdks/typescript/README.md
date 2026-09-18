@@ -134,7 +134,7 @@ Every evaluator resolves to the same three-part envelope, so generic code works 
 
 ```typescript
 {
-  evaluator: string; // registry id, e.g. "student_facing_text.ela_reading.vocabulary_complexity"
+  evaluator: string; // registry id, e.g. "text_complexity.ela_reading.vocabulary_complexity"
   result: TResult; // the evaluator's own payload, exactly as its output schema declares it
   metadata: {
     model: string; // "provider:model" that ran; "a+b" when several did
@@ -204,19 +204,19 @@ switch over the four above will not be exhaustive for it.
 
 | Evaluator                             | Grades | Default provider | Docs                                                                                                            |
 | ------------------------------------- | ------ | ---------------- | --------------------------------------------------------------------------------------------------------------- |
-| `BackgroundKnowledgeDemandsEvaluator` | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/background-knowledge-demands) |
-| `MeaningDirectnessEvaluator`          | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/meaning-directness)           |
-| `OrganizationalStructureEvaluator`    | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/organizational-structure)     |
-| `PurposeClarityEvaluator`             | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/purpose-clarity)              |
-| `ReferenceKnowledgeDemandsEvaluator`  | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/reference-knowledge-demands)  |
-| `SentenceStructureEvaluator`          | 3–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/sentence-structure)           |
-| `VocabularyComplexityEvaluator`       | 3–12   | Google + OpenAI  | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/vocabulary-complexity)        |
+| `BackgroundKnowledgeDemandsEvaluator` | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/background-knowledge-demands) <!-- TODO(text-complexity-docs): update when the docs site path is renamed --> |
+| `MeaningDirectnessEvaluator`          | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/meaning-directness) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->           |
+| `OrganizationalStructureEvaluator`    | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/organizational-structure) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->     |
+| `PurposeClarityEvaluator`             | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/purpose-clarity) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->              |
+| `ReferenceKnowledgeDemandsEvaluator`  | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/reference-knowledge-demands) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->  |
+| `SentenceStructureEvaluator`          | 3–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/sentence-structure) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->           |
+| `VocabularyComplexityEvaluator`       | 3–12   | Google + OpenAI  | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/vocabulary-complexity) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->        |
 
 Grade band — takes `{ text }` only, and determines the grade rather than judging against one. Returns `grade_band`, `alternative_grade_band`, `scaffolding_needed`, `reasoning`. Bands are `K-1`, `2-3`, `4-5`, `6-8`, `9-10`, `11-12` — spans on the CCSS text-complexity scale, not single grades.
 
 | Evaluator                            | Grades | Default provider | Docs                                                                                                           |
 | ------------------------------------ | ------ | ---------------- | -------------------------------------------------------------------------------------------------------------- |
-| `GradeLevelAppropriatenessEvaluator` | K–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/grade-level-appropriateness) |
+| `GradeLevelAppropriatenessEvaluator` | K–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/grade-level-appropriateness) <!-- TODO(text-complexity-docs): update when the docs site path is renamed --> |
 
 Feedback quality — judges a teacher comment on a student's writing. Each takes `{ student_text, feedback_text }` and returns a binary `quality_score` with `reasoning`, `key_features` and `proposed_adjustment`.
 

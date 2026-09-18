@@ -1,6 +1,6 @@
 # evals/
 
-Each evaluator is a self-contained directory: `evals/<domain>/<skill-modality>/<evaluator>/` — e.g. `student-facing-text/ela-reading/sentence-structure/`.
+Each evaluator is a self-contained directory: `evals/<domain>/<skill-modality>/<evaluator>/` — e.g. `text-complexity/ela-reading/sentence-structure/`.
 
 ## The evaluator contract
 
