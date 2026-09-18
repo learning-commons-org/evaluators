@@ -1,4 +1,4 @@
-# [Sentence Structure](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/sentence-structure) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->
+# [Sentence Structure](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/sentence-structure)
 
 Evaluates the sentence-structure complexity of a text relative to its target grade.
 

@@ -1,4 +1,4 @@
-# [Meaning Directness](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/meaning-directness) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->
+# [Meaning Directness](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/meaning-directness)
 
 Evaluates how explicit and straightforward a text's meaning is versus how abstract, ironic, or figurative it is.
 

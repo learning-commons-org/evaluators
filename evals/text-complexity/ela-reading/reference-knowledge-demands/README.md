@@ -1,4 +1,4 @@
-# [Reference Knowledge Demands](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/reference-knowledge-demands) <!-- TODO(text-complexity-docs): update when the docs site path is renamed -->
+# [Reference Knowledge Demands](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/reference-knowledge-demands)
 
 Evaluates the intertextual and reference knowledge a text assumes readers already have.
 
