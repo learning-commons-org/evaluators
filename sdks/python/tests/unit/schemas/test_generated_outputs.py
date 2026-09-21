@@ -21,12 +21,12 @@ from learning_commons_evaluators.schemas.feedback.ela_writing.tone_appropriatene
 from learning_commons_evaluators.schemas.feedback.ela_writing.withholding_answers import (
     WithholdingAnswersOutput,
 )
-from learning_commons_evaluators.schemas.student_facing_text.ela_reading.grade_level_appropriateness import (
+from learning_commons_evaluators.schemas.text_complexity.ela_reading.grade_level_appropriateness import (
     GradeBand,
     GradeLevelAppropriatenessInput,
     GradeLevelAppropriatenessOutput,
 )
-from learning_commons_evaluators.schemas.student_facing_text.ela_reading.vocabulary_complexity import (
+from learning_commons_evaluators.schemas.text_complexity.ela_reading.vocabulary_complexity import (
     GRADE_LEVEL_VALUES,
     VocabularyComplexityInput,
     VocabularyComplexityOutput,

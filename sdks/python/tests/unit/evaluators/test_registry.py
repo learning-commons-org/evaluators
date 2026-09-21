@@ -24,17 +24,17 @@ from learning_commons_evaluators.evaluators.registry import (
 def test_lists_every_evaluator_in_taxonomy_order() -> None:
     assert [m.id for m in get_evaluators()] == [
         "feedback.ela_writing.tone_appropriateness",
-        "student_facing_text.ela_reading.grade_level_appropriateness",
-        "student_facing_text.ela_reading.purpose_clarity",
-        "student_facing_text.ela_reading.sentence_structure",
-        "student_facing_text.ela_reading.vocabulary_complexity",
+        "text_complexity.ela_reading.grade_level_appropriateness",
+        "text_complexity.ela_reading.purpose_clarity",
+        "text_complexity.ela_reading.sentence_structure",
+        "text_complexity.ela_reading.vocabulary_complexity",
     ]
     assert [e.metadata for e in EVALUATORS] == list(get_evaluators())
 
 
 def test_resolves_current_ids() -> None:
     assert (
-        get_evaluator("student_facing_text.ela_reading.purpose_clarity")
+        get_evaluator("text_complexity.ela_reading.purpose_clarity")
         is PurposeClarityEvaluator.metadata
     )
     assert (
