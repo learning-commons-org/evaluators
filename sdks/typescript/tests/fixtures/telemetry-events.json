@@ -1,0 +1,200 @@
+[
+  {
+    "id": "single-step/success",
+    "evaluator": "text_complexity.ela_reading.purpose_clarity",
+    "inputs": {
+      "text": "When going to the beach, find out which ones have lifeguards. Rip currents are like fast-flowing rivers that can pull even strong swimmers away from the beach.",
+      "grade_level": "5"
+    },
+    "event": {
+      "timestamp": "<masked>",
+      "sdk_version": "<masked>",
+      "evaluator_type": "text_complexity.ela_reading.purpose_clarity",
+      "grade": "5",
+      "status": "success",
+      "latency_ms": "<masked>",
+      "text_length_chars": 159,
+      "provider": "google:gemini-3-flash-preview",
+      "token_usage": {
+        "input_tokens": 250,
+        "output_tokens": 120
+      },
+      "metadata": {
+        "stage_details": [
+          {
+            "stage": "evaluate_purpose_clarity",
+            "provider": "google:gemini-3-flash-preview",
+            "latency_ms": 900,
+            "token_usage": {
+              "input_tokens": 250,
+              "output_tokens": 120
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "single-step/rejected-input",
+    "evaluator": "text_complexity.ela_reading.purpose_clarity",
+    "inputs": {
+      "text": "When going to the beach, find out which ones have lifeguards. Rip currents are like fast-flowing rivers that can pull even strong swimmers away from the beach.",
+      "grade_level": "2"
+    },
+    "raises": true,
+    "event": {
+      "timestamp": "<masked>",
+      "sdk_version": "<masked>",
+      "evaluator_type": "text_complexity.ela_reading.purpose_clarity",
+      "grade": "",
+      "status": "error",
+      "error_code": "InputValidationError",
+      "latency_ms": "<masked>",
+      "text_length_chars": 0,
+      "provider": "google:gemini-3-flash-preview"
+    }
+  },
+  {
+    "id": "single-step/provider-failure",
+    "evaluator": "text_complexity.ela_reading.purpose_clarity",
+    "inputs": {
+      "text": "When going to the beach, find out which ones have lifeguards. Rip currents are like fast-flowing rivers that can pull even strong swimmers away from the beach.",
+      "grade_level": "5"
+    },
+    "fail_at_call": 1,
+    "raises": true,
+    "event": {
+      "timestamp": "<masked>",
+      "sdk_version": "<masked>",
+      "evaluator_type": "text_complexity.ela_reading.purpose_clarity",
+      "grade": "5",
+      "status": "error",
+      "error_code": "RateLimitError",
+      "latency_ms": "<masked>",
+      "text_length_chars": 159,
+      "provider": "google:gemini-3-flash-preview"
+    }
+  },
+  {
+    "id": "single-step/model-override",
+    "evaluator": "text_complexity.ela_reading.purpose_clarity",
+    "inputs": {
+      "text": "When going to the beach, find out which ones have lifeguards. Rip currents are like fast-flowing rivers that can pull even strong swimmers away from the beach.",
+      "grade_level": "5"
+    },
+    "model_override": {
+      "provider": "anthropic",
+      "model": "claude-opus-5"
+    },
+    "event": {
+      "timestamp": "<masked>",
+      "sdk_version": "<masked>",
+      "evaluator_type": "text_complexity.ela_reading.purpose_clarity",
+      "grade": "5",
+      "status": "success",
+      "latency_ms": "<masked>",
+      "text_length_chars": 159,
+      "provider": "anthropic:claude-opus-5",
+      "token_usage": {
+        "input_tokens": 250,
+        "output_tokens": 120
+      },
+      "metadata": {
+        "stage_details": [
+          {
+            "stage": "evaluate_purpose_clarity",
+            "provider": "anthropic:claude-opus-5",
+            "latency_ms": 900,
+            "token_usage": {
+              "input_tokens": 250,
+              "output_tokens": 120
+            }
+          }
+        ]
+      },
+      "model_override": true
+    }
+  },
+  {
+    "id": "multi-step/success",
+    "evaluator": "text_complexity.ela_reading.sentence_structure",
+    "inputs": {
+      "text": "When going to the beach, find out which ones have lifeguards. Rip currents are like fast-flowing rivers that can pull even strong swimmers away from the beach.",
+      "grade_level": "5"
+    },
+    "event": {
+      "timestamp": "<masked>",
+      "sdk_version": "<masked>",
+      "evaluator_type": "text_complexity.ela_reading.sentence_structure",
+      "grade": "5",
+      "status": "success",
+      "latency_ms": "<masked>",
+      "text_length_chars": 159,
+      "provider": "openai:gpt-4o-2024-08-06",
+      "token_usage": {
+        "input_tokens": 500,
+        "output_tokens": 240
+      },
+      "metadata": {
+        "stage_details": [
+          {
+            "stage": "sentence_analysis",
+            "provider": "openai:gpt-4o-2024-08-06",
+            "latency_ms": 900,
+            "token_usage": {
+              "input_tokens": 250,
+              "output_tokens": 120
+            }
+          },
+          {
+            "stage": "classify_complexity",
+            "provider": "openai:gpt-4o-2024-08-06",
+            "latency_ms": 900,
+            "token_usage": {
+              "input_tokens": 250,
+              "output_tokens": 120
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "multi-step/failure-after-one-step",
+    "evaluator": "text_complexity.ela_reading.sentence_structure",
+    "inputs": {
+      "text": "When going to the beach, find out which ones have lifeguards. Rip currents are like fast-flowing rivers that can pull even strong swimmers away from the beach.",
+      "grade_level": "5"
+    },
+    "fail_at_call": 2,
+    "raises": true,
+    "event": {
+      "timestamp": "<masked>",
+      "sdk_version": "<masked>",
+      "evaluator_type": "text_complexity.ela_reading.sentence_structure",
+      "grade": "5",
+      "status": "error",
+      "error_code": "RateLimitError",
+      "latency_ms": "<masked>",
+      "text_length_chars": 159,
+      "provider": "openai:gpt-4o-2024-08-06",
+      "token_usage": {
+        "input_tokens": 250,
+        "output_tokens": 120
+      },
+      "metadata": {
+        "stage_details": [
+          {
+            "stage": "sentence_analysis",
+            "provider": "openai:gpt-4o-2024-08-06",
+            "latency_ms": 900,
+            "token_usage": {
+              "input_tokens": 250,
+              "output_tokens": 120
+            }
+          }
+        ]
+      }
+    }
+  }
+]
