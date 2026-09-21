@@ -37,7 +37,7 @@ from tests.conftest import EventSink, SinkResponse
 EVENT = TelemetryEvent(
     timestamp="2026-09-17T00:00:00.000Z",
     sdk_version="learning-commons-evaluators-python-1.0.0",
-    evaluator_type="student_facing_text.ela_reading.purpose_clarity",
+    evaluator_type="text_complexity.ela_reading.purpose_clarity",
     status="success",
     latency_ms=1234,
     text_length_chars=512,
