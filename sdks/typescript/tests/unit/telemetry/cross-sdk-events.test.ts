@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { RateLimitError } from '../../../src/errors.js';
 import { Provider, type BaseEvaluatorConfig } from '../../../src/evaluators/base.js';
 import { configFieldFor } from '../../../src/evaluators/credentials.js';
-import { PurposeClarityEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/purpose-clarity.js';
-import { SentenceStructureEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/sentence-structure.js';
+import { PurposeClarityEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/purpose-clarity.js';
+import { SentenceStructureEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/sentence-structure.js';
 
 /**
  * The cross-SDK telemetry oracle.
@@ -100,12 +100,12 @@ interface Case {
 const CASES: Case[] = [
   {
     id: 'single-step/success',
-    evaluator: 'student_facing_text.ela_reading.purpose_clarity',
+    evaluator: 'text_complexity.ela_reading.purpose_clarity',
     inputs: { text: TEXT, grade_level: '5' },
   },
   {
     id: 'single-step/rejected-input',
-    evaluator: 'student_facing_text.ela_reading.purpose_clarity',
+    evaluator: 'text_complexity.ela_reading.purpose_clarity',
     // A grade outside the contract's enum: the failure happens inside the error boundary,
     // so it is telemetered like any other.
     inputs: { text: TEXT, grade_level: '2' },
@@ -113,25 +113,25 @@ const CASES: Case[] = [
   },
   {
     id: 'single-step/provider-failure',
-    evaluator: 'student_facing_text.ela_reading.purpose_clarity',
+    evaluator: 'text_complexity.ela_reading.purpose_clarity',
     inputs: { text: TEXT, grade_level: '5' },
     fail_at_call: 1,
     raises: true,
   },
   {
     id: 'single-step/model-override',
-    evaluator: 'student_facing_text.ela_reading.purpose_clarity',
+    evaluator: 'text_complexity.ela_reading.purpose_clarity',
     inputs: { text: TEXT, grade_level: '5' },
     model_override: { provider: 'anthropic', model: 'claude-opus-5' },
   },
   {
     id: 'multi-step/success',
-    evaluator: 'student_facing_text.ela_reading.sentence_structure',
+    evaluator: 'text_complexity.ela_reading.sentence_structure',
     inputs: { text: TEXT, grade_level: '5' },
   },
   {
     id: 'multi-step/failure-after-one-step',
-    evaluator: 'student_facing_text.ela_reading.sentence_structure',
+    evaluator: 'text_complexity.ela_reading.sentence_structure',
     inputs: { text: TEXT, grade_level: '5' },
     fail_at_call: 2,
     raises: true,
@@ -139,8 +139,8 @@ const CASES: Case[] = [
 ];
 
 const EVALUATORS = {
-  'student_facing_text.ela_reading.purpose_clarity': PurposeClarityEvaluator,
-  'student_facing_text.ela_reading.sentence_structure': SentenceStructureEvaluator,
+  'text_complexity.ela_reading.purpose_clarity': PurposeClarityEvaluator,
+  'text_complexity.ela_reading.sentence_structure': SentenceStructureEvaluator,
 } as const;
 
 const sent: Record<string, unknown>[] = [];

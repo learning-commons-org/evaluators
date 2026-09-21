@@ -197,6 +197,6 @@ def test_the_oracle_covers_both_evaluator_bases() -> None:
     """A single-step and a multi-step case, so neither base can drift unnoticed."""
     covered = {case["evaluator"] for case in CASES}
     assert covered == {
-        "student_facing_text.ela_reading.purpose_clarity",
-        "student_facing_text.ela_reading.sentence_structure",
+        "text_complexity.ela_reading.purpose_clarity",
+        "text_complexity.ela_reading.sentence_structure",
     }
