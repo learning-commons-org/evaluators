@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GradeLevelAppropriatenessEvaluator } from '../../src/evaluators/student-facing-text/ela-reading/grade-level-appropriateness.js';
+import { GradeLevelAppropriatenessEvaluator } from '../../src/evaluators/text-complexity/ela-reading/grade-level-appropriateness.js';
 import { runEvaluatorTest, type BaseTestCase } from '../utils/index.js';
 
 /**

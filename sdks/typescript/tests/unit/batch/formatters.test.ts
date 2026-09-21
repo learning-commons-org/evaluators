@@ -103,7 +103,7 @@ describe('deriving columns and labels from a registry id', () => {
   // Registry ids are dotted and snake_case. Everything user-visible in the report is
   // derived from the last segment, so a dotted id must not leak its namespace into a
   // CSV header, an HTML row field, or a display label.
-  const DOTTED = 'student_facing_text.ela_reading.vocabulary_complexity';
+  const DOTTED = 'text_complexity.ela_reading.vocabulary_complexity';
 
   it('uses only the last id segment for CSV column names', () => {
     const csv = formatAsCSV(makeOutput([makeResult({ evaluatorId: DOTTED })]));
@@ -112,11 +112,11 @@ describe('deriving columns and labels from a registry id', () => {
     expect(header).toContain('vocabulary_complexity_score');
     expect(header).toContain('vocabulary_complexity_reasoning');
     expect(header).toContain('vocabulary_complexity_status');
-    expect(header).not.toContain('student_facing_text');
+    expect(header).not.toContain('text_complexity');
   });
 
   it('uses only the last id segment for HTML row fields, one column per evaluator', () => {
-    const other = 'student_facing_text.ela_reading.meaning_directness';
+    const other = 'text_complexity.ela_reading.meaning_directness';
     const html = formatAsHTML(
       makeOutput([
         makeResult({ rowIndex: 1, evaluatorId: DOTTED, score: 'very complex' }),
@@ -129,7 +129,7 @@ describe('deriving columns and labels from a registry id', () => {
     // Each evaluator's score lands under its own prefix, so neither can read as the other's.
     expect(row['__vocabulary_complexity_score']).toBe('very complex');
     expect(row['__meaning_directness_score']).toBe('slightly complex');
-    expect(Object.keys(row).some(k => k.includes('student_facing_text'))).toBe(false);
+    expect(Object.keys(row).some(k => k.includes('text_complexity'))).toBe(false);
   });
 
   it('renders a display name from the last id segment', () => {

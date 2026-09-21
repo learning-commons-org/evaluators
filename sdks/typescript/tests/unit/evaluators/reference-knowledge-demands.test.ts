@@ -4,8 +4,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  * which the literal union would otherwise make unreachable from TypeScript. */
 type GradeLevelInput = '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | '11' | '12';
 import { runPreprocessingStep } from '../../../src/features/preprocessing.js';
-import CONFIG from '../../../../../evals/student-facing-text/ela-reading/reference-knowledge-demands/config.json';
-import { ReferenceKnowledgeDemandsEvaluator } from '../../../src/evaluators/student-facing-text/ela-reading/reference-knowledge-demands.js';
+import CONFIG from '../../../../../evals/text-complexity/ela-reading/reference-knowledge-demands/config.json';
+import { ReferenceKnowledgeDemandsEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/reference-knowledge-demands.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 

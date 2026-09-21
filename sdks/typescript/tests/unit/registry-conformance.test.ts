@@ -34,14 +34,14 @@ import { InputValidationError } from '../../src/errors.js';
 import { readOutcome } from '../../src/schemas/outcome.js';
 import { runPreprocessingStep } from '../../src/features/preprocessing.js';
 import type { EvaluationResult } from '../../src/schemas/index.js';
-import { BackgroundKnowledgeDemandsOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/background-knowledge-demands.js';
-import { GradeLevelAppropriatenessOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/grade-level-appropriateness.js';
-import { MeaningDirectnessOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/meaning-directness.js';
-import { OrganizationalStructureOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/organizational-structure.js';
-import { PurposeClarityOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/purpose-clarity.js';
-import { ReferenceKnowledgeDemandsOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/reference-knowledge-demands.js';
-import { VocabularyComplexityOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/vocabulary-complexity.js';
-import { SentenceStructureOutputSchema } from '../../src/schemas/student-facing-text/ela-reading/sentence-structure.js';
+import { BackgroundKnowledgeDemandsOutputSchema } from '../../src/schemas/text-complexity/ela-reading/background-knowledge-demands.js';
+import { GradeLevelAppropriatenessOutputSchema } from '../../src/schemas/text-complexity/ela-reading/grade-level-appropriateness.js';
+import { MeaningDirectnessOutputSchema } from '../../src/schemas/text-complexity/ela-reading/meaning-directness.js';
+import { OrganizationalStructureOutputSchema } from '../../src/schemas/text-complexity/ela-reading/organizational-structure.js';
+import { PurposeClarityOutputSchema } from '../../src/schemas/text-complexity/ela-reading/purpose-clarity.js';
+import { ReferenceKnowledgeDemandsOutputSchema } from '../../src/schemas/text-complexity/ela-reading/reference-knowledge-demands.js';
+import { VocabularyComplexityOutputSchema } from '../../src/schemas/text-complexity/ela-reading/vocabulary-complexity.js';
+import { SentenceStructureOutputSchema } from '../../src/schemas/text-complexity/ela-reading/sentence-structure.js';
 
 interface EvaluatorClass {
   metadata: {
@@ -836,7 +836,7 @@ describe('the report can order every family member', () => {
     // mock's own copy is exempt because it stands in for absent data, not for the order.
     const at = template.indexOf('const EVALUATOR_ORDER');
     const declaration = template.slice(at, template.indexOf(';', at));
-    expect(declaration).not.toMatch(/student_facing_text\./);
+    expect(declaration).not.toMatch(/text_complexity\./);
   });
 
   // Only the text-complexity family renders this template: standards has its own report

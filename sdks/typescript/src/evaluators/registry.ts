@@ -1,14 +1,14 @@
 import type { BaseEvaluatorConfig, EvaluatorMetadata } from './base.js';
 import type { EvaluationResult } from '../schemas/outputs.js';
 
-import { VocabularyComplexityEvaluator } from './student-facing-text/ela-reading/vocabulary-complexity.js';
-import { SentenceStructureEvaluator } from './student-facing-text/ela-reading/sentence-structure.js';
-import { GradeLevelAppropriatenessEvaluator } from './student-facing-text/ela-reading/grade-level-appropriateness.js';
-import { BackgroundKnowledgeDemandsEvaluator } from './student-facing-text/ela-reading/background-knowledge-demands.js';
-import { MeaningDirectnessEvaluator } from './student-facing-text/ela-reading/meaning-directness.js';
-import { PurposeClarityEvaluator } from './student-facing-text/ela-reading/purpose-clarity.js';
-import { ReferenceKnowledgeDemandsEvaluator } from './student-facing-text/ela-reading/reference-knowledge-demands.js';
-import { OrganizationalStructureEvaluator } from './student-facing-text/ela-reading/organizational-structure.js';
+import { VocabularyComplexityEvaluator } from './text-complexity/ela-reading/vocabulary-complexity.js';
+import { SentenceStructureEvaluator } from './text-complexity/ela-reading/sentence-structure.js';
+import { GradeLevelAppropriatenessEvaluator } from './text-complexity/ela-reading/grade-level-appropriateness.js';
+import { BackgroundKnowledgeDemandsEvaluator } from './text-complexity/ela-reading/background-knowledge-demands.js';
+import { MeaningDirectnessEvaluator } from './text-complexity/ela-reading/meaning-directness.js';
+import { PurposeClarityEvaluator } from './text-complexity/ela-reading/purpose-clarity.js';
+import { ReferenceKnowledgeDemandsEvaluator } from './text-complexity/ela-reading/reference-knowledge-demands.js';
+import { OrganizationalStructureEvaluator } from './text-complexity/ela-reading/organizational-structure.js';
 import { RevisionAccuracyEvaluator } from './feedback/ela-writing/revision-accuracy.js';
 import { RevisionActionabilityEvaluator } from './feedback/ela-writing/revision-actionability.js';
 import { RevisionManageabilityEvaluator } from './feedback/ela-writing/revision-manageability.js';

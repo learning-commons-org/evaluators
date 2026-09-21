@@ -8,7 +8,7 @@ A *family* is a set of evaluators that share an input contract, credential needs
 
 | Family (`--family`) | Members | Required CSV columns | Keys |
 | --- | --- | --- | --- |
-| `text-complexity` | student_facing_text.ela_reading.grade_level_appropriateness, student_facing_text.ela_reading.background_knowledge_demands, student_facing_text.ela_reading.vocabulary_complexity, student_facing_text.ela_reading.sentence_structure, student_facing_text.ela_reading.meaning_directness, student_facing_text.ela_reading.purpose_clarity, student_facing_text.ela_reading.organizational_structure, student_facing_text.ela_reading.reference_knowledge_demands | `text`, `grade_level` | Google + OpenAI |
+| `text-complexity` | text_complexity.ela_reading.grade_level_appropriateness, text_complexity.ela_reading.background_knowledge_demands, text_complexity.ela_reading.vocabulary_complexity, text_complexity.ela_reading.sentence_structure, text_complexity.ela_reading.meaning_directness, text_complexity.ela_reading.purpose_clarity, text_complexity.ela_reading.organizational_structure, text_complexity.ela_reading.reference_knowledge_demands | `text`, `grade_level` | Google + OpenAI |
 | `math-standards-alignment` | academic_standards_alignment.mathematics.math_standards_alignment | `question`, `statement_code` (aliases: `statementCode`, `ccss_standard`, `standard`); optional `jurisdiction` (default `Multi-State`), `grade_level`, `id` | Anthropic + Learning Commons (Knowledge Graph) |
 
 Column matching is case-insensitive and alias-aware; the canonical column wins when both it and an alias are present.
@@ -27,7 +27,7 @@ evaluators-batch corpus.csv \
   --output-dir ./out --yes
 
 # Run only some members of a family (avoids paying for evaluators you don't need)
-evaluators-batch texts.csv --family text-complexity --evaluator student_facing_text.ela_reading.vocabulary_complexity --yes
+evaluators-batch texts.csv --family text-complexity --evaluator text_complexity.ela_reading.vocabulary_complexity --yes
 
 # Model override: a shortcode (haiku, opus) or provider:model
 evaluators-batch texts.csv --family text-complexity --model anthropic:claude-opus-4-8 --yes

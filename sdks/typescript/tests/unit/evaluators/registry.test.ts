@@ -110,7 +110,7 @@ describe('getEvaluator', () => {
   it('returns metadata, not the class', () => {
     // The public lookup deliberately does not hand out a constructor: resolving by id
     // erases which named inputs the evaluator takes, and nothing here can express that.
-    const resolved = getEvaluator('student_facing_text.ela_reading.meaning_directness');
+    const resolved = getEvaluator('text_complexity.ela_reading.meaning_directness');
 
     expect(resolved).toBeDefined();
     expect(typeof resolved).toBe('object');

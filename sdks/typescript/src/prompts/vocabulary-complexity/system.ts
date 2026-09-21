@@ -1,6 +1,6 @@
-import SYSTEM_PROMPT_GRADES_3_4 from '../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/grades-3-4-system.txt';
-import SYSTEM_PROMPT_OTHER_GRADES from '../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/other-grades-system.txt';
-import CONFIG from '../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/config.json';
+import SYSTEM_PROMPT_GRADES_3_4 from '../../../../../evals/text-complexity/ela-reading/vocabulary-complexity/grades-3-4-system.txt';
+import SYSTEM_PROMPT_OTHER_GRADES from '../../../../../evals/text-complexity/ela-reading/vocabulary-complexity/other-grades-system.txt';
+import CONFIG from '../../../../../evals/text-complexity/ela-reading/vocabulary-complexity/config.json';
 import { requireConditionValues } from '../../evaluators/multi-step.js';
 import { requireStep } from '../../evaluators/single-step.js';
 

@@ -5,14 +5,14 @@
 
   | Evaluator                   | Code                                                     | Prompts                                           |
   | --------------------------- | -------------------------------------------------------- | ------------------------------------------------- |
-  | Grade Level Appropriateness | [Jupyter Notebook](./student-facing-text/ela-reading/grade-level-appropriateness/example_notebook.ipynb) | [Prompts](./student-facing-text/ela-reading/grade-level-appropriateness/) |
-  | Sentence Structure          | [Jupyter Notebook](./student-facing-text/ela-reading/sentence-structure/example_notebook.ipynb) | [Prompts](./student-facing-text/ela-reading/sentence-structure/) |
+  | Grade Level Appropriateness | [Jupyter Notebook](./text-complexity/ela-reading/grade-level-appropriateness/example_notebook.ipynb) | [Prompts](./text-complexity/ela-reading/grade-level-appropriateness/) |
+  | Sentence Structure          | [Jupyter Notebook](./text-complexity/ela-reading/sentence-structure/example_notebook.ipynb) | [Prompts](./text-complexity/ela-reading/sentence-structure/) |
   | Vocabulary                  | [Jupyter Notebook](./vocabulary_evaluator.ipynb)         | [Prompts](./prompts/vocabulary/)                  |
-  | Background Knowledge Demands | [Jupyter Notebook](./student-facing-text/ela-reading/background-knowledge-demands/example_notebook.ipynb) | [Prompts](./student-facing-text/ela-reading/background-knowledge-demands/) |
+  | Background Knowledge Demands | [Jupyter Notebook](./text-complexity/ela-reading/background-knowledge-demands/example_notebook.ipynb) | [Prompts](./text-complexity/ela-reading/background-knowledge-demands/) |
   | Conventionality             | [Jupyter Notebook](./conventionality_evaluator.ipynb)    | [Prompts](./prompts/conventionality/)             |
   | Purpose                     | [Jupyter Notebook](./purpose_evaluator.ipynb)            | [Prompts](./prompts/purpose/)                     |
-  | Organizational Structure    | [Jupyter Notebook](./student-facing-text/ela-reading/organizational-structure/example_notebook.ipynb) | [Prompts](./student-facing-text/ela-reading/organizational-structure/) |
-  | Reference Knowledge Demands | [Jupyter Notebook](./student-facing-text/ela-reading/reference-knowledge-demands/example_notebook.ipynb) | [Prompts](./student-facing-text/ela-reading/reference-knowledge-demands/) |
+  | Organizational Structure    | [Jupyter Notebook](./text-complexity/ela-reading/organizational-structure/example_notebook.ipynb) | [Prompts](./text-complexity/ela-reading/organizational-structure/) |
+  | Reference Knowledge Demands | [Jupyter Notebook](./text-complexity/ela-reading/reference-knowledge-demands/example_notebook.ipynb) | [Prompts](./text-complexity/ela-reading/reference-knowledge-demands/) |
 
 ## Requirements
 
