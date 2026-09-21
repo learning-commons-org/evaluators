@@ -67,6 +67,26 @@ result, and never raises. Failures are logged at `warning`, so a restricted-egre
 sees a warning per evaluation at the default level; `telemetry=False` silences it, and builds no
 telemetry client at all.
 
+### Knowledge Graph
+
+Evaluators that align to academic standards read them from the
+[Learning Commons Knowledge Graph](https://api.learningcommons.org/knowledge-graph/v0), using the
+`learning_commons_api_key` above. The client is also usable on its own — it owns an HTTP
+connection pool, so close it when you are done:
+
+```python
+from learning_commons_evaluators import KnowledgeGraphClient
+
+async with KnowledgeGraphClient(api_key) as kg:
+    matches = await kg.search_standards("3.MD.C.7.d")           # StandardNotFoundError if unknown
+    components = await kg.get_learning_components(matches[0].case_identifier_uuid)
+```
+
+`search_standards` takes an optional `jurisdiction` (default `Multi-State`) and
+`academic_subject`; more than one match means the code is reused across frameworks and you
+choose. Evaluators that own a client close it from their own `aclose()` / `close()`, which every
+evaluator accepts and which does nothing for the ones that own nothing.
+
 ## More resources
 
 - [Local development](./docs/local-development.md) – Local setup, testing, regenerating from `evals/`
