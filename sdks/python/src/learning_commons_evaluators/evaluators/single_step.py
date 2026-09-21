@@ -4,7 +4,7 @@ The flow — validate, preprocess, render, call, envelope, error wrap — is wri
 here. A concrete evaluator is a declaration::
 
     class PurposeClarityEvaluator(SingleStepEvaluator[PurposeClarityInput, PurposeClarityOutput]):
-        contract = load_contract("student_facing_text.ela_reading.purpose_clarity")
+        contract = load_contract("text_complexity.ela_reading.purpose_clarity")
         input_model = PurposeClarityInput
         output_model = PurposeClarityOutput
 

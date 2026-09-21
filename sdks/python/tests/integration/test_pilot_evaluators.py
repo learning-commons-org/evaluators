@@ -18,7 +18,7 @@ from learning_commons_evaluators.contracts import Contract
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.registry import EVALUATORS
 from learning_commons_evaluators.providers import provider_label
-from learning_commons_evaluators.schemas.student_facing_text.ela_reading.grade_level_appropriateness import (
+from learning_commons_evaluators.schemas.text_complexity.ela_reading.grade_level_appropriateness import (
     GradeBand,
 )
 from tests.integration.conftest import fixtures_for, keys_for

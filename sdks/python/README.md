@@ -48,7 +48,7 @@ Pass an `EvaluatorConfig` or its fields as keyword arguments:
 | `max_retries` | `2` | Retries on retryable errors; total attempts are `1 + max_retries`. |
 | `telemetry` | `True` | `True` / `False`, or `TelemetryOptions`. Emission lands in a later release. |
 
-Old evaluator ids still resolve: `get_evaluator("grade-level-appropriateness")` finds the evaluator now registered as `student_facing_text.ela_reading.grade_level_appropriateness`.
+Old evaluator ids still resolve: `get_evaluator("grade-level-appropriateness")` finds the evaluator now registered as `text_complexity.ela_reading.grade_level_appropriateness`.
 
 ## More resources
 

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 class EvaluatorMetadata:
     """Every evaluator class carries one of these as ``metadata``."""
 
-    #: Current dotted registry id, e.g. ``student_facing_text.ela_reading.purpose_clarity``.
+    #: Current dotted registry id, e.g. ``text_complexity.ela_reading.purpose_clarity``.
     #: Appears in results and telemetry. May be renamed — the name is not the identity.
     id: str
     #: Immutable UUID assigned at the evaluator's creation; survives renames.
