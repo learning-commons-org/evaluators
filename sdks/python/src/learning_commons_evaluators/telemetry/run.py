@@ -27,10 +27,10 @@ class TelemetryRun:
     #: step runs — a validation failure, say — it is the model that would have been called.
     provider: str
     #: Length of the evaluator's primary text input; ``0`` until the inputs are validated.
-    #: Counted in characters, where JavaScript counts UTF-16 code units, so text outside the
-    #: BMP reads one lower per astral character than the same text does from the TypeScript
-    #: SDK. The field is a magnitude in an aggregate, not an identity, so it is counted the
-    #: way each language counts.
+    #: Counted in UTF-16 code units, which is what JavaScript's ``String.length`` reports,
+    #: so a non-BMP character counts two in both SDKs. Both SDKs' events are summed in one
+    #: collector, so the count has to mean the same thing in each — see
+    #: :func:`~learning_commons_evaluators.telemetry.utils.utf16_length`.
     text_length: int = 0
     #: The grade evaluated, empty for an evaluator that takes none.
     grade: str = ""

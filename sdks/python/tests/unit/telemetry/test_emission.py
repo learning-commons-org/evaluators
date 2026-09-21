@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,7 @@ from learning_commons_evaluators.evaluators.inputs import primary_text_field
 from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
 from learning_commons_evaluators.evaluators.registry import EVALUATORS
 from learning_commons_evaluators.telemetry import client as telemetry_client
+from learning_commons_evaluators.telemetry.client import TelemetryClient
 from tests.conftest import EventSink
 from tests.unit.conftest import ProviderFactory
 
@@ -143,6 +145,34 @@ class TestEveryEvaluatorReports:
         text_field = primary_text_field(schema)
         assert text_field is not None
         assert json.loads(request["body"])["text_length_chars"] == len(inputs[text_field])
+
+
+class TestReportingNeverAltersTheResult:
+    """Telemetry sits where logging sits (spec §7): it must not throw, block, or change a result."""
+
+    async def test_a_failure_to_send_does_not_fail_the_evaluation(
+        self,
+        providers: ProviderFactory,
+        event_sink: EventSink,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        def explode(self, event):  # noqa: ANN001, ARG001
+            raise RuntimeError("collector exploded")
+
+        monkeypatch.setattr(TelemetryClient, "send", explode)
+        evaluator = PurposeClarityEvaluator(google_api_key="k")
+
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            evaluation = await evaluator.evaluate(
+                text="Trees are important plants that grow in many parts of the world.",
+                grade_level=5,
+            )
+
+        # The evaluation stands on its own; only a warning marks the lost event.
+        assert evaluation.evaluator == PurposeClarityEvaluator.metadata.id
+        [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert "Telemetry event was not sent" in record.getMessage()
 
 
 class TestWhatTheEventSays:

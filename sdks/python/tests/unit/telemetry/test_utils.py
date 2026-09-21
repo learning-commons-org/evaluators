@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -47,6 +48,24 @@ class TestSdkVersion:
 class TestTimestamp:
     def test_is_millisecond_utc_in_the_shape_javascript_writes(self) -> None:
         assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z", utils.utc_timestamp())
+
+    def test_writes_the_exact_string_javascript_would_for_a_known_instant(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The shape check above passes for any plausible clock. Freezing it pins the two
+        # things that could actually drift: that microseconds are truncated to
+        # milliseconds rather than rounded, and that the offset is rendered as ``Z``.
+        frozen = datetime(2026, 9, 17, 18, 4, 5, 123_789, tzinfo=timezone.utc)
+
+        class _Frozen(datetime):
+            @classmethod
+            def now(cls, tz=None):  # type: ignore[override]
+                return frozen if tz is None else frozen.astimezone(tz)
+
+        monkeypatch.setattr(utils, "datetime", _Frozen)
+
+        # 123_789 microseconds is 123.789 ms — truncated, not rounded to 124.
+        assert utils.utc_timestamp() == "2026-09-17T18:04:05.123Z"
 
 
 class TestClientId:

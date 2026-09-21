@@ -233,9 +233,28 @@ class BaseEvaluator(ABC):
     def _emit(
         self, run: TelemetryRun, *, status: EvaluationStatus, error_code: str | None = None
     ) -> None:
-        """Send one event for *run*. Does nothing when telemetry is off."""
+        """Send one event for *run*. Does nothing when telemetry is off.
+
+        Never raises. Telemetry is on the same footing as logging (spec §7): it must not
+        throw, block, or alter a result. Nothing in building the event can realistically
+        fail, which is the point — if that stops being true, an evaluation that already
+        succeeded should not start failing because reporting it did.
+        """
         if self._telemetry is None:
             return
+        try:
+            self._send_event(run, status=status, error_code=error_code)
+        except Exception:  # noqa: BLE001 — a reporting fault is never the caller's problem
+            self.logger.warning(
+                "Telemetry event was not sent",
+                extra={"evaluator": self.metadata.id, "operation": "telemetry"},
+                exc_info=True,
+            )
+
+    def _send_event(
+        self, run: TelemetryRun, *, status: EvaluationStatus, error_code: str | None = None
+    ) -> None:
+        assert self._telemetry is not None
         self._telemetry.send(
             TelemetryEvent(
                 timestamp=utc_timestamp(),

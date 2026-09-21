@@ -77,6 +77,12 @@ def client_id() -> str:
     sandbox) is not a failure: the id is then per-process, and telemetry stays anonymous
     either way.
     """
+    # TODO(DSCR-2215): this is an unsynchronized check/read/generate/write, and
+    # ``_write_config`` below is not atomic. Two threads racing on first use can cache
+    # different ids, and two processes can tear the file — which ``_read_config`` then
+    # discards, silently churning the id it exists to persist. Deferred rather than fixed
+    # piecemeal: the TypeScript SDK writes the same shared file the same way
+    # (``sdks/typescript/src/telemetry/utils.ts``), so the fix belongs in both at once.
     global _client_id
     if _client_id is not None:
         return _client_id

@@ -236,3 +236,17 @@ class TestABacklogIsDroppedNotQueuedForever:
         sender.submit(delivery)
 
         assert "Dropped an event" in caplog.text
+
+
+class TestTheSenderThread:
+    """Properties of the delivery thread that no functional test would notice."""
+
+    def test_the_delivery_thread_is_a_daemon(self, event_sink: EventSink) -> None:
+        # A non-daemon thread keeps the interpreter alive at shutdown, waiting on a queue
+        # nothing will fill again. No functional assertion reveals that — flipping the flag
+        # leaves every other test passing — so it is asserted directly.
+        make_client().send(EVENT)
+
+        thread = telemetry_client.sender()._thread
+        assert thread is not None
+        assert thread.daemon is True
