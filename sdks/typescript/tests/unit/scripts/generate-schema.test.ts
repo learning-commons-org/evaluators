@@ -15,7 +15,7 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SDK_ROOT = resolve(__dirname, '../../..');
-const PURPOSE_CONFIG = resolve(__dirname, '../../../../../evals/student-facing-text/ela-reading/purpose-clarity/config.json');
+const PURPOSE_CONFIG = resolve(__dirname, '../../../../../evals/text-complexity/ela-reading/purpose-clarity/config.json');
 const SCRIPT_PATH = resolve(SDK_ROOT, 'scripts/generate-schema.ts');
 const TSX_BIN = resolve(SDK_ROOT, 'node_modules/.bin/tsx');
 
@@ -123,7 +123,7 @@ describe('generateSchemaFile', () => {
     const { outPath } = generateSchemaFile(PURPOSE_CONFIG);
 
     expect(outPath).toBe(
-      join(SDK_ROOT, 'src/schemas/student-facing-text/ela-reading/purpose-clarity.ts'),
+      join(SDK_ROOT, 'src/schemas/text-complexity/ela-reading/purpose-clarity.ts'),
     );
   });
 
@@ -236,7 +236,7 @@ describe('generateSchemaFile against real contracts', () => {
     // Both fields $ref one GradeBand definition. With the siblings dropped they reach
     // the model with identical text, and they are the whole output.
     const { content } = generateSchemaFile(
-      contract('student-facing-text/ela-reading/grade-level-appropriateness'),
+      contract('text-complexity/ela-reading/grade-level-appropriateness'),
     );
 
     expect(content).toContain('Target grade band for the text at independent reading.');
@@ -255,7 +255,7 @@ describe('generateSchemaFile against real contracts', () => {
 
   it('does not send the contract-level description to the model', () => {
     const { content } = generateSchemaFile(
-      contract('student-facing-text/ela-reading/vocabulary-complexity'),
+      contract('text-complexity/ela-reading/vocabulary-complexity'),
     );
 
     expect(content).not.toContain('Final evaluator output for');
@@ -273,7 +273,7 @@ describe('generateSchemaFile against real contracts', () => {
 
   it('names the export from the last segment, which is what a call site reads', () => {
     const { content } = generateSchemaFile(
-      contract('student-facing-text/ela-reading/purpose-clarity'),
+      contract('text-complexity/ela-reading/purpose-clarity'),
     );
 
     expect(content).toContain('export const PurposeClarityOutputSchema');

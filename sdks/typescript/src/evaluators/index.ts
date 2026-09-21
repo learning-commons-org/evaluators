@@ -13,49 +13,49 @@ export {
   VocabularyComplexityEvaluator,
   evaluateVocabularyComplexity,
   type VocabularyComplexityInput,
-} from './student-facing-text/ela-reading/vocabulary-complexity.js';
+} from './text-complexity/ela-reading/vocabulary-complexity.js';
 
 export {
   SentenceStructureEvaluator,
   evaluateSentenceStructure,
   type SentenceStructureInput,
-} from './student-facing-text/ela-reading/sentence-structure.js';
+} from './text-complexity/ela-reading/sentence-structure.js';
 
 export {
   GradeLevelAppropriatenessEvaluator,
   evaluateGradeLevelAppropriateness,
   type GradeLevelAppropriatenessInput,
-} from './student-facing-text/ela-reading/grade-level-appropriateness.js';
+} from './text-complexity/ela-reading/grade-level-appropriateness.js';
 
 export {
   BackgroundKnowledgeDemandsEvaluator,
   evaluateBackgroundKnowledgeDemands,
   type BackgroundKnowledgeDemandsInput,
-} from './student-facing-text/ela-reading/background-knowledge-demands.js';
+} from './text-complexity/ela-reading/background-knowledge-demands.js';
 
 export {
   MeaningDirectnessEvaluator,
   evaluateMeaningDirectness,
   type MeaningDirectnessInput,
-} from './student-facing-text/ela-reading/meaning-directness.js';
+} from './text-complexity/ela-reading/meaning-directness.js';
 
 export {
   PurposeClarityEvaluator,
   evaluatePurposeClarity,
   type PurposeClarityInput,
-} from './student-facing-text/ela-reading/purpose-clarity.js';
+} from './text-complexity/ela-reading/purpose-clarity.js';
 
 export {
   ReferenceKnowledgeDemandsEvaluator,
   evaluateReferenceKnowledgeDemands,
   type ReferenceKnowledgeDemandsInput,
-} from './student-facing-text/ela-reading/reference-knowledge-demands.js';
+} from './text-complexity/ela-reading/reference-knowledge-demands.js';
 
 export {
   OrganizationalStructureEvaluator,
   evaluateOrganizationalStructure,
   type OrganizationalStructureInput,
-} from './student-facing-text/ela-reading/organizational-structure.js';
+} from './text-complexity/ela-reading/organizational-structure.js';
 
 export {
   RevisionAccuracyEvaluator,

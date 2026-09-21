@@ -134,7 +134,7 @@ Every evaluator resolves to the same three-part envelope, so generic code works 
 
 ```typescript
 {
-  evaluator: string;   // registry id, e.g. "student_facing_text.ela_reading.vocabulary_complexity"
+  evaluator: string;   // registry id, e.g. "text_complexity.ela_reading.vocabulary_complexity"
   result: TResult;     // the evaluator's own payload, exactly as its output schema declares it
   metadata: {
     model: string;             // "provider:model" that ran; "a+b" when several did

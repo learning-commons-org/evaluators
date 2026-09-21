@@ -13,7 +13,7 @@ import type { Logger } from '../../../src/logger.js';
 const EVENT: TelemetryEvent = {
   timestamp: '2026-08-29T00:00:00.000Z',
   sdk_version: '0.8.0',
-  evaluator_type: 'student_facing_text.ela_reading.vocabulary_complexity',
+  evaluator_type: 'text_complexity.ela_reading.vocabulary_complexity',
   status: 'success',
   latency_ms: 1234,
   text_length_chars: 512,

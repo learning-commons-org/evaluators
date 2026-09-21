@@ -19,7 +19,7 @@ function reportFor(text: string): string {
     rowIndex: 0,
     text,
     gradeLevel: '5',
-    evaluatorId: 'student_facing_text.ela_reading.purpose_clarity',
+    evaluatorId: 'text_complexity.ela_reading.purpose_clarity',
     status: 'success',
     score: 'slightly_complex',
     reasoning: text,

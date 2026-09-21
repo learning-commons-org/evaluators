@@ -1,4 +1,4 @@
-import BACKGROUND_KNOWLEDGE_TEMPLATE from '../../../../../evals/student-facing-text/ela-reading/vocabulary-complexity/background-knowledge.txt';
+import BACKGROUND_KNOWLEDGE_TEMPLATE from '../../../../../evals/text-complexity/ela-reading/vocabulary-complexity/background-knowledge.txt';
 
 /**
  * Generate the background knowledge prompt for a given text and grade level
