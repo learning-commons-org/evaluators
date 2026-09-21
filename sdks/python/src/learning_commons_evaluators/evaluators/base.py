@@ -6,7 +6,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 from pydantic import BaseModel
 
@@ -301,16 +301,57 @@ class BaseEvaluator(ABC):
         :raises RuntimeError: if an asyncio event loop is already running in this thread;
             ``await evaluator.evaluate(...)`` there instead.
         """
+        self._reject_running_loop("evaluate_sync()", "await evaluator.evaluate(...)")
+        return asyncio.run(self.evaluate(input, **fields))
+
+    # --- lifecycle -----------------------------------------------------------------
+
+    async def aclose(self) -> None:  # noqa: B027 — a no-op default, not a missing abstract
+        """Release whatever this evaluator owns. A no-op unless the subclass owns something.
+
+        Most evaluators hold nothing that needs releasing: the provider adapters build
+        their clients per call and the vendor SDKs manage their own pools. The exception is
+        an evaluator that builds a dependency client of its own — the Knowledge Graph
+        client owns an HTTP connection pool — and those override this to close it.
+
+        Defined on the base, rather than only where it is needed, so that closing an
+        evaluator is one habit rather than a per-evaluator question, and so that an
+        evaluator that starts owning a resource does not become a breaking change.
+        Idempotent: closing twice is fine.
+
+        A subclass holding something loop-bound should note that each :meth:`evaluate_sync`
+        and :meth:`close` runs its own ``asyncio.run``, so the loop that created the
+        resource is already gone by the time the next call arrives. Building it per
+        evaluation avoids the question; holding one across sync calls relies on the
+        resource tolerating that.
+        """
+
+    def close(self) -> None:
+        """Run :meth:`aclose` to completion from synchronous code.
+
+        :raises RuntimeError: if an asyncio event loop is already running in this thread;
+            ``await evaluator.aclose()`` there instead.
+        """
+        self._reject_running_loop("close()", "await evaluator.aclose()")
+        asyncio.run(self.aclose())
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *_exc_info: object) -> None:
+        await self.aclose()
+
+    @staticmethod
+    def _reject_running_loop(method: str, instead: str) -> None:
+        """Guard the synchronous wrappers, which cannot nest inside a running loop."""
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            pass
-        else:
-            raise RuntimeError(
-                "evaluate_sync() cannot be used while an asyncio event loop is running in "
-                "this thread; use await evaluator.evaluate(...) from async code instead."
-            ) from None
-        return asyncio.run(self.evaluate(input, **fields))
+            return
+        raise RuntimeError(
+            f"{method} cannot be used while an asyncio event loop is running in this "
+            f"thread; use {instead} from async code instead."
+        ) from None
 
 
 __all__ = ["BaseEvaluator"]

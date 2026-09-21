@@ -10,14 +10,13 @@
 - **`schemas/evaluator.py`, `schemas/outcome.py`, `schemas/metadata.py`** — The result envelope, `read_outcome`, and static `EvaluatorMetadata`.
 - **`features/`** — Contract-declared preprocessing bound into prompts: library computations (`textstat` Flesch-Kincaid) in `preprocessing.py`, and the functions a `custom` entry names — `readability.py` (the ground-truth counts block) and `sentence_features.py` (the ratios derived from a step's counts).
 - **`prompts/`** — Placeholder substitution, identical to the TypeScript renderer.
-- **`dependencies/_generated/knowledge_graph/`** — The OpenAPI-generated Knowledge Graph transport, written by `make generate-kg-client` and never edited by hand. The hand-written client that wraps it lands next.
+- **`dependencies/`** — Clients for the non-LLM services evaluators call. `knowledge_graph.py` is the hand-written Knowledge Graph client (standards search, standard by CASE UUID, learning components); `_generated/knowledge_graph/` is the OpenAPI-generated transport it wraps, written by `make generate-kg-client` and never edited by hand.
 - **`schemas/kg_taxonomy.py`** — `Jurisdiction`, `GradeLevel`, `AcademicSubject`: the wire strings the Knowledge Graph accepts, checked against the vendored spec by `make check-kg-client`.
 - **`errors.py`** — The canonical error taxonomy (SDK spec §6) and `wrap_provider_error()`.
 - **`logger.py`** — Logging helpers following the stdlib library convention (`NullHandler`, no root configuration)
 - **`version.py`** — Package version and description
 
-The Knowledge Graph client that wraps the generated transport, and batch evaluation, land in
-the following PRs.
+Batch evaluation (`evaluate_items`) lands in a following PR.
 
 ## Development setup
 

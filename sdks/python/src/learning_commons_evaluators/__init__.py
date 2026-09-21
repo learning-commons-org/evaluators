@@ -18,6 +18,16 @@ from learning_commons_evaluators.version import __description__, __version__  # 
 # Configuration (SDK spec §3)
 from learning_commons_evaluators.config import EvaluatorConfig, ModelOverride, TelemetryOptions
 
+# Knowledge Graph client (D9): the one non-LLM dependency evaluators call
+from learning_commons_evaluators.dependencies import (
+    AcademicStandard,
+    KnowledgeGraphClient,
+    LearningComponent,
+    LearningComponentSet,
+    StandardMatch,
+    normalize_statement_code,
+)
+
 # Errors (SDK spec §6.1)
 from learning_commons_evaluators.errors import (
     AuthenticationError,
@@ -69,6 +79,11 @@ from learning_commons_evaluators.schemas import (
     Outcome,
     read_outcome,
 )
+from learning_commons_evaluators.schemas.kg_taxonomy import (
+    AcademicSubject,
+    GradeLevel,
+    Jurisdiction,
+)
 from learning_commons_evaluators.schemas.feedback.ela_writing.tone_appropriateness import (
     ToneAppropriatenessInput,
     ToneAppropriatenessOutput,
@@ -93,6 +108,8 @@ from learning_commons_evaluators.schemas.text_complexity.ela_reading.vocabulary_
 __all__ = [
     "__description__",
     "__version__",
+    "AcademicStandard",
+    "AcademicSubject",
     "AuthenticationError",
     "BaseEvaluator",
     "ConfigurationError",
@@ -104,14 +121,19 @@ __all__ = [
     "EvaluatorConfig",
     "EvaluatorError",
     "EvaluatorMetadata",
+    "GradeLevel",
     "GradeLevelAppropriatenessEvaluator",
     "GradeLevelAppropriatenessInput",
     "GradeLevelAppropriatenessOutput",
     "InputValidationError",
+    "Jurisdiction",
+    "KnowledgeGraphClient",
     "KnowledgeGraphError",
     "LLMOutputProcessingError",
     "LLMProvider",
     "LLMProviderError",
+    "LearningComponent",
+    "LearningComponentSet",
     "Logger",
     "ModelOverride",
     "MultiStepEvaluator",
@@ -128,6 +150,7 @@ __all__ = [
     "SentenceStructureInput",
     "SentenceStructureOutput",
     "SingleStepEvaluator",
+    "StandardMatch",
     "StandardNotFoundError",
     "TelemetryOptions",
     "ToneAppropriatenessEvaluator",
@@ -141,6 +164,7 @@ __all__ = [
     "get_evaluator",
     "get_evaluators",
     "get_logger",
+    "normalize_statement_code",
     "read_outcome",
     "wrap_provider_error",
 ]

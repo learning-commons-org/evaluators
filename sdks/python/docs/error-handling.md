@@ -38,7 +38,7 @@ The three abstract classes cannot be instantiated; they exist so you can catch a
 | `RateLimitError`, `NetworkError`, `RequestTimeoutError` | Yes | Back off, honouring `retry_after_ms` when present |
 | `LLMProviderError`, `KnowledgeGraphError` | Only on 5xx | Back off |
 
-Strategy follows the category: **external failures back off, internal failures resample.** The SDK applies both itself. The `max_retries` setting is handed to the native provider SDKs, which back off on their own retryable statuses and connection failures, and the evaluator resamples an `LLMOutputProcessingError` up to the same number of times. A retryable error that still reaches you has exhausted that budget.
+Strategy follows the category: **external failures back off, internal failures resample.** The SDK applies both itself. The `max_retries` setting is handed to the native provider SDKs, which back off on their own retryable statuses and connection failures; the Knowledge Graph client applies the same budget itself, since there is no vendor SDK beneath it; and the evaluator resamples an `LLMOutputProcessingError` up to the same number of times. A retryable error that still reaches you has exhausted that budget.
 
 ```python
 import time
