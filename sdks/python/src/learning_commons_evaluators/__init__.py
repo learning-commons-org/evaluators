@@ -73,19 +73,19 @@ from learning_commons_evaluators.schemas.feedback.ela_writing.tone_appropriatene
     ToneAppropriatenessInput,
     ToneAppropriatenessOutput,
 )
-from learning_commons_evaluators.schemas.student_facing_text.ela_reading.grade_level_appropriateness import (
+from learning_commons_evaluators.schemas.text_complexity.ela_reading.grade_level_appropriateness import (
     GradeLevelAppropriatenessInput,
     GradeLevelAppropriatenessOutput,
 )
-from learning_commons_evaluators.schemas.student_facing_text.ela_reading.purpose_clarity import (
+from learning_commons_evaluators.schemas.text_complexity.ela_reading.purpose_clarity import (
     PurposeClarityInput,
     PurposeClarityOutput,
 )
-from learning_commons_evaluators.schemas.student_facing_text.ela_reading.sentence_structure import (
+from learning_commons_evaluators.schemas.text_complexity.ela_reading.sentence_structure import (
     SentenceStructureInput,
     SentenceStructureOutput,
 )
-from learning_commons_evaluators.schemas.student_facing_text.ela_reading.vocabulary_complexity import (
+from learning_commons_evaluators.schemas.text_complexity.ela_reading.vocabulary_complexity import (
     VocabularyComplexityInput,
     VocabularyComplexityOutput,
 )

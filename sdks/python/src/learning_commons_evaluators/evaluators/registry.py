@@ -8,16 +8,16 @@ from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.feedback.ela_writing.tone_appropriateness import (
     ToneAppropriatenessEvaluator,
 )
-from learning_commons_evaluators.evaluators.student_facing_text.ela_reading.grade_level_appropriateness import (
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.grade_level_appropriateness import (
     GradeLevelAppropriatenessEvaluator,
 )
-from learning_commons_evaluators.evaluators.student_facing_text.ela_reading.purpose_clarity import (
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.purpose_clarity import (
     PurposeClarityEvaluator,
 )
-from learning_commons_evaluators.evaluators.student_facing_text.ela_reading.sentence_structure import (
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.sentence_structure import (
     SentenceStructureEvaluator,
 )
-from learning_commons_evaluators.evaluators.student_facing_text.ela_reading.vocabulary_complexity import (
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.vocabulary_complexity import (
     VocabularyComplexityEvaluator,
 )
 from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata

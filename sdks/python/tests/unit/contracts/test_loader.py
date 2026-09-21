@@ -27,8 +27,8 @@ SOURCE = re.compile(
     r"|steps\.[A-Za-z_][A-Za-z0-9_]*\.output)$"
 )
 
-GLA = "student_facing_text.ela_reading.grade_level_appropriateness"
-VOCAB = "student_facing_text.ela_reading.vocabulary_complexity"
+GLA = "text_complexity.ela_reading.grade_level_appropriateness"
+VOCAB = "text_complexity.ela_reading.vocabulary_complexity"
 TONE = "feedback.ela_writing.tone_appropriateness"
 MATH = "academic_standards_alignment.mathematics.math_standards_alignment"
 CRITICAL_THINKING = "durable_skills.ela_writing.critical_thinking"
