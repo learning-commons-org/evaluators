@@ -77,7 +77,7 @@ def client_id() -> str:
     sandbox) is not a failure: the id is then per-process, and telemetry stays anonymous
     either way.
     """
-    # TODO(DSCR-2215): this is an unsynchronized check/read/generate/write, and
+    # TODO(DSCR-2250): this is an unsynchronized check/read/generate/write, and
     # ``_write_config`` below is not atomic. Two threads racing on first use can cache
     # different ids, and two processes can tear the file — which ``_read_config`` then
     # discards, silently churning the id it exists to persist. Deferred rather than fixed
