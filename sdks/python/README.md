@@ -46,9 +46,26 @@ Pass an `EvaluatorConfig` or its fields as keyword arguments:
 | `learning_commons_api_key` | none | Learning Commons API calls (Knowledge Graph); only evaluators that declare it need it. |
 | `model_override` | none | `ModelOverride(provider, model)`: run every LLM step on this model instead. Logged once as a warning; evaluators are validated against their default models only. |
 | `max_retries` | `2` | Retries on retryable errors; total attempts are `1 + max_retries`. |
-| `telemetry` | `True` | `True` / `False`, or `TelemetryOptions`. Emission lands in a later release. |
+| `telemetry` | `True` | `True` / `False`, or `TelemetryOptions(enabled, learning_commons_api_key)`. |
 
 Old evaluator ids still resolve: `get_evaluator("grade-level-appropriateness")` finds the evaluator now registered as `text_complexity.ela_reading.grade_level_appropriateness`.
+
+### Telemetry
+
+One event per evaluation, on success and on failure. Telemetry never includes the text you
+evaluate: the event carries its length, the evaluator, the grade level you passed, the provider
+and model, latency, status, any error class name, token counts, and the SDK version. There is no
+option to send the text itself.
+
+Events are anonymous, attributed to a client id kept in `~/.config/learning-commons/config.json`
+(`%APPDATA%\learning-commons\config.json` on Windows), which is the same file the TypeScript SDK
+uses. Setting `TelemetryOptions(learning_commons_api_key=...)` attributes them to your Learning
+Commons user instead.
+
+Sending is fire-and-forget on a background thread: it never blocks an evaluation, never changes a
+result, and never raises. Failures are logged at `warning`, so a restricted-egress environment
+sees a warning per evaluation at the default level; `telemetry=False` silences it, and builds no
+telemetry client at all.
 
 ## More resources
 

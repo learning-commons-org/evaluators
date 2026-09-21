@@ -36,7 +36,6 @@ from __future__ import annotations
 
 import json
 import math
-import time
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar, Generic, TypeVar, cast
 
@@ -66,6 +65,7 @@ from learning_commons_evaluators.schemas.evaluator import (
     EvaluationTokenUsage,
 )
 from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
+from learning_commons_evaluators.telemetry.utils import utf16_length
 
 InputT = TypeVar("InputT", bound=BaseModel)
 OutputT = TypeVar("OutputT", bound=BaseModel)
@@ -184,97 +184,96 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         :raises LLMOutputProcessingError: a step's response failed its output schema after
             ``max_retries`` immediate resamples.
         """
-        start = time.perf_counter()
         context = {"evaluator": self.metadata.id, "operation": "evaluate"}
-        grade_level = ""
-        completed = 0
         raw = self._raw_fields(input, fields)
-        try:
-            values = validate_inputs(raw, self.contract.input_schema)
-            text = values.get(self._text_field, "") if self._text_field else ""
-            grade_level = values.get("grade_level", "")
-            self.logger.info(
-                "Starting %s evaluation",
-                self.metadata.label,
-                extra={**context, "grade_level": grade_level, "text_length": len(text)},
-            )
-
-            plan = self._plan(values)
-            outputs: dict[str, Any] = {}
-            computed: dict[str, str] = {}
-            labels: list[str] = []
-            usage = TokenUsage(input_tokens=0, output_tokens=0)
-
-            for step in plan:
-                provider = self._providers[step.id]
-                self.logger.debug(
-                    "Running step %s", step.id, extra={**context, "operation": step.id}
-                )
-                output, step_usage = await self._run_step(
-                    step, provider, self._render_messages(step, values, outputs, computed)
-                )
-                outputs[step.id] = output
-                completed += 1
-                usage = TokenUsage(
-                    input_tokens=usage.input_tokens + step_usage.input_tokens,
-                    output_tokens=usage.output_tokens + step_usage.output_tokens,
-                )
-                if provider.label not in labels:
-                    labels.append(provider.label)
-
-            final = outputs[plan[-1].id]
-            if not isinstance(final, self.output_model):
-                raise ConfigurationError(
-                    f'The last step {self.metadata.name} ran, "{plan[-1].id}", produces '
-                    f"{type(final).__name__} rather than {self.output_model.__name__}; a branch "
-                    "of its contract ends on a step whose output is not the evaluator's result."
+        # Until a step starts, the model named is the one the first declared step would
+        # call, so a failure before any of them — a rejected input — still reports a model.
+        with self._telemetry_run(self._providers[self._steps[0].id].label) as run:
+            try:
+                values = validate_inputs(raw, self.contract.input_schema)
+                text = values.get(self._text_field, "") if self._text_field else ""
+                run.text_length = utf16_length(text)
+                run.grade = values.get("grade_level", "")
+                self.logger.info(
+                    "Starting %s evaluation",
+                    self.metadata.label,
+                    extra={**context, "grade_level": run.grade, "text_length": run.text_length},
                 )
 
-            elapsed_ms = int((time.perf_counter() - start) * 1000)
-            result: EvaluationResult[Any] = EvaluationResult(
-                evaluator=self.metadata.id,
-                result=final,
-                metadata=EvaluationMetadata(
-                    # Every model that ran, in run order. One step, or several sharing a
-                    # model, report that model alone; a branch that spans two report both,
-                    # because naming just the last would hide the model that fed it.
-                    model="+".join(labels),
-                    processing_time_ms=elapsed_ms,
-                    token_usage=EvaluationTokenUsage(
-                        input_tokens=usage.input_tokens, output_tokens=usage.output_tokens
+                plan = self._plan(values)
+                outputs: dict[str, Any] = {}
+                computed: dict[str, str] = {}
+
+                for step in plan:
+                    provider = self._providers[step.id]
+                    # Named before the call rather than after it, so a step that fails is
+                    # reported against its own model and not against the last one to finish.
+                    run.provider = provider.label
+                    self.logger.debug(
+                        "Running step %s", step.id, extra={**context, "operation": step.id}
+                    )
+                    output, step_usage, latency_ms = await self._run_step(
+                        step, provider, self._render_messages(step, values, outputs, computed)
+                    )
+                    outputs[step.id] = output
+                    run.step(step.id, provider.label, latency_ms, step_usage)
+
+                final = outputs[plan[-1].id]
+                if not isinstance(final, self.output_model):
+                    raise ConfigurationError(
+                        f'The last step {self.metadata.name} ran, "{plan[-1].id}", produces '
+                        f"{type(final).__name__} rather than {self.output_model.__name__}; a branch "
+                        "of its contract ends on a step whose output is not the evaluator's result."
+                    )
+
+                elapsed_ms = run.elapsed_ms
+                # Every planned step ran to get here, and a plan is never empty.
+                usage = run.token_usage
+                assert usage is not None
+                result: EvaluationResult[Any] = EvaluationResult(
+                    evaluator=self.metadata.id,
+                    result=final,
+                    metadata=EvaluationMetadata(
+                        # Every model that ran, in run order. One step, or several sharing a
+                        # model, report that model alone; a branch that spans two report both,
+                        # because naming just the last would hide the model that fed it.
+                        model="+".join(dict.fromkeys(stage.provider for stage in run.stages)),
+                        processing_time_ms=elapsed_ms,
+                        token_usage=EvaluationTokenUsage(
+                            input_tokens=usage.input_tokens, output_tokens=usage.output_tokens
+                        ),
                     ),
-                ),
-            )
-            outcome = self.metadata.outcome
-            self.logger.info(
-                "%s evaluation completed successfully",
-                self.metadata.label,
-                extra={
-                    **context,
-                    "grade_level": grade_level,
-                    "score": getattr(final, outcome.score, None) if outcome else None,
-                    "processing_time_ms": elapsed_ms,
-                },
-            )
-            return cast(EvaluationResult[OutputT], result)
-        except Exception as error:
-            elapsed_ms = int((time.perf_counter() - start) * 1000)
-            self.logger.error(
-                "%s evaluation failed",
-                self.metadata.label,
-                extra={
-                    **context,
-                    "grade_level": grade_level,
-                    "error": type(error).__name__,
-                    "processing_time_ms": elapsed_ms,
-                    "completed_steps": completed,
-                },
-            )
-            # Nothing is re-classified here. Every provider failure was already mapped by
-            # ``call_with_resampling``, which knows which step's client raised it; anything
-            # else reaching this point is a fault in this SDK, and wrapping it as a provider
-            # error would name a service that did not fail (spec §6.2) and hide the bug.
-            raise
+                )
+                outcome = self.metadata.outcome
+                self.logger.info(
+                    "%s evaluation completed successfully",
+                    self.metadata.label,
+                    extra={
+                        **context,
+                        "grade_level": run.grade,
+                        "score": getattr(final, outcome.score, None) if outcome else None,
+                        "processing_time_ms": elapsed_ms,
+                    },
+                )
+                return cast(EvaluationResult[OutputT], result)
+            except Exception as error:
+                self.logger.error(
+                    "%s evaluation failed",
+                    self.metadata.label,
+                    extra={
+                        **context,
+                        "grade_level": run.grade,
+                        "error": type(error).__name__,
+                        "processing_time_ms": run.elapsed_ms,
+                        "completed_steps": len(run.stages),
+                    },
+                )
+                # Nothing is re-classified here. Every provider failure was already mapped by
+                # ``call_with_resampling``, which knows which step's client raised it; anything
+                # else reaching this point is a fault in this SDK, and wrapping it as a provider
+                # error would name a service that did not fail (spec §6.2) and hide the bug. The
+                # event is emitted as it leaves the ``_telemetry_run`` block.
+                raise
 
     # --- the run ------------------------------------------------------------------------
 
@@ -296,8 +295,12 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
 
     async def _run_step(
         self, step: Step, provider: LLMProvider, messages: Sequence[Message]
-    ) -> tuple[Any, TokenUsage]:
-        """One step's model call, resampled on an output the schema rejects (§6.3)."""
+    ) -> tuple[Any, TokenUsage, int]:
+        """One step's model call, resampled on an output the schema rejects (§6.3).
+
+        Reports what the answer cost and how long the call that produced it took, which is
+        the per-step breakdown telemetry carries.
+        """
         dependency, model = provider_context(provider)
         schema = self.step_models[step.id]
         temperature = self.effective_temperature(step.temperature)
@@ -311,7 +314,7 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             )
             # Trimmed: the answer is pasted into the next prompt, where the model's
             # surrounding blank lines would read as structure it did not intend.
-            return prose.text.strip(), prose.usage
+            return prose.text.strip(), prose.usage, prose.latency_ms
         structured = await call_with_resampling(
             lambda: provider.generate_structured(messages, schema, temperature=temperature),
             max_retries=self.config.max_retries,
@@ -319,7 +322,7 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             model=model,
             logger=self.logger,
         )
-        return structured.data, structured.usage
+        return structured.data, structured.usage, structured.latency_ms
 
     # --- resolving one step's prompt -----------------------------------------------------
 
