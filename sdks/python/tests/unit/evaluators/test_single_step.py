@@ -350,6 +350,43 @@ class TestEnvelope:
             define()(google_api_key="k").evaluate_sync(**INPUT)
 
 
+class TestLifecycle:
+    """``aclose``/``close`` are a no-op here, and that is the contract worth pinning.
+
+    An evaluator that owns a dependency client — the Knowledge Graph one owns a
+    connection pool — overrides ``aclose``. Every other evaluator inherits these, so
+    closing is one habit for callers rather than a per-evaluator question.
+    """
+
+    async def test_aclose_is_a_no_op_and_repeatable(self, providers: ProviderFactory) -> None:
+        evaluator = define()(google_api_key="k")
+        await evaluator.aclose()
+        await evaluator.aclose()
+        # Still usable: closing something that owns nothing releases nothing.
+        assert (await evaluator.evaluate(**INPUT)).result.verdict == "clear"
+
+    async def test_async_context_manager_yields_the_evaluator(
+        self, providers: ProviderFactory
+    ) -> None:
+        evaluator = define()(google_api_key="k")
+        async with evaluator as entered:
+            assert entered is evaluator
+
+    def test_close_runs_aclose(self, providers: ProviderFactory) -> None:
+        closed: list[str] = []
+
+        class Closing(define()):  # type: ignore[misc]
+            async def aclose(self) -> None:
+                closed.append("yes")
+
+        Closing(google_api_key="k").close()
+        assert closed == ["yes"]
+
+    async def test_close_refuses_a_running_loop(self, providers: ProviderFactory) -> None:
+        with pytest.raises(RuntimeError, match="await evaluator.aclose"):
+            define()(google_api_key="k").close()
+
+
 class TestFailures:
     async def test_provider_failures_are_classified_and_attributed(
         self, providers: ProviderFactory

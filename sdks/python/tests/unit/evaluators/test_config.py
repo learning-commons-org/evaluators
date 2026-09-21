@@ -18,6 +18,20 @@ from learning_commons_evaluators import (
 )
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from tests.unit.conftest import ProviderFactory
+from tests.unit.evaluators.test_single_step import contract as demo_contract
+from tests.unit.evaluators.test_single_step import define as define_demo
+
+
+def _needs_learning_commons_key() -> type[BaseEvaluator]:
+    """The demo evaluator, with a non-LLM credential declared on its step.
+
+    Declared on the step rather than on a preprocessing entry because the single-step base
+    only admits ``computation`` preprocessing; ``Contract.required_credentials`` aggregates
+    both, so this exercises the same path the math contract will.
+    """
+    step = demo_contract().steps[0].model_dump(by_alias=True)
+    step["required_credentials"] = ["learning_commons_api_key"]
+    return define_demo(steps=[step])
 
 
 class TestEvaluatorConfig:
@@ -75,6 +89,48 @@ class TestConstruction:
     def test_an_empty_key_is_missing(self, providers: ProviderFactory, value: str) -> None:
         with pytest.raises(ConfigurationError, match="Missing required credential: google_api_key"):
             PurposeClarityEvaluator(google_api_key=value)
+
+    def test_a_credential_no_provider_implies_is_still_required(
+        self, providers: ProviderFactory
+    ) -> None:
+        """A key the contract names directly, rather than one derived from its providers.
+
+        The only registry contract with one is Math Standards Alignment, which declares
+        ``learning_commons_api_key`` for its Knowledge Graph calls and has no evaluator
+        class until Phase 5b — so until now nothing exercised this half of
+        ``_validate_credentials`` and deleting it would have broken no test.
+        """
+        with pytest.raises(
+            ConfigurationError,
+            match=(
+                "Missing required credential: learning_commons_api_key. "
+                "Required by Thing Evaluator."
+            ),
+        ):
+            _needs_learning_commons_key()(google_api_key="k")
+
+    def test_that_credential_is_satisfied_when_supplied(self, providers: ProviderFactory) -> None:
+        evaluator = _needs_learning_commons_key()(google_api_key="k", learning_commons_api_key="lc")
+        assert evaluator.metadata.required_credentials == ("learning_commons_api_key",)
+
+    @pytest.mark.parametrize("value", ["", "   "])
+    def test_a_blank_contract_credential_counts_as_missing(
+        self, providers: ProviderFactory, value: str
+    ) -> None:
+        with pytest.raises(ConfigurationError, match="learning_commons_api_key"):
+            _needs_learning_commons_key()(google_api_key="k", learning_commons_api_key=value)
+
+    def test_a_model_override_does_not_excuse_it(self, providers: ProviderFactory) -> None:
+        """An override replaces the provider key, not a key for a service still being called.
+
+        Swapping the model says nothing about the Knowledge Graph, so the evaluator still
+        needs its key — and the override must not become a way to skip the check.
+        """
+        with pytest.raises(ConfigurationError, match="learning_commons_api_key"):
+            _needs_learning_commons_key()(
+                openai_api_key="o",
+                model_override=ModelOverride(Provider.OPENAI, "gpt-4o-2024-11-20"),
+            )
 
     def test_keys_for_other_providers_are_not_required(self, providers: ProviderFactory) -> None:
         # A Google evaluator does not need an OpenAI key, and extra keys are simply unused.
