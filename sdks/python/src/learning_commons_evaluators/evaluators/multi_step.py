@@ -12,7 +12,7 @@ A concrete evaluator is a declaration::
     class SentenceStructureEvaluator(
         MultiStepEvaluator[SentenceStructureInput, SentenceStructureOutput]
     ):
-        contract = load_contract("student_facing_text.ela_reading.sentence_structure")
+        contract = load_contract("text_complexity.ela_reading.sentence_structure")
         input_model = SentenceStructureInput
         output_model = SentenceStructureOutput
         step_models = {

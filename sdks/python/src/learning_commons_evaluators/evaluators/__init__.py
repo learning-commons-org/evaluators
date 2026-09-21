@@ -16,16 +16,16 @@ from learning_commons_evaluators.evaluators.registry import (
     get_evaluators,
 )
 from learning_commons_evaluators.evaluators.single_step import SingleStepEvaluator
-from learning_commons_evaluators.evaluators.student_facing_text.ela_reading.grade_level_appropriateness import (
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.grade_level_appropriateness import (
     GradeLevelAppropriatenessEvaluator,
 )
-from learning_commons_evaluators.evaluators.student_facing_text.ela_reading.purpose_clarity import (
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.purpose_clarity import (
     PurposeClarityEvaluator,
 )
-from learning_commons_evaluators.evaluators.student_facing_text.ela_reading.sentence_structure import (
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.sentence_structure import (
     SentenceStructureEvaluator,
 )
-from learning_commons_evaluators.evaluators.student_facing_text.ela_reading.vocabulary_complexity import (
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.vocabulary_complexity import (
     VocabularyComplexityEvaluator,
 )
 

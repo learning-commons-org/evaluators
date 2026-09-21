@@ -36,10 +36,10 @@ UNIMPLEMENTED: frozenset[str] = frozenset(
         # Follow-on work in both SDKs (new family, claude-opus-5); on TS's allowlist too.
         "durable_skills.ela_writing.critical_thinking",
         # Phase 3.
-        "student_facing_text.ela_reading.background_knowledge_demands",
-        "student_facing_text.ela_reading.meaning_directness",
-        "student_facing_text.ela_reading.organizational_structure",
-        "student_facing_text.ela_reading.reference_knowledge_demands",
+        "text_complexity.ela_reading.background_knowledge_demands",
+        "text_complexity.ela_reading.meaning_directness",
+        "text_complexity.ela_reading.organizational_structure",
+        "text_complexity.ela_reading.reference_knowledge_demands",
         # Phase 4.
         "feedback.ela_writing.revision_accuracy",
         "feedback.ela_writing.revision_actionability",
