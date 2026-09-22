@@ -59,6 +59,11 @@ from learning_commons_evaluators.schemas.common_inputs import (
     TextInputField,
 )
 from learning_commons_evaluators.schemas.config import EvaluationSettings, LLMProvider
+from learning_commons_evaluators.schemas.llm_provider import (
+    GenerateConfig,
+    LLMGeneratorProtocol,
+    LLMResponse,
+)
 from learning_commons_evaluators.schemas.conventionality import (
     ConventionalityEvaluationSettings,
     ConventionalityOutput,
@@ -163,6 +168,9 @@ __all__ = [
     "create_config_telemetry_with_full_input",
     "create_logger",
     "create_silent_logger",
+    "GenerateConfig",
+    "LLMGeneratorProtocol",
+    "LLMResponse",
     "get_logger",
     "wrap_provider_error",
 ]

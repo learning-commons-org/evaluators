@@ -33,6 +33,11 @@ from learning_commons_evaluators.schemas.input_specs import (
     InputSpec,
     TextInputSpec,
 )
+from learning_commons_evaluators.schemas.llm_provider import (
+    GenerateConfig,
+    LLMGeneratorProtocol,
+    LLMResponse,
+)
 from learning_commons_evaluators.schemas.metadata import (
     PROMPT_STEP_EXTRA_PROMPT_SETTINGS,
     PROMPT_STEP_EXTRA_TOKEN_USAGE,
@@ -81,5 +86,8 @@ __all__ = [
     "TextInputField",
     "TokenUsage",
     "InputValidationError",
+    "GenerateConfig",
+    "LLMGeneratorProtocol",
+    "LLMResponse",
     "prompt_settings_to_extras_value",
 ]

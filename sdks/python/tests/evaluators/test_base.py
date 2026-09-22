@@ -857,3 +857,295 @@ class TestExecutePromptChainStep:
         assert "JSON object" in str(exc_info.value)
         assert exc_info.value.provider is LLMProvider.GOOGLE
         assert exc_info.value.model == "gemini-2.0-flash"
+
+
+# ---------------------------------------------------------------------------
+# execute_prompt_chain_step — protocol path (llm_provider injected)
+# ---------------------------------------------------------------------------
+
+
+from learning_commons_evaluators.schemas.llm_provider import LLMResponse  # noqa: E402
+
+
+def _make_adapter(
+    content: str,
+    model: str = "test-model",
+    input_tokens: int | None = 10,
+    output_tokens: int | None = 5,
+) -> AsyncMock:
+    """Minimal mock that satisfies LLMGeneratorProtocol.generate()."""
+    adapter = AsyncMock()
+    adapter.generate = AsyncMock(
+        return_value=LLMResponse(
+            content=content, model=model, input_tokens=input_tokens, output_tokens=output_tokens
+        )
+    )
+    return adapter
+
+
+_PROTO_SETTINGS = PromptSettings(
+    provider_type=LLMProvider.ANTHROPIC,
+    model="claude-opus-4-8",
+    temperature=0.0,
+)
+
+_PROTO_TEMPLATE = ChatPromptTemplate.from_messages(
+    [("system", "You are a grader."), ("human", "{input}")]
+)
+
+
+class TestExecutePromptChainStepProtocolPath:
+    """Protocol path: llm_provider injected — LangChain provider is never called."""
+
+    def _ev(self, adapter: AsyncMock) -> _StubEvaluator:
+        return _StubEvaluator(create_config_no_telemetry(), llm_provider=adapter)
+
+    async def test_returns_raw_string_when_parser_type_is_none(self, evaluation_metadata):
+        ev = self._ev(_make_adapter("plain prose"))
+        out = await ev.execute_prompt_chain_step(
+            step_name="raw",
+            prompt_settings=_PROTO_SETTINGS,
+            evaluation_metadata=evaluation_metadata,
+            template=_PROTO_TEMPLATE,
+            chain_inputs={"input": "Hello"},
+            parser_output_type=None,
+        )
+        assert out == "plain prose"
+
+    async def test_parses_clean_json(self, evaluation_metadata):
+        ev = self._ev(_make_adapter(_CHAIN_JSON))
+        result = await ev.execute_prompt_chain_step(
+            step_name="main",
+            prompt_settings=_PROTO_SETTINGS,
+            evaluation_metadata=evaluation_metadata,
+            template=_PROTO_TEMPLATE,
+            chain_inputs={"input": "Hello"},
+            parser_output_type=_ChainOutput,
+        )
+        assert isinstance(result, _ChainOutput)
+        assert result.label == "ok"
+        assert result.score == 7
+
+    async def test_strips_markdown_fences(self, evaluation_metadata):
+        fenced = f"```json\n{_CHAIN_JSON}\n```"
+        ev = self._ev(_make_adapter(fenced))
+        result = await ev.execute_prompt_chain_step(
+            step_name="main",
+            prompt_settings=_PROTO_SETTINGS,
+            evaluation_metadata=evaluation_metadata,
+            template=_PROTO_TEMPLATE,
+            chain_inputs={"input": "Hello"},
+            parser_output_type=_ChainOutput,
+        )
+        assert result.label == "ok"
+
+    async def test_strips_trailing_prose(self, evaluation_metadata):
+        with_prose = f"{_CHAIN_JSON}\n\nHere is my reasoning for this score."
+        ev = self._ev(_make_adapter(with_prose))
+        result = await ev.execute_prompt_chain_step(
+            step_name="main",
+            prompt_settings=_PROTO_SETTINGS,
+            evaluation_metadata=evaluation_metadata,
+            template=_PROTO_TEMPLATE,
+            chain_inputs={"input": "Hello"},
+            parser_output_type=_ChainOutput,
+        )
+        assert result.label == "ok"
+
+    async def test_strips_leading_prose(self, evaluation_metadata):
+        with_prefix = f"Here is the result:\n{_CHAIN_JSON}"
+        ev = self._ev(_make_adapter(with_prefix))
+        result = await ev.execute_prompt_chain_step(
+            step_name="main",
+            prompt_settings=_PROTO_SETTINGS,
+            evaluation_metadata=evaluation_metadata,
+            template=_PROTO_TEMPLATE,
+            chain_inputs={"input": "Hello"},
+            parser_output_type=_ChainOutput,
+        )
+        assert result.label == "ok"
+
+    async def test_json_dict_normalizer_path(self, evaluation_metadata):
+        class _Out(BaseModel):
+            n: int
+            doubled: int
+
+        ev = self._ev(_make_adapter('{"n": 3}'))
+        result = await ev.execute_prompt_chain_step(
+            step_name="main",
+            prompt_settings=_PROTO_SETTINGS,
+            evaluation_metadata=evaluation_metadata,
+            template=_PROTO_TEMPLATE,
+            chain_inputs={"input": "Hello"},
+            parser_output_type=_Out,
+            json_dict_normalizer=lambda d: {**d, "doubled": d["n"] * 2},
+        )
+        assert result.n == 3
+        assert result.doubled == 6
+
+    async def test_non_dict_json_in_normalizer_path_raises_output_validation_error(
+        self, evaluation_metadata
+    ):
+        class _Out(BaseModel):
+            n: int
+
+        ev = self._ev(_make_adapter('["not", "an", "object"]'))
+        with pytest.raises(OutputValidationError) as exc_info:
+            await ev.execute_prompt_chain_step(
+                step_name="main",
+                prompt_settings=_PROTO_SETTINGS,
+                evaluation_metadata=evaluation_metadata,
+                template=_PROTO_TEMPLATE,
+                chain_inputs={"input": "Hello"},
+                parser_output_type=_Out,
+                json_dict_normalizer=lambda d: d,
+            )
+        assert "JSON object" in str(exc_info.value)
+
+    async def test_malformed_json_raises_output_validation_error(self, evaluation_metadata):
+        ev = self._ev(_make_adapter("not json at all"))
+        with pytest.raises(OutputValidationError):
+            await ev.execute_prompt_chain_step(
+                step_name="main",
+                prompt_settings=_PROTO_SETTINGS,
+                evaluation_metadata=evaluation_metadata,
+                template=_PROTO_TEMPLATE,
+                chain_inputs={"input": "Hello"},
+                parser_output_type=_ChainOutput,
+            )
+
+    async def test_schema_mismatch_raises_output_validation_error(self, evaluation_metadata):
+        ev = self._ev(_make_adapter('{"label": "only"}'))  # missing required `score`
+        with pytest.raises(OutputValidationError) as exc_info:
+            await ev.execute_prompt_chain_step(
+                step_name="main",
+                prompt_settings=_PROTO_SETTINGS,
+                evaluation_metadata=evaluation_metadata,
+                template=_PROTO_TEMPLATE,
+                chain_inputs={"input": "Hello"},
+                parser_output_type=_ChainOutput,
+            )
+        assert isinstance(exc_info.value.__cause__, PydanticValidationError)
+
+    async def test_token_usage_recorded_in_step_extras_and_total(self, evaluation_metadata):
+        ev = self._ev(
+            _make_adapter(_CHAIN_JSON, model="claude-opus-4-8", input_tokens=42, output_tokens=17)
+        )
+        await ev.execute_prompt_chain_step(
+            step_name="main",
+            prompt_settings=_PROTO_SETTINGS,
+            evaluation_metadata=evaluation_metadata,
+            template=_PROTO_TEMPLATE,
+            chain_inputs={"input": "Hello"},
+            parser_output_type=_ChainOutput,
+        )
+        step = evaluation_metadata.step_details["main"]
+        assert step.extras[PROMPT_STEP_EXTRA_TOKEN_USAGE]["input_tokens"] == 42
+        assert step.extras[PROMPT_STEP_EXTRA_TOKEN_USAGE]["output_tokens"] == 17
+        assert evaluation_metadata.total_token_usage[LLMProvider.ANTHROPIC].input_tokens == 42
+
+    async def test_token_usage_absent_when_llm_response_has_none_tokens(self, evaluation_metadata):
+        ev = self._ev(_make_adapter(_CHAIN_JSON, input_tokens=None, output_tokens=None))
+        await ev.execute_prompt_chain_step(
+            step_name="main",
+            prompt_settings=_PROTO_SETTINGS,
+            evaluation_metadata=evaluation_metadata,
+            template=_PROTO_TEMPLATE,
+            chain_inputs={"input": "Hello"},
+            parser_output_type=_ChainOutput,
+        )
+        assert not evaluation_metadata.total_token_usage
+
+    async def test_provider_error_wrapped_as_api_error(self, evaluation_metadata):
+        adapter = AsyncMock()
+        adapter.generate = AsyncMock(side_effect=RuntimeError("network timeout"))
+        ev = self._ev(adapter)
+        with pytest.raises(APIError) as exc_info:
+            await ev.execute_prompt_chain_step(
+                step_name="main",
+                prompt_settings=_PROTO_SETTINGS,
+                evaluation_metadata=evaluation_metadata,
+                template=_PROTO_TEMPLATE,
+                chain_inputs={"input": "Hello"},
+                parser_output_type=_ChainOutput,
+            )
+        assert isinstance(exc_info.value.__cause__, RuntimeError)
+
+    async def test_evaluator_error_from_provider_reraises_unchanged(self, evaluation_metadata):
+        adapter = AsyncMock()
+        adapter.generate = AsyncMock(side_effect=EvaluatorError("already wrapped"))
+        ev = self._ev(adapter)
+        with pytest.raises(EvaluatorError, match="already wrapped"):
+            await ev.execute_prompt_chain_step(
+                step_name="main",
+                prompt_settings=_PROTO_SETTINGS,
+                evaluation_metadata=evaluation_metadata,
+                template=_PROTO_TEMPLATE,
+                chain_inputs={"input": "Hello"},
+                parser_output_type=_ChainOutput,
+            )
+
+    async def test_keyboard_interrupt_from_provider_propagates(self, evaluation_metadata):
+        adapter = AsyncMock()
+        adapter.generate = AsyncMock(side_effect=KeyboardInterrupt)
+        ev = self._ev(adapter)
+        with pytest.raises(KeyboardInterrupt):
+            await ev.execute_prompt_chain_step(
+                step_name="main",
+                prompt_settings=_PROTO_SETTINGS,
+                evaluation_metadata=evaluation_metadata,
+                template=_PROTO_TEMPLATE,
+                chain_inputs={"input": "Hello"},
+                parser_output_type=_ChainOutput,
+            )
+
+    async def test_adapter_called_with_formatted_system_and_human(self, evaluation_metadata):
+        """Template formatting actually reaches the adapter with the correct strings."""
+        from unittest.mock import ANY
+
+        adapter = _make_adapter(_CHAIN_JSON)
+        ev = self._ev(adapter)
+        await ev.execute_prompt_chain_step(
+            step_name="main",
+            prompt_settings=_PROTO_SETTINGS,
+            evaluation_metadata=evaluation_metadata,
+            template=_PROTO_TEMPLATE,
+            chain_inputs={"input": "Hello"},
+            parser_output_type=_ChainOutput,
+        )
+        adapter.generate.assert_awaited_once_with(
+            system="You are a grader.",
+            human="Hello",
+            config=ANY,
+        )
+
+    async def test_human_only_template_passes_empty_system(self, evaluation_metadata):
+        """Templates with no system turn pass empty string to the adapter without error."""
+        from unittest.mock import ANY
+
+        human_only = ChatPromptTemplate.from_messages([("human", "{input}")])
+        adapter = _make_adapter(_CHAIN_JSON)
+        ev = self._ev(adapter)
+        await ev.execute_prompt_chain_step(
+            step_name="main",
+            prompt_settings=_PROTO_SETTINGS,
+            evaluation_metadata=evaluation_metadata,
+            template=human_only,
+            chain_inputs={"input": "Hello"},
+            parser_output_type=_ChainOutput,
+        )
+        adapter.generate.assert_awaited_once_with(system="", human="Hello", config=ANY)
+
+    async def test_template_with_missing_variable_raises_evaluator_error(self, evaluation_metadata):
+        """A missing template variable becomes an EvaluatorError, not a bare KeyError."""
+        adapter = _make_adapter(_CHAIN_JSON)
+        ev = self._ev(adapter)
+        with pytest.raises(EvaluatorError):
+            await ev.execute_prompt_chain_step(
+                step_name="main",
+                prompt_settings=_PROTO_SETTINGS,
+                evaluation_metadata=evaluation_metadata,
+                template=_PROTO_TEMPLATE,
+                chain_inputs={},  # missing required "input" variable
+                parser_output_type=_ChainOutput,
+            )

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import json as _json
+import re
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
@@ -32,6 +34,11 @@ from learning_commons_evaluators.schemas.evaluator import (
     EvaluationInput,
     EvaluationResult,
 )
+from learning_commons_evaluators.schemas.llm_provider import (
+    GenerateConfig,
+    LLMGeneratorProtocol,
+    LLMResponse,
+)
 from learning_commons_evaluators.schemas.metadata import (
     PROMPT_STEP_EXTRA_PROMPT_SETTINGS,
     PROMPT_STEP_EXTRA_TOKEN_USAGE,
@@ -48,6 +55,75 @@ OutputT = TypeVar("OutputT", bound=EvaluationResult)
 SettingsT = TypeVar("SettingsT", bound=EvaluationSettings)
 StepResultT = TypeVar("StepResultT")
 ParsedT = TypeVar("ParsedT", bound=BaseModel)
+
+
+def _parse_json_output(
+    raw: str,
+    parser_output_type: type[ParsedT],
+    json_dict_normalizer: Callable[[dict], dict] | None,
+    provider_type: Any,
+    model: str,
+) -> ParsedT:
+    """Parse a raw JSON string into ``parser_output_type``, wrapping errors consistently.
+
+    Shared by both the protocol path and (for the normalizer branch) the LangChain path
+    so that error handling is symmetric and normaliser logic lives in one place.
+    """
+    raw = _strip_json_fences(raw)
+    try:
+        if json_dict_normalizer is not None:
+            parsed_dict = _json.loads(raw)
+            if not isinstance(parsed_dict, dict):
+                raise OutputValidationError(
+                    "Model output is not a JSON object",
+                    provider=provider_type,
+                    model=model,
+                )
+            try:
+                normalized = json_dict_normalizer(parsed_dict)
+            except (TypeError, ValueError) as norm_err:
+                raise OutputValidationError(
+                    "Model output could not be normalized before validation",
+                    provider=provider_type,
+                    model=model,
+                ) from norm_err
+            return parser_output_type.model_validate(normalized)
+        return parser_output_type.model_validate_json(raw)
+    except PydanticValidationError as e:
+        raise OutputValidationError(
+            provider=provider_type,
+            model=model,
+            validation_errors=sanitize_pydantic_errors(e.errors()),
+        ) from e
+    except OutputValidationError:
+        raise
+    except Exception as e:
+        raise OutputValidationError(provider=provider_type, model=model) from e
+
+
+def _strip_json_fences(text: str) -> str:
+    """Strip markdown code fences and extract the first valid JSON object or array.
+
+    Uses ``json.JSONDecoder.raw_decode`` to locate the first balanced JSON structure
+    and discard any surrounding prose or trailing text. This correctly handles:
+    - Markdown-fenced responses: ````json\\n{...}\\n``` ``
+    - Prose-prefixed responses: ``Here is the result:\\n{...}``
+    - Trailing-prose responses: ``{...} Here is my reasoning...``
+    """
+    text = text.strip()
+    text = re.sub(r"^```(?:json)?\s*\n?", "", text)
+    text = re.sub(r"\n?```\s*$", "", text)
+    text = text.strip()
+    # Find the first { or [ and use raw_decode to extract the complete JSON structure,
+    # correctly discarding any trailing prose or a second JSON object in the response.
+    start = next((i for i, ch in enumerate(text) if ch in ("{", "[")), -1)
+    if start != -1:
+        try:
+            _, end = _json.JSONDecoder().raw_decode(text, start)
+            return text[start:end]
+        except _json.JSONDecodeError:
+            pass
+    return text
 
 
 class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
@@ -74,9 +150,11 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         self,
         config: EvaluatorConfig,
         *,
+        llm_provider: LLMGeneratorProtocol | None = None,
         default_evaluation_settings: SettingsT | None = None,
     ) -> None:
         self.config = config
+        self._llm_provider = llm_provider
         if default_evaluation_settings is not None:
             self.default_evaluation_settings = default_evaluation_settings
         # TODO: validate config
@@ -312,6 +390,14 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
             Parsed instance of ``parser_output_type`` when it is a model class; plain
             ``str`` when ``parser_output_type`` is omitted or ``None``.
 
+        Note:
+            **Execution path**: when ``self._llm_provider`` is set (injected at
+            construction via ``BaseEvaluator.__init__``), the *protocol path* is taken
+            — the LangChain template is formatted to extract system/human strings, the
+            injected provider is called directly, and JSON is parsed via Pydantic.
+            When ``self._llm_provider`` is ``None`` (default), the *LangChain path*
+            is taken and ``create_provider()`` is called internally.
+
         Raises:
             ConfigurationError: No provider config for ``prompt_settings.provider_type``.
             OutputValidationError: The LLM response didn't satisfy the expected
@@ -330,6 +416,91 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
         # Populated after a successful LLM invoke so we can attach usage even if parsing fails.
         token_usage: TokenUsage | None = None
 
+        if self._llm_provider is not None:
+            # ── Protocol path ─────────────────────────────────────────────
+            provider = self._llm_provider
+
+            async def _run_via_provider() -> BaseModel | str:
+                nonlocal token_usage
+                try:
+                    # Inside try: missing template variables become EvaluatorErrors,
+                    # not bare KeyErrors — consistent with the LangChain path's error contract.
+                    formatted = await template.aformat_messages(**chain_inputs)
+                    system_str = next(
+                        (str(m.content) for m in formatted if getattr(m, "type", "") == "system"),
+                        "",
+                    )
+                    human_str = next(
+                        (str(m.content) for m in formatted if getattr(m, "type", "") == "human"),
+                        "",
+                    )
+                    if not human_str:
+                        raise ValueError(
+                            f"Template for step '{step_name}' produced no human message. "
+                            'Ensure the template contains at least one ("human", ...) turn.'
+                        )
+                    if not system_str:
+                        self.config.logger.debug(
+                            "No system message in template for step '%s'; "
+                            "passing empty string to adapter.",
+                            step_name,
+                        )
+                    response: LLMResponse = await provider.generate(
+                        system=system_str,
+                        human=human_str,
+                        config=GenerateConfig(
+                            temperature=prompt_settings.temperature,
+                            model=prompt_settings.model,
+                        ),
+                    )
+                except EvaluatorError:
+                    raise
+                except (KeyboardInterrupt, SystemExit):
+                    raise
+                except Exception as e:
+                    raise wrap_provider_error(
+                        e,
+                        provider=prompt_settings.provider_type,
+                        model=prompt_settings.model,
+                    ) from e
+                if response.input_tokens is not None or response.output_tokens is not None:
+                    token_usage = TokenUsage(
+                        provider_type=prompt_settings.provider_type,
+                        model=response.model,
+                        input_tokens=response.input_tokens or 0,
+                        output_tokens=response.output_tokens or 0,
+                    )
+                if parser_output_type is None:
+                    return response.content
+                return _parse_json_output(
+                    response.content,
+                    parser_output_type,
+                    json_dict_normalizer,
+                    prompt_settings.provider_type,
+                    response.model,
+                )
+
+            try:
+                return await self.execute_step(
+                    step_name,
+                    evaluation_metadata,
+                    _run_via_provider,
+                    extras={
+                        PROMPT_STEP_EXTRA_PROMPT_SETTINGS: prompt_settings_to_extras_value(
+                            prompt_settings
+                        ),
+                    },
+                )
+            finally:
+                if token_usage is not None:
+                    self.update_total_token_usage(token_usage, evaluation_metadata)
+                    step = evaluation_metadata.step_details.get(step_name)
+                    if step is not None:
+                        step.extras[PROMPT_STEP_EXTRA_TOKEN_USAGE] = token_usage.model_dump(
+                            mode="json"
+                        )
+
+        # ── LangChain path (default, unchanged) ───────────────────────────
         async def _run_chain() -> BaseModel | str:
             nonlocal token_usage
             try:
@@ -342,29 +513,13 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
                 from langchain_core.output_parsers.json import JsonOutputParser
 
                 if json_dict_normalizer is not None:
-                    loose = JsonOutputParser()
-                    parsed_dict = await loose.ainvoke(ai_message)
-                    if not isinstance(parsed_dict, dict):
-                        # JSON parsed cleanly but the top-level value isn't an object
-                        # (e.g. the LLM returned a JSON array or scalar). That's an
-                        # output-shape failure, not a parse failure — surface it as
-                        # OutputValidationError so callers can treat it consistently
-                        # with schema-mismatch errors, and avoid the TypeError that
-                        # ``dict(parsed_dict)`` would raise on a non-dict.
-                        raise OutputValidationError(
-                            "Model output is not a JSON object",
-                            provider=prompt_settings.provider_type,
-                            model=prompt_settings.model,
-                        )
-                    try:
-                        normalized = json_dict_normalizer(parsed_dict)
-                    except (TypeError, ValueError) as norm_err:
-                        raise OutputValidationError(
-                            "Model output could not be normalized before validation",
-                            provider=prompt_settings.provider_type,
-                            model=prompt_settings.model,
-                        ) from norm_err
-                    return parser_output_type.model_validate(normalized)
+                    return _parse_json_output(
+                        str(ai_message.content),
+                        parser_output_type,
+                        json_dict_normalizer,
+                        prompt_settings.provider_type,
+                        prompt_settings.model,
+                    )
 
                 parser = JsonOutputParser(pydantic_object=parser_output_type)
                 raw = await parser.ainvoke(ai_message)
