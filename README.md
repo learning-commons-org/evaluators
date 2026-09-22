@@ -29,6 +29,8 @@ Evaluators help you to measure the attributes of LLM-generated text through the 
 
 ## Quickstart
 
+Check out the <a href="https://docs.learningcommons.org/evaluators/getting-started/quickstart" target="_blank">Quickstart</a> to start using Evaluators.
+
 | Access method                                                                                              | When to use                                         | How to use                                                                                                                                                                                                                                                                                                                       |
 | :--------------------------------------------------------------------------------------------------------- | :-------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Evaluators playground](https://platform.learningcommons.org/apps/evaluators/playground)                   | For a quick demo of how evaluators work             | 1. Open the [Evaluators playground](https://platform.learningcommons.org/apps/evaluators/playground)<br>2. Choose an evaluator family and provide your inputs<br>3. Click **Evaluate**, then expand each result for its score and reasoning                                                                                      |
