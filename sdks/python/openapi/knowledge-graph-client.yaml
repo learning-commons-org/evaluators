@@ -1,0 +1,9 @@
+# Config for openapi-python-client (see scripts/generate_kg_client.py).
+#
+# Post-hooks are disabled so generation does not depend on ruff being on PATH and so
+# `make check-kg-client` compares two trees the generator alone produced — a formatter
+# version bump would otherwise read as a stale client. The generated tree is excluded
+# from Ruff, Mypy, and coverage instead (see pyproject.toml).
+project_name_override: knowledge_graph
+package_name_override: knowledge_graph
+post_hooks: []
