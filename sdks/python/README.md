@@ -10,7 +10,7 @@ Python SDK for Learning Commons educational text evaluators. Every evaluator is 
 pip install learning-commons-evaluators
 ```
 
-Requires **Python 3.10+**. Provider API keys are passed in explicitly; the SDK never reads them from the environment.
+Requires **Python 3.11+**. Provider API keys are passed in explicitly; the SDK never reads them from the environment.
 
 ## Quick start
 

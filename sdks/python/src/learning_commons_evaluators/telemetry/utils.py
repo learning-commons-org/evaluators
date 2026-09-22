@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -38,7 +38,7 @@ def utc_timestamp() -> str:
     Millisecond precision and a ``Z`` suffix, which is what JavaScript's
     ``Date.toISOString`` produces and therefore what the collector already parses.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return f"{now:%Y-%m-%dT%H:%M:%S}.{now.microsecond // 1000:03d}Z"
 
 
