@@ -137,3 +137,160 @@ def test_build_noise_is_not_a_difference(tmp_path: Path) -> None:
     )
     right = _tree(tmp_path / "right", {"client.py": "a\n"})
     assert generate.tree_differences(left, right) == []
+
+
+# --- Filtering the spec to the operations we call -----------------------------------
+
+
+def _document() -> dict:
+    """A miniature spec: two operations, one of which we keep, and a ref chain."""
+    return {
+        "openapi": "3.1.0",
+        # Authentication is declared once at the root and inherited by every operation,
+        # the way the Knowledge Graph spec declares it. Nothing `$ref`s the scheme, which
+        # is exactly why pruning by reachability would drop it.
+        "security": [{"apiKey": []}],
+        "paths": {
+            "/kept": {
+                "parameters": [{"$ref": "#/components/parameters/Shared"}],
+                "get": {
+                    "operationId": "keepMe",
+                    "responses": {
+                        "200": {
+                            "content": {
+                                "application/json": {
+                                    "schema": {"$ref": "#/components/schemas/Outer"}
+                                }
+                            }
+                        }
+                    },
+                },
+                "post": {"operationId": "dropMe", "responses": {}},
+            },
+            "/dropped": {"get": {"operationId": "alsoDropMe", "responses": {}}},
+        },
+        "components": {
+            "schemas": {
+                "Outer": {"properties": {"inner": {"$ref": "#/components/schemas/Inner"}}},
+                "Inner": {"type": "string"},
+                "Unrelated": {"type": "string"},
+            },
+            "parameters": {"Shared": {"name": "q", "in": "query"}, "Unused": {"name": "z"}},
+            "securitySchemes": {"apiKey": {"type": "apiKey", "name": "X-Key", "in": "header"}},
+        },
+    }
+
+
+def test_only_the_declared_operations_survive() -> None:
+    trimmed = generate.filtered_spec(_document(), {"keepMe"})
+    assert list(trimmed["paths"]) == ["/kept"]
+    assert set(trimmed["paths"]["/kept"]) == {"parameters", "get"}
+
+
+def test_a_schema_reachable_only_through_another_is_kept() -> None:
+    # Inner is referenced by Outer, never by a path: a single pass would drop it and the
+    # generated client would not compile.
+    trimmed = generate.filtered_spec(_document(), {"keepMe"})
+    assert set(trimmed["components"]["schemas"]) == {"Outer", "Inner"}
+
+
+def test_components_nothing_reaches_are_pruned() -> None:
+    trimmed = generate.filtered_spec(_document(), {"keepMe"})
+    assert "Unrelated" not in trimmed["components"]["schemas"]
+    assert set(trimmed["components"]["parameters"]) == {"Shared"}
+
+
+def test_the_root_security_requirement_survives() -> None:
+    # It is not under `components`, so it rides along with the other root keys — but
+    # nothing asserted that until now, and dropping it would generate a client that never
+    # sends the key.
+    trimmed = generate.filtered_spec(_document(), {"keepMe"})
+    assert trimmed["security"] == [{"apiKey": []}]
+
+
+def test_security_schemes_are_kept_whole() -> None:
+    # The root requirement above names the scheme by key, not by `$ref`, so the
+    # reachability closure cannot see it. Keeping the section whole is what stops a
+    # client that cannot authenticate: the requirement would survive and point at a
+    # scheme that no longer exists.
+    trimmed = generate.filtered_spec(_document(), {"keepMe"})
+    assert set(trimmed["components"]["securitySchemes"]) == {"apiKey"}
+
+
+def test_the_vendored_spec_authenticates_the_same_way_after_filtering() -> None:
+    """The fixture above is only worth as much as its resemblance to the real document.
+
+    The Knowledge Graph declares one root requirement naming one scheme; if either the
+    requirement or the scheme were pruned the generated client would stop sending
+    `x-api-key`, and every call would 401 at runtime rather than failing here.
+    """
+    from ruamel.yaml import YAML
+
+    document = YAML(typ="safe").load(generate._SPEC_PATH)
+    trimmed = generate.filtered_spec(document, generate._OPERATIONS)
+
+    assert trimmed["security"] == document["security"]
+    required = {name for requirement in trimmed["security"] for name in requirement}
+    assert required
+    assert required <= set(trimmed["components"]["securitySchemes"])
+
+
+def test_the_vendored_document_is_not_mutated() -> None:
+    document = _document()
+    generate.filtered_spec(document, {"keepMe"})
+    assert set(document["paths"]) == {"/kept", "/dropped"}
+    assert "Unrelated" in document["components"]["schemas"]
+
+
+def test_an_operation_id_the_spec_does_not_declare_fails_loudly() -> None:
+    # Otherwise the client would generate happily without an endpoint the wrapper imports,
+    # and the failure would land at someone's runtime instead.
+    with pytest.raises(SystemExit, match="ghostOperation"):
+        generate.filtered_spec(_document(), {"keepMe", "ghostOperation"})
+
+
+def test_the_committed_client_has_exactly_the_allowlisted_endpoints() -> None:
+    """`_OPERATIONS` against the tree on disk, in both directions.
+
+    An id here that nothing generates would be a silent no-op, and a generated endpoint
+    nothing allowlisted would mean the committed tree did not come from this filter.
+    Checked against the committed modules rather than against a freshly filtered spec, so
+    it stays true without the generator installed.
+    """
+    api_root = generate._GENERATED_DIR / "api"
+    generated = {
+        path.stem
+        for path in api_root.rglob("*.py")
+        if path.stem != "__init__" and "__pycache__" not in path.parts
+    }
+    expected = {_snake(operation_id) for operation_id in generate._OPERATIONS}
+    assert generated == expected
+
+
+def _snake(operation_id: str) -> str:
+    """`searchAcademicStandards` -> `search_academic_standards`, as the generator names it.
+
+    Runs of capitals stay together, so `...ByCaseIdentifierUUID` ends `_uuid` rather than
+    `_u_u_i_d`.
+    """
+    out: list[str] = []
+    for index, char in enumerate(operation_id):
+        previous, following = operation_id[index - 1 : index], operation_id[index + 1 : index + 2]
+        if char.isupper() and index and (previous.islower() or following.islower()):
+            out.append("_")
+        out.append(char.lower())
+    return "".join(out)
+
+
+def test_the_allowlist_matches_the_vendored_spec() -> None:
+    from ruamel.yaml import YAML
+
+    document = YAML(typ="safe").load(generate._SPEC_PATH)
+    trimmed = generate.filtered_spec(document, generate._OPERATIONS)
+    kept = {
+        operation["operationId"]
+        for item in trimmed["paths"].values()
+        for method, operation in item.items()
+        if method in generate._HTTP_METHODS
+    }
+    assert kept == set(generate._OPERATIONS)
