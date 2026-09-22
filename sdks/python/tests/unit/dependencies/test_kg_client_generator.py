@@ -137,3 +137,95 @@ def test_build_noise_is_not_a_difference(tmp_path: Path) -> None:
     )
     right = _tree(tmp_path / "right", {"client.py": "a\n"})
     assert generate.tree_differences(left, right) == []
+
+
+# --- Filtering the spec to the operations we call -----------------------------------
+
+
+def _document() -> dict:
+    """A miniature spec: two operations, one of which we keep, and a ref chain."""
+    return {
+        "openapi": "3.1.0",
+        "paths": {
+            "/kept": {
+                "parameters": [{"$ref": "#/components/parameters/Shared"}],
+                "get": {
+                    "operationId": "keepMe",
+                    "responses": {
+                        "200": {
+                            "content": {
+                                "application/json": {
+                                    "schema": {"$ref": "#/components/schemas/Outer"}
+                                }
+                            }
+                        }
+                    },
+                },
+                "post": {"operationId": "dropMe", "responses": {}},
+            },
+            "/dropped": {"get": {"operationId": "alsoDropMe", "responses": {}}},
+        },
+        "components": {
+            "schemas": {
+                "Outer": {"properties": {"inner": {"$ref": "#/components/schemas/Inner"}}},
+                "Inner": {"type": "string"},
+                "Unrelated": {"type": "string"},
+            },
+            "parameters": {"Shared": {"name": "q", "in": "query"}, "Unused": {"name": "z"}},
+            "securitySchemes": {"apiKey": {"type": "apiKey", "name": "X-Key", "in": "header"}},
+        },
+    }
+
+
+def test_only_the_declared_operations_survive() -> None:
+    trimmed = generate.filtered_spec(_document(), {"keepMe"})
+    assert list(trimmed["paths"]) == ["/kept"]
+    assert set(trimmed["paths"]["/kept"]) == {"parameters", "get"}
+
+
+def test_a_schema_reachable_only_through_another_is_kept() -> None:
+    # Inner is referenced by Outer, never by a path: a single pass would drop it and the
+    # generated client would not compile.
+    trimmed = generate.filtered_spec(_document(), {"keepMe"})
+    assert set(trimmed["components"]["schemas"]) == {"Outer", "Inner"}
+
+
+def test_components_nothing_reaches_are_pruned() -> None:
+    trimmed = generate.filtered_spec(_document(), {"keepMe"})
+    assert "Unrelated" not in trimmed["components"]["schemas"]
+    assert set(trimmed["components"]["parameters"]) == {"Shared"}
+
+
+def test_security_schemes_are_kept_whole() -> None:
+    # Answered by the root `security` block rather than by a $ref, so the closure cannot
+    # find them and dropping them would generate a client that cannot authenticate.
+    trimmed = generate.filtered_spec(_document(), {"keepMe"})
+    assert set(trimmed["components"]["securitySchemes"]) == {"apiKey"}
+
+
+def test_the_vendored_document_is_not_mutated() -> None:
+    document = _document()
+    generate.filtered_spec(document, {"keepMe"})
+    assert set(document["paths"]) == {"/kept", "/dropped"}
+    assert "Unrelated" in document["components"]["schemas"]
+
+
+def test_an_operation_id_the_spec_does_not_declare_fails_loudly() -> None:
+    # Otherwise the client would generate happily without an endpoint the wrapper imports,
+    # and the failure would land at someone's runtime instead.
+    with pytest.raises(SystemExit, match="ghostOperation"):
+        generate.filtered_spec(_document(), {"keepMe", "ghostOperation"})
+
+
+def test_the_allowlist_matches_the_vendored_spec() -> None:
+    from ruamel.yaml import YAML
+
+    document = YAML(typ="safe").load(generate._SPEC_PATH)
+    trimmed = generate.filtered_spec(document, generate._OPERATIONS)
+    kept = {
+        operation["operationId"]
+        for item in trimmed["paths"].values()
+        for method, operation in item.items()
+        if method in generate._HTTP_METHODS
+    }
+    assert kept == set(generate._OPERATIONS)
