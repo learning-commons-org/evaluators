@@ -146,6 +146,10 @@ def _document() -> dict:
     """A miniature spec: two operations, one of which we keep, and a ref chain."""
     return {
         "openapi": "3.1.0",
+        # Authentication is declared once at the root and inherited by every operation,
+        # the way the Knowledge Graph spec declares it. Nothing `$ref`s the scheme, which
+        # is exactly why pruning by reachability would drop it.
+        "security": [{"apiKey": []}],
         "paths": {
             "/kept": {
                 "parameters": [{"$ref": "#/components/parameters/Shared"}],
@@ -196,11 +200,39 @@ def test_components_nothing_reaches_are_pruned() -> None:
     assert set(trimmed["components"]["parameters"]) == {"Shared"}
 
 
+def test_the_root_security_requirement_survives() -> None:
+    # It is not under `components`, so it rides along with the other root keys — but
+    # nothing asserted that until now, and dropping it would generate a client that never
+    # sends the key.
+    trimmed = generate.filtered_spec(_document(), {"keepMe"})
+    assert trimmed["security"] == [{"apiKey": []}]
+
+
 def test_security_schemes_are_kept_whole() -> None:
-    # Answered by the root `security` block rather than by a $ref, so the closure cannot
-    # find them and dropping them would generate a client that cannot authenticate.
+    # The root requirement above names the scheme by key, not by `$ref`, so the
+    # reachability closure cannot see it. Keeping the section whole is what stops a
+    # client that cannot authenticate: the requirement would survive and point at a
+    # scheme that no longer exists.
     trimmed = generate.filtered_spec(_document(), {"keepMe"})
     assert set(trimmed["components"]["securitySchemes"]) == {"apiKey"}
+
+
+def test_the_vendored_spec_authenticates_the_same_way_after_filtering() -> None:
+    """The fixture above is only worth as much as its resemblance to the real document.
+
+    The Knowledge Graph declares one root requirement naming one scheme; if either the
+    requirement or the scheme were pruned the generated client would stop sending
+    `x-api-key`, and every call would 401 at runtime rather than failing here.
+    """
+    from ruamel.yaml import YAML
+
+    document = YAML(typ="safe").load(generate._SPEC_PATH)
+    trimmed = generate.filtered_spec(document, generate._OPERATIONS)
+
+    assert trimmed["security"] == document["security"]
+    required = {name for requirement in trimmed["security"] for name in requirement}
+    assert required
+    assert required <= set(trimmed["components"]["securitySchemes"])
 
 
 def test_the_vendored_document_is_not_mutated() -> None:
@@ -215,6 +247,39 @@ def test_an_operation_id_the_spec_does_not_declare_fails_loudly() -> None:
     # and the failure would land at someone's runtime instead.
     with pytest.raises(SystemExit, match="ghostOperation"):
         generate.filtered_spec(_document(), {"keepMe", "ghostOperation"})
+
+
+def test_the_committed_client_has_exactly_the_allowlisted_endpoints() -> None:
+    """`_OPERATIONS` against the tree on disk, in both directions.
+
+    An id here that nothing generates would be a silent no-op, and a generated endpoint
+    nothing allowlisted would mean the committed tree did not come from this filter.
+    Checked against the committed modules rather than against a freshly filtered spec, so
+    it stays true without the generator installed.
+    """
+    api_root = generate._GENERATED_DIR / "api"
+    generated = {
+        path.stem
+        for path in api_root.rglob("*.py")
+        if path.stem != "__init__" and "__pycache__" not in path.parts
+    }
+    expected = {_snake(operation_id) for operation_id in generate._OPERATIONS}
+    assert generated == expected
+
+
+def _snake(operation_id: str) -> str:
+    """`searchAcademicStandards` -> `search_academic_standards`, as the generator names it.
+
+    Runs of capitals stay together, so `...ByCaseIdentifierUUID` ends `_uuid` rather than
+    `_u_u_i_d`.
+    """
+    out: list[str] = []
+    for index, char in enumerate(operation_id):
+        previous, following = operation_id[index - 1 : index], operation_id[index + 1 : index + 2]
+        if char.isupper() and index and (previous.islower() or following.islower()):
+            out.append("_")
+        out.append(char.lower())
+    return "".join(out)
 
 
 def test_the_allowlist_matches_the_vendored_spec() -> None:
