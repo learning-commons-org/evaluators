@@ -25,5 +25,9 @@ htmlcov/
 *.swp
 *~
 
+# Transient staging dirs from `make generate-kg-client`; removed on success
+.knowledge_graph.new/
+.knowledge_graph.old/
+
 # OS
 .DS_Store
