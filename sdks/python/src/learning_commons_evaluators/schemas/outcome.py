@@ -31,9 +31,7 @@ class Outcome:
     reasoning: str
 
 
-def read_outcome(
-    evaluation: EvaluationResult[Any], outcome: DeclaredOutcome | None
-) -> Outcome:
+def read_outcome(evaluation: EvaluationResult[Any], outcome: DeclaredOutcome | None) -> Outcome:
     """Pick the verdict and reasoning out of an evaluation's payload.
 
     ``outcome`` is the evaluator's declared block (``EvaluatorClass.metadata.outcome``).
