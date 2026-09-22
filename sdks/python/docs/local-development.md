@@ -77,6 +77,15 @@ make generate-kg-client   # offline: regenerate the client from the vendored spe
 make check-kg-client      # verify the committed client matches (CI runs this)
 ```
 
+The client covers the operations the SDK calls, not all 31 the service publishes. The generator
+has no include/exclude option, so the subset comes from filtering its *input*: `_OPERATIONS` in
+`scripts/generate_kg_client.py` names the operations by `operationId`, and generation reduces the
+vendored spec to those plus the components they reference before running. The output is still
+entirely generator-produced, so `check-kg-client` compares byte for byte as it would otherwise,
+and the vendored spec itself stays whole — `fetch-kg-openapi` remains a plain download. Calling a
+new endpoint means adding its `operationId` to that set; an id the spec no longer declares fails
+generation rather than quietly producing a client without it.
+
 Fetching is a separate, deliberately manual step, so a change to the live API lands as a reviewed
 commit rather than as a CI-time surprise. Generation is offline from the vendored file, so CI and
 a laptop produce the same tree, and it publishes by renaming a staged tree into place, so a run
