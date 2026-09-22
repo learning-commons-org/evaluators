@@ -28,8 +28,8 @@ classifiers = [
 # is admitted by a deliberate bump after the suite has run against it, not by resolution.
 # Dependabot (.github/dependabot.yml, pip ecosystem) proposes those bumps.
 #
-# Verified against: pydantic 2.13, textstat 0.7.13, openai 3.13, anthropic 1.5,
-# google-genai 2.23, httpx 0.28 (September 2026).
+# Verified against: pydantic 2.13, textstat 0.7.13, openai 3.14, anthropic 1.6,
+# google-genai 2.23, httpx 0.28, attrs 26.1 (September 2026).
 dependencies = [
     "pydantic>=2.0.0,<3",
     "textstat>=0.7.0,<1",
@@ -43,6 +43,19 @@ dependencies = [
     "anthropic>=1.0.0,<2",
     "google-genai>=1.30.0,<3",
     "httpx>=0.27.0,<1",
+    # Knowledge Graph client (D9). The OpenAPI-generated transport under
+    # dependencies/_generated/ is built on httpx and attrs, so both are unconditional —
+    # the client ships with the package rather than behind an extra, so that the math
+    # standards evaluator works on a plain `pip install` like every other evaluator.
+    #
+    # The one runtime dependency with no upper bound, deliberately. attrs is CalVer, so
+    # the leading number is the year and not a compatibility signal: the `<26` this
+    # replaces already excluded 26.1.0 (March 2026) for nothing, and any year cap
+    # re-breaks installs every January. Nothing in this package imports attrs; only the
+    # generated client does, and only for `@define` and `field`, stable for years. A
+    # release that did change them would change the generator's output, which
+    # `make check-kg-client` compares byte for byte.
+    "attrs>=23.2.0",
 ]
 
 [project.optional-dependencies]
@@ -52,6 +65,13 @@ dev = [
     "pytest-cov>=5.0.0",
     "ruff>=0.9.0",
     "mypy>=1.14.0",
+    # `make generate-kg-client` / `make check-kg-client`. Pinned exactly: the generator's
+    # output is committed, so a version bump is a large reviewable diff rather than a
+    # surprise stale-client failure on someone else's PR.
+    "openapi-python-client==0.29.1",
+    # Reads the vendored OpenAPI spec for the taxonomy drift check in the same script.
+    # Declared rather than leaned on as a transitive dependency of the generator above.
+    "ruamel.yaml>=0.18,<1",
 ]
 
 [project.urls]
@@ -93,6 +113,9 @@ extend-exclude = [
     # just ``schemas/*/`` Ruff skipped every file under schemas/, hand-written ones
     # included, so evaluator.py, outcome.py and metadata.py went unlinted.
     "src/learning_commons_evaluators/schemas/*/**",
+    # Codegen output from ``make generate-kg-client``; `make check-kg-client` is what
+    # holds it to the spec. Formatting it here would make that check fail on a Ruff bump.
+    "src/learning_commons_evaluators/dependencies/_generated/",
 ]
 
 [tool.ruff.lint]
@@ -138,3 +161,24 @@ disable_error_code = ["arg-type", "call-overload", "misc"]
 [[tool.mypy.overrides]]
 module = "textstat"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Codegen output from ``make generate-kg-client``. Not hand-maintainable, so not worth
+# type-checking; ``dependencies/knowledge_graph.py`` is the checked boundary in front of it.
+module = "learning_commons_evaluators.dependencies._generated.*"
+ignore_errors = true
+
+# ── Coverage ──────────────────────────────────────────────────────────────────
+
+[tool.coverage.run]
+source = ["learning_commons_evaluators"]
+omit = [
+    # The generated Knowledge Graph client: ~19k lines covering every Knowledge Graph
+    # endpoint, of which the SDK calls three. Measuring it would put the package's line
+    # count an order of magnitude beyond what the SDK actually runs and make COV_MIN a
+    # statement about the generator instead of about our code. What we do run is the
+    # wrapper in dependencies/knowledge_graph.py, which is measured and which the unit
+    # tests drive end to end through a mock transport, so the generated request building
+    # and response parsing are exercised even though they are not counted.
+    "*/dependencies/_generated/*",
+]
