@@ -18,6 +18,13 @@ Needs the ``dev`` extra (``openapi-python-client``). Generation is offline from
 ``openapi/knowledge-graph.yaml``; run ``make fetch-kg-openapi`` first to pick up a newer
 published spec.
 
+The client covers the operations in ``_OPERATIONS`` rather than all 31 the service
+publishes. The generator has no include/exclude option, so the subset is produced by
+filtering its *input*: the vendored spec is reduced to those operations and the
+components they reference, and the generator runs on that. The output is still entirely
+generator-produced, so ``--check`` compares byte for byte exactly as it would otherwise,
+and the vendored document itself stays whole.
+
 Both commands also compare the hand-written taxonomy enums in ``schemas/kg_taxonomy.py``
 against the spec's enum lists. A value only the SDK has is an error — it is a token we
 would send that the service will reject. A value only the spec has is a warning: the
@@ -34,6 +41,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Collection
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -45,6 +53,27 @@ _SPEC_PATH = _SDK_ROOT / "openapi" / "knowledge-graph.yaml"
 _CONFIG_PATH = _SDK_ROOT / "openapi" / "knowledge-graph-client.yaml"
 _GENERATED_DIR = _PACKAGE_ROOT / "dependencies" / "_generated" / "knowledge_graph"
 _TAXONOMY_PATH = _PACKAGE_ROOT / "schemas" / "kg_taxonomy.py"
+
+#: The operations the SDK calls, by ``operationId``. The client is generated from a spec
+#: filtered to these and whatever they reference, so the committed tree is the transport
+#: for the endpoints we use rather than for all 31 the service publishes. Adding an
+#: endpoint means adding it here — a deliberate line in a reviewed diff.
+#:
+#: Keyed on ``operationId`` rather than on the path, because that is the name the
+#: generated module takes and the wrapper imports. An id the spec no longer declares
+#: fails generation rather than silently producing a client missing an endpoint we call.
+_OPERATIONS: frozenset[str] = frozenset(
+    {
+        "getAcademicStandardByCaseIdentifierUUID",
+        "searchAcademicStandards",
+        "listLearningComponentsByAcademicStandard",
+    }
+)
+
+#: The OpenAPI operation keys a path item may carry.
+_HTTP_METHODS: frozenset[str] = frozenset(
+    {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
+)
 
 #: Never part of the committed tree, so never part of the comparison.
 _IGNORE_NAMES = frozenset({".DS_Store", "__pycache__"})
@@ -78,29 +107,163 @@ def _require_generator() -> None:
         )
 
 
+# ---------------------------------------------------------------------------
+# Filtering the spec to the operations we call
+# ---------------------------------------------------------------------------
+
+
+def _collect_refs(node: Any, found: set[str]) -> None:
+    """Every ``$ref`` string anywhere under ``node``."""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "$ref" and isinstance(value, str):
+                found.add(value)
+            else:
+                _collect_refs(value, found)
+    elif isinstance(node, list):
+        for value in node:
+            _collect_refs(value, found)
+
+
+def _component_target(ref: str) -> tuple[str, str] | None:
+    """``("schemas", "AcademicStandard")`` for a local component ref, else ``None``."""
+    prefix = "#/components/"
+    if not ref.startswith(prefix):
+        return None
+    section, _, name = ref[len(prefix) :].partition("/")
+    return (section, name) if section and name else None
+
+
+def _referenced_components(roots: Any, components: dict[str, Any]) -> dict[str, set[str]]:
+    """The components ``roots`` needs, transitively, as ``{section: {name, ...}}``.
+
+    A fixed point rather than one pass: a schema the paths reach pulls in the schemas it
+    references, and so on, so pruning cannot strip something reachable only indirectly.
+    """
+    pending: set[str] = set()
+    _collect_refs(roots, pending)
+    seen: set[str] = set()
+    keep: dict[str, set[str]] = {}
+    while pending:
+        ref = pending.pop()
+        if ref in seen:
+            continue
+        seen.add(ref)
+        target = _component_target(ref)
+        if target is None:
+            continue
+        section, name = target
+        definition = components.get(section, {}).get(name)
+        if definition is None:
+            continue
+        keep.setdefault(section, set()).add(name)
+        _collect_refs(definition, pending)
+    return keep
+
+
+def filtered_spec(document: dict[str, Any], operation_ids: Collection[str]) -> dict[str, Any]:
+    """``document`` reduced to ``operation_ids`` and everything they reference.
+
+    The generator has no include/exclude option (0.29.1), so the subset is expressed by
+    narrowing its input. That keeps the output generator-produced rather than hand-pruned,
+    which is what lets ``--check`` keep comparing byte for byte.
+
+    :raises SystemExit: an id no operation in the document declares — a wrapper importing
+        it would fail at runtime, so it fails here instead.
+    """
+    wanted = set(operation_ids)
+    paths: dict[str, Any] = {}
+    for path, item in (document.get("paths") or {}).items():
+        if not isinstance(item, dict):
+            continue
+        kept = {
+            method: operation
+            for method, operation in item.items()
+            if method in _HTTP_METHODS
+            and isinstance(operation, dict)
+            and operation.get("operationId") in wanted
+        }
+        if not kept:
+            continue
+        # Shared path-level keys (``parameters``, ``servers``) travel with the operations
+        # they apply to; dropping them would change how the kept ones generate.
+        shared = {key: value for key, value in item.items() if key not in _HTTP_METHODS}
+        paths[path] = {**shared, **kept}
+        wanted -= {operation["operationId"] for operation in kept.values()}
+
+    if wanted:
+        raise SystemExit(
+            f"{_SPEC_PATH} declares no operation with id(s) {sorted(wanted)}. "
+            "Either the published spec renamed them or _OPERATIONS is out of date."
+        )
+
+    trimmed = {key: value for key, value in document.items() if key != "components"}
+    trimmed["paths"] = paths
+
+    components = document.get("components") or {}
+    keep = _referenced_components(paths, components)
+    pruned: dict[str, Any] = {}
+    for section, definitions in components.items():
+        # Security schemes answer to the root ``security`` block rather than to a ``$ref``,
+        # so they have no incoming reference to find and are kept whole.
+        names = set(definitions) if section == "securitySchemes" else keep.get(section, set())
+        surviving = {name: body for name, body in definitions.items() if name in names}
+        if surviving:
+            pruned[section] = surviving
+    if pruned:
+        trimmed["components"] = pruned
+    return trimmed
+
+
+def write_filtered_spec(destination: Path) -> None:
+    """Write the filtered spec to ``destination`` for the generator to read.
+
+    Key order is preserved on the way out. The generator emits a model's fields in the
+    order the spec declares its properties, and an attrs class takes them positionally in
+    that order, so sorting the mapping — which this dumper does unless told not to —
+    would reorder generated constructors for no reason but the round trip.
+    """
+    from ruamel.yaml import YAML
+
+    yaml = YAML(typ="safe")
+    yaml.representer.sort_base_mapping_type_on_output = False
+    document = yaml.load(_SPEC_PATH)
+    with destination.open("w", encoding="utf-8") as handle:
+        yaml.dump(filtered_spec(document, _OPERATIONS), handle)
+
+
 def _run_generator(output_dir: Path) -> None:
-    """Write a fresh client into ``output_dir``. Callers check the generator exists first."""
+    """Write a fresh client into ``output_dir``. Callers check the generator exists first.
+
+    Reads a filtered copy of the vendored spec rather than the spec itself, so the tree is
+    the transport for the operations in :data:`_OPERATIONS` alone. The filtered copy is a
+    temporary: the vendored document stays whole, so ``make fetch-kg-openapi`` remains a
+    plain download and an upstream change is still reviewable in its diff.
+    """
     output_dir.parent.mkdir(parents=True, exist_ok=True)
-    command = [
-        sys.executable,
-        "-m",
-        "openapi_python_client",
-        "generate",
-        "--path",
-        str(_SPEC_PATH),
-        "--config",
-        str(_CONFIG_PATH),
-        # No project scaffolding: the output is a package inside ours, not a distribution.
-        "--meta",
-        "none",
-        "--output-path",
-        str(output_dir),
-        "--overwrite",
-    ]
-    try:
-        subprocess.run(command, check=True, cwd=_SDK_ROOT)
-    except subprocess.CalledProcessError as e:
-        raise SystemExit(e.returncode) from e
+    with tempfile.TemporaryDirectory(prefix="kg-spec-") as tmp:
+        spec_path = Path(tmp) / "knowledge-graph.filtered.yaml"
+        write_filtered_spec(spec_path)
+        command = [
+            sys.executable,
+            "-m",
+            "openapi_python_client",
+            "generate",
+            "--path",
+            str(spec_path),
+            "--config",
+            str(_CONFIG_PATH),
+            # No project scaffolding: the output is a package inside ours, not a distribution.
+            "--meta",
+            "none",
+            "--output-path",
+            str(output_dir),
+            "--overwrite",
+        ]
+        try:
+            subprocess.run(command, check=True, cwd=_SDK_ROOT)
+        except subprocess.CalledProcessError as e:
+            raise SystemExit(e.returncode) from e
 
 
 def _tree_files(root: Path) -> set[Path]:
