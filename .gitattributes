@@ -2,6 +2,8 @@
 # (diff collapsed by default, expandable; omitted from language stats).
 #   contracts/_generated/**, schemas/<family>/<subject>/**
 #                    →  make generate-contracts (sdks/python)
+#   dependencies/_generated/**
+#                    →  make generate-kg-client (sdks/python)
 #   kg-api.d.ts      →  npm run generate:kg-types (sdks/typescript)
 #   src/schemas/...  →  npm run generate:schemas (sdks/typescript)
 #
@@ -12,6 +14,8 @@
 # generated ones only in its nested <family>/<subject>/ packages.
 sdks/python/src/learning_commons_evaluators/contracts/_generated/** linguist-generated=true
 sdks/python/src/learning_commons_evaluators/schemas/*/** linguist-generated=true
+sdks/python/src/learning_commons_evaluators/dependencies/_generated/knowledge_graph/** linguist-generated=true
+sdks/python/openapi/knowledge-graph.yaml linguist-generated=true
 sdks/typescript/src/knowledge-graph/kg-api.d.ts linguist-generated=true
 sdks/typescript/src/schemas/feedback/ela-writing/revision-accuracy.ts linguist-generated=true
 sdks/typescript/src/schemas/feedback/ela-writing/revision-actionability.ts linguist-generated=true
