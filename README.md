@@ -1,3 +1,12 @@
+
+<p align="center">
+  <a href="https://learningcommons.org/" target="_blank">Learning Commons</a>
+   •
+  <a href="https://platform.learningcommons.org/evaluators/getting-started/quickstart" target="_blank">Platform</a>
+  •
+  <a href="https://docs.learningcommons.org/" target="_blank">Docs</a>
+</p>
+
 # Evaluators
 
 <img style="width:100%" alt="Evaluators project banner logo" src="https://raw.githubusercontent.com/learning-commons-org/.github/refs/heads/main/assets/evals_hero_2.jpg" />
