@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -55,7 +55,7 @@ class TestTimestamp:
         # The shape check above passes for any plausible clock. Freezing it pins the two
         # things that could actually drift: that microseconds are truncated to
         # milliseconds rather than rounded, and that the offset is rendered as ``Z``.
-        frozen = datetime(2026, 9, 17, 18, 4, 5, 123_789, tzinfo=timezone.utc)
+        frozen = datetime(2026, 9, 17, 18, 4, 5, 123_789, tzinfo=UTC)
 
         class _Frozen(datetime):
             @classmethod

@@ -16,7 +16,6 @@ rules, and the classification order in :func:`wrap_provider_error` — is the sp
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import errno
 import json
@@ -26,11 +25,10 @@ import ssl
 import sys
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, TypedDict, Unpack
 
 import httpx
 from pydantic import ValidationError as PydanticValidationError
-from typing_extensions import Unpack
 
 # Canonical ID of an external system, for ``DependencyError.dependency``.
 #
@@ -542,7 +540,7 @@ def _find_transport_failure(error: BaseException) -> Literal["network", "timeout
     package (looked up only if loaded, like the SDK classes).
     """
     for link in _cause_chain(error):
-        if isinstance(link, (TimeoutError, asyncio.TimeoutError, httpx.TimeoutException)):
+        if isinstance(link, (TimeoutError, httpx.TimeoutException)):
             return "timeout"
         if any(_is_instance_of(link, module, name) for module, name in _TIMEOUT_SDK_CLASSES):
             return "timeout"
