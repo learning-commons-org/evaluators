@@ -8,7 +8,6 @@ identically.
 
 from __future__ import annotations
 
-import asyncio
 import errno
 import json
 import socket
@@ -351,8 +350,8 @@ class TestTransportFailures:
             httpx.ConnectTimeout("slow", request=_REQUEST),
             httpx.PoolTimeout("slow", request=_REQUEST),
             httpx2.ReadTimeout("slow", request=_REQUEST2),
+            # asyncio.TimeoutError is the builtin from 3.11, so one entry covers both.
             TimeoutError("timed out"),
-            asyncio.TimeoutError(),
             OSError(errno.ETIMEDOUT, "timed out"),
             openai.APITimeoutError(request=_REQUEST2),
             anthropic.APITimeoutError(request=_REQUEST2),

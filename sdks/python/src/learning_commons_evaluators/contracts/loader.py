@@ -12,19 +12,12 @@ import json
 from collections.abc import Mapping
 from functools import cache
 from importlib import resources
-from typing import TYPE_CHECKING, Any, Literal
+from importlib.resources.abc import Traversable
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from learning_commons_evaluators.providers.base import Provider
-
-if TYPE_CHECKING:
-    from importlib.abc import Traversable
-else:
-    try:
-        from importlib.resources.abc import Traversable
-    except ImportError:  # Python 3.10
-        from importlib.abc import Traversable
 
 #: The package directory the build step writes into.
 BUNDLE_DIR = "_generated"
