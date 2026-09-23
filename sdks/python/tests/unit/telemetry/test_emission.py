@@ -60,6 +60,18 @@ def fixture_input(evaluator: type[BaseEvaluator]) -> dict[str, Any]:
     return dict(json.loads((directory / path).read_text(encoding="utf-8"))[0]["input"])
 
 
+def evaluate_with(evaluator: BaseEvaluator, inputs: Mapping[str, Any]) -> Any:
+    """The coroutine that evaluates ``inputs``, from whichever entry point takes them.
+
+    Every evaluator's fixtures describe one ``evaluate``. Math Standards Alignment has a
+    second entry point for the same inputs — the contract names a standard by code, and
+    its ``evaluate`` is the UUID primitive — so the fixtures reach it through that one.
+    """
+    if isinstance(evaluator, MathStandardsAlignmentEvaluator):
+        return evaluator.evaluate_by_code(**inputs)
+    return evaluator.evaluate(**inputs)
+
+
 def construct(evaluator: type[BaseEvaluator], **overrides: Any) -> BaseEvaluator:
     keys = {f"{p.value}_api_key": "test-key" for p in evaluator.metadata.default_providers}
     if evaluator is MathStandardsAlignmentEvaluator:
@@ -92,7 +104,7 @@ class TestEveryEvaluatorReports:
         self, providers: ProviderFactory, event_sink: EventSink, evaluator: type[BaseEvaluator]
     ) -> None:
         inputs = fixture_input(evaluator)
-        await construct(evaluator).evaluate(**inputs)
+        await evaluate_with(construct(evaluator), inputs)
 
         [event] = event_sink.events()
         assert event["evaluator_type"] == evaluator.metadata.id
@@ -116,7 +128,7 @@ class TestEveryEvaluatorReports:
     ) -> None:
         providers.failures.append(RateLimitError("slow down", dependency="openai"))
         with pytest.raises(RateLimitError):
-            await construct(evaluator).evaluate(**fixture_input(evaluator))
+            await evaluate_with(construct(evaluator), fixture_input(evaluator))
 
         [event] = event_sink.events()
         assert event["status"] == "error"
@@ -139,7 +151,7 @@ class TestEveryEvaluatorReports:
         if fail:
             providers.failures.append(RateLimitError("slow down", dependency="openai"))
         with contextlib.suppress(RateLimitError):
-            await construct(evaluator).evaluate(**inputs)
+            await evaluate_with(construct(evaluator), inputs)
 
         [request] = event_sink.requests()
         # Every free text the evaluator was given, which is every string input that is not

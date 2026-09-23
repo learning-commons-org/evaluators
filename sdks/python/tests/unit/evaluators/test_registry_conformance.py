@@ -19,9 +19,8 @@ from learning_commons_evaluators import read_outcome
 from learning_commons_evaluators.contracts import load_contract
 from learning_commons_evaluators.contracts.loader import Step
 from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
-    INPUT_SCHEMA as MATH_INPUT_SCHEMA,
-)
-from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
+    CODE_INPUT_SCHEMA,
+    UUID_INPUT_SCHEMA,
     MathStandardsAlignmentEvaluator,
 )
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
@@ -197,8 +196,8 @@ class TestMathStandardsAlignmentIsTheDocumentedException:
 
     Each assertion is the reason one of those checks excludes it, so the exception cannot
     quietly widen or silently outlive its reason: when this evaluator gains a declared
-    outcome, or takes the contract's inputs under the contract's names, these fail and the
-    scoping above is what should change.
+    outcome, or is built by a factory, these fail and the scoping above is what should
+    change.
     """
 
     def test_it_is_not_built_by_the_factories(self) -> None:
@@ -211,25 +210,36 @@ class TestMathStandardsAlignmentIsTheDocumentedException:
         # and there is no field a report could read as the evaluation's score.
         assert MathStandardsAlignmentEvaluator.metadata.outcome is None
 
-    def test_it_accepts_everything_the_contract_declares_and_one_input_more(self) -> None:
+    def test_evaluate_by_code_accepts_the_contracts_inputs_and_one_more(self) -> None:
         contract = load_contract(MathStandardsAlignmentEvaluator.metadata.id)
         declared = contract.input_schema["properties"]
-        assert set(MATH_INPUT_SCHEMA["properties"]) == set(declared) | {"grade_level"}
+        assert set(CODE_INPUT_SCHEMA["properties"]) == set(declared) | {"grade_level"}
         # The registry's own property objects, not copies of them, so the bounds and the
         # jurisdiction enum this evaluator enforces cannot drift from the contract's.
         for name, spec in declared.items():
-            assert MATH_INPUT_SCHEMA["properties"][name] is spec
+            assert CODE_INPUT_SCHEMA["properties"][name] is spec
 
-    def test_the_contracts_own_fixtures_are_valid_calls(self) -> None:
+    def test_the_contracts_own_fixtures_are_valid_calls_to_evaluate_by_code(self) -> None:
         # The superset property, proved against the registry's cases rather than asserted:
-        # anything written against the contract reaches this evaluator unchanged, which is
-        # what lets the fixture-driven suites treat it like any other evaluator.
+        # anything written against the contract reaches evaluate_by_code unchanged, which
+        # is what lets the fixture-driven suites treat this evaluator like any other.
         for case in _fixture_cases(MathStandardsAlignmentEvaluator.metadata.id):
-            assert validate_inputs(case, MATH_INPUT_SCHEMA) == case
+            assert validate_inputs(case, CODE_INPUT_SCHEMA) == case
 
     def test_the_grade_it_adds_is_bound_to_the_grades_the_contract_supports(self) -> None:
-        assert tuple(MATH_INPUT_SCHEMA["properties"]["grade_level"]["enum"]) == (
+        assert tuple(CODE_INPUT_SCHEMA["properties"]["grade_level"]["enum"]) == (
             MathStandardsAlignmentEvaluator.metadata.supported_grades
+        )
+
+    def test_evaluate_takes_a_uuid_the_contract_does_not_declare(self) -> None:
+        # Which is why the fixture-driven suites call evaluate_by_code for this one: the
+        # registry describes a standard by code, and evaluate() is the UUID primitive.
+        contract = load_contract(MathStandardsAlignmentEvaluator.metadata.id)
+        assert set(UUID_INPUT_SCHEMA["properties"]) == {"question", "case_identifier_uuid"}
+        assert "case_identifier_uuid" not in contract.input_schema["properties"]
+        assert (
+            UUID_INPUT_SCHEMA["properties"]["question"]
+            is (contract.input_schema["properties"]["question"])
         )
 
 

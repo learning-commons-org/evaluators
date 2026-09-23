@@ -6,16 +6,22 @@ aligned and total counts. There is no single score: the contract declares no ``o
 block, so :func:`~learning_commons_evaluators.read_outcome` reports ``None`` for this
 evaluator, as it does in the TypeScript SDK.
 
-The standard is named the way a teacher names it -- a code, and the jurisdiction whose
-framework that code belongs to -- and resolved to the Knowledge Graph's identity for it
-through search. A code is not an identity: the Knowledge Graph holds one copy of a
-standard per adopting jurisdiction, each with its own UUID and often its own spelling
-(Ohio writes ``3.MD.7`` where Common Core writes ``3.MD.C.7``), and within one framework a
-code can be reused across courses. ``jurisdiction`` picks the framework, and the optional
-``grade_level`` separates the reuses; see :meth:`MathStandardsAlignmentEvaluator._resolve`.
+There are two ways to name the standard, because there are two ways callers have one.
 
-The inputs are the contract's, under the contract's names, plus that one optional extra --
-so anything written against the registry is a valid call here.
+:meth:`~MathStandardsAlignmentEvaluator.evaluate` takes the CASE Network UUID and is the
+primitive: a UUID names exactly one standard, which is what a picker hands you and what
+the Knowledge Graph itself keys on.
+
+:meth:`~MathStandardsAlignmentEvaluator.evaluate_by_code` takes the standard the way a
+teacher names it -- a code, and the jurisdiction whose framework that code belongs to --
+resolves it to a UUID, and judges that. A code is not an identity: the Knowledge Graph
+holds one copy of a standard per adopting jurisdiction, each with its own UUID and often
+its own spelling (Ohio writes ``3.MD.7`` where Common Core writes ``3.MD.C.7``), and
+within one framework a code can be reused across courses. ``jurisdiction`` picks the
+framework and the optional ``grade_level`` separates the reuses; see :meth:`_resolve`.
+
+Its inputs are the contract's, under the contract's names, plus that one optional extra,
+so anything written against the registry is a valid call to it.
 
 This is the only evaluator that calls a non-LLM dependency, so it is the only one holding
 something to release. Close it when you are done -- ``async with``, :meth:`aclose`, or
@@ -25,8 +31,10 @@ something to release. Close it when you are done -- ``async with``, :meth:`aclos
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Sequence
-from typing import Any, Literal
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from dataclasses import dataclass
+from typing import Any, Literal, TypeAlias
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -34,11 +42,12 @@ from learning_commons_evaluators.config import EvaluatorConfig
 from learning_commons_evaluators.contracts import load_contract
 from learning_commons_evaluators.contracts.loader import ModelSpec, Prompt, Step
 from learning_commons_evaluators.dependencies.knowledge_graph import (
+    AcademicStandard,
     KnowledgeGraphClient,
     LearningComponent,
     StandardMatch,
 )
-from learning_commons_evaluators.errors import LLMOutputProcessingError
+from learning_commons_evaluators.errors import InputValidationError, LLMOutputProcessingError
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.inputs import validate_inputs
 from learning_commons_evaluators.evaluators.single_step import step_for
@@ -90,18 +99,36 @@ _MODEL, _PROMPT = _llm_step(STEP)
 #: one subject's framework.
 ACADEMIC_SUBJECT = AcademicSubject.MATHEMATICS
 
-#: What this evaluator accepts: every input the contract declares, under the contract's
-#: own names and its own property objects -- so the bounds, the jurisdiction enum and the
-#: failure messages come from the registry rather than from a copy here -- plus one
-#: optional ``grade_level``.
-#: A superset, deliberately: anything written against the contract is a valid call, and
-#: the contract's fixtures drive this evaluator as they drive every other one.
+#: What :meth:`MathStandardsAlignmentEvaluator.evaluate` accepts. The contract declares no
+#: UUID input, so ``question`` is the registry's own property object -- its bounds and
+#: message come from there -- and the UUID is this SDK's.
+UUID_INPUT_SCHEMA: dict[str, Any] = {
+    "properties": {
+        "question": CONTRACT.input_schema["properties"]["question"],
+        "case_identifier_uuid": {
+            "type": "string",
+            "description": (
+                "CASE Network UUID of the math standard to evaluate against -- the "
+                "Knowledge Graph's caseIdentifierUUID."
+            ),
+            "minLength": 1,
+        },
+    },
+    "required": ["question", "case_identifier_uuid"],
+}
+
+#: What :meth:`MathStandardsAlignmentEvaluator.evaluate_by_code` accepts: every input the
+#: contract declares, under the contract's own names and its own property objects -- so
+#: the bounds, the jurisdiction enum and the failure messages come from the registry
+#: rather than from a copy here -- plus one optional ``grade_level``. A superset,
+#: deliberately: anything written against the contract is a valid call, and the contract's
+#: fixtures drive this evaluator as they drive every other one.
 #:
 #: Only ``question`` and ``statement_code`` are required. ``jurisdiction`` defaults to
 #: Multi-State, which is Common Core and what most callers mean; ``grade_level`` is asked
 #: for rather than required, because it is only needed when a code turns out to be
 #: ambiguous and demanding it on every call would tax the ordinary one.
-INPUT_SCHEMA: dict[str, Any] = {
+CODE_INPUT_SCHEMA: dict[str, Any] = {
     "properties": {
         "question": CONTRACT.input_schema["properties"]["question"],
         "statement_code": CONTRACT.input_schema["properties"]["statement_code"],
@@ -116,6 +143,33 @@ INPUT_SCHEMA: dict[str, Any] = {
         },
     },
     "required": ["question", "statement_code"],
+}
+
+#: What every log line an evaluation writes carries, before its own fields.
+_Context: TypeAlias = dict[str, Any]
+
+
+@dataclass(frozen=True)
+class _Request:
+    """One evaluation's subject, however the caller named the standard.
+
+    Both entry points produce one of these and the evaluation below consumes it, so the
+    only difference between them is how the UUID and the code were arrived at.
+    """
+
+    question: str
+    case_identifier_uuid: str
+    statement_code: str
+
+
+#: Each entry point's inputs, named for the other's failure message. Passing one method's
+#: input to the other is a near miss worth answering with the method that takes it rather
+#: than with "unknown input".
+_ELSEWHERE = {
+    "case_identifier_uuid": "evaluate()",
+    "statement_code": "evaluate_by_code()",
+    "jurisdiction": "evaluate_by_code()",
+    "grade_level": "evaluate_by_code()",
 }
 
 
@@ -231,50 +285,70 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
     async def evaluate(
         self, input: Any = None, /, **fields: Any
     ) -> EvaluationResult[MathStandardsAlignmentResult]:
-        """Judge ``question`` against the learning components of one standard.
+        """Judge ``question`` against the components of the standard a UUID names.
+
+        The primitive: a UUID names exactly one standard, so nothing has to be resolved
+        and nothing has to be chosen. :meth:`evaluate_by_code` is the same evaluation
+        reached from a code.
 
         :param question: The assessment item students see.
-        :param statement_code: The standard's code, spelled as its jurisdiction spells it.
-        :param jurisdiction: Whose framework the code belongs to; defaults to
-            ``Multi-State``, which is Common Core.
-        :param grade_level: Optional, ``"K"`` through ``"12"``. Only consulted when the code
-            turns out to name more than one standard, which it does when a framework
-            reuses codes across courses.
+        :param case_identifier_uuid: CASE Network UUID of the standard.
 
-        :raises InputValidationError: an input is missing, unknown, or outside its schema.
-        :raises StandardNotFoundError: the code names no standard in that jurisdiction.
+        :raises InputValidationError: an input is missing, unknown, or outside its schema;
+            the UUID is malformed, names no standard, or names one from another subject.
         :raises DependencyError: the Knowledge Graph or the provider call failed
             (``KnowledgeGraphError``, ``AuthenticationError``, ``RateLimitError``,
             ``NetworkError``, ``RequestTimeoutError``, ``LLMProviderError``).
         :raises LLMOutputProcessingError: the model's response failed its schema after
             ``max_retries`` resamples, or judged fewer components than it was sent.
         """
-        context = {"evaluator": self.metadata.id, "operation": "evaluate"}
-        raw = self._raw_fields(input, fields)
+        return await self._evaluated(self._raw_fields(input, fields), self._named_by_uuid)
+
+    async def evaluate_by_code(
+        self, input: Any = None, /, **fields: Any
+    ) -> EvaluationResult[MathStandardsAlignmentResult]:
+        """Judge ``question`` against the components of the standard a code names.
+
+        Resolves the code to a standard and then runs exactly the evaluation
+        :meth:`evaluate` runs. The code the search returns is carried through rather than
+        read back afterwards, so this costs the same two Knowledge Graph calls the UUID
+        path costs -- one to find the standard, one for its components.
+
+        :param question: The assessment item students see.
+        :param statement_code: The standard's code, spelled as its jurisdiction spells it.
+        :param jurisdiction: Whose framework the code belongs to; defaults to
+            ``Multi-State``, which is Common Core.
+        :param grade_level: Optional, ``"K"`` through ``"12"``. Only consulted when the
+            code turns out to name more than one standard, which it does when a framework
+            reuses codes across courses.
+
+        :raises InputValidationError: an input is missing, unknown, or outside its schema.
+        :raises StandardNotFoundError: the code names no standard in that jurisdiction.
+        :raises DependencyError: as :meth:`evaluate`.
+        :raises LLMOutputProcessingError: as :meth:`evaluate`.
+        """
+        return await self._evaluated(self._raw_fields(input, fields), self._named_by_code)
+
+    # --- the evaluation both entry points run -------------------------------------------
+
+    async def _evaluated(
+        self, raw: Any, name_standard: Callable[[Any, TelemetryRun, _Context], Awaitable[_Request]]
+    ) -> EvaluationResult[MathStandardsAlignmentResult]:
+        """Judge whatever ``name_standard`` resolved, inside the telemetry boundary.
+
+        Everything after the standard is identified is the same evaluation whichever way
+        the caller named it, so it is written once here. ``name_standard`` runs inside the
+        boundary rather than before it, because §4 puts input validation inside: a rejected
+        input is telemetered rather than silently costing the caller nothing.
+        """
+        context: _Context = {"evaluator": self.metadata.id, "operation": "evaluate"}
         with self._telemetry_run(self.provider.label) as run:
             try:
-                values = validate_inputs(raw, INPUT_SCHEMA)
-                question = values["question"]
-                statement_code = values["statement_code"]
-                grade_level = values.get("grade_level")
-                jurisdiction = values.get("jurisdiction", DEFAULT_JURISDICTION.value)
-                run.text_length = utf16_length(question)
-                run.grade = grade_level or ""
-                self.logger.info(
-                    "Starting %s evaluation",
-                    self.metadata.label,
-                    extra={
-                        **context,
-                        "statement_code": statement_code,
-                        "grade_level": run.grade,
-                        "jurisdiction": jurisdiction,
-                        "text_length": run.text_length,
-                    },
-                )
+                request = await name_standard(raw, run, context)
+                statement_code = request.statement_code
 
-                standard = await self._resolve(statement_code, jurisdiction, grade_level, context)
                 component_set = await self._knowledge_graph.get_learning_component_set(
-                    standard.case_identifier_uuid
+                    request.case_identifier_uuid
                 )
                 components = component_set.components
                 if component_set.undescribed_count:
@@ -284,7 +358,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                         "Standard has %d learning component(s) with no description; "
                         "they cannot be judged and are not counted",
                         component_set.undescribed_count,
-                        extra={**context, "statement_code": standard.statement_code},
+                        extra={**context, "statement_code": statement_code},
                     )
 
                 if not components:
@@ -293,11 +367,11 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                     # in the envelope is what says so.
                     self.logger.info(
                         "Standard has no evaluable learning components; no model call made",
-                        extra={**context, "statement_code": standard.statement_code},
+                        extra={**context, "statement_code": statement_code},
                     )
                     return self._envelope(
                         MathStandardsAlignmentResult(
-                            statement_code=standard.statement_code,
+                            statement_code=statement_code,
                             learning_components=[],
                             aligned_count=0,
                             total_count=0,
@@ -308,7 +382,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                 dependency, model = provider_context(self.provider)
                 response = await call_with_resampling(
                     lambda: self.provider.generate_structured(
-                        self._render_messages(question, components),
+                        self._render_messages(request.question, components),
                         BatchedLCEvaluation,
                         temperature=self.effective_temperature(STEP.temperature),
                     ),
@@ -319,9 +393,9 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                 )
                 run.step(STEP.id, self.provider.label, response.latency_ms, response.usage)
 
-                judged = self._verified(components, response.data, standard.statement_code)
+                judged = self._verified(components, response.data, statement_code)
                 result = MathStandardsAlignmentResult(
-                    statement_code=standard.statement_code,
+                    statement_code=statement_code,
                     learning_components=judged,
                     aligned_count=sum(1 for component in judged if component.aligned),
                     total_count=len(components),
@@ -331,7 +405,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                     self.metadata.label,
                     extra={
                         **context,
-                        "statement_code": standard.statement_code,
+                        "statement_code": statement_code,
                         "grade_level": run.grade,
                         "aligned_count": result.aligned_count,
                         "total_count": result.total_count,
@@ -355,6 +429,130 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                 # else reaching this point is a fault in this SDK and wrapping it would
                 # name a service that did not fail (spec §6.2).
                 raise
+
+    # --- naming the standard ------------------------------------------------------------
+
+    async def _named_by_uuid(self, raw: Any, run: TelemetryRun, context: _Context) -> _Request:
+        """The caller's UUID, checked and read into a request.
+
+        The UUID's shape is checked before any request, so a typo costs nothing, reads as
+        the caller's input rather than the service's, and is rejected the same way
+        whichever client this evaluator was given.
+        """
+        values = self._validated(raw, UUID_INPUT_SCHEMA)
+        question, uuid = values["question"], values["case_identifier_uuid"]
+        try:
+            UUID(uuid)
+        except ValueError as error:
+            raise InputValidationError(
+                f"case_identifier_uuid must be a CASE Network UUID, got {uuid!r}."
+            ) from error
+
+        run.text_length = utf16_length(question)
+        self.logger.info(
+            "Starting %s evaluation",
+            self.metadata.label,
+            extra={**context, "standard": uuid, "text_length": run.text_length},
+        )
+        return _Request(question, uuid, await self._statement_code(uuid, context))
+
+    async def _named_by_code(self, raw: Any, run: TelemetryRun, context: _Context) -> _Request:
+        """The caller's code, resolved to one standard.
+
+        The resolved match already carries the Knowledge Graph's spelling of the code, so
+        unlike the UUID path this one does not read the standard back to learn it.
+        """
+        values = self._validated(raw, CODE_INPUT_SCHEMA)
+        question = values["question"]
+        statement_code = values["statement_code"]
+        grade_level = values.get("grade_level")
+        jurisdiction = values.get("jurisdiction", DEFAULT_JURISDICTION.value)
+
+        run.text_length = utf16_length(question)
+        run.grade = grade_level or ""
+        self.logger.info(
+            "Starting %s evaluation",
+            self.metadata.label,
+            extra={
+                **context,
+                "statement_code": statement_code,
+                "grade_level": run.grade,
+                "jurisdiction": jurisdiction,
+                "text_length": run.text_length,
+            },
+        )
+        match = await self._resolve(statement_code, jurisdiction, grade_level, context)
+        return _Request(question, match.case_identifier_uuid, match.statement_code)
+
+    @staticmethod
+    def _validated(raw: Any, schema: Mapping[str, Any]) -> dict[str, str]:
+        """The caller's inputs against one entry point's schema.
+
+        An input the *other* entry point takes is answered with that method's name. Both
+        take a question and a standard, so reaching for the wrong one is an easy miss, and
+        "unknown input" would not be the useful half of the answer.
+        """
+        if isinstance(raw, Mapping):
+            for name, method in _ELSEWHERE.items():
+                if name in raw and name not in schema["properties"]:
+                    raise InputValidationError(
+                        f"{name} is not an input of this method; pass it to {method} instead."
+                    )
+        return validate_inputs(raw, schema)
+
+    async def _statement_code(self, uuid: str, context: _Context) -> str:
+        """The Knowledge Graph's own spelling of the standard's code, once it is a math one.
+
+        Read rather than taken from the input, because the input is a UUID: the payload
+        reports the code so a result can be joined to a report keyed on codes, which is
+        what the TypeScript SDK's payload carries. Every field but the UUID is optional in
+        the Knowledge Graph, so a sparsely authored standard yields an empty code; that is
+        said out loud rather than passed off as a code.
+
+        This is also where the subject is checked, because it is the one place a standard
+        named by UUID is read. It runs before the learning components are fetched and
+        before any model call, so a standard this evaluator cannot judge costs one request
+        rather than a full evaluation.
+
+        :raises InputValidationError: when the standard belongs to another subject.
+        """
+        standard = await self._knowledge_graph.get_academic_standard(uuid)
+        self._require_subject(standard, context)
+        if standard.statement_code:
+            return standard.statement_code
+        self.logger.warning(
+            "Standard carries no statement code; the payload reports an empty one",
+            extra={**context, "standard": uuid},
+        )
+        return ""
+
+    def _require_subject(self, standard: AcademicStandard, context: _Context) -> None:
+        """Refuse a standard from another subject before it reaches the math rubric.
+
+        A UUID names any standard in the Knowledge Graph, including an ELA one, and nothing
+        downstream would notice: the components would be fetched and judged against a
+        mathematics prompt, and the result would read as a finding rather than a mistake.
+        The code path needs no such check -- its search is already scoped to the subject --
+        so this is the guard the UUID path costs.
+
+        An unknown subject is allowed through. ``None`` here means either that the service
+        stated no subject or that it stated one this SDK's taxonomy does not yet carry, and
+        the client maps both to ``None`` on purpose (see ``_taxonomy``) -- so refusing on it
+        would turn our own staleness into a rejected call. It is logged instead.
+        """
+        subject = standard.academic_subject
+        if subject is None:
+            self.logger.debug(
+                "Standard states no subject this SDK recognizes; evaluating it anyway",
+                extra={**context, "standard": standard.case_identifier_uuid},
+            )
+            return
+        if subject is not ACADEMIC_SUBJECT:
+            raise InputValidationError(
+                f"Standard {standard.case_identifier_uuid} is a {subject.value} standard; "
+                f"{self.metadata.name} judges {ACADEMIC_SUBJECT.value} standards. Pass the "
+                "UUID of a mathematics standard."
+            )
 
     # --- resolving the standard ---------------------------------------------------------
 
@@ -551,6 +749,8 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
 
 
 __all__ = [
+    "CODE_INPUT_SCHEMA",
+    "UUID_INPUT_SCHEMA",
     "BatchedLCEvaluation",
     "LCEvaluation",
     "LearningComponentResult",

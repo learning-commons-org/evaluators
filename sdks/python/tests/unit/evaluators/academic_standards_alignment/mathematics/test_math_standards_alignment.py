@@ -28,7 +28,7 @@ from learning_commons_evaluators.evaluators.academic_standards_alignment.mathema
     LCEvaluation,
     MathStandardsAlignmentEvaluator,
 )
-from learning_commons_evaluators.schemas.kg_taxonomy import GradeLevel
+from learning_commons_evaluators.schemas.kg_taxonomy import AcademicSubject, GradeLevel
 from tests.unit.conftest import (
     DEFAULT_STANDARD,
     LEARNING_COMPONENTS,
@@ -166,19 +166,27 @@ class TestInputs:
         self, providers: ProviderFactory, inputs: dict[str, str], expected: str
     ) -> None:
         with pytest.raises(InputValidationError, match=expected):
-            await build().evaluate(**inputs)
+            await build().evaluate_by_code(**inputs)
 
     async def test_it_rejects_an_unknown_input(self, providers: ProviderFactory) -> None:
         with pytest.raises(InputValidationError, match="Unknown input"):
-            await build().evaluate(
-                question=QUESTION, statement_code=STATEMENT_CODE, case_identifier_uuid=STANDARD_UUID
+            await build().evaluate_by_code(
+                question=QUESTION, statement_code=STATEMENT_CODE, standard="3.MD.C.7.d"
             )
+
+    async def test_the_other_methods_input_is_answered_with_that_method(
+        self, providers: ProviderFactory
+    ) -> None:
+        # Both entry points take a question and a standard, so reaching for the wrong one
+        # is an easy miss and "unknown input" would not be the useful half of the answer.
+        with pytest.raises(InputValidationError, match=r"pass it to evaluate\(\) instead"):
+            await build().evaluate_by_code(question=QUESTION, case_identifier_uuid=STANDARD_UUID)
 
     async def test_the_contracts_inputs_are_a_valid_call(self, providers: ProviderFactory) -> None:
         # The superset property, from the caller's side: what the registry declares, under
         # the registry's names, with no grade.
         knowledge_graph = FakeKnowledgeGraph()
-        evaluation = await build(knowledge_graph).evaluate(
+        evaluation = await build(knowledge_graph).evaluate_by_code(
             question=QUESTION, statement_code=STATEMENT_CODE, jurisdiction="Multi-State"
         )
         assert evaluation.result.total_count == 3
@@ -189,14 +197,14 @@ class TestInputs:
     ) -> None:
         # §2.3: the idiomatic Python convenience, normalised to the contract's token.
         knowledge_graph = FakeKnowledgeGraph()
-        await build(knowledge_graph).evaluate(
+        await build(knowledge_graph).evaluate_by_code(
             question=QUESTION, statement_code=STATEMENT_CODE, grade_level=3
         )
         assert knowledge_graph.searches
 
     async def test_jurisdiction_defaults_to_common_core(self, providers: ProviderFactory) -> None:
         knowledge_graph = FakeKnowledgeGraph()
-        await build(knowledge_graph).evaluate(
+        await build(knowledge_graph).evaluate_by_code(
             question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
         )
         assert knowledge_graph.searches == [(STATEMENT_CODE, "Multi-State", "Mathematics")]
@@ -205,10 +213,136 @@ class TestInputs:
         self, providers: ProviderFactory
     ) -> None:
         knowledge_graph = FakeKnowledgeGraph()
-        await build(knowledge_graph).evaluate(
+        await build(knowledge_graph).evaluate_by_code(
             question=QUESTION, statement_code="3.MD.7", grade_level="3", jurisdiction="Ohio"
         )
         assert knowledge_graph.searches == [("3.MD.7", "Ohio", "Mathematics")]
+
+
+class TestEvaluateTakesAUuid:
+    """The primitive: a UUID names one standard, so nothing is resolved or chosen."""
+
+    async def test_it_judges_the_standard_the_uuid_names(self, providers: ProviderFactory) -> None:
+        knowledge_graph = FakeKnowledgeGraph()
+
+        evaluation = await build(knowledge_graph).evaluate(
+            question=QUESTION, case_identifier_uuid=STANDARD_UUID
+        )
+
+        assert evaluation.result.statement_code == STATEMENT_CODE
+        assert evaluation.result.total_count == 3
+        # Two calls, and no search: the standard is read for its code and subject, then
+        # its components are fetched.
+        assert knowledge_graph.searches == []
+        assert knowledge_graph.requested == [STANDARD_UUID, STANDARD_UUID]
+
+    async def test_both_entry_points_produce_the_same_payload(
+        self, providers: ProviderFactory
+    ) -> None:
+        # The point of the shared core: how the standard was named is not supposed to
+        # show up in the result.
+        by_uuid = await build().evaluate(question=QUESTION, case_identifier_uuid=STANDARD_UUID)
+        by_code = await build().evaluate_by_code(question=QUESTION, statement_code=STATEMENT_CODE)
+
+        assert by_uuid.result == by_code.result
+        assert by_uuid.evaluator == by_code.evaluator
+
+    @pytest.mark.parametrize(
+        ("inputs", "expected"),
+        [
+            ({"case_identifier_uuid": STANDARD_UUID}, "question is required"),
+            ({"question": QUESTION}, "case_identifier_uuid is required"),
+            ({"question": "  ", "case_identifier_uuid": STANDARD_UUID}, "cannot be empty"),
+        ],
+    )
+    async def test_it_enforces_the_declared_bounds(
+        self, providers: ProviderFactory, inputs: dict[str, str], expected: str
+    ) -> None:
+        with pytest.raises(InputValidationError, match=expected):
+            await build().evaluate(**inputs)
+
+    async def test_a_malformed_uuid_is_refused_before_any_request(
+        self, providers: ProviderFactory
+    ) -> None:
+        knowledge_graph = FakeKnowledgeGraph()
+
+        with pytest.raises(InputValidationError, match="must be a CASE Network UUID"):
+            await build(knowledge_graph).evaluate(
+                question=QUESTION, case_identifier_uuid=STATEMENT_CODE
+            )
+
+        assert knowledge_graph.requested == []
+
+    async def test_a_code_is_answered_with_the_method_that_takes_it(
+        self, providers: ProviderFactory
+    ) -> None:
+        with pytest.raises(InputValidationError, match=r"pass it to evaluate_by_code\(\) instead"):
+            await build().evaluate(question=QUESTION, statement_code=STATEMENT_CODE)
+
+
+class TestOnlyMathematicsStandardsAreJudged:
+    """A UUID names any standard in the Knowledge Graph, including another subject's.
+
+    The code path needs no such check: its search is already scoped to Mathematics, so a
+    non-math code never resolves. This is the guard the UUID path costs.
+    """
+
+    async def test_a_standard_from_another_subject_is_refused(
+        self, providers: ProviderFactory
+    ) -> None:
+        knowledge_graph = FakeKnowledgeGraph(
+            replace(DEFAULT_STANDARD, academic_subject=AcademicSubject.ENGLISH_LANGUAGE_ARTS)
+        )
+
+        with pytest.raises(InputValidationError, match="English Language Arts standard"):
+            await build(knowledge_graph).evaluate(
+                question=QUESTION, case_identifier_uuid=STANDARD_UUID
+            )
+
+        # Refused on the standard alone: no components were fetched and no model was
+        # asked, so a standard this evaluator cannot judge costs one request.
+        assert knowledge_graph.requested == [STANDARD_UUID]
+        assert providers.calls == []
+
+    async def test_the_refusal_names_the_subject_and_what_to_pass(
+        self, providers: ProviderFactory
+    ) -> None:
+        knowledge_graph = FakeKnowledgeGraph(
+            replace(DEFAULT_STANDARD, academic_subject=AcademicSubject.SCIENCE)
+        )
+
+        with pytest.raises(InputValidationError) as raised:
+            await build(knowledge_graph).evaluate(
+                question=QUESTION, case_identifier_uuid=STANDARD_UUID
+            )
+
+        message = str(raised.value)
+        assert STANDARD_UUID in message
+        assert "Science standard" in message
+        assert "Mathematics" in message
+
+    async def test_a_subject_this_sdk_does_not_recognize_is_evaluated_anyway(
+        self, providers: ProviderFactory
+    ) -> None:
+        # The client maps both "the service said nothing" and "the service said something
+        # our taxonomy lacks" to None, so refusing on it would turn this SDK being a
+        # release behind into a rejected call.
+        evaluation = await build(
+            FakeKnowledgeGraph(replace(DEFAULT_STANDARD, academic_subject=None))
+        ).evaluate(question=QUESTION, case_identifier_uuid=STANDARD_UUID)
+
+        assert evaluation.result.total_count == 3
+
+    async def test_a_standard_with_no_code_reports_an_empty_one_and_says_so(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            evaluation = await build(
+                FakeKnowledgeGraph(replace(DEFAULT_STANDARD, statement_code=""))
+            ).evaluate(question=QUESTION, case_identifier_uuid=STANDARD_UUID)
+
+        assert evaluation.result.statement_code == ""
+        assert any("no statement code" in record.getMessage() for record in caplog.records)
 
 
 class TestResolvingTheCode:
@@ -218,7 +352,7 @@ class TestResolvingTheCode:
         # The search result already carries the code, so the ordinary path costs one
         # search and one component fetch, and never reads the standard itself.
         knowledge_graph = FakeKnowledgeGraph()
-        await build(knowledge_graph).evaluate(
+        await build(knowledge_graph).evaluate_by_code(
             question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
         )
         assert knowledge_graph.requested == [STANDARD_UUID]
@@ -231,7 +365,7 @@ class TestResolvingTheCode:
                 )
 
         with pytest.raises(StandardNotFoundError):
-            await build(Empty()).evaluate(
+            await build(Empty()).evaluate_by_code(
                 question=QUESTION, statement_code="9.99.Z", grade_level="3"
             )
 
@@ -246,7 +380,7 @@ class TestResolvingTheCode:
         knowledge_graph = FakeKnowledgeGraph(eighth_grade, DEFAULT_STANDARD)
 
         with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
-            await build(knowledge_graph).evaluate(
+            await build(knowledge_graph).evaluate_by_code(
                 question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
             )
 
@@ -264,7 +398,7 @@ class TestResolvingTheCode:
         knowledge_graph = FakeKnowledgeGraph(DEFAULT_STANDARD, twin)
 
         with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
-            evaluation = await build(knowledge_graph).evaluate(
+            evaluation = await build(knowledge_graph).evaluate_by_code(
                 question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
             )
 
@@ -285,7 +419,9 @@ class TestResolvingTheCode:
         knowledge_graph = FakeKnowledgeGraph(DEFAULT_STANDARD, twin)
 
         with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
-            await build(knowledge_graph).evaluate(question=QUESTION, statement_code=STATEMENT_CODE)
+            await build(knowledge_graph).evaluate_by_code(
+                question=QUESTION, statement_code=STATEMENT_CODE
+            )
 
         [warning] = [record for record in caplog.records if record.levelno == logging.WARNING]
         assert "no grade was given" in warning.getMessage()
@@ -304,7 +440,7 @@ class TestResolvingTheCode:
         knowledge_graph = FakeKnowledgeGraph(eighth, ninth)
 
         with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
-            evaluation = await build(knowledge_graph).evaluate(
+            evaluation = await build(knowledge_graph).evaluate_by_code(
                 question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
             )
 
@@ -317,7 +453,7 @@ class TestEvaluate:
     async def test_it_judges_every_learning_component_the_standard_carries(
         self, providers: ProviderFactory
     ) -> None:
-        evaluation = await build().evaluate(
+        evaluation = await build().evaluate_by_code(
             question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
         )
 
@@ -334,7 +470,7 @@ class TestEvaluate:
     ) -> None:
         # The caller's spelling is a lookup key; what comes back is the canonical one, and
         # that is what a report joins on.
-        evaluation = await build().evaluate(
+        evaluation = await build().evaluate_by_code(
             question=QUESTION, statement_code="3.md.c.7.d", grade_level="3"
         )
         assert evaluation.result.statement_code == STATEMENT_CODE
@@ -347,7 +483,7 @@ class TestEvaluate:
             (identifiers[0], "Yes"), (identifiers[1], "No"), (identifiers[2], "No")
         )
 
-        evaluation = await build().evaluate(
+        evaluation = await build().evaluate_by_code(
             question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
         )
 
@@ -358,7 +494,7 @@ class TestEvaluate:
     async def test_it_wraps_the_payload_in_the_shared_envelope(
         self, providers: ProviderFactory
     ) -> None:
-        evaluation = await build().evaluate(
+        evaluation = await build().evaluate_by_code(
             question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
         )
 
@@ -370,7 +506,7 @@ class TestEvaluate:
     async def test_it_reports_no_single_score(self, providers: ProviderFactory) -> None:
         # As in TypeScript: the contract declares no outcome, so there is no field a
         # report can read as this evaluation's verdict.
-        evaluation = await build().evaluate(
+        evaluation = await build().evaluate_by_code(
             question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
         )
         assert (
@@ -380,7 +516,9 @@ class TestEvaluate:
     async def test_it_sends_the_question_and_every_component_to_the_model(
         self, providers: ProviderFactory
     ) -> None:
-        await build().evaluate(question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3")
+        await build().evaluate_by_code(
+            question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
+        )
 
         [call] = providers.calls
         prompt = "\n".join(message["content"] for message in call["messages"])
@@ -397,7 +535,7 @@ class TestStandardsWithNothingToJudge:
     ) -> None:
         evaluation = await build(
             FakeKnowledgeGraph(replace(DEFAULT_STANDARD, components=()))
-        ).evaluate(question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3")
+        ).evaluate_by_code(question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3")
 
         assert providers.calls == []
         assert evaluation.result.learning_components == []
@@ -416,7 +554,7 @@ class TestStandardsWithNothingToJudge:
         with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
             evaluation = await build(
                 FakeKnowledgeGraph(replace(DEFAULT_STANDARD, undescribed_count=2))
-            ).evaluate(question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3")
+            ).evaluate_by_code(question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3")
 
         assert evaluation.result.total_count == 3
         assert any("no description" in record.getMessage() for record in caplog.records)
@@ -432,7 +570,7 @@ class TestTheModelsAnswerIsVerified:
         script.answer = answers((identifiers[0], "Yes"))
 
         with pytest.raises(LLMOutputProcessingError) as raised:
-            await build().evaluate(
+            await build().evaluate_by_code(
                 question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
             )
 
@@ -449,7 +587,7 @@ class TestTheModelsAnswerIsVerified:
             ("lc-the-model-invented", "Yes"),
         )
 
-        evaluation = await build().evaluate(
+        evaluation = await build().evaluate_by_code(
             question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
         )
 
@@ -464,6 +602,6 @@ class TestTheModelsAnswerIsVerified:
     ) -> None:
         providers.failures.append(RateLimitError("slow down", dependency="anthropic"))
         with pytest.raises(RateLimitError):
-            await build().evaluate(
+            await build().evaluate_by_code(
                 question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
             )

@@ -94,13 +94,25 @@ component the Knowledge Graph holds for one standard, and reports a verdict per 
 plus the aligned and total counts. There is no single score — the contract declares no
 outcome — so `read_outcome` reports `None` for it, as it does in the TypeScript SDK.
 
+There are two ways to name the standard, because there are two ways callers have one.
+`evaluate()` takes the CASE Network UUID — what a standard picker hands you, and what the
+Knowledge Graph itself keys on. `evaluate_by_code()` takes the standard the way a teacher
+names it, resolves it to a UUID, and runs the same evaluation.
+
 ```python
 from learning_commons_evaluators import MathStandardsAlignmentEvaluator
 
 async with MathStandardsAlignmentEvaluator(
     anthropic_api_key="...", learning_commons_api_key="..."
 ) as evaluator:
+    # The primitive: one UUID names exactly one standard.
     evaluation = await evaluator.evaluate(
+        question="A playground is shaped like an L ...",
+        case_identifier_uuid="6ba25656-d7cc-11e8-824f-0242ac160002",
+    )
+
+    # The same evaluation, reached from a code.
+    evaluation = await evaluator.evaluate_by_code(
         question="A playground is shaped like an L ...",
         statement_code="3.MD.C.7.d",
         jurisdiction="Multi-State",   # optional; Multi-State is Common Core
@@ -109,6 +121,9 @@ async with MathStandardsAlignmentEvaluator(
 
 print(evaluation.result.statement_code, evaluation.result.aligned_count)
 ```
+
+Both cost two Knowledge Graph calls and return the same payload. Passing one method's
+input to the other names the method that takes it rather than calling the key unknown.
 
 **Spell the code the way its jurisdiction spells it.** A code is a lookup key, not an
 identity: the Knowledge Graph holds one copy of a standard per adopting jurisdiction, each
@@ -128,9 +143,14 @@ choice is logged at `warning` with the alternatives, matching the TypeScript SDK
 behaviour. `evaluation.result.statement_code` always reports the Knowledge Graph's own
 spelling of whatever was resolved.
 
-The inputs are the contract's, under the contract's names, plus that one optional extra —
-so anything written against the registry is a valid call, and the contract's own fixtures
-drive this evaluator as they drive every other one.
+`evaluate_by_code()`'s inputs are the contract's, under the contract's names, plus that
+one optional extra — so anything written against the registry is a valid call, and the
+contract's own fixtures drive this evaluator as they drive every other one.
+
+**A UUID names any standard, including another subject's.** `evaluate()` reads the
+standard before judging it and raises `InputValidationError` for a non-mathematics one,
+before fetching components and before any model call. `evaluate_by_code()` needs no such
+check: its search is already scoped to Mathematics, so a non-math code never resolves.
 
 ## More resources
 

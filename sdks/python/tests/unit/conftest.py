@@ -30,7 +30,11 @@ from learning_commons_evaluators.providers import (
     TokenUsage,
     provider_label,
 )
-from learning_commons_evaluators.schemas.kg_taxonomy import DEFAULT_JURISDICTION, GradeLevel
+from learning_commons_evaluators.schemas.kg_taxonomy import (
+    DEFAULT_JURISDICTION,
+    AcademicSubject,
+    GradeLevel,
+)
 
 
 @dataclass
@@ -184,6 +188,9 @@ class FakeStandard:
     grade_level: tuple[GradeLevel, ...] = (GradeLevel.GRADE_3,)
     components: tuple[tuple[str, str], ...] = LEARNING_COMPONENTS
     undescribed_count: int = 0
+    #: What the Knowledge Graph says this standard's subject is. ``None`` models both a
+    #: standard that states none and one whose subject the SDK's taxonomy does not carry.
+    academic_subject: AcademicSubject | None = AcademicSubject.MATHEMATICS
 
 
 #: Build variants with ``dataclasses.replace``; pass several to a fake to model a code
@@ -251,9 +258,9 @@ class FakeKnowledgeGraph(KnowledgeGraphClient):
             case_identifier_uuid=standard.case_identifier_uuid,
             statement_code=standard.statement_code,
             description="Relate area to the operations of multiplication and addition.",
+            academic_subject=standard.academic_subject,
             notes=None,
             jurisdiction=None,
-            academic_subject=None,
             grade_level=standard.grade_level,
         )
 
