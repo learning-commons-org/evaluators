@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 
+from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
+    MathStandardsAlignmentEvaluator,
+)
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.feedback.ela_writing.tone_appropriateness import (
     ToneAppropriatenessEvaluator,
@@ -25,6 +28,7 @@ from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
 #: Every evaluator, in taxonomy order. Adding an evaluator means adding it here; the
 #: conformance suite compares this against the public barrel and the ``evals/`` registry.
 EVALUATORS: tuple[type[BaseEvaluator], ...] = (
+    MathStandardsAlignmentEvaluator,
     ToneAppropriatenessEvaluator,
     GradeLevelAppropriatenessEvaluator,
     PurposeClarityEvaluator,

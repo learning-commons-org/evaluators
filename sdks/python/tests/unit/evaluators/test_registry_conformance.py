@@ -18,6 +18,12 @@ import learning_commons_evaluators as sdk
 from learning_commons_evaluators import read_outcome
 from learning_commons_evaluators.contracts import load_contract
 from learning_commons_evaluators.contracts.loader import Step
+from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
+    INPUT_SCHEMA as MATH_INPUT_SCHEMA,
+)
+from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
+    MathStandardsAlignmentEvaluator,
+)
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
 from learning_commons_evaluators.evaluators.registry import EVALUATORS, index_by_id
@@ -47,8 +53,6 @@ UNIMPLEMENTED: frozenset[str] = frozenset(
         "feedback.ela_writing.strength_acknowledgment",
         "feedback.ela_writing.student_response_specificity",
         "feedback.ela_writing.withholding_answers",
-        # Phase 5b.
-        "academic_standards_alignment.mathematics.math_standards_alignment",
     }
 )
 
@@ -90,9 +94,25 @@ def _contract_id(directory: Path) -> str:
     return json.loads((directory / "config.json").read_text(encoding="utf-8"))["evaluator"]["id"]
 
 
+#: The evaluators the single-step and multi-step factories build, which is every one but
+#: Math Standards Alignment. That one subclasses ``BaseEvaluator`` directly: its prompt is
+#: filled from a live Knowledge Graph fetch rather than from the caller's inputs, it
+#: reports per-component verdicts rather than a single judgement, and in this release it
+#: takes ``case_identifier_uuid`` in place of the contract's ``statement_code`` +
+#: ``jurisdiction`` (DSCR-2190; the codes follow in DSCR-2252). The checks below that read
+#: an evaluator's generated models, its declared outcome, or its fixtures are scoped to
+#: this list; everything that is true of any evaluator stays scoped to EXPORTED.
+CONTRACT_DRIVEN: list[type[BaseEvaluator]] = [
+    evaluator
+    for evaluator in EXPORTED
+    if issubclass(evaluator, (SingleStepEvaluator, MultiStepEvaluator))
+]
+
+
 def test_discovery_finds_the_pilot() -> None:
-    assert len(EXPORTED) == 5
+    assert len(EXPORTED) == 6
     assert set(EXPORTED) == set(EVALUATORS)
+    assert len(CONTRACT_DRIVEN) == 5
 
 
 class TestEveryContractIsImplementedOrListed:
@@ -140,17 +160,6 @@ class TestEachEvaluatorMatchesItsContract:
         )
         assert evaluator_id == schema_module.EVALUATOR_ID
 
-    def test_input_and_output_models_are_the_generated_ones(
-        self, evaluator: type[BaseEvaluator]
-    ) -> None:
-        assert issubclass(evaluator, (SingleStepEvaluator, MultiStepEvaluator))
-        slug = evaluator.metadata.slug
-        pascal = "".join(part.capitalize() for part in slug.split("_"))
-        assert evaluator.input_model.__name__ == f"{pascal}Input"
-        assert evaluator.output_model.__name__ == f"{pascal}Output"
-        contract = load_contract(evaluator.metadata.id)
-        assert list(evaluator.input_model.model_fields) == list(contract.input_schema["properties"])
-
     def test_default_providers_are_the_non_optional_steps(
         self, evaluator: type[BaseEvaluator]
     ) -> None:
@@ -160,15 +169,6 @@ class TestEachEvaluatorMatchesItsContract:
     def test_required_credentials_match(self, evaluator: type[BaseEvaluator]) -> None:
         contract = load_contract(evaluator.metadata.id)
         assert list(evaluator.metadata.required_credentials) == contract.required_credentials
-
-    def test_outcome_names_fields_the_output_model_has(
-        self, evaluator: type[BaseEvaluator]
-    ) -> None:
-        assert issubclass(evaluator, (SingleStepEvaluator, MultiStepEvaluator))
-        outcome = evaluator.metadata.outcome
-        assert outcome is not None, "every pilot evaluator produces a single judgement"
-        assert outcome.score in evaluator.output_model.model_fields
-        assert outcome.reasoning in evaluator.output_model.model_fields
 
     def test_grade_input_enum_agrees_with_supported_grades(
         self, evaluator: type[BaseEvaluator]
@@ -180,7 +180,65 @@ class TestEachEvaluatorMatchesItsContract:
         assert tuple(grade["enum"]) == evaluator.metadata.supported_grades
 
 
-@pytest.mark.parametrize("evaluator", EXPORTED, ids=lambda e: e.metadata.id)
+@pytest.mark.parametrize("evaluator", CONTRACT_DRIVEN, ids=lambda e: e.metadata.id)
+class TestEachContractDrivenEvaluatorDeclaresTheGeneratedModels:
+    def test_input_and_output_models_are_the_generated_ones(
+        self, evaluator: type[BaseEvaluator]
+    ) -> None:
+        assert issubclass(evaluator, (SingleStepEvaluator, MultiStepEvaluator))
+        slug = evaluator.metadata.slug
+        pascal = "".join(part.capitalize() for part in slug.split("_"))
+        assert evaluator.input_model.__name__ == f"{pascal}Input"
+        assert evaluator.output_model.__name__ == f"{pascal}Output"
+        contract = load_contract(evaluator.metadata.id)
+        assert list(evaluator.input_model.model_fields) == list(contract.input_schema["properties"])
+
+    def test_outcome_names_fields_the_output_model_has(
+        self, evaluator: type[BaseEvaluator]
+    ) -> None:
+        assert issubclass(evaluator, (SingleStepEvaluator, MultiStepEvaluator))
+        outcome = evaluator.metadata.outcome
+        assert outcome is not None, "every factory-built evaluator produces a single judgement"
+        assert outcome.score in evaluator.output_model.model_fields
+        assert outcome.reasoning in evaluator.output_model.model_fields
+
+
+class TestMathStandardsAlignmentIsTheDocumentedException:
+    """The evaluator the checks above scope around, asserted rather than assumed.
+
+    Each assertion is the reason one of those checks excludes it, so the exception cannot
+    quietly widen or silently outlive its reason: when this evaluator gains a declared
+    outcome, or starts taking the contract's own inputs, these fail and the scoping above
+    is what should change.
+    """
+
+    def test_it_is_not_built_by_the_factories(self) -> None:
+        assert not issubclass(
+            MathStandardsAlignmentEvaluator, (SingleStepEvaluator, MultiStepEvaluator)
+        )
+
+    def test_it_declares_no_outcome_so_reports_have_no_single_score(self) -> None:
+        # As in TypeScript: the payload is a verdict per learning component plus counts,
+        # and there is no field a report could read as the evaluation's score.
+        assert MathStandardsAlignmentEvaluator.metadata.outcome is None
+
+    def test_it_takes_the_uuid_in_place_of_the_contracts_code_inputs(self) -> None:
+        contract = load_contract(MathStandardsAlignmentEvaluator.metadata.id)
+        assert set(contract.input_schema["properties"]) == {
+            "question",
+            "statement_code",
+            "jurisdiction",
+        }
+        assert set(MATH_INPUT_SCHEMA["properties"]) == {"question", "case_identifier_uuid"}
+        # The input both agree on is the contract's own property object, not a copy of it,
+        # so the bounds this evaluator enforces cannot drift from the registry's.
+        assert (
+            MATH_INPUT_SCHEMA["properties"]["question"]
+            is contract.input_schema["properties"]["question"]
+        )
+
+
+@pytest.mark.parametrize("evaluator", CONTRACT_DRIVEN, ids=lambda e: e.metadata.id)
 class TestEachEvaluatorRunsItsContract:
     def _construct(self, evaluator: type[BaseEvaluator]) -> BaseEvaluator:
         keys = {f"{p.value}_api_key": "test-key" for p in evaluator.metadata.default_providers}

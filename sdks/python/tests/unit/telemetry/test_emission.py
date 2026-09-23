@@ -25,10 +25,14 @@ from learning_commons_evaluators import (
     PurposeClarityEvaluator,
     SentenceStructureEvaluator,
     TelemetryOptions,
+    ToneAppropriatenessEvaluator,
     __version__,
 )
 from learning_commons_evaluators.contracts import load_contract
 from learning_commons_evaluators.errors import RateLimitError
+from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
+    MathStandardsAlignmentEvaluator,
+)
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.inputs import primary_text_field
 from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
@@ -36,7 +40,7 @@ from learning_commons_evaluators.evaluators.registry import EVALUATORS
 from learning_commons_evaluators.telemetry import client as telemetry_client
 from learning_commons_evaluators.telemetry.client import TelemetryClient
 from tests.conftest import EventSink
-from tests.unit.conftest import ProviderFactory
+from tests.unit.conftest import STANDARD_UUID, FakeKnowledgeGraph, ProviderFactory
 
 EVALS_ROOT = Path(__file__).resolve().parents[5] / "evals"
 
@@ -44,8 +48,19 @@ EVALS_ROOT = Path(__file__).resolve().parents[5] / "evals"
 EACH_EVALUATOR = pytest.mark.parametrize("evaluator", EVALUATORS, ids=lambda e: e.metadata.id)
 
 
+#: What Math Standards Alignment takes, which its fixtures do not describe: the fixtures
+#: carry the contract's ``statement_code`` + ``jurisdiction``, and this release resolves a
+#: standard by UUID instead (DSCR-2190).
+MATH_INPUT = {
+    "question": "A playground is shaped like an L. What is its total area in square feet?",
+    "case_identifier_uuid": STANDARD_UUID,
+}
+
+
 def fixture_input(evaluator: type[BaseEvaluator]) -> dict[str, Any]:
     """The first fixture case's inputs for an evaluator, as a caller would pass them."""
+    if evaluator is MathStandardsAlignmentEvaluator:
+        return dict(MATH_INPUT)
     contract = load_contract(evaluator.metadata.id)
     directory = EVALS_ROOT.joinpath(
         *(segment.replace("_", "-") for segment in contract.evaluator.id.split("."))
@@ -58,6 +73,12 @@ def fixture_input(evaluator: type[BaseEvaluator]) -> dict[str, Any]:
 
 def construct(evaluator: type[BaseEvaluator], **overrides: Any) -> BaseEvaluator:
     keys = {f"{p.value}_api_key": "test-key" for p in evaluator.metadata.default_providers}
+    if evaluator is MathStandardsAlignmentEvaluator:
+        # The one evaluator with a non-LLM dependency: injected rather than keyed, so the
+        # telemetry checks below never reach the Knowledge Graph.
+        overrides.setdefault("knowledge_graph", FakeKnowledgeGraph())
+    else:
+        keys.update({key: "test-key" for key in evaluator.metadata.required_credentials})
     return evaluator(**keys, **overrides)
 
 
@@ -65,7 +86,9 @@ def steps_planned(evaluator: type[BaseEvaluator], inputs: Mapping[str, Any]) -> 
     """The step ids these inputs run, read off the contract rather than the evaluator."""
     contract = load_contract(evaluator.metadata.id)
     if not issubclass(evaluator, MultiStepEvaluator):
-        return [contract.steps[0].id]
+        # Non-optional, not simply the first declared: a contract may declare an optional
+        # step the caller has to opt into, and none of these calls does.
+        return [step.id for step in contract.steps if not step.optional]
     values = {key: str(value) for key, value in inputs.items()}
     return [
         step.id for step in contract.steps if step.condition is None or step.condition.holds(values)
@@ -136,7 +159,7 @@ class TestEveryEvaluatorReports:
         texts = [
             name
             for name, spec in schema["properties"].items()
-            if spec.get("type") == "string" and "enum" not in spec
+            if name in inputs and spec.get("type") == "string" and "enum" not in spec
         ]
         assert texts, "an evaluator with no text input would make this check vacuous"
         for name in texts:
@@ -213,7 +236,7 @@ class TestWhatTheEventSays:
     async def test_an_evaluator_without_a_grade_reports_an_empty_one(
         self, providers: ProviderFactory, event_sink: EventSink
     ) -> None:
-        evaluator = construct(EVALUATORS[0])
+        evaluator = construct(ToneAppropriatenessEvaluator)
         assert "grade_level" not in evaluator.contract.input_schema["properties"]
         await evaluator.evaluate(**fixture_input(type(evaluator)))
 

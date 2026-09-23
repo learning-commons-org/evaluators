@@ -2,7 +2,7 @@
 
 Python SDK for Learning Commons educational text evaluators. Every evaluator is built from its shared contract under [`evals/`](../../evals) (prompts, models, schemas) and returns the same result envelope as the [TypeScript SDK](../typescript).
 
-> **Under rebuild.** `main` carries the 1.0 rebuild in progress: five evaluators so far (`GradeLevelAppropriatenessEvaluator`, `PurposeClarityEvaluator`, `ToneAppropriatenessEvaluator`, `SentenceStructureEvaluator`, `VocabularyComplexityEvaluator`), with the rest following phase by phase. Nothing is published from this state; the last released version is [0.2.0 on PyPI](https://pypi.org/project/learning-commons-evaluators/0.2.0/), whose documentation remains on the [docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview).
+> **Under rebuild.** `main` carries the 1.0 rebuild in progress: six evaluators so far (`GradeLevelAppropriatenessEvaluator`, `PurposeClarityEvaluator`, `ToneAppropriatenessEvaluator`, `SentenceStructureEvaluator`, `VocabularyComplexityEvaluator`, `MathStandardsAlignmentEvaluator`), with the rest following phase by phase. Nothing is published from this state; the last released version is [0.2.0 on PyPI](https://pypi.org/project/learning-commons-evaluators/0.2.0/), whose documentation remains on the [docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview).
 
 ## Installation
 
@@ -86,6 +86,45 @@ async with KnowledgeGraphClient(api_key) as kg:
 `academic_subject`; more than one match means the code is reused across frameworks and you
 choose. Evaluators that own a client close it from their own `aclose()` / `close()`, which every
 evaluator accepts and which does nothing for the ones that own nothing.
+
+### Math Standards Alignment
+
+The one evaluator that reads a dependency. It judges a question against every learning
+component the Knowledge Graph holds for one standard, and reports a verdict per component
+plus the aligned and total counts. There is no single score — the contract declares no
+outcome — so `read_outcome` reports `None` for it, as it does in the TypeScript SDK.
+
+```python
+from learning_commons_evaluators import MathStandardsAlignmentEvaluator
+
+async with MathStandardsAlignmentEvaluator(
+    anthropic_api_key="...", learning_commons_api_key="..."
+) as evaluator:
+    evaluation = await evaluator.evaluate(
+        question="A playground is shaped like an L ...",
+        case_identifier_uuid="6ba25656-d7cc-11e8-824f-0242ac160002",  # CCSS 3.MD.C.7.d
+    )
+
+print(evaluation.result.aligned_count, "of", evaluation.result.total_count)
+```
+
+**The standard is named by its UUID, not its code.** This release does not take
+`statement_code` + `jurisdiction`, which is what the contract declares and what the
+TypeScript SDK accepts; passing them raises `InputValidationError` naming what to pass instead.
+Resolve a code yourself with `search_standards()` and pass the match's
+`case_identifier_uuid`:
+
+```python
+matches = await kg.search_standards("3.MD.C.7.d", jurisdiction="Multi-State")
+```
+
+A code is only ever a lookup key. The Knowledge Graph holds one copy of a standard per
+adopting jurisdiction, each with its own UUID and often its own spelling — Ohio writes
+`3.MD.7`, New York `NY-3.MD.7`, Florida's B.E.S.T. framework `MA.3.GR.2.2` — so a code
+must be spelled the way its jurisdiction spells it, and `Multi-State` (Common Core) is the
+reliable default. Jurisdiction variants of the same Common Core standard share their
+learning components, so the choice between them does not change the judgement; a different
+framework, such as Florida's, genuinely does.
 
 ## More resources
 
