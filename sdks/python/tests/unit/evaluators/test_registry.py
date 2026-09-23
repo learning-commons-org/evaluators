@@ -11,9 +11,15 @@ from learning_commons_evaluators import (
     OrganizationalStructureEvaluator,
     PurposeClarityEvaluator,
     ReferenceKnowledgeDemandsEvaluator,
+    RevisionAccuracyEvaluator,
+    RevisionActionabilityEvaluator,
+    RevisionManageabilityEvaluator,
     SentenceStructureEvaluator,
+    StrengthAcknowledgmentEvaluator,
+    StudentResponseSpecificityEvaluator,
     ToneAppropriatenessEvaluator,
     VocabularyComplexityEvaluator,
+    WithholdingAnswersEvaluator,
     get_evaluator,
     get_evaluators,
 )
@@ -27,7 +33,13 @@ from learning_commons_evaluators.evaluators.registry import (
 
 def test_lists_every_evaluator_in_taxonomy_order() -> None:
     assert [m.id for m in get_evaluators()] == [
+        "feedback.ela_writing.revision_accuracy",
+        "feedback.ela_writing.revision_actionability",
+        "feedback.ela_writing.revision_manageability",
+        "feedback.ela_writing.strength_acknowledgment",
+        "feedback.ela_writing.student_response_specificity",
         "feedback.ela_writing.tone_appropriateness",
+        "feedback.ela_writing.withholding_answers",
         "text_complexity.ela_reading.background_knowledge_demands",
         "text_complexity.ela_reading.grade_level_appropriateness",
         "text_complexity.ela_reading.meaning_directness",
@@ -65,6 +77,30 @@ def test_resolves_current_ids() -> None:
         (
             "feedback.productive_coaching_writing_feedback.is_tone_appropriate",
             ToneAppropriatenessEvaluator,
+        ),
+        (
+            "feedback.productive_coaching_writing_feedback.is_appropriate_feedback",
+            RevisionAccuracyEvaluator,
+        ),
+        (
+            "feedback.productive_coaching_writing_feedback.is_actionable_revision",
+            RevisionActionabilityEvaluator,
+        ),
+        (
+            "feedback.productive_coaching_writing_feedback.is_manageable",
+            RevisionManageabilityEvaluator,
+        ),
+        (
+            "feedback.productive_coaching_writing_feedback.is_acknowledges_strength",
+            StrengthAcknowledgmentEvaluator,
+        ),
+        (
+            "feedback.productive_coaching_writing_feedback.is_anchored_in_student_response",
+            StudentResponseSpecificityEvaluator,
+        ),
+        (
+            "feedback.productive_coaching_writing_feedback.is_withholding_answers",
+            WithholdingAnswersEvaluator,
         ),
     ],
 )

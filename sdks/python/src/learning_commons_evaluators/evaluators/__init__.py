@@ -5,8 +5,26 @@ Concrete evaluators live in the nested ``<family>/<subject>/`` packages mirrorin
 """
 
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
+from learning_commons_evaluators.evaluators.feedback.ela_writing.revision_accuracy import (
+    RevisionAccuracyEvaluator,
+)
+from learning_commons_evaluators.evaluators.feedback.ela_writing.revision_actionability import (
+    RevisionActionabilityEvaluator,
+)
+from learning_commons_evaluators.evaluators.feedback.ela_writing.revision_manageability import (
+    RevisionManageabilityEvaluator,
+)
+from learning_commons_evaluators.evaluators.feedback.ela_writing.strength_acknowledgment import (
+    StrengthAcknowledgmentEvaluator,
+)
+from learning_commons_evaluators.evaluators.feedback.ela_writing.student_response_specificity import (
+    StudentResponseSpecificityEvaluator,
+)
 from learning_commons_evaluators.evaluators.feedback.ela_writing.tone_appropriateness import (
     ToneAppropriatenessEvaluator,
+)
+from learning_commons_evaluators.evaluators.feedback.ela_writing.withholding_answers import (
+    WithholdingAnswersEvaluator,
 )
 from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
 from learning_commons_evaluators.evaluators.registry import (
@@ -51,10 +69,16 @@ __all__ = [
     "OrganizationalStructureEvaluator",
     "PurposeClarityEvaluator",
     "ReferenceKnowledgeDemandsEvaluator",
+    "RevisionAccuracyEvaluator",
+    "RevisionActionabilityEvaluator",
+    "RevisionManageabilityEvaluator",
     "SentenceStructureEvaluator",
     "SingleStepEvaluator",
+    "StrengthAcknowledgmentEvaluator",
+    "StudentResponseSpecificityEvaluator",
     "ToneAppropriatenessEvaluator",
     "VocabularyComplexityEvaluator",
+    "WithholdingAnswersEvaluator",
     "get_evaluator",
     "get_evaluator_class",
     "get_evaluators",
