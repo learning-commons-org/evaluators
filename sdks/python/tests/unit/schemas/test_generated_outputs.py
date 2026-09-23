@@ -1,8 +1,8 @@
 """Parser unit tests: hand-written payloads per ``output_schema.json`` against the generated models.
 
 These take over the parsing coverage the 0.2.0 recorded-response contract tests provided.
-Every bundled contract gets a schema-driven round trip; the four pilot evaluators also get
-hand-written payloads and the rejections a strict parser must make.
+Every bundled contract gets a schema-driven round trip; each registered evaluator's payload
+shape also gets hand-written payloads and the rejections a strict parser must make.
 """
 
 from __future__ import annotations
@@ -21,10 +21,19 @@ from learning_commons_evaluators.schemas.feedback.ela_writing.tone_appropriatene
 from learning_commons_evaluators.schemas.feedback.ela_writing.withholding_answers import (
     WithholdingAnswersOutput,
 )
+from learning_commons_evaluators.schemas.text_complexity.ela_reading.background_knowledge_demands import (
+    BackgroundKnowledgeDemandsOutput,
+)
 from learning_commons_evaluators.schemas.text_complexity.ela_reading.grade_level_appropriateness import (
     GradeBand,
     GradeLevelAppropriatenessInput,
     GradeLevelAppropriatenessOutput,
+)
+from learning_commons_evaluators.schemas.text_complexity.ela_reading.meaning_directness import (
+    MeaningDirectnessOutput,
+)
+from learning_commons_evaluators.schemas.text_complexity.ela_reading.organizational_structure import (
+    OrganizationalStructureOutput,
 )
 from learning_commons_evaluators.schemas.text_complexity.ela_reading.vocabulary_complexity import (
     GRADE_LEVEL_VALUES,
@@ -174,6 +183,95 @@ class TestVocabularyComplexity:
     def test_input_takes_an_int_grade_and_exposes_the_accepted_tokens(self) -> None:
         assert VocabularyComplexityInput(text="t", grade_level=7).grade_level == 7
         assert GRADE_LEVEL_VALUES == ("3", "4", "5", "6", "7", "8", "9", "10", "11", "12")
+
+
+class TestStudentFacingTextFamily:
+    """The three payload shapes the family's contracts produce, hand-written.
+
+    Organizational Structure and Reference Knowledge Demands nest their pedagogical detail
+    under ``details``; Background Knowledge Demands and Meaning Directness are flat. A
+    payload of one shape must not parse as another.
+    """
+
+    DETAILS_PAYLOAD = {
+        "complexity_score": "moderately_complex",
+        "reasoning": "The chronology is clear, but two flashbacks are unsignalled.",
+        "details": {
+            "detailed_summary": [
+                {
+                    "factor": "Unsignalled flashback",
+                    "description": "Paragraph four moves back a year with no transition.",
+                    "effect_on_complexity_dimension": "Readers must infer the time shift.",
+                }
+            ],
+            "adjustment_and_scaffolding": [
+                {
+                    "scaffolding_need": "Unsignalled flashback",
+                    "suggestion": "Have students build a timeline as they read.",
+                }
+            ],
+            "recommended_use_cases": [
+                {
+                    "opportunity": "Teaching narrative structure",
+                    "suggestion": "Compare the told order with the chronological order.",
+                }
+            ],
+        },
+    }
+
+    BACKGROUND_PAYLOAD = {
+        "identified_topics": ["protein folding", "amino acids"],
+        "curriculum_check": "Protein structure is high-school biology, not standard K-8.",
+        "assumptions_and_scaffolding": "Assumes amino acids are known; explains folding.",
+        "friction_analysis": "The difficulty is knowledge, not sentence length.",
+        "complexity_score": "very_complex",
+        "reasoning": "Specialized biology knowledge is assumed at grade 11.",
+    }
+
+    MEANING_PAYLOAD = {
+        "reasoning": "The comparison is sustained and never stated outright.",
+        "complexity_score": "very_complex",
+        "conventionality_features": ['"bound together by a rope of years"'],
+        "grade_context": "Sustained metaphor is above grade 8 expectations.",
+        "instructional_insights": "Model unpacking the metaphor before independent reading.",
+    }
+
+    def test_parses_the_nested_details_shape(self) -> None:
+        parsed = OrganizationalStructureOutput.model_validate(self.DETAILS_PAYLOAD)
+        assert parsed.complexity_score == "moderately_complex"
+        assert parsed.details.detailed_summary[0].factor == "Unsignalled flashback"
+
+    def test_a_details_item_missing_a_field_is_rejected(self) -> None:
+        details = {
+            **self.DETAILS_PAYLOAD["details"],  # type: ignore[dict-item]
+            "detailed_summary": [{"factor": "f", "description": "d"}],
+        }
+        with pytest.raises(ValidationError):
+            OrganizationalStructureOutput.model_validate(
+                {**self.DETAILS_PAYLOAD, "details": details}
+            )
+
+    def test_parses_the_flat_background_knowledge_shape(self) -> None:
+        parsed = BackgroundKnowledgeDemandsOutput.model_validate(self.BACKGROUND_PAYLOAD)
+        assert parsed.identified_topics == ["protein folding", "amino acids"]
+        assert parsed.complexity_score == "very_complex"
+
+    def test_topics_are_a_list_not_a_joined_string(self) -> None:
+        # The legacy evaluator returned prose here; the contract declares an array.
+        with pytest.raises(ValidationError):
+            BackgroundKnowledgeDemandsOutput.model_validate(
+                {**self.BACKGROUND_PAYLOAD, "identified_topics": "protein folding, amino acids"}
+            )
+
+    def test_parses_the_meaning_directness_shape(self) -> None:
+        parsed = MeaningDirectnessOutput.model_validate(self.MEANING_PAYLOAD)
+        assert parsed.conventionality_features == ['"bound together by a rope of years"']
+
+    def test_a_payload_of_another_shape_in_the_family_is_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            MeaningDirectnessOutput.model_validate(self.DETAILS_PAYLOAD)
+        with pytest.raises(ValidationError):
+            OrganizationalStructureOutput.model_validate(self.BACKGROUND_PAYLOAD)
 
 
 class TestFeedbackFamily:

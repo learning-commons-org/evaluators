@@ -35,11 +35,6 @@ UNIMPLEMENTED: frozenset[str] = frozenset(
     {
         # Follow-on work in both SDKs (new family, claude-opus-5); on TS's allowlist too.
         "durable_skills.ela_writing.critical_thinking",
-        # Phase 3.
-        "text_complexity.ela_reading.background_knowledge_demands",
-        "text_complexity.ela_reading.meaning_directness",
-        "text_complexity.ela_reading.organizational_structure",
-        "text_complexity.ela_reading.reference_knowledge_demands",
         # Phase 4.
         "feedback.ela_writing.revision_accuracy",
         "feedback.ela_writing.revision_actionability",
@@ -90,8 +85,8 @@ def _contract_id(directory: Path) -> str:
     return json.loads((directory / "config.json").read_text(encoding="utf-8"))["evaluator"]["id"]
 
 
-def test_discovery_finds_the_pilot() -> None:
-    assert len(EXPORTED) == 5
+def test_discovery_finds_every_registered_evaluator() -> None:
+    assert len(EXPORTED) == 9
     assert set(EXPORTED) == set(EVALUATORS)
 
 
