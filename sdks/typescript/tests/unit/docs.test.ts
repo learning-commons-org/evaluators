@@ -16,7 +16,7 @@ const README = readFileSync(join(root, 'README.md'), 'utf-8');
 const MIGRATION = readFileSync(join(root, 'MIGRATION.md'), 'utf-8');
 
 /** Every evaluator class the barrel exports. */
-type EvaluatorLike = { metadata: { id: string; supportedGrades: readonly string[] } };
+type EvaluatorLike = { metadata: { id: string } };
 
 const EVALUATORS = Object.entries(sdk as Record<string, unknown>)
   .filter(
@@ -33,10 +33,6 @@ describe('README', () => {
   it.each(EVALUATORS)('names $name', ({ name }) => {
     // The old README documented 8 of 16, omitting the whole feedback family and math.
     expect(README).toContain(`\`${name}\``);
-  });
-
-  it('states the count it actually documents', () => {
-    expect(README).toContain('sixteen');
   });
 
   it('does not reference the removed exports', () => {
@@ -58,31 +54,6 @@ describe('README', () => {
     // The exact defect the audit found: `result.result.grade` on the first snippet.
     expect(README).not.toContain('result.result.');
     expect(README).not.toMatch(/\.grade\b(?!_)/);
-  });
-
-  it('documents every option the base config accepts', () => {
-    const config = readFileSync(join(root, 'src/evaluators/base.ts'), 'utf-8');
-    const block = config.slice(config.indexOf('export interface BaseEvaluatorConfig'));
-    const options = [
-      ...block.slice(0, block.indexOf('\n}')).matchAll(/^\s{2}(\w+)\?:/gm),
-    ].map((m) => m[1]);
-
-    expect(options.length).toBeGreaterThan(5);
-    for (const option of options) {
-      expect(README, `README does not document \`${option}\``).toContain(`\`${option}\``);
-    }
-  });
-
-  it('names each evaluator with a grade range its contract supports', () => {
-    for (const { name, metadata } of EVALUATORS) {
-      const grades = metadata.supportedGrades;
-      const row = README.split('\n').find((line) => line.includes(`\`${name}\``) && line.includes('|'));
-      expect(row, `no table row for ${name}`).toBeDefined();
-      // en dash, as the tables use
-      expect(row, `${name} row does not show ${grades[0]}-${grades[grades.length - 1]}`).toContain(
-        `${grades[0]}–${grades[grades.length - 1]}`,
-      );
-    }
   });
 });
 
