@@ -1,6 +1,5 @@
 import type { Express, Request, Response } from 'express';
-import { MathStandardsAlignmentEvaluator, Jurisdiction } from '@learning-commons/evaluators';
-import { listStandards } from './kg.js';
+import { MathStandardsAlignmentEvaluator, Jurisdiction, StandardsCatalog } from '@learning-commons/evaluators';
 
 const GRADES = new Set(['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
 const JURISDICTIONS = new Set<string>(Object.values(Jurisdiction));
@@ -10,11 +9,11 @@ const MAX_QUESTION_LENGTH = 10_000;
 // missing the routes still mount but return 503, so the rest of the demo
 // (home page, other evaluators) runs without them.
 export function registerMathStandardsAlignment(app: Express): void {
-  const { ANTHROPIC_API_KEY, PLATFORM_API_KEY } = process.env;
+  const { ANTHROPIC_API_KEY, LEARNING_COMMONS_API_KEY } = process.env;
 
-  if (!ANTHROPIC_API_KEY || !PLATFORM_API_KEY) {
+  if (!ANTHROPIC_API_KEY || !LEARNING_COMMONS_API_KEY) {
     const message =
-      'Math Standards Alignment is disabled: set ANTHROPIC_API_KEY and PLATFORM_API_KEY in .env';
+      'Math Standards Alignment is disabled: set ANTHROPIC_API_KEY and LEARNING_COMMONS_API_KEY in .env';
     console.warn(`⚠︎  ${message}`);
     const unavailable = (_req: Request, res: Response) => res.status(503).json({ error: message });
     app.get('/api/jurisdictions', unavailable);
@@ -25,8 +24,10 @@ export function registerMathStandardsAlignment(app: Express): void {
 
   const evaluator = new MathStandardsAlignmentEvaluator({
     anthropicApiKey: ANTHROPIC_API_KEY,
-    platformApiKey: PLATFORM_API_KEY,
+    learningCommonsApiKey: LEARNING_COMMONS_API_KEY,
   });
+
+  const catalog = new StandardsCatalog({ learningCommonsApiKey: LEARNING_COMMONS_API_KEY, academicSubject: 'Mathematics' });
 
   app.get('/api/jurisdictions', (_req, res) => {
     res.json([...JURISDICTIONS]);
@@ -43,7 +44,12 @@ export function registerMathStandardsAlignment(app: Express): void {
       return;
     }
     try {
-      res.json(await listStandards(grade, jurisdiction, PLATFORM_API_KEY));
+      const standards = await catalog.listStandards(grade, { jurisdiction: jurisdiction as Jurisdiction });
+      res.json(
+        standards.flatMap((s) =>
+          s.statementCode != null ? [{ statementCode: s.statementCode, description: s.description ?? '' }] : [],
+        ),
+      );
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
@@ -67,7 +73,7 @@ export function registerMathStandardsAlignment(app: Express): void {
     }
     try {
       const results = await evaluator.evaluateItems(
-        [{ question, statementCodes }],
+        [{ question, statement_codes: statementCodes }],
         jurisdiction as Jurisdiction,
       );
       res.json(results);

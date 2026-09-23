@@ -3,7 +3,7 @@
 **Feature ID**: `003-sdk-1x-upgrade`
 **Branch**: `003-sdk-1x-upgrade`
 **Created**: 2026-09-23
-**Status**: Draft
+**Status**: Implemented
 **Input**: "Upgrade the demo to the latest evaluators TS SDK using what's documented, and land
 the demo in its ideal, current state. Dependabot owns the version from here on."
 
@@ -103,5 +103,5 @@ from the SDK instead of a hand-rolled Knowledge Graph call, and shows the 1.x re
 - [x] Scenarios defined
 - [x] Requirements generated
 - [x] Entities identified
-- [ ] Implemented
-- [ ] Real-key end-to-end evaluation verified
+- [x] Implemented
+- [x] Real-key end-to-end evaluation verified

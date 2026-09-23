@@ -16,7 +16,7 @@ SDK version into any doc or spec.
 
 ## Phase 3.1: Dependencies
 
-- [ ] T001 Upgrade the SDK and its peers together using the install command in
+- [x] T001 Upgrade the SDK and its peers together using the install command in
       `../../sdks/typescript/MIGRATION.md` §0, keeping only the one adapter the demo uses
       (`@ai-sdk/anthropic`) and dropping `@ai-sdk/google` and `@ai-sdk/openai` from it.
       Do not pass `--legacy-peer-deps` or `--force`, and do not run `npm audit fix` (the
@@ -28,7 +28,7 @@ SDK version into any doc or spec.
 
 ## Phase 3.2: Backend
 
-- [ ] T002 `server/math-standards-alignment.ts` — make exactly these edits:
+- [x] T002 `server/math-standards-alignment.ts` — make exactly these edits:
       - Delete the line `import { listStandards } from './kg.js';` and add `StandardsCatalog`
         to the existing `@learning-commons/evaluators` import.
       - Replace every `PLATFORM_API_KEY` with `LEARNING_COMMONS_API_KEY` (the destructure,
@@ -53,7 +53,7 @@ SDK version into any doc or spec.
         `[{ question, statement_codes: statementCodes }]`.
       - Change nothing else: validation, status codes, and try/catch blocks stay as they are.
         Do not declare a `StandardOption` type.
-- [ ] T003 Delete `server/kg.ts`.
+- [x] T003 Delete `server/kg.ts`.
 
 ## Phase 3.3: Docs
 
@@ -62,19 +62,19 @@ SDK version into any doc or spec.
       checkouts, so the user adds the key there rather than renaming it). The implementer
       cannot read or write `.env*` files. Ask the user to do this, and wait for confirmation
       before T007.
-- [ ] T005 [P] `README.md`: in the keys table, replace the row
+- [x] T005 [P] `README.md`: in the keys table, replace the row
       `` | `PLATFORM_API_KEY`  | Learning Commons Knowledge Graph (standards lookup) | `` with
       `` | `LEARNING_COMMONS_API_KEY` | Learning Commons API (standards lookup and the evaluator's standards resolution) | ``.
       Change nothing else in the README, and add no SDK version.
 
 ## Phase 3.4: Verify
 
-- [ ] T006 Run `npm run typecheck`, then `npm run build`.
+- [x] T006 Run `npm run typecheck`, then `npm run build`.
       **Pass**: both exit 0; `tsc` prints no errors; vite's output ends with a `✓ built in`
       line. Then run
       `grep -rnE "kg\.js|kg\.ts|listStandards\(grade, jurisdiction|PLATFORM_API_KEY|platformApiKey" server src README.md`
       — **pass** is no output.
-- [ ] T007 Live smoke (requires T004 confirmed). Start only the API server in the background
+- [x] T007 Live smoke (requires T004 confirmed). Start only the API server in the background
       with `npx tsx server/index.ts`; its log must show
       `API server listening on http://localhost:3001` and no `disabled` warning. Then:
       - `curl -s 'localhost:3001/api/standards?grade=3&jurisdiction=Multi-State'` → a JSON
@@ -90,12 +90,12 @@ SDK version into any doc or spec.
       `curl -s -w ' %{http_code}' 'localhost:3001/api/standards?grade=3&jurisdiction=Multi-State'`
       → a body naming both `ANTHROPIC_API_KEY` and `LEARNING_COMMONS_API_KEY`, followed by
       `503`. Stop the server the same way.
-- [ ] T008 [USER] Real-key end-to-end: with `npm run dev` running, open
+- [x] T008 [USER] Real-key end-to-end: with `npm run dev` running, open
       http://localhost:5173, go to Math Standards Alignment, and pick grade, jurisdiction,
       and standards, enter a word problem, and click Evaluate. **Pass**: the output pane shows
       the raw result with 1.x snake_case keys (`statement_code`, `learning_components`,
       `aligned_count`, `total_count`). This makes a paid model call.
-- [ ] T009 Close out: tick the completed tasks in this file. In `spec.md`, set **Status** to
+- [x] T009 Close out: tick the completed tasks in this file. In `spec.md`, set **Status** to
       `Implemented` and tick "Implemented" under Execution Status. Leave the real-key box for
       the user to tick after T008.
 
