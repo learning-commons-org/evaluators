@@ -28,6 +28,7 @@ from learning_commons_evaluators.providers import (
     TokenUsage,
     provider_label,
 )
+from learning_commons_evaluators.schemas.kg_taxonomy import AcademicSubject
 
 
 @dataclass
@@ -189,8 +190,10 @@ class FakeKnowledgeGraph(KnowledgeGraphClient):
         statement_code: str | None = STATEMENT_CODE,
         components: Sequence[tuple[str, str]] = LEARNING_COMPONENTS,
         undescribed_count: int = 0,
+        academic_subject: AcademicSubject | None = AcademicSubject.MATHEMATICS,
     ) -> None:
         self.statement_code = statement_code
+        self.academic_subject = academic_subject
         self.component_set = LearningComponentSet(
             components=tuple(
                 LearningComponent(identifier=identifier, description=description)
@@ -208,11 +211,11 @@ class FakeKnowledgeGraph(KnowledgeGraphClient):
             case_identifier_uuid=case_identifier_uuid,
             statement_code=self.statement_code,
             description="Relate area to the operations of multiplication and addition.",
-            # Not modelled: the evaluator reads the code and nothing else from a standard,
-            # and inventing values here would suggest otherwise.
+            academic_subject=self.academic_subject,
+            # Not modelled: the evaluator reads the code and the subject and nothing else
+            # from a standard, and inventing values here would suggest otherwise.
             notes=None,
             jurisdiction=None,
-            academic_subject=None,
         )
 
     async def get_learning_component_set(self, case_identifier_uuid: str) -> LearningComponentSet:

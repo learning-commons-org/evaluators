@@ -27,6 +27,7 @@ from learning_commons_evaluators.evaluators.academic_standards_alignment.mathema
     LCEvaluation,
     MathStandardsAlignmentEvaluator,
 )
+from learning_commons_evaluators.schemas.kg_taxonomy import AcademicSubject
 from tests.unit.conftest import (
     LEARNING_COMPONENTS,
     STANDARD_UUID,
@@ -171,6 +172,51 @@ class TestInputs:
                 question=QUESTION, case_identifier_uuid="3.MD.C.7.d"
             )
         assert knowledge_graph.requested == []
+
+
+class TestOnlyMathematicsStandardsAreJudged:
+    """A UUID names any standard in the Knowledge Graph, including another subject's."""
+
+    async def test_a_standard_from_another_subject_is_refused(
+        self, providers: ProviderFactory
+    ) -> None:
+        knowledge_graph = FakeKnowledgeGraph(academic_subject=AcademicSubject.ENGLISH_LANGUAGE_ARTS)
+
+        with pytest.raises(InputValidationError, match="English Language Arts standard"):
+            await build(knowledge_graph).evaluate(
+                question=QUESTION, case_identifier_uuid=STANDARD_UUID
+            )
+
+        # Refused on the standard alone: no components were fetched and no model was asked,
+        # so a standard this evaluator cannot judge costs one request, not an evaluation.
+        assert knowledge_graph.requested == [STANDARD_UUID]
+        assert providers.calls == []
+
+    async def test_the_refusal_names_the_subject_and_what_to_pass(
+        self, providers: ProviderFactory
+    ) -> None:
+        knowledge_graph = FakeKnowledgeGraph(academic_subject=AcademicSubject.SCIENCE)
+
+        with pytest.raises(InputValidationError) as raised:
+            await build(knowledge_graph).evaluate(
+                question=QUESTION, case_identifier_uuid=STANDARD_UUID
+            )
+
+        message = str(raised.value)
+        assert STANDARD_UUID in message
+        assert "Science standard" in message
+        assert "Mathematics" in message
+
+    async def test_a_subject_this_sdk_does_not_recognize_is_evaluated_anyway(
+        self, providers: ProviderFactory
+    ) -> None:
+        # The client maps both "the service said nothing" and "the service said something
+        # our taxonomy lacks" to None, so refusing on it would turn this SDK being a
+        # release behind into a rejected call.
+        evaluation = await build(FakeKnowledgeGraph(academic_subject=None)).evaluate(
+            question=QUESTION, case_identifier_uuid=STANDARD_UUID
+        )
+        assert evaluation.result.total_count == 3
 
 
 class TestEvaluate:

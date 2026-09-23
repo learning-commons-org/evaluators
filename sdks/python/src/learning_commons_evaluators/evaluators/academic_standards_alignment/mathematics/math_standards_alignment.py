@@ -32,6 +32,7 @@ from learning_commons_evaluators.config import EvaluatorConfig
 from learning_commons_evaluators.contracts import load_contract
 from learning_commons_evaluators.contracts.loader import ModelSpec, Prompt, Step
 from learning_commons_evaluators.dependencies.knowledge_graph import (
+    AcademicStandard,
     KnowledgeGraphClient,
     LearningComponent,
 )
@@ -55,6 +56,7 @@ from learning_commons_evaluators.schemas.evaluator import (
     EvaluationResult,
     EvaluationTokenUsage,
 )
+from learning_commons_evaluators.schemas.kg_taxonomy import AcademicSubject
 from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
 from learning_commons_evaluators.telemetry.run import TelemetryRun
 from learning_commons_evaluators.telemetry.utils import utf16_length
@@ -78,6 +80,11 @@ def _llm_step(step: Step) -> tuple[ModelSpec, Prompt]:
 
 
 _MODEL, _PROMPT = _llm_step(STEP)
+
+#: The only subject this evaluator can judge. Its prompt is a mathematics rubric and its
+#: contract declares mathematics standards, so a standard from another subject is refused
+#: rather than scored against it.
+ACADEMIC_SUBJECT = AcademicSubject.MATHEMATICS
 
 #: What this release accepts. ``question`` is the contract's own property, so its bounds
 #: and its failure message come from the registry rather than from a copy here;
@@ -223,7 +230,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         :param case_identifier_uuid: CASE Network UUID of the standard.
 
         :raises InputValidationError: an input is missing, unknown, or outside its schema;
-            the UUID is malformed; or it names no standard.
+            the UUID is malformed, names no standard, or names one from another subject.
         :raises DependencyError: the Knowledge Graph or the provider call failed
             (``KnowledgeGraphError``, ``AuthenticationError``, ``RateLimitError``,
             ``NetworkError``, ``RequestTimeoutError``, ``LLMProviderError``).
@@ -354,15 +361,23 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         return values
 
     async def _statement_code(self, uuid: str, context: Mapping[str, Any]) -> str:
-        """The Knowledge Graph's own spelling of the standard's code.
+        """The Knowledge Graph's own spelling of the standard's code, once it is a math one.
 
         Read rather than taken from the input, because the input is a UUID: the payload
         reports the code so a result can be joined to a report keyed on codes, which is
         what the TypeScript SDK's payload carries. Every field but the UUID is optional in
         the Knowledge Graph, so a sparsely authored standard yields an empty code; that is
         said out loud rather than passed off as a code.
+
+        This is also where the subject is checked, because it is the one place the standard
+        itself is read. It runs before the learning components are fetched and before any
+        model call, so a standard this evaluator cannot judge costs one request rather than
+        a full evaluation.
+
+        :raises InputValidationError: when the standard belongs to another subject.
         """
         standard = await self._knowledge_graph.get_academic_standard(uuid)
+        self._require_subject(standard, context)
         if standard.statement_code:
             return standard.statement_code
         self.logger.warning(
@@ -370,6 +385,32 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
             extra={**context, "standard": uuid},
         )
         return ""
+
+    def _require_subject(self, standard: AcademicStandard, context: Mapping[str, Any]) -> None:
+        """Refuse a standard from another subject before it reaches the math rubric.
+
+        A UUID names any standard in the Knowledge Graph, including an ELA one, and nothing
+        downstream would notice: the components would be fetched and judged against a
+        mathematics prompt, and the result would read as a finding rather than a mistake.
+
+        An unknown subject is allowed through. ``None`` here means either that the service
+        stated no subject or that it stated one this SDK's taxonomy does not yet carry, and
+        the client maps both to ``None`` on purpose (see ``_taxonomy``) -- so refusing on it
+        would turn our own staleness into a rejected call. It is logged instead.
+        """
+        subject = standard.academic_subject
+        if subject is None:
+            self.logger.debug(
+                "Standard states no subject this SDK recognizes; evaluating it anyway",
+                extra={**context, "standard": standard.case_identifier_uuid},
+            )
+            return
+        if subject is not ACADEMIC_SUBJECT:
+            raise InputValidationError(
+                f"Standard {standard.case_identifier_uuid} is a {subject.value} standard; "
+                f"{self.metadata.name} judges {ACADEMIC_SUBJECT.value} standards. Pass the "
+                "UUID of a mathematics standard."
+            )
 
     def _render_messages(
         self, question: str, components: Sequence[LearningComponent]

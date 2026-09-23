@@ -34,6 +34,9 @@ pytestmark = [
 RECTILINEAR_AREA = "6ba25656-d7cc-11e8-824f-0242ac160002"
 #: Multi-State (CCSS) 3.MD.C.7 -- the parent standard, one learning component.
 RELATE_AREA = "6ba04403-d7cc-11e8-824f-0242ac160002"
+#: Multi-State (CCSS) RI.5.2, an English Language Arts standard. A UUID names any standard
+#: in the Knowledge Graph, so this is what the subject check exists to refuse.
+ELA_MAIN_IDEAS = "6b36c8ef-d7cc-11e8-824f-0242ac160002"
 
 L_SHAPED_PLAYGROUND = (
     "A playground is shaped like an L. One part is a rectangle that is 8 feet long and 3 "
@@ -102,6 +105,17 @@ async def test_a_parent_standard_resolves_and_is_judged(
 
     assert evaluation.result.statement_code.upper() == "3.MD.C.7"
     assert evaluation.result.total_count > 0
+
+
+async def test_a_standard_from_another_subject_is_refused(
+    evaluator: MathStandardsAlignmentEvaluator,
+) -> None:
+    from learning_commons_evaluators import InputValidationError
+
+    # Live, because what this proves is that the service still states the subject: the
+    # check is only as good as the field it reads.
+    with pytest.raises(InputValidationError, match="English Language Arts"):
+        await evaluator.evaluate(question=L_SHAPED_PLAYGROUND, case_identifier_uuid=ELA_MAIN_IDEAS)
 
 
 async def test_it_reports_no_single_score(evaluator: MathStandardsAlignmentEvaluator) -> None:
