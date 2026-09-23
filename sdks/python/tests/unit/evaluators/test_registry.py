@@ -5,8 +5,12 @@ from __future__ import annotations
 import pytest
 
 from learning_commons_evaluators import (
+    BackgroundKnowledgeDemandsEvaluator,
     GradeLevelAppropriatenessEvaluator,
+    MeaningDirectnessEvaluator,
+    OrganizationalStructureEvaluator,
     PurposeClarityEvaluator,
+    ReferenceKnowledgeDemandsEvaluator,
     SentenceStructureEvaluator,
     ToneAppropriatenessEvaluator,
     VocabularyComplexityEvaluator,
@@ -24,8 +28,12 @@ from learning_commons_evaluators.evaluators.registry import (
 def test_lists_every_evaluator_in_taxonomy_order() -> None:
     assert [m.id for m in get_evaluators()] == [
         "feedback.ela_writing.tone_appropriateness",
+        "text_complexity.ela_reading.background_knowledge_demands",
         "text_complexity.ela_reading.grade_level_appropriateness",
+        "text_complexity.ela_reading.meaning_directness",
+        "text_complexity.ela_reading.organizational_structure",
         "text_complexity.ela_reading.purpose_clarity",
+        "text_complexity.ela_reading.reference_knowledge_demands",
         "text_complexity.ela_reading.sentence_structure",
         "text_complexity.ela_reading.vocabulary_complexity",
     ]
@@ -47,6 +55,10 @@ def test_resolves_current_ids() -> None:
     ("old_id", "evaluator"),
     [
         ("grade-level-appropriateness", GradeLevelAppropriatenessEvaluator),
+        ("subject-matter-knowledge", BackgroundKnowledgeDemandsEvaluator),
+        ("conventionality", MeaningDirectnessEvaluator),
+        ("literacy.gla.organizational_structure", OrganizationalStructureEvaluator),
+        ("literacy.gla.intertextuality", ReferenceKnowledgeDemandsEvaluator),
         ("literacy.gla.purpose", PurposeClarityEvaluator),
         ("sentence-structure", SentenceStructureEvaluator),
         ("vocabulary", VocabularyComplexityEvaluator),
