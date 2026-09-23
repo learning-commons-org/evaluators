@@ -35,13 +35,6 @@ UNIMPLEMENTED: frozenset[str] = frozenset(
     {
         # Follow-on work in both SDKs (new family, claude-opus-5); on TS's allowlist too.
         "durable_skills.ela_writing.critical_thinking",
-        # Phase 4.
-        "feedback.ela_writing.revision_accuracy",
-        "feedback.ela_writing.revision_actionability",
-        "feedback.ela_writing.revision_manageability",
-        "feedback.ela_writing.strength_acknowledgment",
-        "feedback.ela_writing.student_response_specificity",
-        "feedback.ela_writing.withholding_answers",
         # Phase 5b.
         "academic_standards_alignment.mathematics.math_standards_alignment",
     }
@@ -86,7 +79,7 @@ def _contract_id(directory: Path) -> str:
 
 
 def test_discovery_finds_every_registered_evaluator() -> None:
-    assert len(EXPORTED) == 9
+    assert len(EXPORTED) == 15
     assert set(EXPORTED) == set(EVALUATORS)
 
 

@@ -56,10 +56,16 @@ from learning_commons_evaluators.evaluators import (
     OrganizationalStructureEvaluator,
     PurposeClarityEvaluator,
     ReferenceKnowledgeDemandsEvaluator,
+    RevisionAccuracyEvaluator,
+    RevisionActionabilityEvaluator,
+    RevisionManageabilityEvaluator,
     SentenceStructureEvaluator,
     SingleStepEvaluator,
+    StrengthAcknowledgmentEvaluator,
+    StudentResponseSpecificityEvaluator,
     ToneAppropriatenessEvaluator,
     VocabularyComplexityEvaluator,
+    WithholdingAnswersEvaluator,
     get_evaluator,
     get_evaluators,
 )
@@ -88,9 +94,33 @@ from learning_commons_evaluators.schemas.kg_taxonomy import (
     GradeLevel,
     Jurisdiction,
 )
+from learning_commons_evaluators.schemas.feedback.ela_writing.revision_accuracy import (
+    RevisionAccuracyInput,
+    RevisionAccuracyOutput,
+)
+from learning_commons_evaluators.schemas.feedback.ela_writing.revision_actionability import (
+    RevisionActionabilityInput,
+    RevisionActionabilityOutput,
+)
+from learning_commons_evaluators.schemas.feedback.ela_writing.revision_manageability import (
+    RevisionManageabilityInput,
+    RevisionManageabilityOutput,
+)
+from learning_commons_evaluators.schemas.feedback.ela_writing.strength_acknowledgment import (
+    StrengthAcknowledgmentInput,
+    StrengthAcknowledgmentOutput,
+)
+from learning_commons_evaluators.schemas.feedback.ela_writing.student_response_specificity import (
+    StudentResponseSpecificityInput,
+    StudentResponseSpecificityOutput,
+)
 from learning_commons_evaluators.schemas.feedback.ela_writing.tone_appropriateness import (
     ToneAppropriatenessInput,
     ToneAppropriatenessOutput,
+)
+from learning_commons_evaluators.schemas.feedback.ela_writing.withholding_answers import (
+    WithholdingAnswersInput,
+    WithholdingAnswersOutput,
 )
 from learning_commons_evaluators.schemas.text_complexity.ela_reading.background_knowledge_demands import (
     BackgroundKnowledgeDemandsInput,
@@ -177,6 +207,15 @@ __all__ = [
     "ReferenceKnowledgeDemandsInput",
     "ReferenceKnowledgeDemandsOutput",
     "RequestTimeoutError",
+    "RevisionAccuracyEvaluator",
+    "RevisionAccuracyInput",
+    "RevisionAccuracyOutput",
+    "RevisionActionabilityEvaluator",
+    "RevisionActionabilityInput",
+    "RevisionActionabilityOutput",
+    "RevisionManageabilityEvaluator",
+    "RevisionManageabilityInput",
+    "RevisionManageabilityOutput",
     "SDK_LOGGER_NAME",
     "SentenceStructureEvaluator",
     "SentenceStructureInput",
@@ -184,6 +223,12 @@ __all__ = [
     "SingleStepEvaluator",
     "StandardMatch",
     "StandardNotFoundError",
+    "StrengthAcknowledgmentEvaluator",
+    "StrengthAcknowledgmentInput",
+    "StrengthAcknowledgmentOutput",
+    "StudentResponseSpecificityEvaluator",
+    "StudentResponseSpecificityInput",
+    "StudentResponseSpecificityOutput",
     "TelemetryOptions",
     "ToneAppropriatenessEvaluator",
     "ToneAppropriatenessInput",
@@ -191,6 +236,9 @@ __all__ = [
     "VocabularyComplexityEvaluator",
     "VocabularyComplexityInput",
     "VocabularyComplexityOutput",
+    "WithholdingAnswersEvaluator",
+    "WithholdingAnswersInput",
+    "WithholdingAnswersOutput",
     "create_logger",
     "create_silent_logger",
     "get_evaluator",
