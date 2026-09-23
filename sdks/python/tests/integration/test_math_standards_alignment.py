@@ -76,7 +76,7 @@ async def test_an_unrelated_question_aligns_to_nothing(
     evaluator: MathStandardsAlignmentEvaluator,
 ) -> None:
     evaluation = await evaluator.evaluate(
-        question=UNRELATED, statement_code="3.MD.C.7.d", grade="3"
+        question=UNRELATED, statement_code="3.MD.C.7.d", grade_level="3"
     )
 
     assert evaluation.result.total_count > 0, "the standard should still carry components"
@@ -91,7 +91,7 @@ async def test_a_parent_standard_resolves_to_its_own_components(
     # The parent of the standard above. A different code has to reach a different set of
     # components, not the child's.
     evaluation = await evaluator.evaluate(
-        question=L_SHAPED_PLAYGROUND, statement_code="3.MD.C.7", grade="3"
+        question=L_SHAPED_PLAYGROUND, statement_code="3.MD.C.7", grade_level="3"
     )
 
     assert evaluation.result.statement_code.upper() == "3.MD.C.7"
@@ -105,7 +105,7 @@ async def test_a_state_framework_is_resolved_under_its_own_spelling(
     # 3.MD.7 there. This is what `jurisdiction` is for, and the components it reaches are
     # the same ones the Multi-State copy carries.
     evaluation = await evaluator.evaluate(
-        question=L_SHAPED_PLAYGROUND, statement_code="3.MD.7", grade="3", jurisdiction="Ohio"
+        question=L_SHAPED_PLAYGROUND, statement_code="3.MD.7", grade_level="3", jurisdiction="Ohio"
     )
 
     assert evaluation.result.statement_code.upper() == "3.MD.7"

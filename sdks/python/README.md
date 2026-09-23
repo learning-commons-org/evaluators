@@ -104,7 +104,7 @@ async with MathStandardsAlignmentEvaluator(
         question="A playground is shaped like an L ...",
         statement_code="3.MD.C.7.d",
         jurisdiction="Multi-State",   # optional; Multi-State is Common Core
-        grade="3",                    # optional; see below
+        grade_level="3",              # optional; see below
     )
 
 print(evaluation.result.statement_code, evaluation.result.aligned_count)
@@ -120,7 +120,7 @@ of the same Common Core standard share their learning components, so the choice 
 them does not change the judgement; a different framework, such as Florida's, genuinely
 does.
 
-**`grade` disambiguates.** Within one framework a code can be reused across courses, and
+**`grade_level` disambiguates.** Within one framework a code can be reused across courses, and
 the Knowledge Graph returns one result per copy. Passing the grade separates them, at the
 cost of one extra lookup per candidate — and only when a code turned out to be ambiguous,
 never on the ordinary path. When nothing separates them, the first is evaluated and the

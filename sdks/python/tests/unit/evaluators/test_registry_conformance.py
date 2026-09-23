@@ -214,7 +214,7 @@ class TestMathStandardsAlignmentIsTheDocumentedException:
     def test_it_accepts_everything_the_contract_declares_and_one_input_more(self) -> None:
         contract = load_contract(MathStandardsAlignmentEvaluator.metadata.id)
         declared = contract.input_schema["properties"]
-        assert set(MATH_INPUT_SCHEMA["properties"]) == set(declared) | {"grade"}
+        assert set(MATH_INPUT_SCHEMA["properties"]) == set(declared) | {"grade_level"}
         # The registry's own property objects, not copies of them, so the bounds and the
         # jurisdiction enum this evaluator enforces cannot drift from the contract's.
         for name, spec in declared.items():
@@ -228,7 +228,7 @@ class TestMathStandardsAlignmentIsTheDocumentedException:
             assert validate_inputs(case, MATH_INPUT_SCHEMA) == case
 
     def test_the_grade_it_adds_is_bound_to_the_grades_the_contract_supports(self) -> None:
-        assert tuple(MATH_INPUT_SCHEMA["properties"]["grade"]["enum"]) == (
+        assert tuple(MATH_INPUT_SCHEMA["properties"]["grade_level"]["enum"]) == (
             MathStandardsAlignmentEvaluator.metadata.supported_grades
         )
 
