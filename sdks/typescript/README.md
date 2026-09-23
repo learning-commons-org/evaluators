@@ -44,7 +44,14 @@ TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.or
 
   ```json
   {
-    "type": "module",
+    "type": "module"
+  }
+  ```
+
+- In your project's `tsconfig.json`:
+
+  ```json
+  {
     "compilerOptions": {
       "module": "nodenext",
       "moduleResolution": "nodenext",
@@ -220,7 +227,7 @@ import {
 normalizeStatementCode("  5.nbt.a.1 "); // "5.NBT.A.1"
 
 const catalog = new StandardsCatalog({
-  learningCommonsApiKey: process.env.LEARNING_COMMONS_API_KEY,
+  learningCommonsApiKey: process.env.LEARNING_COMMONS_API_KEY!,
   academicSubject: "Mathematics",
 });
 
