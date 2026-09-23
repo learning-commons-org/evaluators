@@ -5,8 +5,26 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
+from learning_commons_evaluators.evaluators.feedback.ela_writing.revision_accuracy import (
+    RevisionAccuracyEvaluator,
+)
+from learning_commons_evaluators.evaluators.feedback.ela_writing.revision_actionability import (
+    RevisionActionabilityEvaluator,
+)
+from learning_commons_evaluators.evaluators.feedback.ela_writing.revision_manageability import (
+    RevisionManageabilityEvaluator,
+)
+from learning_commons_evaluators.evaluators.feedback.ela_writing.strength_acknowledgment import (
+    StrengthAcknowledgmentEvaluator,
+)
+from learning_commons_evaluators.evaluators.feedback.ela_writing.student_response_specificity import (
+    StudentResponseSpecificityEvaluator,
+)
 from learning_commons_evaluators.evaluators.feedback.ela_writing.tone_appropriateness import (
     ToneAppropriatenessEvaluator,
+)
+from learning_commons_evaluators.evaluators.feedback.ela_writing.withholding_answers import (
+    WithholdingAnswersEvaluator,
 )
 from learning_commons_evaluators.evaluators.text_complexity.ela_reading.background_knowledge_demands import (
     BackgroundKnowledgeDemandsEvaluator,
@@ -37,7 +55,13 @@ from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
 #: Every evaluator, in taxonomy order. Adding an evaluator means adding it here; the
 #: conformance suite compares this against the public barrel and the ``evals/`` registry.
 EVALUATORS: tuple[type[BaseEvaluator], ...] = (
+    RevisionAccuracyEvaluator,
+    RevisionActionabilityEvaluator,
+    RevisionManageabilityEvaluator,
+    StrengthAcknowledgmentEvaluator,
+    StudentResponseSpecificityEvaluator,
     ToneAppropriatenessEvaluator,
+    WithholdingAnswersEvaluator,
     BackgroundKnowledgeDemandsEvaluator,
     GradeLevelAppropriatenessEvaluator,
     MeaningDirectnessEvaluator,
