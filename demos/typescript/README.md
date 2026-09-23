@@ -20,7 +20,7 @@ cp .env.example .env    # then fill in both keys
 | Key | Purpose |
 |---|---|
 | `ANTHROPIC_API_KEY` | LLM calls (the evaluator's default model is Claude) |
-| `PLATFORM_API_KEY`  | Learning Commons Knowledge Graph (standards lookup) |
+| `LEARNING_COMMONS_API_KEY` | Learning Commons API (standards lookup and the evaluator's standards resolution) |
 
 ## Run
 
