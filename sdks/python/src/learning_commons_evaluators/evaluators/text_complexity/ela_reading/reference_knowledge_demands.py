@@ -1,6 +1,6 @@
 """Reference Knowledge Demands: what prior encounters with other texts a passage assumes.
 
-The intertextuality dimension, which is the name it shipped under and still resolves by
+The intertextuality dimension, which is the name it shipped under and still resolves
 through ``id_history``. One model call on Google, with ``{fk_score}`` from ``textstat``,
 and the same ``details`` payload Organizational Structure returns.
 """
