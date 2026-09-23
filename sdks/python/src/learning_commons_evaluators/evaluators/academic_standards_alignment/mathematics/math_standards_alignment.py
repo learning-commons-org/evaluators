@@ -6,13 +6,16 @@ aligned and total counts. There is no single score: the contract declares no ``o
 block, so :func:`~learning_commons_evaluators.read_outcome` reports ``None`` for this
 evaluator, as it does in the TypeScript SDK.
 
-The standard is named the way a teacher names it -- a code, a grade, and the jurisdiction
-whose framework the code belongs to -- and resolved to the Knowledge Graph's identity for
-it through search. A code is not an identity: the Knowledge Graph holds one copy of a
+The standard is named the way a teacher names it -- a code, and the jurisdiction whose
+framework that code belongs to -- and resolved to the Knowledge Graph's identity for it
+through search. A code is not an identity: the Knowledge Graph holds one copy of a
 standard per adopting jurisdiction, each with its own UUID and often its own spelling
 (Ohio writes ``3.MD.7`` where Common Core writes ``3.MD.C.7``), and within one framework a
-code can be reused across courses. ``jurisdiction`` picks the framework and ``grade``
-separates the reuses; see :meth:`MathStandardsAlignmentEvaluator._resolve`.
+code can be reused across courses. ``jurisdiction`` picks the framework, and the optional
+``grade`` separates the reuses; see :meth:`MathStandardsAlignmentEvaluator._resolve`.
+
+The inputs are the contract's, under the contract's names, plus that one optional extra --
+so anything written against the registry is a valid call here.
 
 This is the only evaluator that calls a non-LLM dependency, so it is the only one holding
 something to release. Close it when you are done -- ``async with``, :meth:`aclose`, or
@@ -87,28 +90,31 @@ _MODEL, _PROMPT = _llm_step(STEP)
 #: one subject's framework.
 ACADEMIC_SUBJECT = AcademicSubject.MATHEMATICS
 
-#: What this evaluator accepts. ``question`` and ``jurisdiction`` are the contract's own
-#: properties, so their bounds, enum and messages come from the registry rather than from
-#: a copy here. ``standard_code`` reuses the contract's ``statement_code`` property under
-#: the name this SDK gives it, and ``grade`` is this SDK's, bound to the grades the
-#: contract says the evaluator supports.
+#: What this evaluator accepts: every input the contract declares, under the contract's
+#: own names and its own property objects -- so the bounds, the jurisdiction enum and the
+#: failure messages come from the registry rather than from a copy here -- plus ``grade``.
+#: A superset, deliberately: anything written against the contract is a valid call, and
+#: the contract's fixtures drive this evaluator as they drive every other one.
+#:
+#: Only ``question`` and ``statement_code`` are required. ``jurisdiction`` defaults to
+#: Multi-State, which is Common Core and what most callers mean; ``grade`` is asked for
+#: rather than required, because it is only needed when a code turns out to be ambiguous
+#: and demanding it on every call would tax the ordinary one.
 INPUT_SCHEMA: dict[str, Any] = {
     "properties": {
         "question": CONTRACT.input_schema["properties"]["question"],
-        "standard_code": CONTRACT.input_schema["properties"]["statement_code"],
+        "statement_code": CONTRACT.input_schema["properties"]["statement_code"],
+        "jurisdiction": CONTRACT.input_schema["properties"]["jurisdiction"],
         "grade": {
             "type": "string",
             "description": (
                 "Grade the question is written for, as the Knowledge Graph spells it "
-                "('K' through '12'). Used to tell apart standards that share a code."
+                "('K' through '12'). Tells apart standards that share a code."
             ),
             "enum": list(CONTRACT.evaluator.supported_grades),
         },
-        "jurisdiction": CONTRACT.input_schema["properties"]["jurisdiction"],
     },
-    # Jurisdiction is the one input with a sensible default: most callers mean Common
-    # Core, and the Knowledge Graph calls that Multi-State.
-    "required": ["question", "standard_code", "grade"],
+    "required": ["question", "statement_code"],
 }
 
 
@@ -183,8 +189,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         ) as evaluator:
             evaluation = await evaluator.evaluate(
                 question="A playground is shaped like an L ...",
-                standard_code="3.MD.C.7.d",
-                grade="3",
+                statement_code="3.MD.C.7.d",
             )
 
     :raises ConfigurationError: at construction, when ``anthropic_api_key`` or
@@ -228,10 +233,12 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         """Judge ``question`` against the learning components of one standard.
 
         :param question: The assessment item students see.
-        :param standard_code: The standard's code, spelled as its jurisdiction spells it.
-        :param grade: The grade the question is written for, ``"K"`` through ``"12"``.
+        :param statement_code: The standard's code, spelled as its jurisdiction spells it.
         :param jurisdiction: Whose framework the code belongs to; defaults to
             ``Multi-State``, which is Common Core.
+        :param grade: Optional, ``"K"`` through ``"12"``. Only consulted when the code
+            turns out to name more than one standard, which it does when a framework
+            reuses codes across courses.
 
         :raises InputValidationError: an input is missing, unknown, or outside its schema.
         :raises StandardNotFoundError: the code names no standard in that jurisdiction.
@@ -247,24 +254,24 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
             try:
                 values = validate_inputs(raw, INPUT_SCHEMA)
                 question = values["question"]
-                standard_code = values["standard_code"]
-                grade = values["grade"]
+                statement_code = values["statement_code"]
+                grade = values.get("grade")
                 jurisdiction = values.get("jurisdiction", DEFAULT_JURISDICTION.value)
                 run.text_length = utf16_length(question)
-                run.grade = grade
+                run.grade = grade or ""
                 self.logger.info(
                     "Starting %s evaluation",
                     self.metadata.label,
                     extra={
                         **context,
-                        "standard_code": standard_code,
-                        "grade_level": grade,
+                        "statement_code": statement_code,
+                        "grade_level": run.grade,
                         "jurisdiction": jurisdiction,
                         "text_length": run.text_length,
                     },
                 )
 
-                standard = await self._resolve(standard_code, jurisdiction, grade, context)
+                standard = await self._resolve(statement_code, jurisdiction, grade, context)
                 component_set = await self._knowledge_graph.get_learning_component_set(
                     standard.case_identifier_uuid
                 )
@@ -351,60 +358,75 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
     # --- resolving the standard ---------------------------------------------------------
 
     async def _resolve(
-        self, standard_code: str, jurisdiction: str, grade: str, context: dict[str, Any]
+        self, statement_code: str, jurisdiction: str, grade: str | None, context: dict[str, Any]
     ) -> StandardMatch:
         """The one standard a code names in a jurisdiction, with the grade breaking ties.
 
         A code is not unique on its own. Within a framework it is reused across courses --
         an integrated pathway and a subject pathway both carry an algebra code -- and the
-        Knowledge Graph returns one result per copy. The grade the caller already told us
-        separates them, so the extra lookups it costs happen only when a code was
+        Knowledge Graph returns one result per copy. A grade separates them, which is what
+        the optional input is for; the extra lookups it costs happen only when a code was
         ambiguous, never on the ordinary path.
 
-        When the grade still leaves more than one, the first is evaluated and the choice
-        is logged with what else it could have been: the alternatives are usually the same
-        standard authored per course, so failing the evaluation would refuse work that is
-        almost certainly correct. What is not acceptable is choosing silently.
+        When nothing separates them -- no grade given, or the grade leaves several -- the
+        first is evaluated and the choice is logged with what else it could have been. The
+        alternatives are usually the same standard authored once per course, so failing
+        would refuse work that is almost certainly correct. What is not acceptable is
+        choosing silently.
 
         :raises StandardNotFoundError: raised by the search itself when nothing matches.
         """
         matches = await self._knowledge_graph.search_standards(
-            standard_code, jurisdiction=jurisdiction, academic_subject=ACADEMIC_SUBJECT
+            statement_code, jurisdiction=jurisdiction, academic_subject=ACADEMIC_SUBJECT
         )
         if len(matches) == 1:
             return matches[0]
 
-        at_grade = await self._at_grade(matches, grade)
+        at_grade = await self._at_grade(matches, grade) if grade else []
         if len(at_grade) == 1:
             self.logger.debug(
                 "Statement code matched %d standards; grade %s identifies one",
                 len(matches),
                 grade,
-                extra={**context, "standard_code": standard_code},
+                extra={**context, "statement_code": statement_code},
             )
             return at_grade[0]
 
         candidates = at_grade or matches
         chosen = candidates[0]
-        self.logger.warning(
-            "Statement code %s matched %d standards in %s and %d at grade %s; "
-            "evaluating %s. Pass a more specific code, or read the standard you mean "
-            "with search_standards() to see the alternatives.",
-            standard_code,
-            len(matches),
-            jurisdiction,
-            len(at_grade),
-            grade,
-            chosen.case_identifier_uuid,
-            extra={
-                **context,
-                "standard_code": standard_code,
-                "chosen": chosen.case_identifier_uuid,
-                "alternatives": [
-                    match.case_identifier_uuid for match in candidates if match is not chosen
-                ],
-            },
-        )
+        alternatives = [m.case_identifier_uuid for m in candidates if m is not chosen]
+        if grade is None:
+            self.logger.warning(
+                "Statement code %s matched %d standards in %s and no grade was given to "
+                "tell them apart; evaluating %s. Pass grade= to choose, or read the "
+                "alternatives with search_standards().",
+                statement_code,
+                len(matches),
+                jurisdiction,
+                chosen.case_identifier_uuid,
+                extra={
+                    **context,
+                    "chosen": chosen.case_identifier_uuid,
+                    "alternatives": alternatives,
+                },
+            )
+        else:
+            self.logger.warning(
+                "Statement code %s matched %d standards in %s and %d at grade %s; "
+                "evaluating %s. Pass a more specific code, or read the alternatives with "
+                "search_standards().",
+                statement_code,
+                len(matches),
+                jurisdiction,
+                len(at_grade),
+                grade,
+                chosen.case_identifier_uuid,
+                extra={
+                    **context,
+                    "chosen": chosen.case_identifier_uuid,
+                    "alternatives": alternatives,
+                },
+            )
         return chosen
 
     async def _at_grade(self, matches: Sequence[StandardMatch], grade: str) -> list[StandardMatch]:

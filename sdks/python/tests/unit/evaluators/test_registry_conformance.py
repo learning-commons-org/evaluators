@@ -25,6 +25,7 @@ from learning_commons_evaluators.evaluators.academic_standards_alignment.mathema
     MathStandardsAlignmentEvaluator,
 )
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
+from learning_commons_evaluators.evaluators.inputs import validate_inputs
 from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
 from learning_commons_evaluators.evaluators.registry import EVALUATORS, index_by_id
 from learning_commons_evaluators.evaluators.single_step import SingleStepEvaluator, step_for
@@ -86,8 +87,8 @@ def _contract_id(directory: Path) -> str:
 #: Math Standards Alignment. That one subclasses ``BaseEvaluator`` directly: one of its
 #: prompt placeholders is filled from a live Knowledge Graph fetch rather than from the
 #: caller's inputs, it reports a verdict per learning component rather than a single
-#: judgement, and it renames the contract's ``statement_code`` and adds a ``grade``
-#: (DSCR-2190). The checks below that read an evaluator's generated models, its declared
+#: judgement, and it accepts one input more than the contract declares (DSCR-2190).
+#: The checks below that read an evaluator's generated models, its declared
 #: outcome, or its fixtures are scoped to this list; everything that is true of any
 #: evaluator stays scoped to EXPORTED.
 CONTRACT_DRIVEN: list[type[BaseEvaluator]] = [
@@ -210,29 +211,21 @@ class TestMathStandardsAlignmentIsTheDocumentedException:
         # and there is no field a report could read as the evaluation's score.
         assert MathStandardsAlignmentEvaluator.metadata.outcome is None
 
-    def test_it_renames_the_code_input_and_adds_a_grade(self) -> None:
-        contract = load_contract(MathStandardsAlignmentEvaluator.metadata.id)
-        assert set(contract.input_schema["properties"]) == {
-            "question",
-            "statement_code",
-            "jurisdiction",
-        }
-        assert set(MATH_INPUT_SCHEMA["properties"]) == {
-            "question",
-            "standard_code",
-            "grade",
-            "jurisdiction",
-        }
-
-    def test_the_inputs_it_shares_with_the_contract_are_the_contracts_own(self) -> None:
-        # The property objects, not copies of them, so the bounds and the jurisdiction
-        # enum this evaluator enforces cannot drift from the registry's. The renamed code
-        # input is included: only its key differs.
+    def test_it_accepts_everything_the_contract_declares_and_one_input_more(self) -> None:
         contract = load_contract(MathStandardsAlignmentEvaluator.metadata.id)
         declared = contract.input_schema["properties"]
-        assert MATH_INPUT_SCHEMA["properties"]["question"] is declared["question"]
-        assert MATH_INPUT_SCHEMA["properties"]["jurisdiction"] is declared["jurisdiction"]
-        assert MATH_INPUT_SCHEMA["properties"]["standard_code"] is declared["statement_code"]
+        assert set(MATH_INPUT_SCHEMA["properties"]) == set(declared) | {"grade"}
+        # The registry's own property objects, not copies of them, so the bounds and the
+        # jurisdiction enum this evaluator enforces cannot drift from the contract's.
+        for name, spec in declared.items():
+            assert MATH_INPUT_SCHEMA["properties"][name] is spec
+
+    def test_the_contracts_own_fixtures_are_valid_calls(self) -> None:
+        # The superset property, proved against the registry's cases rather than asserted:
+        # anything written against the contract reaches this evaluator unchanged, which is
+        # what lets the fixture-driven suites treat it like any other evaluator.
+        for case in _fixture_cases(MathStandardsAlignmentEvaluator.metadata.id):
+            assert validate_inputs(case, MATH_INPUT_SCHEMA) == case
 
     def test_the_grade_it_adds_is_bound_to_the_grades_the_contract_supports(self) -> None:
         assert tuple(MATH_INPUT_SCHEMA["properties"]["grade"]["enum"]) == (
@@ -289,6 +282,16 @@ class TestEachEvaluatorRunsItsContract:
         expected = "too short" if minimum > 1 else "cannot be empty"
         with pytest.raises(sdk.InputValidationError, match=expected):
             await self._construct(evaluator).evaluate(**inputs)
+
+
+def _fixture_cases(evaluator_id: str) -> list[dict[str, object]]:
+    """Every fixture case's inputs for an evaluator, as a caller would pass them."""
+    contract = load_contract(evaluator_id)
+    directory = next(d for d in CONTRACT_DIRS if _contract_id(d) == evaluator_id)
+    path = (
+        contract.fixtures.path if contract.fixtures and contract.fixtures.path else "fixtures.json"
+    )
+    return [dict(case["input"]) for case in json.loads((directory / path).read_text())]
 
 
 def _fixture_input(evaluator_id: str) -> dict[str, object]:

@@ -6,8 +6,8 @@ that these codes still resolve in these jurisdictions, that the standards still 
 components the judgement is made against, and that the model still answers in the shape
 the step declares.
 
-The cases are the contract's own fixtures, plus the grade each one is taught at, which
-the fixtures do not carry (DSCR-2190).
+The cases are the contract's own fixtures, which reach this evaluator unchanged, plus a
+state-framework case the fixtures do not cover.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ async def evaluator() -> AsyncIterator[MathStandardsAlignmentEvaluator]:
 
 async def test_the_canonical_match_aligns(evaluator: MathStandardsAlignmentEvaluator) -> None:
     evaluation = await evaluator.evaluate(
-        question=L_SHAPED_PLAYGROUND, standard_code="3.MD.C.7.d", grade="3"
+        question=L_SHAPED_PLAYGROUND, statement_code="3.MD.C.7.d", jurisdiction="Multi-State"
     )
 
     result = evaluation.result
@@ -75,7 +75,9 @@ async def test_the_canonical_match_aligns(evaluator: MathStandardsAlignmentEvalu
 async def test_an_unrelated_question_aligns_to_nothing(
     evaluator: MathStandardsAlignmentEvaluator,
 ) -> None:
-    evaluation = await evaluator.evaluate(question=UNRELATED, standard_code="3.MD.C.7.d", grade="3")
+    evaluation = await evaluator.evaluate(
+        question=UNRELATED, statement_code="3.MD.C.7.d", grade="3"
+    )
 
     assert evaluation.result.total_count > 0, "the standard should still carry components"
     assert evaluation.result.aligned_count == 0, [
@@ -89,7 +91,7 @@ async def test_a_parent_standard_resolves_to_its_own_components(
     # The parent of the standard above. A different code has to reach a different set of
     # components, not the child's.
     evaluation = await evaluator.evaluate(
-        question=L_SHAPED_PLAYGROUND, standard_code="3.MD.C.7", grade="3"
+        question=L_SHAPED_PLAYGROUND, statement_code="3.MD.C.7", grade="3"
     )
 
     assert evaluation.result.statement_code.upper() == "3.MD.C.7"
@@ -103,7 +105,7 @@ async def test_a_state_framework_is_resolved_under_its_own_spelling(
     # 3.MD.7 there. This is what `jurisdiction` is for, and the components it reaches are
     # the same ones the Multi-State copy carries.
     evaluation = await evaluator.evaluate(
-        question=L_SHAPED_PLAYGROUND, standard_code="3.MD.7", grade="3", jurisdiction="Ohio"
+        question=L_SHAPED_PLAYGROUND, statement_code="3.MD.7", grade="3", jurisdiction="Ohio"
     )
 
     assert evaluation.result.statement_code.upper() == "3.MD.7"
@@ -116,12 +118,10 @@ async def test_a_code_that_names_nothing_is_the_callers_error(
     from learning_commons_evaluators import StandardNotFoundError
 
     with pytest.raises(StandardNotFoundError):
-        await evaluator.evaluate(question=UNRELATED, standard_code="3.ZZ.Q.99", grade="3")
+        await evaluator.evaluate(question=UNRELATED, statement_code="3.ZZ.Q.99")
 
 
 async def test_it_reports_no_single_score(evaluator: MathStandardsAlignmentEvaluator) -> None:
     # The contract declares no outcome, live or otherwise.
-    evaluation = await evaluator.evaluate(
-        question=L_SHAPED_PLAYGROUND, standard_code="3.MD.C.7", grade="3"
-    )
+    evaluation = await evaluator.evaluate(question=L_SHAPED_PLAYGROUND, statement_code="3.MD.C.7")
     assert read_outcome(evaluation, evaluator.metadata.outcome).score is None

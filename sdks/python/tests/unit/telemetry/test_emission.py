@@ -48,19 +48,8 @@ EVALS_ROOT = Path(__file__).resolve().parents[5] / "evals"
 EACH_EVALUATOR = pytest.mark.parametrize("evaluator", EVALUATORS, ids=lambda e: e.metadata.id)
 
 
-#: What Math Standards Alignment takes, which its fixtures do not quite describe: the
-#: fixtures carry the contract's ``statement_code`` and no grade (DSCR-2190).
-MATH_INPUT = {
-    "question": "A playground is shaped like an L. What is its total area in square feet?",
-    "standard_code": "3.MD.C.7.d",
-    "grade": "3",
-}
-
-
 def fixture_input(evaluator: type[BaseEvaluator]) -> dict[str, Any]:
     """The first fixture case's inputs for an evaluator, as a caller would pass them."""
-    if evaluator is MathStandardsAlignmentEvaluator:
-        return dict(MATH_INPUT)
     contract = load_contract(evaluator.metadata.id)
     directory = EVALS_ROOT.joinpath(
         *(segment.replace("_", "-") for segment in contract.evaluator.id.split("."))
@@ -159,7 +148,7 @@ class TestEveryEvaluatorReports:
         texts = [
             name
             for name, spec in schema["properties"].items()
-            if name in inputs and spec.get("type") == "string" and "enum" not in spec
+            if spec.get("type") == "string" and "enum" not in spec
         ]
         assert texts, "an evaluator with no text input would make this check vacuous"
         for name in texts:

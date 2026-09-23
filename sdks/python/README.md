@@ -102,9 +102,9 @@ async with MathStandardsAlignmentEvaluator(
 ) as evaluator:
     evaluation = await evaluator.evaluate(
         question="A playground is shaped like an L ...",
-        standard_code="3.MD.C.7.d",
-        grade="3",                    # "K" through "12"
+        statement_code="3.MD.C.7.d",
         jurisdiction="Multi-State",   # optional; Multi-State is Common Core
+        grade="3",                    # optional; see below
     )
 
 print(evaluation.result.statement_code, evaluation.result.aligned_count)
@@ -121,11 +121,16 @@ them does not change the judgement; a different framework, such as Florida's, ge
 does.
 
 **`grade` disambiguates.** Within one framework a code can be reused across courses, and
-the Knowledge Graph returns one result per copy. The grade separates them, at the cost of
-one extra lookup per candidate — and only when a code was ambiguous. If the grade still
-leaves more than one, the first is evaluated and the choice is logged at `warning` with the
-alternatives, matching the TypeScript SDK's behaviour. `evaluation.result.statement_code`
-always reports the Knowledge Graph's own spelling of whatever was resolved.
+the Knowledge Graph returns one result per copy. Passing the grade separates them, at the
+cost of one extra lookup per candidate — and only when a code turned out to be ambiguous,
+never on the ordinary path. When nothing separates them, the first is evaluated and the
+choice is logged at `warning` with the alternatives, matching the TypeScript SDK's
+behaviour. `evaluation.result.statement_code` always reports the Knowledge Graph's own
+spelling of whatever was resolved.
+
+The inputs are the contract's, under the contract's names, plus that one optional extra —
+so anything written against the registry is a valid call, and the contract's own fixtures
+drive this evaluator as they drive every other one.
 
 ## More resources
 

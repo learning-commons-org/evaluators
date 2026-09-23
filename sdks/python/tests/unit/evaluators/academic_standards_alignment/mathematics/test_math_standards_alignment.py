@@ -133,29 +133,28 @@ class TestInputs:
     @pytest.mark.parametrize(
         ("inputs", "expected"),
         [
-            ({"standard_code": STATEMENT_CODE, "grade": "3"}, "question is required"),
-            ({"question": QUESTION, "grade": "3"}, "standard_code is required"),
-            ({"question": QUESTION, "standard_code": STATEMENT_CODE}, "grade is required"),
+            ({"statement_code": STATEMENT_CODE, "grade": "3"}, "question is required"),
+            ({"question": QUESTION, "grade": "3"}, "statement_code is required"),
             (
-                {"question": "  ", "standard_code": STATEMENT_CODE, "grade": "3"},
+                {"question": "  ", "statement_code": STATEMENT_CODE, "grade": "3"},
                 "cannot be empty",
             ),
             (
-                {"question": "x" * 10001, "standard_code": STATEMENT_CODE, "grade": "3"},
+                {"question": "x" * 10001, "statement_code": STATEMENT_CODE, "grade": "3"},
                 "too long",
             ),
             (
-                {"question": QUESTION, "standard_code": "x" * 51, "grade": "3"},
+                {"question": QUESTION, "statement_code": "x" * 51, "grade": "3"},
                 "too long",
             ),
             (
-                {"question": QUESTION, "standard_code": STATEMENT_CODE, "grade": "13"},
+                {"question": QUESTION, "statement_code": STATEMENT_CODE, "grade": "13"},
                 "Invalid grade",
             ),
             (
                 {
                     "question": QUESTION,
-                    "standard_code": STATEMENT_CODE,
+                    "statement_code": STATEMENT_CODE,
                     "grade": "3",
                     "jurisdiction": "Atlantis",
                 },
@@ -170,9 +169,20 @@ class TestInputs:
             await build().evaluate(**inputs)
 
     async def test_it_rejects_an_unknown_input(self, providers: ProviderFactory) -> None:
-        # Including the contract's own spelling of the code, which this SDK renames.
         with pytest.raises(InputValidationError, match="Unknown input"):
-            await build().evaluate(question=QUESTION, statement_code=STATEMENT_CODE, grade="3")
+            await build().evaluate(
+                question=QUESTION, statement_code=STATEMENT_CODE, case_identifier_uuid=STANDARD_UUID
+            )
+
+    async def test_the_contracts_inputs_are_a_valid_call(self, providers: ProviderFactory) -> None:
+        # The superset property, from the caller's side: what the registry declares, under
+        # the registry's names, with no grade.
+        knowledge_graph = FakeKnowledgeGraph()
+        evaluation = await build(knowledge_graph).evaluate(
+            question=QUESTION, statement_code=STATEMENT_CODE, jurisdiction="Multi-State"
+        )
+        assert evaluation.result.total_count == 3
+        assert knowledge_graph.searches == [(STATEMENT_CODE, "Multi-State", "Mathematics")]
 
     async def test_a_grade_passed_as_an_integer_is_accepted(
         self, providers: ProviderFactory
@@ -180,14 +190,14 @@ class TestInputs:
         # §2.3: the idiomatic Python convenience, normalised to the contract's token.
         knowledge_graph = FakeKnowledgeGraph()
         await build(knowledge_graph).evaluate(
-            question=QUESTION, standard_code=STATEMENT_CODE, grade=3
+            question=QUESTION, statement_code=STATEMENT_CODE, grade=3
         )
         assert knowledge_graph.searches
 
     async def test_jurisdiction_defaults_to_common_core(self, providers: ProviderFactory) -> None:
         knowledge_graph = FakeKnowledgeGraph()
         await build(knowledge_graph).evaluate(
-            question=QUESTION, standard_code=STATEMENT_CODE, grade="3"
+            question=QUESTION, statement_code=STATEMENT_CODE, grade="3"
         )
         assert knowledge_graph.searches == [(STATEMENT_CODE, "Multi-State", "Mathematics")]
 
@@ -196,7 +206,7 @@ class TestInputs:
     ) -> None:
         knowledge_graph = FakeKnowledgeGraph()
         await build(knowledge_graph).evaluate(
-            question=QUESTION, standard_code="3.MD.7", grade="3", jurisdiction="Ohio"
+            question=QUESTION, statement_code="3.MD.7", grade="3", jurisdiction="Ohio"
         )
         assert knowledge_graph.searches == [("3.MD.7", "Ohio", "Mathematics")]
 
@@ -209,7 +219,7 @@ class TestResolvingTheCode:
         # search and one component fetch, and never reads the standard itself.
         knowledge_graph = FakeKnowledgeGraph()
         await build(knowledge_graph).evaluate(
-            question=QUESTION, standard_code=STATEMENT_CODE, grade="3"
+            question=QUESTION, statement_code=STATEMENT_CODE, grade="3"
         )
         assert knowledge_graph.requested == [STANDARD_UUID]
 
@@ -221,7 +231,7 @@ class TestResolvingTheCode:
                 )
 
         with pytest.raises(StandardNotFoundError):
-            await build(Empty()).evaluate(question=QUESTION, standard_code="9.99.Z", grade="3")
+            await build(Empty()).evaluate(question=QUESTION, statement_code="9.99.Z", grade="3")
 
     async def test_the_grade_picks_between_standards_sharing_a_code(
         self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
@@ -235,7 +245,7 @@ class TestResolvingTheCode:
 
         with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
             await build(knowledge_graph).evaluate(
-                question=QUESTION, standard_code=STATEMENT_CODE, grade="3"
+                question=QUESTION, statement_code=STATEMENT_CODE, grade="3"
             )
 
         # Both candidates were read to find their grades, then only the grade-3 one's
@@ -253,7 +263,7 @@ class TestResolvingTheCode:
 
         with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
             evaluation = await build(knowledge_graph).evaluate(
-                question=QUESTION, standard_code=STATEMENT_CODE, grade="3"
+                question=QUESTION, statement_code=STATEMENT_CODE, grade="3"
             )
 
         [warning] = [record for record in caplog.records if record.levelno == logging.WARNING]
@@ -263,6 +273,22 @@ class TestResolvingTheCode:
         # Evaluated rather than refused: the alternatives are the same standard authored
         # twice, so refusing would turn a near-certain answer into a failure.
         assert evaluation.result.total_count == 3
+
+    async def test_an_ambiguous_code_with_no_grade_is_chosen_out_loud(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # Grade is optional, so it is not always there to break the tie; the warning then
+        # says what would have.
+        twin = replace(DEFAULT_STANDARD, case_identifier_uuid=OTHER_UUID)
+        knowledge_graph = FakeKnowledgeGraph(DEFAULT_STANDARD, twin)
+
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            await build(knowledge_graph).evaluate(question=QUESTION, statement_code=STATEMENT_CODE)
+
+        [warning] = [record for record in caplog.records if record.levelno == logging.WARNING]
+        assert "no grade was given" in warning.getMessage()
+        # Nothing was read to compare grades, because there was no grade to compare to.
+        assert knowledge_graph.requested == [STANDARD_UUID]
 
     async def test_a_grade_matching_no_candidate_falls_back_and_says_so(
         self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
@@ -277,7 +303,7 @@ class TestResolvingTheCode:
 
         with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
             evaluation = await build(knowledge_graph).evaluate(
-                question=QUESTION, standard_code=STATEMENT_CODE, grade="3"
+                question=QUESTION, statement_code=STATEMENT_CODE, grade="3"
             )
 
         [warning] = [record for record in caplog.records if record.levelno == logging.WARNING]
@@ -290,7 +316,7 @@ class TestEvaluate:
         self, providers: ProviderFactory
     ) -> None:
         evaluation = await build().evaluate(
-            question=QUESTION, standard_code=STATEMENT_CODE, grade="3"
+            question=QUESTION, statement_code=STATEMENT_CODE, grade="3"
         )
 
         result = evaluation.result
@@ -307,7 +333,7 @@ class TestEvaluate:
         # The caller's spelling is a lookup key; what comes back is the canonical one, and
         # that is what a report joins on.
         evaluation = await build().evaluate(
-            question=QUESTION, standard_code="3.md.c.7.d", grade="3"
+            question=QUESTION, statement_code="3.md.c.7.d", grade="3"
         )
         assert evaluation.result.statement_code == STATEMENT_CODE
 
@@ -320,7 +346,7 @@ class TestEvaluate:
         )
 
         evaluation = await build().evaluate(
-            question=QUESTION, standard_code=STATEMENT_CODE, grade="3"
+            question=QUESTION, statement_code=STATEMENT_CODE, grade="3"
         )
 
         assert evaluation.result.aligned_count == 1
@@ -331,7 +357,7 @@ class TestEvaluate:
         self, providers: ProviderFactory
     ) -> None:
         evaluation = await build().evaluate(
-            question=QUESTION, standard_code=STATEMENT_CODE, grade="3"
+            question=QUESTION, statement_code=STATEMENT_CODE, grade="3"
         )
 
         assert evaluation.evaluator == MathStandardsAlignmentEvaluator.metadata.id
@@ -343,7 +369,7 @@ class TestEvaluate:
         # As in TypeScript: the contract declares no outcome, so there is no field a
         # report can read as this evaluation's verdict.
         evaluation = await build().evaluate(
-            question=QUESTION, standard_code=STATEMENT_CODE, grade="3"
+            question=QUESTION, statement_code=STATEMENT_CODE, grade="3"
         )
         assert (
             read_outcome(evaluation, MathStandardsAlignmentEvaluator.metadata.outcome).score is None
@@ -352,7 +378,7 @@ class TestEvaluate:
     async def test_it_sends_the_question_and_every_component_to_the_model(
         self, providers: ProviderFactory
     ) -> None:
-        await build().evaluate(question=QUESTION, standard_code=STATEMENT_CODE, grade="3")
+        await build().evaluate(question=QUESTION, statement_code=STATEMENT_CODE, grade="3")
 
         [call] = providers.calls
         prompt = "\n".join(message["content"] for message in call["messages"])
@@ -369,7 +395,7 @@ class TestStandardsWithNothingToJudge:
     ) -> None:
         evaluation = await build(
             FakeKnowledgeGraph(replace(DEFAULT_STANDARD, components=()))
-        ).evaluate(question=QUESTION, standard_code=STATEMENT_CODE, grade="3")
+        ).evaluate(question=QUESTION, statement_code=STATEMENT_CODE, grade="3")
 
         assert providers.calls == []
         assert evaluation.result.learning_components == []
@@ -388,7 +414,7 @@ class TestStandardsWithNothingToJudge:
         with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
             evaluation = await build(
                 FakeKnowledgeGraph(replace(DEFAULT_STANDARD, undescribed_count=2))
-            ).evaluate(question=QUESTION, standard_code=STATEMENT_CODE, grade="3")
+            ).evaluate(question=QUESTION, statement_code=STATEMENT_CODE, grade="3")
 
         assert evaluation.result.total_count == 3
         assert any("no description" in record.getMessage() for record in caplog.records)
@@ -404,7 +430,7 @@ class TestTheModelsAnswerIsVerified:
         script.answer = answers((identifiers[0], "Yes"))
 
         with pytest.raises(LLMOutputProcessingError) as raised:
-            await build().evaluate(question=QUESTION, standard_code=STATEMENT_CODE, grade="3")
+            await build().evaluate(question=QUESTION, statement_code=STATEMENT_CODE, grade="3")
 
         assert identifiers[1] in str(raised.value)
         assert identifiers[2] in str(raised.value)
@@ -420,7 +446,7 @@ class TestTheModelsAnswerIsVerified:
         )
 
         evaluation = await build().evaluate(
-            question=QUESTION, standard_code=STATEMENT_CODE, grade="3"
+            question=QUESTION, statement_code=STATEMENT_CODE, grade="3"
         )
 
         assert len(evaluation.result.learning_components) == 3
@@ -434,4 +460,4 @@ class TestTheModelsAnswerIsVerified:
     ) -> None:
         providers.failures.append(RateLimitError("slow down", dependency="anthropic"))
         with pytest.raises(RateLimitError):
-            await build().evaluate(question=QUESTION, standard_code=STATEMENT_CODE, grade="3")
+            await build().evaluate(question=QUESTION, statement_code=STATEMENT_CODE, grade="3")
