@@ -126,6 +126,16 @@ class BaseEvaluator(ABC):
             return (self._override_provider,)
         return self.metadata.default_providers
 
+    def _credentials_satisfied_by_injection(self) -> frozenset[str]:
+        """Credentials an injected dependency already carries, so the config need not.
+
+        Empty for every evaluator that builds its own clients from the config, which is
+        all but one: an evaluator that accepts a pre-built dependency client takes that
+        client's own authentication with it, and requiring the key it would have used
+        would demand a credential for a call this evaluator will never make.
+        """
+        return frozenset()
+
     def _validate_credentials(self) -> None:
         """Every credential the evaluator needs was supplied (§3.1).
 
@@ -134,9 +144,14 @@ class BaseEvaluator(ABC):
         model override replaces the former and leaves the latter alone, so an override
         cannot skip a credential for a service the evaluator still calls.
         """
+        satisfied = self._credentials_satisfied_by_injection()
         required = [
-            *(f"{provider.value}_api_key" for provider in self.providers_in_use),
-            *self.metadata.required_credentials,
+            key
+            for key in (
+                *(f"{provider.value}_api_key" for provider in self.providers_in_use),
+                *self.metadata.required_credentials,
+            )
+            if key not in satisfied
         ]
         for key in required:
             value = self.config.credential(key)

@@ -2,7 +2,7 @@
 
 Python SDK for Learning Commons educational text evaluators. Every evaluator is built from its shared contract under [`evals/`](../../evals) (prompts, models, schemas) and returns the same result envelope as the [TypeScript SDK](../typescript).
 
-> **Under rebuild.** `main` carries the 1.0 rebuild in progress: fifteen of the seventeen evaluators, being the whole Text Complexity family (`BackgroundKnowledgeDemandsEvaluator`, `GradeLevelAppropriatenessEvaluator`, `MeaningDirectnessEvaluator`, `OrganizationalStructureEvaluator`, `PurposeClarityEvaluator`, `ReferenceKnowledgeDemandsEvaluator`, `SentenceStructureEvaluator`, `VocabularyComplexityEvaluator`) and the whole Feedback family (`RevisionAccuracyEvaluator`, `RevisionActionabilityEvaluator`, `RevisionManageabilityEvaluator`, `StrengthAcknowledgmentEvaluator`, `StudentResponseSpecificityEvaluator`, `ToneAppropriatenessEvaluator`, `WithholdingAnswersEvaluator`), with Math Standards Alignment and Critical Thinking still to come. Nothing is published from this state; the last released version is [0.2.0 on PyPI](https://pypi.org/project/learning-commons-evaluators/0.2.0/), whose documentation remains on the [docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview).
+> **Under rebuild.** `main` carries the 1.0 rebuild in progress: sixteen of the seventeen evaluators, being the whole Text Complexity family (`BackgroundKnowledgeDemandsEvaluator`, `GradeLevelAppropriatenessEvaluator`, `MeaningDirectnessEvaluator`, `OrganizationalStructureEvaluator`, `PurposeClarityEvaluator`, `ReferenceKnowledgeDemandsEvaluator`, `SentenceStructureEvaluator`, `VocabularyComplexityEvaluator`), the whole Feedback family (`RevisionAccuracyEvaluator`, `RevisionActionabilityEvaluator`, `RevisionManageabilityEvaluator`, `StrengthAcknowledgmentEvaluator`, `StudentResponseSpecificityEvaluator`, `ToneAppropriatenessEvaluator`, `WithholdingAnswersEvaluator`), and `MathStandardsAlignmentEvaluator`, with Critical Thinking still to come. Nothing is published from this state; the last released version is [0.2.0 on PyPI](https://pypi.org/project/learning-commons-evaluators/0.2.0/), whose documentation remains on the [docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview).
 
 ## Installation
 
@@ -86,6 +86,46 @@ async with KnowledgeGraphClient(api_key) as kg:
 `academic_subject`; more than one match means the code is reused across frameworks and you
 choose. Evaluators that own a client close it from their own `aclose()` / `close()`, which every
 evaluator accepts and which does nothing for the ones that own nothing.
+
+### Math Standards Alignment
+
+The one evaluator that reads a dependency. It judges a question against every learning
+component the Knowledge Graph holds for one standard, and reports a verdict per component
+plus the aligned and total counts. There is no single score — the contract declares no
+outcome — so `read_outcome` reports `None` for it, as it does in the TypeScript SDK.
+
+```python
+from learning_commons_evaluators import MathStandardsAlignmentEvaluator
+
+async with MathStandardsAlignmentEvaluator(
+    anthropic_api_key="...", learning_commons_api_key="..."
+) as evaluator:
+    evaluation = await evaluator.evaluate(
+        question="A playground is shaped like an L ...",
+        standard_code="3.MD.C.7.d",
+        grade="3",                    # "K" through "12"
+        jurisdiction="Multi-State",   # optional; Multi-State is Common Core
+    )
+
+print(evaluation.result.statement_code, evaluation.result.aligned_count)
+```
+
+**Spell the code the way its jurisdiction spells it.** A code is a lookup key, not an
+identity: the Knowledge Graph holds one copy of a standard per adopting jurisdiction, each
+with its own UUID and often its own spelling — Ohio writes `3.MD.7` where Common Core
+writes `3.MD.C.7`, New York `NY-3.MD.7`, and Florida's B.E.S.T. framework uses a different
+scheme entirely (`MA.3.GR.2.2`). Passing a Common Core code with `jurisdiction="Ohio"`
+raises `StandardNotFoundError` rather than finding Ohio's equivalent. Jurisdiction variants
+of the same Common Core standard share their learning components, so the choice between
+them does not change the judgement; a different framework, such as Florida's, genuinely
+does.
+
+**`grade` disambiguates.** Within one framework a code can be reused across courses, and
+the Knowledge Graph returns one result per copy. The grade separates them, at the cost of
+one extra lookup per candidate — and only when a code was ambiguous. If the grade still
+leaves more than one, the first is evaluated and the choice is logged at `warning` with the
+alternatives, matching the TypeScript SDK's behaviour. `evaluation.result.statement_code`
+always reports the Knowledge Graph's own spelling of whatever was resolved.
 
 ## More resources
 
