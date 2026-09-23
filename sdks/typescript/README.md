@@ -134,24 +134,24 @@ Every evaluator class exposes `evaluate(input)` (see [Supported evaluators](#sup
 
 Each evaluator class also has a matching helper `evaluate<Name>(input, config)`:
 
-| Helper                               | Typical input                                |
-| ------------------------------------ | -------------------------------------------- |
-| `evaluateGradeLevelAppropriateness`  | `{ text }`                                   |
-| `evaluateBackgroundKnowledgeDemands` | `{ text, grade_level }`                      |
-| `evaluateVocabularyComplexity`       | `{ text, grade_level }`                      |
-| `evaluateSentenceStructure`          | `{ text, grade_level }`                      |
-| `evaluateMeaningDirectness`          | `{ text, grade_level }`                      |
-| `evaluatePurposeClarity`             | `{ text, grade_level }`                      |
-| `evaluateOrganizationalStructure`    | `{ text, grade_level }`                      |
-| `evaluateReferenceKnowledgeDemands`  | `{ text, grade_level }`                      |
-| `evaluateStrengthAcknowledgment`     | `{ student_text, feedback_text }`            |
-| `evaluateRevisionActionability`      | `{ student_text, feedback_text }`            |
-| `evaluateStudentResponseSpecificity` | `{ student_text, feedback_text }`            |
-| `evaluateRevisionAccuracy`           | `{ student_text, feedback_text }`            |
-| `evaluateRevisionManageability`      | `{ student_text, feedback_text }`            |
-| `evaluateWithholdingAnswers`         | `{ student_text, feedback_text }`            |
-| `evaluateToneAppropriateness`        | `{ student_text, feedback_text }`            |
-| `evaluateMathStandardsAlignment`     | `{ question, statement_code, jurisdiction }` |
+| Evaluator                             | Helper                               | Typical input                                |
+| ------------------------------------- | ------------------------------------ | -------------------------------------------- |
+| `GradeLevelAppropriatenessEvaluator`  | `evaluateGradeLevelAppropriateness`  | `{ text }`                                   |
+| `BackgroundKnowledgeDemandsEvaluator` | `evaluateBackgroundKnowledgeDemands` | `{ text, grade_level }`                      |
+| `VocabularyComplexityEvaluator`       | `evaluateVocabularyComplexity`       | `{ text, grade_level }`                      |
+| `SentenceStructureEvaluator`          | `evaluateSentenceStructure`          | `{ text, grade_level }`                      |
+| `MeaningDirectnessEvaluator`          | `evaluateMeaningDirectness`          | `{ text, grade_level }`                      |
+| `PurposeClarityEvaluator`             | `evaluatePurposeClarity`             | `{ text, grade_level }`                      |
+| `OrganizationalStructureEvaluator`    | `evaluateOrganizationalStructure`    | `{ text, grade_level }`                      |
+| `ReferenceKnowledgeDemandsEvaluator`  | `evaluateReferenceKnowledgeDemands`  | `{ text, grade_level }`                      |
+| `StrengthAcknowledgmentEvaluator`     | `evaluateStrengthAcknowledgment`     | `{ student_text, feedback_text }`            |
+| `RevisionActionabilityEvaluator`      | `evaluateRevisionActionability`      | `{ student_text, feedback_text }`            |
+| `StudentResponseSpecificityEvaluator` | `evaluateStudentResponseSpecificity` | `{ student_text, feedback_text }`            |
+| `RevisionAccuracyEvaluator`           | `evaluateRevisionAccuracy`           | `{ student_text, feedback_text }`            |
+| `RevisionManageabilityEvaluator`      | `evaluateRevisionManageability`      | `{ student_text, feedback_text }`            |
+| `WithholdingAnswersEvaluator`         | `evaluateWithholdingAnswers`         | `{ student_text, feedback_text }`            |
+| `ToneAppropriatenessEvaluator`        | `evaluateToneAppropriateness`        | `{ student_text, feedback_text }`            |
+| `MathStandardsAlignmentEvaluator`     | `evaluateMathStandardsAlignment`     | `{ question, statement_code, jurisdiction }` |
 
 ```typescript example.ts
 import {
