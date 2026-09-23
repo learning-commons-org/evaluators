@@ -48,10 +48,14 @@ from learning_commons_evaluators.errors import (
 
 # Evaluators and registry
 from learning_commons_evaluators.evaluators import (
+    BackgroundKnowledgeDemandsEvaluator,
     BaseEvaluator,
     GradeLevelAppropriatenessEvaluator,
+    MeaningDirectnessEvaluator,
     MultiStepEvaluator,
+    OrganizationalStructureEvaluator,
     PurposeClarityEvaluator,
+    ReferenceKnowledgeDemandsEvaluator,
     SentenceStructureEvaluator,
     SingleStepEvaluator,
     ToneAppropriatenessEvaluator,
@@ -88,13 +92,29 @@ from learning_commons_evaluators.schemas.feedback.ela_writing.tone_appropriatene
     ToneAppropriatenessInput,
     ToneAppropriatenessOutput,
 )
+from learning_commons_evaluators.schemas.text_complexity.ela_reading.background_knowledge_demands import (
+    BackgroundKnowledgeDemandsInput,
+    BackgroundKnowledgeDemandsOutput,
+)
 from learning_commons_evaluators.schemas.text_complexity.ela_reading.grade_level_appropriateness import (
     GradeLevelAppropriatenessInput,
     GradeLevelAppropriatenessOutput,
 )
+from learning_commons_evaluators.schemas.text_complexity.ela_reading.meaning_directness import (
+    MeaningDirectnessInput,
+    MeaningDirectnessOutput,
+)
+from learning_commons_evaluators.schemas.text_complexity.ela_reading.organizational_structure import (
+    OrganizationalStructureInput,
+    OrganizationalStructureOutput,
+)
 from learning_commons_evaluators.schemas.text_complexity.ela_reading.purpose_clarity import (
     PurposeClarityInput,
     PurposeClarityOutput,
+)
+from learning_commons_evaluators.schemas.text_complexity.ela_reading.reference_knowledge_demands import (
+    ReferenceKnowledgeDemandsInput,
+    ReferenceKnowledgeDemandsOutput,
 )
 from learning_commons_evaluators.schemas.text_complexity.ela_reading.sentence_structure import (
     SentenceStructureInput,
@@ -111,6 +131,9 @@ __all__ = [
     "AcademicStandard",
     "AcademicSubject",
     "AuthenticationError",
+    "BackgroundKnowledgeDemandsEvaluator",
+    "BackgroundKnowledgeDemandsInput",
+    "BackgroundKnowledgeDemandsOutput",
     "BaseEvaluator",
     "ConfigurationError",
     "DependencyError",
@@ -135,15 +158,24 @@ __all__ = [
     "LearningComponent",
     "LearningComponentSet",
     "Logger",
+    "MeaningDirectnessEvaluator",
+    "MeaningDirectnessInput",
+    "MeaningDirectnessOutput",
     "ModelOverride",
     "MultiStepEvaluator",
     "NetworkError",
+    "OrganizationalStructureEvaluator",
+    "OrganizationalStructureInput",
+    "OrganizationalStructureOutput",
     "Outcome",
     "Provider",
     "PurposeClarityEvaluator",
     "PurposeClarityInput",
     "PurposeClarityOutput",
     "RateLimitError",
+    "ReferenceKnowledgeDemandsEvaluator",
+    "ReferenceKnowledgeDemandsInput",
+    "ReferenceKnowledgeDemandsOutput",
     "RequestTimeoutError",
     "SDK_LOGGER_NAME",
     "SentenceStructureEvaluator",

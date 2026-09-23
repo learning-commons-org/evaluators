@@ -8,11 +8,23 @@ from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.feedback.ela_writing.tone_appropriateness import (
     ToneAppropriatenessEvaluator,
 )
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.background_knowledge_demands import (
+    BackgroundKnowledgeDemandsEvaluator,
+)
 from learning_commons_evaluators.evaluators.text_complexity.ela_reading.grade_level_appropriateness import (
     GradeLevelAppropriatenessEvaluator,
 )
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.meaning_directness import (
+    MeaningDirectnessEvaluator,
+)
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.organizational_structure import (
+    OrganizationalStructureEvaluator,
+)
 from learning_commons_evaluators.evaluators.text_complexity.ela_reading.purpose_clarity import (
     PurposeClarityEvaluator,
+)
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.reference_knowledge_demands import (
+    ReferenceKnowledgeDemandsEvaluator,
 )
 from learning_commons_evaluators.evaluators.text_complexity.ela_reading.sentence_structure import (
     SentenceStructureEvaluator,
@@ -26,8 +38,12 @@ from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
 #: conformance suite compares this against the public barrel and the ``evals/`` registry.
 EVALUATORS: tuple[type[BaseEvaluator], ...] = (
     ToneAppropriatenessEvaluator,
+    BackgroundKnowledgeDemandsEvaluator,
     GradeLevelAppropriatenessEvaluator,
+    MeaningDirectnessEvaluator,
+    OrganizationalStructureEvaluator,
     PurposeClarityEvaluator,
+    ReferenceKnowledgeDemandsEvaluator,
     SentenceStructureEvaluator,
     VocabularyComplexityEvaluator,
 )

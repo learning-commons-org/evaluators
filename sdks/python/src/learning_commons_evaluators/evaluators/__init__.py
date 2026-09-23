@@ -16,11 +16,23 @@ from learning_commons_evaluators.evaluators.registry import (
     get_evaluators,
 )
 from learning_commons_evaluators.evaluators.single_step import SingleStepEvaluator
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.background_knowledge_demands import (
+    BackgroundKnowledgeDemandsEvaluator,
+)
 from learning_commons_evaluators.evaluators.text_complexity.ela_reading.grade_level_appropriateness import (
     GradeLevelAppropriatenessEvaluator,
 )
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.meaning_directness import (
+    MeaningDirectnessEvaluator,
+)
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.organizational_structure import (
+    OrganizationalStructureEvaluator,
+)
 from learning_commons_evaluators.evaluators.text_complexity.ela_reading.purpose_clarity import (
     PurposeClarityEvaluator,
+)
+from learning_commons_evaluators.evaluators.text_complexity.ela_reading.reference_knowledge_demands import (
+    ReferenceKnowledgeDemandsEvaluator,
 )
 from learning_commons_evaluators.evaluators.text_complexity.ela_reading.sentence_structure import (
     SentenceStructureEvaluator,
@@ -31,10 +43,14 @@ from learning_commons_evaluators.evaluators.text_complexity.ela_reading.vocabula
 
 __all__ = [
     "EVALUATORS",
+    "BackgroundKnowledgeDemandsEvaluator",
     "BaseEvaluator",
     "GradeLevelAppropriatenessEvaluator",
+    "MeaningDirectnessEvaluator",
     "MultiStepEvaluator",
+    "OrganizationalStructureEvaluator",
     "PurposeClarityEvaluator",
+    "ReferenceKnowledgeDemandsEvaluator",
     "SentenceStructureEvaluator",
     "SingleStepEvaluator",
     "ToneAppropriatenessEvaluator",
