@@ -42,6 +42,7 @@ from learning_commons_evaluators.schemas.metadata import (
     TokenUsage,
     prompt_settings_to_extras_value,
 )
+from learning_commons_evaluators.telemetry import schedule_send_telemetry
 
 InputT = TypeVar("InputT", bound=EvaluationInput)
 OutputT = TypeVar("OutputT", bound=EvaluationResult)
@@ -145,8 +146,7 @@ class BaseEvaluator(ABC, Generic[InputT, OutputT, SettingsT]):
                 "evaluation end",
                 extra={"evaluation_metadata": evaluation_metadata},
             )
-            # TODO: add full input to telemetry if enabled
-            # TODO: send_telemetry(evaluation_metadata)
+            schedule_send_telemetry(evaluation_metadata, input, self.config)
 
     def evaluate_sync(
         self,
