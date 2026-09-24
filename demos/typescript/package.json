@@ -5,19 +5,21 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n server,web -c blue,green \"tsx watch server/index.ts\" \"vite\"",
+    "build": "vite build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.2",
-    "@learning-commons/evaluators": "^0.8.0",
-    "ai": "^7.0.5",
+    "@ai-sdk/anthropic": "^4.0.62",
+    "@learning-commons/evaluators": "^1.1.1",
+    "ai": "^7.0.113",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.18.2",
     "react-select": "^5.10.1",
-    "unicodeit": "^0.7.5"
+    "unicodeit": "^0.7.5",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
