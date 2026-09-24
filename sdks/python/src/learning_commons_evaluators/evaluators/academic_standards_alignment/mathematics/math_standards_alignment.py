@@ -54,6 +54,7 @@ from learning_commons_evaluators.evaluators.single_step import step_for
 from learning_commons_evaluators.prompts.render import render_prompt
 from learning_commons_evaluators.providers import (
     LLMProvider,
+    LLMResponse,
     Message,
     TokenUsage,
     call_with_resampling,
@@ -189,7 +190,10 @@ class LCEvaluation(BaseModel):
     lc_id: str
     reasoning: str
     answer: Literal["Yes", "No"]
-    feedback: str
+    #: Optional, because the contract's output schema declares it nullable and says an
+    #: aligned component's feedback is ``null``. Typed ``str`` here would reject a
+    #: response the registry calls valid, burn the resamples, and fail the evaluation.
+    feedback: str | None = None
 
 
 class BatchedLCEvaluation(BaseModel):
@@ -213,7 +217,8 @@ class LearningComponentResult(BaseModel):
     description: str
     reasoning: str
     aligned: bool
-    feedback: str
+    #: Nullable, as the contract declares it: what the model said, or nothing.
+    feedback: str | None
 
 
 class MathStandardsAlignmentResult(BaseModel):
@@ -243,6 +248,11 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
             anthropic_api_key="...", learning_commons_api_key="..."
         ) as evaluator:
             evaluation = await evaluator.evaluate(
+                question="A playground is shaped like an L ...",
+                case_identifier_uuid="6ba25656-d7cc-11e8-824f-0242ac160002",
+            )
+            # or, from a code:
+            evaluation = await evaluator.evaluate_by_code(
                 question="A playground is shaped like an L ...",
                 statement_code="3.MD.C.7.d",
             )
@@ -379,13 +389,28 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                         run,
                     )
 
-                dependency, model = provider_context(self.provider)
-                response = await call_with_resampling(
-                    lambda: self.provider.generate_structured(
-                        self._render_messages(request.question, components),
+                messages = self._render_messages(request.question, components)
+
+                async def judge() -> tuple[
+                    LLMResponse[BatchedLCEvaluation], list[LearningComponentResult]
+                ]:
+                    """One attempt: ask, then check the answer covers what was asked.
+
+                    Verification runs inside the attempt, not after it. A model that skips
+                    a component has produced the same kind of failure as one that breaks
+                    the schema -- sampling variance -- and both are retryable, so leaving
+                    this outside would spend one attempt and ignore ``max_retries``.
+                    """
+                    answer = await self.provider.generate_structured(
+                        messages,
                         BatchedLCEvaluation,
                         temperature=self.effective_temperature(STEP.temperature),
-                    ),
+                    )
+                    return answer, self._verified(components, answer.data, statement_code)
+
+                dependency, model = provider_context(self.provider)
+                response, judged = await call_with_resampling(
+                    judge,
                     max_retries=self.config.max_retries,
                     dependency=dependency,
                     model=model,
@@ -393,7 +418,6 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                 )
                 run.step(STEP.id, self.provider.label, response.latency_ms, response.usage)
 
-                judged = self._verified(components, response.data, statement_code)
                 result = MathStandardsAlignmentResult(
                     statement_code=statement_code,
                     learning_components=judged,

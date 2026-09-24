@@ -74,9 +74,17 @@ ALL_ALIGNED = answers(*[(identifier, "Yes") for identifier, _ in LEARNING_COMPON
 
 @dataclass
 class Script:
-    """What the model will answer, which a test reassigns before evaluating."""
+    """What the model will answer, which a test reassigns before evaluating.
+
+    Set ``attempts`` to answer differently each time it is asked, which is how a test
+    reaches the resampling path.
+    """
 
     answer: BatchedLCEvaluation = field(default_factory=lambda: ALL_ALIGNED)
+    attempts: list[BatchedLCEvaluation] = field(default_factory=list)
+
+    def next_answer(self) -> BatchedLCEvaluation:
+        return self.attempts.pop(0) if self.attempts else self.answer
 
 
 @pytest.fixture
@@ -87,7 +95,7 @@ def script() -> Script:
 @pytest.fixture
 def providers(script: Script) -> Iterator[ProviderFactory]:
     """The shared recording fake, answering whatever ``script`` currently holds."""
-    factory = ProviderFactory(payload=lambda _schema: script.answer)
+    factory = ProviderFactory(payload=lambda _schema: script.next_answer())
     with patch("learning_commons_evaluators.evaluators.base.create_provider", factory):
         yield factory
 
@@ -596,6 +604,56 @@ class TestTheModelsAnswerIsVerified:
             component.identifier != "lc-the-model-invented"
             for component in evaluation.result.learning_components
         )
+
+    async def test_a_skipped_component_is_resampled_rather_than_failing_at_once(
+        self, providers: ProviderFactory, script: Script
+    ) -> None:
+        # A model that skips a component produced the same kind of failure as one that
+        # breaks the schema — sampling variance — so it gets the resamples the caller
+        # configured rather than one attempt.
+        identifiers = [identifier for identifier, _ in LEARNING_COMPONENTS]
+        script.attempts = [answers((identifiers[0], "Yes")), ALL_ALIGNED]
+
+        evaluation = await build(max_retries=1).evaluate_by_code(
+            question=QUESTION, statement_code=STATEMENT_CODE
+        )
+
+        assert len(providers.calls) == 2
+        assert evaluation.result.aligned_count == 3
+
+    async def test_it_still_fails_once_the_resamples_are_spent(
+        self, providers: ProviderFactory, script: Script
+    ) -> None:
+        identifiers = [identifier for identifier, _ in LEARNING_COMPONENTS]
+        script.answer = answers((identifiers[0], "Yes"))
+
+        with pytest.raises(LLMOutputProcessingError):
+            await build(max_retries=1).evaluate_by_code(
+                question=QUESTION, statement_code=STATEMENT_CODE
+            )
+
+        assert len(providers.calls) == 2
+
+    async def test_a_null_feedback_is_a_valid_answer(
+        self, providers: ProviderFactory, script: Script
+    ) -> None:
+        # The contract's output schema declares feedback nullable and says an aligned
+        # component's is null, so rejecting it would fail a response the registry calls
+        # valid — after spending every resample on it.
+        script.answer = BatchedLCEvaluation(
+            evaluations=[
+                LCEvaluation(lc_id=identifier, reasoning="it does", answer="Yes", feedback=None)
+                for identifier, _ in LEARNING_COMPONENTS
+            ]
+        )
+
+        evaluation = await build().evaluate_by_code(
+            question=QUESTION, statement_code=STATEMENT_CODE
+        )
+
+        assert providers.calls, "the answer was accepted, not resampled away"
+        assert evaluation.result.aligned_count == 3
+        assert all(c.feedback is None for c in evaluation.result.learning_components)
 
     async def test_a_provider_failure_is_raised_as_it_was_classified(
         self, providers: ProviderFactory
