@@ -3,11 +3,11 @@
 <img style="width:100%" alt="Evaluators project banner logo" src="https://raw.githubusercontent.com/learning-commons-org/.github/refs/heads/main/assets/evals_hero_2.jpg" />
 
 <p align="center">
-  <a href="https://platform.learningcommons.org/apps/evaluators/playground" target="_blank">Demo</a>
+  <a href="https://learningcommons.org/" target="_blank">Learning Commons</a>
    •
-  <a href="https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction" target="_blank">Introduction</a>
+  <a href="https://platform.learningcommons.org/login?tab=signin" target="_blank">Platform</a>
   •
-  <a href="https://docs.learningcommons.org/evaluators/getting-started/quickstart" target="_blank">Quickstart</a>
+  <a href="https://docs.learningcommons.org/evaluators/" target="_blank">Docs</a>
 </p>
 
 Evaluators help you to measure the attributes of LLM-generated text through the lens of learning science:
@@ -28,6 +28,8 @@ Evaluators help you to measure the attributes of LLM-generated text through the 
 | [`LICENSE`](./LICENSE.md) | Open source license details                                                                                                                                                                                                                                                                        |
 
 ## Quickstart
+
+Check out the <a href="https://docs.learningcommons.org/evaluators/getting-started/quickstart" target="_blank">Quickstart</a> to start using Evaluators.
 
 | Access method                                                                                              | When to use                                         | How to use                                                                                                                                                                                                                                                                                                                       |
 | :--------------------------------------------------------------------------------------------------------- | :-------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
