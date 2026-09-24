@@ -36,7 +36,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, TypeAlias
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from learning_commons_evaluators.config import EvaluatorConfig
 from learning_commons_evaluators.contracts import load_contract
@@ -62,6 +62,8 @@ from learning_commons_evaluators.providers import (
 )
 from learning_commons_evaluators.schemas.academic_standards_alignment.mathematics.math_standards_alignment import (
     EVALUATOR_ID,
+    LearningComponentsItem,
+    MathStandardsAlignmentOutput,
 )
 from learning_commons_evaluators.schemas.evaluator import (
     EvaluationMetadata,
@@ -206,37 +208,15 @@ class BatchedLCEvaluation(BaseModel):
 
 # --- The payload ------------------------------------------------------------------------
 
-
-class LearningComponentResult(BaseModel):
-    """One learning component and whether the question assesses it."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    #: The Knowledge Graph identifier, so a verdict can be joined back to the component.
-    identifier: str
-    description: str
-    reasoning: str
-    aligned: bool
-    #: Nullable, as the contract declares it: what the model said, or nothing.
-    feedback: str | None
-
-
-class MathStandardsAlignmentResult(BaseModel):
-    """What ``evaluate()`` resolves its ``result`` to.
-
-    ``aligned_count`` of 0 with a ``total_count`` above it is a judgement; both at 0 means
-    the standard has no components to judge, and nothing was measured.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    statement_code: str = Field(
-        description="The Knowledge Graph's own spelling of the code that was resolved, "
-        "which is not always the spelling that was passed."
-    )
-    learning_components: list[LearningComponentResult]
-    aligned_count: int = Field(ge=0)
-    total_count: int = Field(ge=0)
+#: What ``evaluate()`` resolves its ``result`` to: the contract's own output model, not a
+#: copy of it, so the payload cannot drift from what the registry declares. The schema
+#: gained ``identifier`` in #318 -- the field both SDKs emit so a verdict can be joined
+#: back to the component it judges -- which is what let these stop being hand-written.
+#:
+#: ``aligned_count`` of 0 with a ``total_count`` above it is a judgement; both at 0 means
+#: the standard has no components to judge, and nothing was measured.
+LearningComponentResult = LearningComponentsItem
+MathStandardsAlignmentResult = MathStandardsAlignmentOutput
 
 
 class MathStandardsAlignmentEvaluator(BaseEvaluator):

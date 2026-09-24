@@ -22,12 +22,16 @@ from learning_commons_evaluators.evaluators.academic_standards_alignment.mathema
     CODE_INPUT_SCHEMA,
     UUID_INPUT_SCHEMA,
     MathStandardsAlignmentEvaluator,
+    MathStandardsAlignmentResult,
 )
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.inputs import validate_inputs
 from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
 from learning_commons_evaluators.evaluators.registry import EVALUATORS, index_by_id
 from learning_commons_evaluators.evaluators.single_step import SingleStepEvaluator, step_for
+from learning_commons_evaluators.schemas.academic_standards_alignment.mathematics.math_standards_alignment import (
+    MathStandardsAlignmentOutput,
+)
 from tests.unit.conftest import ProviderFactory
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
@@ -230,6 +234,13 @@ class TestMathStandardsAlignmentIsTheDocumentedException:
         assert tuple(CODE_INPUT_SCHEMA["properties"]["grade_level"]["enum"]) == (
             MathStandardsAlignmentEvaluator.metadata.supported_grades
         )
+
+    def test_its_payload_is_the_contracts_own_output_model(self) -> None:
+        # One reason for the scoping above that no longer applies: the payload used to be
+        # hand-written because the schema forbade `identifier`, which both SDKs emit.
+        # #318 declared it, so the registry's model is now exactly what this evaluator
+        # returns — and being the same object, it cannot drift from the contract.
+        assert MathStandardsAlignmentResult is MathStandardsAlignmentOutput
 
     def test_evaluate_takes_a_uuid_the_contract_does_not_declare(self) -> None:
         # Which is why the fixture-driven suites call evaluate_by_code for this one: the
