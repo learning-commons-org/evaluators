@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "input_schema.json",
+  "title": "EvaluatorInput",
+  "description": "Runtime inputs for the Graphics Complexity evaluator.",
+  "type": "object",
+  "required": [
+    "text",
+    "grade_level",
+    "graphics"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000,
+      "description": "The passage to evaluate."
+    },
+    "grade_level": {
+      "type": "string",
+      "enum": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
+      "description": "Target student grade level."
+    },
+    "graphics": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Local file path or http(s) URL to one graphic. Supported: PNG, JPEG, GIF, WEBP (detected by file signature, not by extension)."
+      },
+      "minItems": 1,
+      "description": "One entry per graphic in scope, in the order they should be considered."
+    },
+    "figure_labels": {
+      "type": "string",
+      "description": "Optional comma-separated labels matching the order of `graphics` (e.g. 'Figure 1, Figure 2'). If omitted, graphics are auto-labeled 'Image 1', 'Image 2', etc."
+    }
+  }
+}
