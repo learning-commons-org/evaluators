@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "input_schema.json",
+  "title": "EvaluatorInput",
+  "description": "The image is what is under review. The text is the specification it is checked against: either a claim, or a question with its expected answer. Exactly one of the two.",
+  "type": "object",
+  "required": ["image"],
+  "additionalProperties": false,
+  "properties": {
+    "image": {
+      "type": "object",
+      "description": "The math visual under review.",
+      "required": ["data", "media_type"],
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "minLength": 1,
+          "description": "Raw image bytes, base64-encoded; at most 10 MB decoded. SDK callers may pass bytes directly; this schema describes the wire shape."
+        },
+        "media_type": {
+          "type": "string",
+          "enum": ["image/png", "image/jpeg", "image/webp"],
+          "description": "IANA media type of the image."
+        }
+      }
+    },
+    "claim": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000,
+      "description": "A claim about what the image shows, e.g. \"The chart shows 12 apples.\""
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000,
+      "description": "The question the image accompanies. Requires `answer`."
+    },
+    "answer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "The expected answer to `question`. The two compose to `Question: \"<question>\" The answer is <answer>.`"
+    }
+  },
+  "oneOf": [
+    { "required": ["claim"], "not": { "anyOf": [{ "required": ["question"] }, { "required": ["answer"] }] } },
+    { "required": ["question", "answer"], "not": { "required": ["claim"] } }
+  ]
+}
