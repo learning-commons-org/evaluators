@@ -19,3 +19,10 @@ def test_providers_public_api():
     assert not missing, f"providers.__all__ lists undefined names: {missing}"
     for name in providers.__all__:
         assert getattr(providers, name) is not None, name
+
+
+def test_contracts_public_api():
+    """Every name in ``contracts.__all__`` is defined on the submodule."""
+    contracts = importlib.import_module("learning_commons_evaluators.contracts")
+    missing = [name for name in contracts.__all__ if not hasattr(contracts, name)]
+    assert not missing, f"contracts.__all__ lists undefined names: {missing}"

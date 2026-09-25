@@ -2,11 +2,21 @@
 
 ## Package layout
 
-- **`evaluators/`** — `BaseEvaluator`, `VocabularyEvaluator`, `ConventionalityEvaluator`
-- **`schemas/`** — Pydantic types for inputs, outputs, config, metadata, errors
-- **`providers/`** — LangChain LLM provider factory (OpenAI, Google, Anthropic)
-- **`settings/`** — Generated settings modules from `sdks/settings/` TOML
-- **`config.py`** / **`errors.py`** / **`logger.py`** — Re-exports for top-level imports
+- **`contracts/`** — The `evals/` registry as the package ships it. `contracts/_generated/<family>/<subject>/<evaluator>/` holds each contract's `config.json`, input and output schemas, and prompt files, copied verbatim by `make generate-contracts`; `contracts/loader.py` reads one back as a typed `Contract`.
+- **`schemas/<family>/<subject>/<evaluator>.py`** — Generated from each contract's schemas: pydantic `<Class>Input` and `<Class>Output` models.
+- **`providers/`** — The `LLMProvider` protocol and one adapter per native SDK (`openai_sdk.py`, `anthropic_sdk.py`, `google_genai.py`), `create_provider()`, and the resampling half of the retry split (`retry.py`).
+- **`evaluators/`** — `BaseEvaluator` (config checks, provider construction), `SingleStepEvaluator` (the one-model-call flow), `MultiStepEvaluator` (steps in declared order, skipping any whose `condition` the inputs miss; placeholders resolved from inputs, preprocessing, and earlier steps' outputs), `inputs.py` (§4.1 validation), `registry.py` (`get_evaluators`, `get_evaluator` with `id_history`), and the concrete evaluators in nested `<family>/<subject>/` packages mirroring `evals/`. Both bases are declarative: an evaluator names its contract and its generated models, and everything else is read from the contract at class creation.
+- **`config.py`** — `EvaluatorConfig`, `ModelOverride`, `TelemetryOptions` (SDK spec §3).
+- **`schemas/evaluator.py`, `schemas/outcome.py`, `schemas/metadata.py`** — The result envelope, `read_outcome`, and static `EvaluatorMetadata`.
+- **`features/`** — Contract-declared preprocessing bound into prompts: library computations (`textstat` Flesch-Kincaid) in `preprocessing.py`, and the functions a `custom` entry names — `readability.py` (the ground-truth counts block) and `sentence_features.py` (the ratios derived from a step's counts).
+- **`prompts/`** — Placeholder substitution, identical to the TypeScript renderer.
+- **`dependencies/`** — Clients for the non-LLM services evaluators call. `knowledge_graph.py` is the hand-written Knowledge Graph client (standards search, standard by CASE UUID, learning components); `_generated/knowledge_graph/` is the OpenAPI-generated transport it wraps, written by `make generate-kg-client` and never edited by hand.
+- **`schemas/kg_taxonomy.py`** — `Jurisdiction`, `GradeLevel`, `AcademicSubject`: the wire strings the Knowledge Graph accepts, checked against the vendored spec by `make check-kg-client`.
+- **`errors.py`** — The canonical error taxonomy (SDK spec §6) and `wrap_provider_error()`.
+- **`logger.py`** — Logging helpers following the stdlib library convention (`NullHandler`, no root configuration)
+- **`version.py`** — Package version and description
+
+Batch evaluation (`evaluate_items`) lands in a following PR.
 
 ## Development setup
 
@@ -26,11 +36,11 @@ make test     # pytest only
 
 From `sdks/python/`:
 
-- `make lint` — Ruff on `src/`, `tests/`, `scripts/`
+- `make lint` — Ruff on `src/` and `tests/`
 - `make format` / `make format-check` — Ruff formatter
 - `make typecheck` — Mypy
 - `make pip-check` — `pip check`
-- `make coverage` — unit tests with coverage report
+- `make coverage` — tests with coverage report; exits non-zero below `COV_MIN` (95%)
 
 ## Using the SDK before publishing
 
@@ -40,146 +50,103 @@ pip install -e /path/to/evaluators/sdks/python
 
 Editable install: changes to SDK source apply without reinstalling.
 
-## Running tests
+## Regenerating after a change under `evals/`
+
+The registry at `evals/<family>/<subject>/<evaluator>/` is the source of truth for every evaluator's id, prompts, models, preprocessing, and schemas. The package bundles it and generates pydantic models from it, so after editing anything there:
 
 ```bash
-pytest                                    # unit + contract (unpopulated contracts skipped)
-pytest tests/ --ignore=tests/contract_tests   # unit only
-pytest tests/contract_tests/                  # contract only
+make generate-contracts  # bundle contracts into contracts/_generated/ and regenerate schemas/<family>/<subject>/*.py
+make check-generated     # verify the committed files match evals/ (CI runs this; stale or orphaned files fail)
 ```
 
-Or use `make test`, `make unit-test`, and `make contract-test` from `sdks/python/`.
+The generator (`scripts/generate_contracts.py`) checks each prompt and rubric file against the `sha256` its `config.json` declares and refuses to bundle one that drifted. Commit the registry change together with the regenerated files; `.gitattributes` marks them `linguist-generated=true` so GitHub collapses them in review.
 
-## Regenerating settings after TOML changes
+## Regenerating the Knowledge Graph client
 
-Evaluator settings (prompts, models, temperatures) live in `sdks/settings/` and are baked into `_generated_*_settings.py` at build time. After editing any evaluator TOML:
+`src/learning_commons_evaluators/dependencies/_generated/knowledge_graph/` is generated by
+[openapi-python-client](https://github.com/openapi-generators/openapi-python-client) from
+`openapi/knowledge-graph.yaml`, a vendored copy of the
+[published spec](https://docs.learningcommons.org/api-reference/knowledge-graph-api/openapi.yaml).
+Both the spec and the client are committed, and `make check-kg-client` (part of `make verify`)
+fails when they disagree.
 
 ```bash
-make build               # generate-settings + sync-settings
-make check-build         # verify generated files match canonical TOML (CI)
+make fetch-kg-openapi     # network: refresh openapi/knowledge-graph.yaml from the published spec
+make generate-kg-client   # offline: regenerate the client from the vendored spec
+make check-kg-client      # verify the committed client matches (CI runs this)
 ```
 
-Commit the updated TOML together with regenerated/synced files. Repo `.gitattributes` marks `_generated_*.py` and `contracts.toml` as `linguist-generated=true`. See [Adding a new evaluator](#adding-a-new-evaluator) for the full checklist when introducing a new evaluator directory.
+The client covers the operations the SDK calls, not all 31 the service publishes. The generator
+has no include/exclude option, so the subset comes from filtering its *input*: `_OPERATIONS` in
+`scripts/generate_kg_client.py` names the operations by `operationId`, and generation reduces the
+vendored spec to those plus the components they reference before running. The output is still
+entirely generator-produced, so `check-kg-client` compares byte for byte as it would otherwise,
+and the vendored spec itself stays whole — `fetch-kg-openapi` remains a plain download. Calling a
+new endpoint means adding its `operationId` to that set; an id the spec no longer declares fails
+generation rather than quietly producing a client without it.
 
-## Contract tests
+Fetching is a separate, deliberately manual step, so a change to the live API lands as a reviewed
+commit rather than as a CI-time surprise. Generation is offline from the vendored file, so CI and
+a laptop produce the same tree, and it publishes by renaming a staged tree into place, so a run
+that fails or is interrupted leaves the previous client where it was. `make build` does not
+regenerate — the committed tree is the artifact, and `make check-kg-client` is what holds it to
+the spec.
 
-Contract tests verify that the Python SDK sends the same LLM request (prompts, model, temperature) as the reference Jupyter notebook and parses the same structured result from a captured LLM response.
+Both `generate` and `check` also compare `schemas/kg_taxonomy.py` against the spec's enum lists:
 
-Each evaluator has a `contracts.toml` under `sdks/settings/<evaluator>/`. Until populated, contract tests are **skipped**, not failed.
+- a value the SDK has and the spec does not **fails** — it is a token we would send and the
+  service would reject;
+- a value the spec has and the SDK does not **warns** — the service gained a jurisdiction or
+  subject and we have not caught up. Callers cannot ask for it yet, and a standard that carries
+  it comes back with that field unset rather than failing.
 
-**Populating contract data** (once per evaluator, or after prompt changes):
+The TypeScript SDK generates its own types (`npm run generate:kg-types`) from the same URL, so
+refresh both together when the API changes.
 
-1. Open the evaluator notebook under `evals/` with a valid provider API key.
-2. Run all cells; the final "Contract test capture — TOML output" cell prints a TOML block.
-3. Paste into `sdks/settings/<evaluator>/contracts.toml` (replace placeholder `prompt_steps` / `expected_result`).
-4. Run `make build` to sync the bundled package copy.
-5. Run `pytest tests/contract_tests/` — tests should execute and pass.
+Generated schema modules start with `# GENERATED — do not edit directly.` and are excluded from Ruff; edit the `output_schema.json` or `input_schema.json` they come from instead. Bundled files are byte-for-byte copies.
 
-## Keeping settings in sync
+## Tests
 
-Canonical settings: `sdks/settings/`. The Python package needs:
+- `tests/unit/errors/` — the taxonomy's rules and the error mapping check: every signal row of SDK spec §6.5 maps to the expected class, using the native SDKs' real exception types.
+- `tests/unit/providers/` — each adapter against a fake client, the factory, and the resampling loop.
+- `tests/unit/contracts/` — every bundled contract read back and cross-checked against `evals/` (sha256, placeholder sources, outcome fields), plus the generator's emitter on synthetic schemas.
+- `tests/unit/schemas/` — parser tests: hand-written payloads per `output_schema.json` against the generated `<Class>Output` models.
+- `tests/unit/evaluators/` — the single-step and multi-step flows on synthetic contracts, config and `model_override` checks, input validation, the registry, and `test_registry_conformance.py`: every contract in `evals/` has a registered class or an entry in its `UNIMPLEMENTED` allowlist, and porting an evaluator without deleting its entry fails the build.
+- `tests/unit/test_cross_sdk_prompts.py` — for every fixture, and every step the inputs run, Python renders the prompt the TypeScript renderer would. Placeholders each SDK computes with its own language's library are masked, and so are step outputs, which would mean calling a model; the masked numbers' rounding is checked separately in the same file.
+- `tests/integration/` — live provider calls driven by `evals/**/fixtures.json`, skipped unless `RUN_INTEGRATION_TESTS=1` and the provider keys are set (`make integration-test`).
 
-- **`_generated_*_settings.py`** — imported at runtime (no TOML file I/O in production)
-- **Bundled `contracts.toml`** — for contract tests after `pip install`
+## Adding an evaluator
 
-After any change under `sdks/settings/`:
+1. The contract exists under `evals/<family>/<subject>/<evaluator>/` (that is the registry's job). Run `make generate-contracts` so its bundle and `<Class>Input` / `<Class>Output` models exist.
+2. Add `evaluators/<family>/<subject>/<evaluator>.py` declaring the class. For a contract with one step:
 
-```bash
-make build
-make check-build
-```
+   ```python
+   class PurposeClarityEvaluator(SingleStepEvaluator[PurposeClarityInput, PurposeClarityOutput]):
+       contract = load_contract(EVALUATOR_ID)
+       input_model = PurposeClarityInput
+       output_model = PurposeClarityOutput
+   ```
 
-## Adding a new evaluator
+   For a contract with several, add `step_models` naming every declared step — `None` for one
+   that answers in prose — and `computations` for any function a `custom` preprocessing entry
+   names, keyed by the name it declares:
 
-Contributor workflow for shipping an evaluator in this package. Use `ConventionalityEvaluator` (single LLM step) and `VocabularyEvaluator` (multi-step) as references.
+   ```python
+   class SentenceStructureEvaluator(
+       MultiStepEvaluator[SentenceStructureInput, SentenceStructureOutput]
+   ):
+       contract = load_contract(EVALUATOR_ID)
+       input_model = SentenceStructureInput
+       output_model = SentenceStructureOutput
+       step_models = {
+           "sentence_analysis": SentenceAnalysis,
+           "classify_complexity": SentenceStructureOutput,
+       }
+       computations = {"compute_ground_truth_counts": compute_ground_truth_counts, ...}
+   ```
 
-**1. Canonical settings** — Add `sdks/settings/<evaluator_id>/settings.toml` (snake_case folder name). Include:
+   A step's own output model has no schema in the registry, so it is written by hand beside
+   the evaluator; the contract's `output_schema.json` describes the evaluator's result only.
 
-- `[evaluator_metadata]` — `id`, `version`, `name`, `description`, `maturity` (`early_access` is the only value defined today)
-- `[[evaluator_metadata.inputs]]` — `TextInputField` and/or `GradeInputField` constraints (see `schemas/input_specs.py` for the input-spec checklist if you need a new field type)
-- `[prompts]` — system/human template strings (`{format_instructions}` where using `JsonOutputParser`)
-- `[evaluation_settings.prompt_settings_step_*]` — default `provider_type`, `model`, `temperature` per LLM step
-
-Optionally add `sdks/settings/<evaluator_id>/contracts.toml` (placeholders are fine until you capture real notebook output).
-
-**2. Schemas** — Add `src/learning_commons_evaluators/schemas/<evaluator_id>.py`:
-
-- `<PascalCase>EvaluationSettings` subclass of `EvaluationSettings` (generator expects this name: `conventionality` → `ConventionalityEvaluationSettings`)
-- Pydantic output model(s) for `JsonOutputParser`
-- Avoid class docstrings on models used with `JsonOutputParser` if they would change `model_json_schema()` and break contract-test prompt snapshots (see `VocabularyComplexityOutput` in `schemas/vocabulary.py`)
-
-**3. Generate settings** — From `sdks/python/`:
-
-```bash
-make generate-settings   # writes settings/_generated_<evaluator_id>_settings.py
-make check-generated     # CI staleness check
-```
-
-The generator picks up any `sdks/settings/*/settings.toml` automatically.
-
-**4. Evaluator module** — Add `src/learning_commons_evaluators/evaluators/<evaluator_id>.py`:
-
-- `EvaluationInput` subclass with `_input_settings` pointing at `CONFIG.evaluator_metadata.inputs` and a caller-facing `__init__(self, *, text: str, grade: int, **kwargs)` (raw values are coerced to `TextInputField` / `GradeInputField` automatically)
-- `BaseEvaluator` subclass wired to generated `CONFIG`:
-
-```python
-from typing import ClassVar
-
-from learning_commons_evaluators.evaluators.base import BaseEvaluator
-from learning_commons_evaluators.schemas.common_inputs import GradeInputField, TextInputField
-from learning_commons_evaluators.schemas.evaluator import EvaluationInput, EvaluationExplanation, EvaluationResult
-from learning_commons_evaluators.schemas.metadata import EvaluationMetadata, EvaluatorMetadata
-from learning_commons_evaluators.settings._generated_my_evaluator_settings import CONFIG
-
-# MyEvaluationSettings, MyOutputSchema, and prompt templates live in schemas/<evaluator_id>.py
-
-_INPUT_SETTINGS = CONFIG.evaluator_metadata.inputs
-
-
-class MyEvaluationInput(EvaluationInput):
-    _input_settings: ClassVar[dict] = _INPUT_SETTINGS
-
-    text: TextInputField
-    grade: GradeInputField
-
-    def __init__(self, *, text: str, grade: int, **kwargs):
-        super().__init__(text=text, grade=grade, **kwargs)
-
-
-class MyEvaluator(BaseEvaluator[MyEvaluationInput, EvaluationResult, MyEvaluationSettings]):
-    metadata: EvaluatorMetadata = CONFIG.evaluator_metadata
-    default_evaluation_settings: MyEvaluationSettings = CONFIG.evaluation_settings
-
-    async def evaluate_impl(
-        self,
-        input: MyEvaluationInput,
-        evaluation_settings: MyEvaluationSettings,
-        evaluation_metadata: EvaluationMetadata,
-    ) -> EvaluationResult:
-        prompts = CONFIG.prompts
-        output = await self.execute_prompt_chain_step(
-            step_name="main",
-            prompt_settings=evaluation_settings.prompt_settings_step_main,
-            evaluation_metadata=evaluation_metadata,
-            template=my_chat_prompt_template,  # built from prompts[...]
-            chain_inputs=input.input_values(),
-            parser_output_type=MyOutputSchema,
-        )
-        return EvaluationResult(
-            answer=...,
-            explanation=EvaluationExplanation(summary=output.reasoning, details={...}),
-            metadata=evaluation_metadata,
-        )
-```
-
-If you override `__init__`, forward `default_evaluation_settings=` to `super().__init__(config, default_evaluation_settings=...)`.
-
-**5. Public exports** — Register the evaluator and input types in `evaluators/__init__.py` and, when ready to ship, in the root `learning_commons_evaluators/__init__.py` `__all__`.
-
-**6. Unit tests** — Add `tests/evaluators/test_<evaluator_id>.py`. Mock `execute_prompt_chain_step` (see `test_conventionality.py`) to avoid live LLM calls; include cases for `InputValidationError` and `ConfigurationError` where relevant.
-
-**7. Contract tests** — Add `tests/contract_tests/<evaluator_id>.py`, a loader module, and `tests/contract_tests/test_<evaluator_id>.py` following the conventionality pattern. Populate `contracts.toml` from the evaluator notebook under `evals/` (see [Contract tests](#contract-tests)), then `make sync-settings`.
-
-**8. Verify** — `make verify` before opening a PR. Commit canonical TOML, generated `_generated_*.py`, and synced bundled `contracts.toml` together.
-
-Runtime overrides (`default_evaluation_settings` at construction, `evaluation_settings` per call) work the same as for bundled evaluators — see [Evaluation settings (per evaluator)](./configuration.md#evaluation-settings-per-evaluator).
+3. Register it in `evaluators/registry.py` and export it (class, input, output) from `evaluators/__init__.py` and the package barrel.
+4. Delete its id from `UNIMPLEMENTED` in `tests/unit/evaluators/test_registry_conformance.py`; the conformance, cross-SDK prompt, and integration suites pick it up automatically.

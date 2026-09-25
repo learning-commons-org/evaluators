@@ -8,7 +8,7 @@ version = "0.2.1"
 description = "Python SDK for Learning Commons educational evaluators"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [{ name = "Learning Commons" }]
 keywords = ["education", "evaluators", "literacy", "text-complexity"]
 classifiers = [
@@ -16,21 +16,47 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Education",
 ]
+# Every runtime dependency is capped at its next major. The adapters and the error
+# classifier read vendor-specific surfaces (openai `responses.parse`, anthropic
+# `messages.parse` and `extra_body`, google-genai `response_json_schema`, the SDKs'
+# exception attributes), which a major release may change without warning; a new major
+# is admitted by a deliberate bump after the suite has run against it, not by resolution.
+# Dependabot (.github/dependabot.yml, pip ecosystem) proposes those bumps.
+#
+# Verified against: pydantic 2.13, textstat 0.7.13, openai 3.14, anthropic 1.6,
+# google-genai 2.23, httpx 0.28, attrs 26.1 (September 2026).
 dependencies = [
-    # LLM access is via LangChain; the langchain-* packages pull in provider SDKs as needed.
-    "pydantic>=2.0.0",
-    "textstat>=0.7.0",
-    "langchain-anthropic>=0.2.0",
-    "langchain-core>=0.3.0",
-    "langchain-google-genai>=2.0.0",
-    "langchain-openai>=0.2.0",
-    "tomli>=2.0.0; python_version < \"3.11\"",
+    "pydantic>=2.0.0,<3",
+    "textstat>=0.7.0,<1",
+    # Native provider SDKs (D10): one adapter per SDK under providers/. httpx is what
+    # google-genai transports over and what the error taxonomy reads transport failures
+    # from. openai (since 2.47.0) and anthropic (since 1.0.0) transport over httpx 2,
+    # published as the separate httpx2 package, which they bring themselves; the lower
+    # bounds are the first versions to do so, so httpx2 is always present for the error
+    # classifier and the tests that build the SDKs' exceptions.
+    "openai>=2.47.0,<4",
+    "anthropic>=1.0.0,<2",
+    "google-genai>=1.30.0,<3",
+    "httpx>=0.27.0,<1",
+    # Knowledge Graph client (D9). The OpenAPI-generated transport under
+    # dependencies/_generated/ is built on httpx and attrs, so both are unconditional —
+    # the client ships with the package rather than behind an extra, so that the math
+    # standards evaluator works on a plain `pip install` like every other evaluator.
+    #
+    # The one runtime dependency with no upper bound, deliberately. attrs is CalVer, so
+    # the leading number is the year and not a compatibility signal: the `<26` this
+    # replaces already excluded 26.1.0 (March 2026) for nothing, and any year cap
+    # re-breaks installs every January. Nothing in this package imports attrs; only the
+    # generated client does, and only for `@define` and `field`, stable for years. A
+    # release that did change them would change the generator's output, which
+    # `make check-kg-client` compares byte for byte.
+    "attrs>=23.2.0",
 ]
 
 [project.optional-dependencies]
@@ -40,9 +66,13 @@ dev = [
     "pytest-cov>=5.0.0",
     "ruff>=0.9.0",
     "mypy>=1.14.0",
-    # Mypy is configured for Python 3.10 even when dev tooling runs on newer Python,
-    # so it needs the 3.10 tomllib backport available for type checking.
-    "tomli>=2.0.0",
+    # `make generate-kg-client` / `make check-kg-client`. Pinned exactly: the generator's
+    # output is committed, so a version bump is a large reviewable diff rather than a
+    # surprise stale-client failure on someone else's PR.
+    "openapi-python-client==0.29.1",
+    # Reads the vendored OpenAPI spec for the taxonomy drift check in the same script.
+    # Declared rather than leaned on as a transitive dependency of the generator above.
+    "ruamel.yaml>=0.18,<1",
 ]
 
 [project.urls]
@@ -57,31 +87,36 @@ where = ["src"]
 [tool.setuptools.package-data]
 learning_commons_evaluators = [
     "py.typed",
-    "settings/**/*.toml",
+    # The evals/ registry as the package ships it: config.json, input and output
+    # schemas, and the prompt files each contract names. Written by
+    # `make generate-contracts` (scripts/generate_contracts.py) and read by
+    # contracts/loader.py; the canonical copy is evals/ at the repo root.
+    "contracts/_generated/**/*.json",
+    "contracts/_generated/**/*.txt",
 ]
-
-# The settings TOML files inside the package are the bundled copy used when the
-# SDK is installed via pip.  The authoritative shared copy lives at sdks/settings/
-# (shared with TypeScript and other SDKs); keep the two in sync after any prompt
-# or settings change — see the README for instructions.
-#
-# When developing inside the monorepo, set EVALUATORS_SETTINGS_DIR to
-# sdks/settings/ so the SDK reads the shared copy instead of the bundled one:
-#
-#   export EVALUATORS_SETTINGS_DIR=/path/to/evaluators/sdks/settings
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: live provider calls; runs only with RUN_INTEGRATION_TESTS=1 and the provider keys set",
+]
 
 # ── Ruff (lint + format) ──────────────────────────────────────────────────────
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 line-length = 100
 extend-exclude = [
-    # Codegen output from ``make generate-settings`` — not hand-edited.
-    "src/learning_commons_evaluators/settings/_generated_*_settings.py",
+    # Schema modules generated by ``make generate-contracts`` live in the nested
+    # <family>/<subject>/ packages under schemas/; hand-written schema modules sit
+    # directly in schemas/ and stay linted. The pattern needs the trailing ``**``: with
+    # just ``schemas/*/`` Ruff skipped every file under schemas/, hand-written ones
+    # included, so evaluator.py, outcome.py and metadata.py went unlinted.
+    "src/learning_commons_evaluators/schemas/*/**",
+    # Codegen output from ``make generate-kg-client``; `make check-kg-client` is what
+    # holds it to the spec. Formatting it here would make that check fail on a Ruff bump.
+    "src/learning_commons_evaluators/dependencies/_generated/",
 ]
 
 [tool.ruff.lint]
@@ -94,28 +129,57 @@ select = [
     "B",   # flake8-bugbear
     "SIM", # flake8-simplify
 ]
-ignore = ["E501"]  # line length — formatter wraps where it matters
-
-[tool.ruff.lint.per-file-ignores]
-"scripts/generate_settings.py" = ["E402"]
+ignore = [
+    "E501",  # line length — formatter wraps where it matters
+    # UP042 wants `str, Enum` rewritten as `enum.StrEnum`, available since 3.11. Not done
+    # here: it changes `str(Member)` from "Class.MEMBER" to the value, and `Provider` is
+    # exported, reaches pydantic, and names telemetry labels. That is a behaviour change
+    # to public types and belongs in its own change with its own parity run, not riding
+    # along with a Python floor bump. Code reads `.value` explicitly everywhere today.
+    "UP042",
+]
 
 # ── Mypy ──────────────────────────────────────────────────────────────────────
 
 [tool.mypy]
-python_version = "3.10"
-mypy_path = ["src", "tests"]
+python_version = "3.11"
+mypy_path = ["src"]
 explicit_package_bases = true
 plugins = ["pydantic.mypy"]
 warn_unused_configs = true
 show_error_codes = true
-# Intentional `validate(self) -> None` on models shadows Pydantic v2's classmethod `validate`.
-disable_error_code = ["override"]
 
 [[tool.mypy.overrides]]
-module = "learning_commons_evaluators.settings.load_settings"
-disable_error_code = ["import-untyped"]
+# The native SDKs' request methods take dozens of keyword parameters; the adapters build
+# them as dicts, which mypy cannot check against the overloads.
+module = [
+    "learning_commons_evaluators.providers.openai_sdk",
+    "learning_commons_evaluators.providers.anthropic_sdk",
+    "learning_commons_evaluators.providers.google_genai",
+]
+disable_error_code = ["arg-type", "call-overload", "misc"]
 
 [[tool.mypy.overrides]]
-module = "learning_commons_evaluators.providers.langchain"
-# LangChain stubs lag the runtime API (e.g. ChatAnthropic kwargs).
-disable_error_code = ["call-arg", "arg-type"]
+module = "textstat"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Codegen output from ``make generate-kg-client``. Not hand-maintainable, so not worth
+# type-checking; ``dependencies/knowledge_graph.py`` is the checked boundary in front of it.
+module = "learning_commons_evaluators.dependencies._generated.*"
+ignore_errors = true
+
+# ── Coverage ──────────────────────────────────────────────────────────────────
+
+[tool.coverage.run]
+source = ["learning_commons_evaluators"]
+omit = [
+    # The generated Knowledge Graph client: ~19k lines covering every Knowledge Graph
+    # endpoint, of which the SDK calls three. Measuring it would put the package's line
+    # count an order of magnitude beyond what the SDK actually runs and make COV_MIN a
+    # statement about the generator instead of about our code. What we do run is the
+    # wrapper in dependencies/knowledge_graph.py, which is measured and which the unit
+    # tests drive end to end through a mock transport, so the generated request building
+    # and response parsing are exercised even though they are not counted.
+    "*/dependencies/_generated/*",
+]

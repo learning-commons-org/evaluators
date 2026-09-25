@@ -1,132 +1,74 @@
-"""Evaluation metadata schemas."""
+"""Static facts about an evaluator, read from its contract once at class creation."""
 
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any
+from __future__ import annotations
 
-from pydantic import BaseModel, Field, TypeAdapter, field_validator, model_validator
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from learning_commons_evaluators.schemas.config import LLMProvider, PromptSettings
-from learning_commons_evaluators.schemas.input_specs import AnyInputSpec
-from learning_commons_evaluators.version import __version__ as sdk_version
+from learning_commons_evaluators.contracts.loader import DeclaredOutcome
+from learning_commons_evaluators.providers.base import Provider
 
-
-class EvaluatorMaturity(Enum):
-    # alpha = "alpha"
-    # beta = "beta"
-    # release_candidate = "release_candidate"
-    # general_availability = "general_availability"
-    # deprecated = "deprecated"
-    early_access = "early_access"
+if TYPE_CHECKING:
+    from learning_commons_evaluators.contracts.loader import Contract
 
 
-class Status(Enum):
-    processing = "processing"
-    succeeded = "succeeded"
-    failed = "failed"
+@dataclass(frozen=True)
+class EvaluatorMetadata:
+    """Every evaluator class carries one of these as ``metadata``."""
 
+    #: Current dotted registry id, e.g. ``text_complexity.ela_reading.purpose_clarity``.
+    #: Appears in results and telemetry. May be renamed — the name is not the identity.
+    id: str
+    #: Immutable UUID assigned at the evaluator's creation; survives renames.
+    stable_id: str
+    #: Prior ``id`` values, oldest first, so old names remain resolvable.
+    id_history: tuple[str, ...]
+    name: str
+    description: str
+    #: The grades the evaluator is built for, as its contract declares them. Not a
+    #: validation set: where a ``grade_level`` input exists, its schema enum is what
+    #: rejects a bad value, and a grade-free evaluator still reports what it targets.
+    supported_grades: tuple[str, ...]
+    #: Which output properties carry the verdict and its rationale; ``None`` for an
+    #: evaluator whose output is not a single judgement.
+    outcome: DeclaredOutcome | None
+    #: Canonical config keys for non-LLM services the evaluator calls (never LLM keys,
+    #: which follow ``default_providers`` and are replaced by a model override).
+    required_credentials: tuple[str, ...]
+    #: Providers the evaluator's default configuration calls, in step order.
+    default_providers: tuple[Provider, ...]
 
-# Input metadata is the recommended way to represent an input in logs and metadata.
-InputMetadata = dict[str, Any]
-
-
-class EvaluatorMetadata(BaseModel):
-    """Evaluator metadata: id, version, name, description; maturity (early_access for now); sdk_version."""
-
-    id: str = Field(..., min_length=1)
-    version: str = Field(..., min_length=1)
-    name: str = Field(..., min_length=1)
-    description: str = Field(..., min_length=1)
-    maturity: EvaluatorMaturity
-    sdk_version: str = f"learning-commons-evaluators-python-{sdk_version}"
-    inputs: dict[str, AnyInputSpec] = Field(default_factory=dict)
-
-    @model_validator(mode="before")
     @classmethod
-    def _coerce_toml_inputs(cls, data: Any) -> Any:
-        """Turn ``[[evaluator_metadata.inputs]]`` list rows into ``inputs`` keyed by field name."""
-        if not isinstance(data, dict):
-            return data
-        out = dict(data)
-        if "inputs" not in out:
-            return out
-        raw = out["inputs"]
-        if isinstance(raw, list):
-            adapter: TypeAdapter[Any] = TypeAdapter(AnyInputSpec)
-            parsed: dict[str, AnyInputSpec] = {}
-            for item in raw:
-                if not (isinstance(item, dict) and "name" in item):
-                    continue
-                parsed[str(item["name"])] = adapter.validate_python(item)
-            out["inputs"] = parsed
-        elif raw is None:
-            out["inputs"] = {}
-        return out
+    def from_contract(
+        cls, contract: Contract, default_providers: Sequence[Provider]
+    ) -> EvaluatorMetadata:
+        """Everything static an evaluator publishes, read straight off its contract.
 
-    @field_validator("id", "version", "name", "description", mode="before")
-    @classmethod
-    def _strip_required_strings(cls, v: Any) -> Any:
-        if v is None:
-            return v
-        return str(v).strip()
+        ``default_providers`` is the one fact the contract does not state directly: which
+        steps an evaluator actually runs is the evaluator's own decision, so each base
+        derives the providers from the steps it will call and passes them in.
+        """
+        return cls(
+            id=contract.evaluator.id,
+            stable_id=contract.evaluator.stable_id,
+            id_history=tuple(contract.evaluator.id_history),
+            name=contract.evaluator.name,
+            description=contract.evaluator.description,
+            supported_grades=tuple(contract.evaluator.supported_grades),
+            outcome=contract.outcome,
+            required_credentials=tuple(contract.required_credentials),
+            default_providers=tuple(default_providers),
+        )
 
-    @field_validator("maturity", mode="before")
-    @classmethod
-    def _normalize_maturity(cls, v: Any) -> Any:
-        if isinstance(v, str):
-            return v.lower()
-        return v
+    @property
+    def slug(self) -> str:
+        return self.id.rsplit(".", 1)[-1]
+
+    @property
+    def label(self) -> str:
+        """The name as logs say it: the contract names every evaluator "<Thing> Evaluator"."""
+        return self.name.removesuffix(" Evaluator")
 
 
-class TokenUsage(BaseModel):
-    """Token usage for a some step of an evaluation: provider type, model, and token counts."""
-
-    provider_type: LLMProvider
-    model: str
-    input_tokens: int
-    output_tokens: int
-
-
-# Well-known keys for :attr:`StepMetadata.extras` (e.g. prompt / LLM steps).
-PROMPT_STEP_EXTRA_PROMPT_SETTINGS = "prompt_settings"
-PROMPT_STEP_EXTRA_TOKEN_USAGE = "token_usage"
-
-
-class StepMetadata(BaseModel):
-    """Metadata common to every evaluation step.
-
-    Use :attr:`extras` for step-specific payloads (prompt settings, token usage, etc.).
-    See :data:`PROMPT_STEP_EXTRA_PROMPT_SETTINGS` and :data:`PROMPT_STEP_EXTRA_TOKEN_USAGE` for
-    standard keys used by :meth:`BaseEvaluator.execute_prompt_chain_step`.
-    """
-
-    step_id: str
-    status: Status = Status.processing
-    error_details: str = ""
-    processing_time_ms: float = 0
-    extras: dict[str, Any] = Field(default_factory=dict)
-
-
-def prompt_settings_to_extras_value(settings: PromptSettings) -> dict[str, Any]:
-    """JSON-friendly dict for the value at :data:`PROMPT_STEP_EXTRA_PROMPT_SETTINGS` in :attr:`StepMetadata.extras`."""
-    return {
-        "provider_type": settings.provider_type.value,
-        "model": settings.model,
-        "temperature": settings.temperature,
-    }
-
-
-class EvaluationMetadata(BaseModel):
-    """Metadata for an evaluation run."""
-
-    model_config = {"arbitrary_types_allowed": True}
-
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    evaluator_metadata: EvaluatorMetadata
-    evaluation_settings: Any
-    input_metadata: InputMetadata
-    status: Status = Status.processing
-    error_details: str | None = None
-    total_token_usage: dict[LLMProvider, TokenUsage] = Field(default_factory=dict)
-    processing_time_ms: float = 0
-    step_details: dict[str, StepMetadata] = Field(default_factory=dict)
+__all__ = ["EvaluatorMetadata"]

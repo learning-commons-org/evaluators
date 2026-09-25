@@ -1,0 +1,332 @@
+"""Every contract in ``evals/`` has a registered Python class or an explicit allowlist entry.
+
+Nearly every defect this suite exists to catch has the same shape: a registry fact was
+copied into SDK code, the registry moved, and the copy silently kept working with the old
+value. So each check reads the contract at test time and compares.
+"""
+
+from __future__ import annotations
+
+import importlib
+import json
+from collections.abc import Mapping
+from pathlib import Path
+
+import pytest
+
+import learning_commons_evaluators as sdk
+from learning_commons_evaluators import read_outcome
+from learning_commons_evaluators.contracts import load_contract
+from learning_commons_evaluators.contracts.loader import Step
+from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
+    CODE_INPUT_SCHEMA,
+    UUID_INPUT_SCHEMA,
+    MathStandardsAlignmentEvaluator,
+    MathStandardsAlignmentResult,
+)
+from learning_commons_evaluators.evaluators.base import BaseEvaluator
+from learning_commons_evaluators.evaluators.inputs import validate_inputs
+from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
+from learning_commons_evaluators.evaluators.registry import EVALUATORS, index_by_id
+from learning_commons_evaluators.evaluators.single_step import SingleStepEvaluator, step_for
+from learning_commons_evaluators.schemas.academic_standards_alignment.mathematics.math_standards_alignment import (
+    MathStandardsAlignmentOutput,
+)
+from tests.unit.conftest import ProviderFactory
+
+REPO_ROOT = Path(__file__).resolve().parents[5]
+EVALS_ROOT = REPO_ROOT / "evals"
+
+# Contracts with no Python implementation yet. Listing them here is what keeps them
+# visible: the test below asserts that every contract on disk is either implemented or
+# named here, so a new contract cannot sit unimplemented and unmentioned, and porting one
+# without deleting its entry fails the build.
+UNIMPLEMENTED: frozenset[str] = frozenset(
+    {
+        # Follow-on work in both SDKs (new family, claude-opus-5); on TS's allowlist too.
+        "durable_skills.ela_writing.critical_thinking",
+    }
+)
+
+# Every evaluator the barrel exports, discovered rather than listed.
+EXPORTED: list[type[BaseEvaluator]] = sorted(
+    (
+        value
+        for value in vars(sdk).values()
+        if isinstance(value, type)
+        and issubclass(value, BaseEvaluator)
+        and value not in (BaseEvaluator, SingleStepEvaluator, MultiStepEvaluator)
+        and hasattr(value, "metadata")
+    ),
+    key=lambda e: e.metadata.id,
+)
+
+CONTRACT_DIRS = sorted(p.parent for p in EVALS_ROOT.glob("*/*/*/config.json"))
+
+
+def steps_run_by(evaluator: type[BaseEvaluator], inputs: Mapping[str, object]) -> list[Step]:
+    """The steps this evaluator runs for these inputs, read off the contract.
+
+    Derived here from ``config.json`` rather than asked of the evaluator, which is the whole
+    point: a single-step evaluator runs the one step its naming convention fixes, and a
+    multi-step one runs its steps in declared order, skipping any whose ``condition`` the
+    inputs do not satisfy. If the SDK disagrees, the checks below fail.
+    """
+    contract = load_contract(evaluator.metadata.id)
+    if not issubclass(evaluator, MultiStepEvaluator):
+        return [step_for(contract)]
+    return [
+        step
+        for step in contract.steps
+        if step.condition is None or step.condition.holds({k: str(v) for k, v in inputs.items()})
+    ]
+
+
+def _contract_id(directory: Path) -> str:
+    return json.loads((directory / "config.json").read_text(encoding="utf-8"))["evaluator"]["id"]
+
+
+#: The evaluators the single-step and multi-step factories build, which is every one but
+#: Math Standards Alignment. That one subclasses ``BaseEvaluator`` directly: one of its
+#: prompt placeholders is filled from a live Knowledge Graph fetch rather than from the
+#: caller's inputs, it reports a verdict per learning component rather than a single
+#: judgement, and it accepts one input more than the contract declares (DSCR-2190).
+#: The checks below that read an evaluator's generated models, its declared
+#: outcome, or its fixtures are scoped to this list; everything that is true of any
+#: evaluator stays scoped to EXPORTED.
+CONTRACT_DRIVEN: list[type[BaseEvaluator]] = [
+    evaluator
+    for evaluator in EXPORTED
+    if issubclass(evaluator, (SingleStepEvaluator, MultiStepEvaluator))
+]
+
+
+def test_discovery_finds_every_registered_evaluator() -> None:
+    assert len(EXPORTED) == 16
+    assert set(EXPORTED) == set(EVALUATORS)
+    assert len(CONTRACT_DRIVEN) == 15
+
+
+class TestEveryContractIsImplementedOrListed:
+    @pytest.mark.parametrize("directory", CONTRACT_DIRS, ids=lambda d: "/".join(d.parts[-3:]))
+    def test_contract(self, directory: Path) -> None:
+        evaluator_id = _contract_id(directory)
+        implemented = {e.metadata.id for e in EXPORTED}
+        if evaluator_id in implemented:
+            assert evaluator_id not in UNIMPLEMENTED, (
+                f'"{evaluator_id}" is implemented: drop it from UNIMPLEMENTED'
+            )
+        else:
+            assert evaluator_id in UNIMPLEMENTED, (
+                f'"{evaluator_id}" has a contract but no implementation and is not in UNIMPLEMENTED'
+            )
+
+    def test_the_allowlist_names_only_real_contracts(self) -> None:
+        on_disk = {_contract_id(d) for d in CONTRACT_DIRS}
+        assert on_disk >= UNIMPLEMENTED, UNIMPLEMENTED - on_disk
+
+
+class TestNoIdCollisions:
+    def test_current_and_historical_ids_name_one_evaluator_each(self) -> None:
+        index = index_by_id(EVALUATORS)
+        assert len(index) == sum(1 + len(e.metadata.id_history) for e in EVALUATORS)
+
+
+@pytest.mark.parametrize("evaluator", EXPORTED, ids=lambda e: e.metadata.id)
+class TestEachEvaluatorMatchesItsContract:
+    def test_identity(self, evaluator: type[BaseEvaluator]) -> None:
+        contract = load_contract(evaluator.metadata.id).evaluator
+        assert evaluator.metadata.stable_id == contract.stable_id
+        assert evaluator.metadata.id_history == tuple(contract.id_history)
+        assert evaluator.metadata.name == contract.name
+        assert evaluator.metadata.description == contract.description
+        assert evaluator.metadata.supported_grades == tuple(contract.supported_grades)
+
+    def test_modules_sit_at_the_path_derived_from_the_id(
+        self, evaluator: type[BaseEvaluator]
+    ) -> None:
+        evaluator_id = evaluator.metadata.id
+        assert evaluator.__module__ == f"learning_commons_evaluators.evaluators.{evaluator_id}"
+        schema_module = importlib.import_module(
+            f"learning_commons_evaluators.schemas.{evaluator_id}"
+        )
+        assert evaluator_id == schema_module.EVALUATOR_ID
+
+    def test_default_providers_are_the_non_optional_steps(
+        self, evaluator: type[BaseEvaluator]
+    ) -> None:
+        contract = load_contract(evaluator.metadata.id)
+        assert list(evaluator.metadata.default_providers) == contract.providers
+
+    def test_required_credentials_match(self, evaluator: type[BaseEvaluator]) -> None:
+        contract = load_contract(evaluator.metadata.id)
+        assert list(evaluator.metadata.required_credentials) == contract.required_credentials
+
+    def test_grade_input_enum_agrees_with_supported_grades(
+        self, evaluator: type[BaseEvaluator]
+    ) -> None:
+        contract = load_contract(evaluator.metadata.id)
+        grade = contract.input_schema["properties"].get("grade_level")
+        if grade is None:
+            return
+        assert tuple(grade["enum"]) == evaluator.metadata.supported_grades
+
+
+@pytest.mark.parametrize("evaluator", CONTRACT_DRIVEN, ids=lambda e: e.metadata.id)
+class TestEachContractDrivenEvaluatorDeclaresTheGeneratedModels:
+    def test_input_and_output_models_are_the_generated_ones(
+        self, evaluator: type[BaseEvaluator]
+    ) -> None:
+        assert issubclass(evaluator, (SingleStepEvaluator, MultiStepEvaluator))
+        slug = evaluator.metadata.slug
+        pascal = "".join(part.capitalize() for part in slug.split("_"))
+        assert evaluator.input_model.__name__ == f"{pascal}Input"
+        assert evaluator.output_model.__name__ == f"{pascal}Output"
+        contract = load_contract(evaluator.metadata.id)
+        assert list(evaluator.input_model.model_fields) == list(contract.input_schema["properties"])
+
+    def test_outcome_names_fields_the_output_model_has(
+        self, evaluator: type[BaseEvaluator]
+    ) -> None:
+        assert issubclass(evaluator, (SingleStepEvaluator, MultiStepEvaluator))
+        outcome = evaluator.metadata.outcome
+        assert outcome is not None, "every factory-built evaluator produces a single judgement"
+        assert outcome.score in evaluator.output_model.model_fields
+        assert outcome.reasoning in evaluator.output_model.model_fields
+
+
+class TestMathStandardsAlignmentIsTheDocumentedException:
+    """The evaluator the checks above scope around, asserted rather than assumed.
+
+    Each assertion is the reason one of those checks excludes it, so the exception cannot
+    quietly widen or silently outlive its reason: when this evaluator gains a declared
+    outcome, or is built by a factory, these fail and the scoping above is what should
+    change.
+    """
+
+    def test_it_is_not_built_by_the_factories(self) -> None:
+        assert not issubclass(
+            MathStandardsAlignmentEvaluator, (SingleStepEvaluator, MultiStepEvaluator)
+        )
+
+    def test_it_declares_no_outcome_so_reports_have_no_single_score(self) -> None:
+        # As in TypeScript: the payload is a verdict per learning component plus counts,
+        # and there is no field a report could read as the evaluation's score.
+        assert MathStandardsAlignmentEvaluator.metadata.outcome is None
+
+    def test_evaluate_by_code_accepts_the_contracts_inputs_and_one_more(self) -> None:
+        contract = load_contract(MathStandardsAlignmentEvaluator.metadata.id)
+        declared = contract.input_schema["properties"]
+        assert set(CODE_INPUT_SCHEMA["properties"]) == set(declared) | {"grade_level"}
+        # The registry's own property objects, not copies of them, so the bounds and the
+        # jurisdiction enum this evaluator enforces cannot drift from the contract's.
+        for name, spec in declared.items():
+            assert CODE_INPUT_SCHEMA["properties"][name] is spec
+
+    def test_the_contracts_own_fixtures_are_valid_calls_to_evaluate_by_code(self) -> None:
+        # The superset property, proved against the registry's cases rather than asserted:
+        # anything written against the contract reaches evaluate_by_code unchanged, which
+        # is what lets the fixture-driven suites treat this evaluator like any other.
+        for case in _fixture_cases(MathStandardsAlignmentEvaluator.metadata.id):
+            assert validate_inputs(case, CODE_INPUT_SCHEMA) == case
+
+    def test_the_grade_it_adds_is_bound_to_the_grades_the_contract_supports(self) -> None:
+        assert tuple(CODE_INPUT_SCHEMA["properties"]["grade_level"]["enum"]) == (
+            MathStandardsAlignmentEvaluator.metadata.supported_grades
+        )
+
+    def test_its_payload_is_the_contracts_own_output_model(self) -> None:
+        # One reason for the scoping above that no longer applies: the payload used to be
+        # hand-written because the schema forbade `identifier`, which both SDKs emit.
+        # #318 declared it, so the registry's model is now exactly what this evaluator
+        # returns — and being the same object, it cannot drift from the contract.
+        assert MathStandardsAlignmentResult is MathStandardsAlignmentOutput
+
+    def test_evaluate_takes_a_uuid_the_contract_does_not_declare(self) -> None:
+        # Which is why the fixture-driven suites call evaluate_by_code for this one: the
+        # registry describes a standard by code, and evaluate() is the UUID primitive.
+        contract = load_contract(MathStandardsAlignmentEvaluator.metadata.id)
+        assert set(UUID_INPUT_SCHEMA["properties"]) == {"question", "case_identifier_uuid"}
+        assert "case_identifier_uuid" not in contract.input_schema["properties"]
+        assert (
+            UUID_INPUT_SCHEMA["properties"]["question"]
+            is (contract.input_schema["properties"]["question"])
+        )
+
+
+@pytest.mark.parametrize("evaluator", CONTRACT_DRIVEN, ids=lambda e: e.metadata.id)
+class TestEachEvaluatorRunsItsContract:
+    def _construct(self, evaluator: type[BaseEvaluator]) -> BaseEvaluator:
+        keys = {f"{p.value}_api_key": "test-key" for p in evaluator.metadata.default_providers}
+        return evaluator(**keys)
+
+    async def test_it_runs_the_steps_the_contract_declares_at_their_temperature(
+        self, providers: ProviderFactory, evaluator: type[BaseEvaluator]
+    ) -> None:
+        inputs = _fixture_input(evaluator.metadata.id)
+        await self._construct(evaluator).evaluate(**inputs)
+        plan = steps_run_by(evaluator, inputs)
+        assert [call["temperature"] for call in providers.calls] == [s.temperature for s in plan]
+
+    async def test_every_declared_placeholder_reaches_its_step_prompt(
+        self, providers: ProviderFactory, evaluator: type[BaseEvaluator]
+    ) -> None:
+        inputs = _fixture_input(evaluator.metadata.id)
+        await self._construct(evaluator).evaluate(**inputs)
+        plan = steps_run_by(evaluator, inputs)
+        assert len(providers.calls) == len(plan)
+        for call, step in zip(providers.calls, plan, strict=True):
+            assert step.prompt is not None
+            rendered = "\n".join(m["content"] for m in call["messages"])
+            for name in step.prompt.placeholders:
+                assert f"{{{name}}}" not in rendered, f"{step.id}: {name} was not substituted"
+
+    async def test_read_outcome_finds_a_verdict_in_the_returned_payload(
+        self, providers: ProviderFactory, evaluator: type[BaseEvaluator]
+    ) -> None:
+        evaluation = await self._construct(evaluator).evaluate(
+            **_fixture_input(evaluator.metadata.id)
+        )
+        assert read_outcome(evaluation, evaluator.metadata.outcome).score is not None
+
+    async def test_a_declared_minimum_length_is_enforced(
+        self, providers: ProviderFactory, evaluator: type[BaseEvaluator]
+    ) -> None:
+        contract = load_contract(evaluator.metadata.id)
+        text_field, spec = next(
+            (name, spec)
+            for name, spec in contract.input_schema["properties"].items()
+            if spec.get("type") == "string" and "enum" not in spec
+        )
+        minimum = spec.get("minLength", 1)
+        inputs = {**_fixture_input(evaluator.metadata.id), text_field: "x" * (minimum - 1)}
+        expected = "too short" if minimum > 1 else "cannot be empty"
+        with pytest.raises(sdk.InputValidationError, match=expected):
+            await self._construct(evaluator).evaluate(**inputs)
+
+
+def _fixture_cases(evaluator_id: str) -> list[dict[str, object]]:
+    """Every fixture case's inputs for an evaluator, as a caller would pass them."""
+    contract = load_contract(evaluator_id)
+    directory = next(d for d in CONTRACT_DIRS if _contract_id(d) == evaluator_id)
+    path = (
+        contract.fixtures.path if contract.fixtures and contract.fixtures.path else "fixtures.json"
+    )
+    return [dict(case["input"]) for case in json.loads((directory / path).read_text())]
+
+
+def _fixture_input(evaluator_id: str) -> dict[str, object]:
+    """The first fixture case's inputs for an evaluator, as a caller would pass them."""
+    contract = load_contract(evaluator_id)
+    directory = next(d for d in CONTRACT_DIRS if _contract_id(d) == evaluator_id)
+    case = json.loads(
+        (
+            directory
+            / (
+                contract.fixtures.path
+                if contract.fixtures and contract.fixtures.path
+                else "fixtures.json"
+            )
+        ).read_text()
+    )[0]
+    return dict(case["input"])

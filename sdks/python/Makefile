@@ -3,24 +3,30 @@ PYTEST  := $(PYTHON) -m pytest
 RUFF    := $(PYTHON) -m ruff
 MYPY    := $(PYTHON) -m mypy
 
-# Bundled settings directory inside the package.  Two things are maintained here:
-#   _generated_*_settings.py  — generated from settings.toml by `make generate-settings`
-#   contracts.toml             — copied from sdks/settings/ by `make sync-settings`
-#
-# Tests always read contracts.toml from the bundled copy (via importlib.resources
-# fallback in shared_settings_root()).  EVALUATORS_SETTINGS_DIR is intentionally NOT
-# exported here so that dev and installed-package runs behave identically.
-SETTINGS_DST := src/learning_commons_evaluators/settings
+# Floor for line coverage. The suite sits at 98%; the gap is headroom so a single
+# uncovered line does not block an otherwise good PR. Raise it, never lower it.
+COV_MIN ?= 95
 
-.PHONY: help build check-build test unit-test contract-test \
-        generate-settings check-generated sync-settings check-sync \
+# Generated from the evals/ registry by scripts/generate_contracts.py:
+#   src/learning_commons_evaluators/contracts/_generated/**   — bundled contracts (package data)
+#   src/learning_commons_evaluators/schemas/<family>/<subject>/*.py — pydantic Input/Output models
+# Both are committed; `make check-generated` fails CI when they drift from evals/.
+#
+# Generated from openapi/knowledge-graph.yaml by scripts/generate_kg_client.py:
+#   src/learning_commons_evaluators/dependencies/_generated/knowledge_graph/**
+# Also committed; `make check-kg-client` fails CI when it drifts from the vendored spec.
+# The spec itself is refreshed by `make fetch-kg-openapi`, which is the only network step
+# and so is deliberately outside `verify`.
+
+.PHONY: help build check-build test integration-test generate-contracts check-generated \
+        fetch-kg-openapi generate-kg-client check-kg-client \
         lint lint-fix format format-check typecheck pip-check verify coverage
 
 help:
 	@echo "Usage: make <target>"
 	@echo ""
-	@echo "  build              Prepare the package: generate settings + sync contracts TOML"
-	@echo "  check-build        Verify build artifacts are up to date (use in CI)"
+	@echo "  build              Prepare the package: bundle evals/ contracts + generate schema modules"
+	@echo "  check-build        Verify every generated tree is up to date (use in CI)"
 	@echo ""
 	@echo "  lint               Ruff linter (src/, tests/, scripts/)"
 	@echo "  lint-fix           Ruff linter with --fix (safe auto-fixes)"
@@ -28,31 +34,35 @@ help:
 	@echo "  format-check       Fail if Ruff would reformat any file"
 	@echo "  typecheck          Mypy on src package + tests"
 	@echo "  pip-check          pip dependency consistency check"
-	@echo "  verify             check-build + lint + format-check + typecheck + pip-check + test (unit + contract)"
-	@echo "  coverage           Unit tests with coverage report (requires dev install)"
+	@echo "  verify             check-build + lint + format-check + typecheck + pip-check + test"
+	@echo "  coverage           Tests with coverage; fails under COV_MIN ($(COV_MIN)%)"
 	@echo ""
-	@echo "  test               Run the full test suite (unit + contract)"
-	@echo "  unit-test          Run unit tests only (skip contract tests)"
-	@echo "  contract-test      Run contract tests only"
+	@echo "  test               Run the test suite (live integration tests skip without keys)"
+	@echo "  integration-test   Live tests: needs RUN_INTEGRATION_TESTS=1 plus GOOGLE_API_KEY / OPENAI_API_KEY"
 	@echo ""
-	@echo "  generate-settings  Re-generate _generated_*_settings.py from sdks/settings/"
-	@echo "  check-generated    Verify generated .py files match sdks/settings/ (exits 1 if stale)"
-	@echo "  sync-settings      Copy contracts.toml from sdks/settings/ into the package"
-	@echo "  check-sync         Verify bundled contracts.toml matches sdks/settings/"
+	@echo "  generate-contracts Re-bundle evals/ contracts and regenerate schema modules"
+	@echo "  check-generated    Verify generated files match evals/ (exits 1 if stale or orphaned)"
+	@echo "  fetch-kg-openapi   Download the Knowledge Graph OpenAPI spec (network; not in verify)"
+	@echo "  generate-kg-client Re-generate the Knowledge Graph client from the vendored spec"
+	@echo "  check-kg-client    Verify the generated Knowledge Graph client matches the spec"
 	@echo ""
 	@echo "Typical workflows:"
-	@echo "  After editing evaluator settings TOML:  make generate-settings && make test"
-	@echo "  After editing contracts TOML:           make sync-settings && make contract-test"
+	@echo "  After editing anything under evals/:    make generate-contracts && make test"
+	@echo "  After a Knowledge Graph API change:     make fetch-kg-openapi && make generate-kg-client"
 	@echo "  Fresh checkout / before release:        make build && make verify"
 	@echo "  CI:                                     make verify"
 
 # ── Build ─────────────────────────────────────────────────────────────────────
-# Prepares all package build artifacts in one step.  Run after editing any
-# file under sdks/settings/, or on a fresh checkout before running tests.
+# Prepares the evals/-derived artifacts in one step.  Run after editing any
+# file under evals/, or on a fresh checkout before running tests.
 
-build: generate-settings sync-settings
+# The Knowledge Graph client is deliberately not here. It is generated from openapi/,
+# not evals/, changes only when the published spec does, and its generator cannot be
+# installed on every interpreter the package supports — so regenerating it is its own
+# explicit step. The committed tree is the build artifact; `check-build` still verifies it.
+build: generate-contracts
 
-check-build: check-generated check-sync
+check-build: check-generated check-kg-client
 
 # ── Static checks (Ruff + Mypy) ───────────────────────────────────────────────
 
@@ -77,36 +87,41 @@ pip-check:
 verify: check-build lint format-check typecheck pip-check test
 
 coverage:
-	$(PYTEST) tests/ -q --ignore=tests/contract_tests --cov=learning_commons_evaluators --cov-report=term-missing
+	$(PYTEST) tests/ -q --cov=learning_commons_evaluators \
+	  --cov-report=term-missing --cov-report=xml --cov-fail-under=$(COV_MIN)
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 
 test:
 	$(PYTEST) tests/ -v
 
-unit-test:
-	$(PYTEST) tests/ -v --ignore=tests/contract_tests
-
-contract-test:
-	$(PYTEST) tests/contract_tests/ -v
+# Each case also needs its own credential in the environment and skips without it:
+# GOOGLE_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY per the evaluator's contract, and
+# LEARNING_COMMONS_API_KEY for the live Knowledge Graph checks.
+integration-test:
+	RUN_INTEGRATION_TESTS=1 $(PYTEST) tests/integration -v
 
 # ── Code generation ───────────────────────────────────────────────────────────
-# Re-run when an evaluator settings TOML under sdks/settings/ changes.
-# The generator sets EVALUATORS_SETTINGS_DIR itself to point at sdks/settings/.
+# Re-run when anything under evals/ changes. The generator verifies each prompt
+# file against the sha256 its config.json declares before bundling it.
 
-generate-settings:
-	$(PYTHON) scripts/generate_settings.py
+generate-contracts:
+	$(PYTHON) scripts/generate_contracts.py
 
 check-generated:
-	$(PYTHON) scripts/generate_settings.py --check
+	$(PYTHON) scripts/generate_contracts.py --check
 
-# ── Contract test bundling ────────────────────────────────────────────────────
-# contracts.toml is bundled so contract tests run consistently whether using
-# a development checkout or a pip-installed package.  The sync command is
-# handled by the Python generator script.
+# ── Knowledge Graph OpenAPI client ────────────────────────────────────────────
+# Two steps on purpose. Fetching the published spec is the network step and is not part
+# of `verify`, so a change to the live API arrives as a reviewed commit to
+# openapi/knowledge-graph.yaml. Generation is offline from that vendored file, so CI and
+# a laptop produce the same client.
 
-sync-settings:
-	$(PYTHON) scripts/generate_settings.py --sync
+fetch-kg-openapi:
+	$(PYTHON) scripts/fetch_kg_openapi.py
 
-check-sync:
-	$(PYTHON) scripts/generate_settings.py --check-sync
+generate-kg-client:
+	$(PYTHON) scripts/generate_kg_client.py
+
+check-kg-client:
+	$(PYTHON) scripts/generate_kg_client.py --check
