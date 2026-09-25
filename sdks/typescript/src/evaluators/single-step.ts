@@ -1,8 +1,9 @@
 import type { ZodType } from 'zod';
-import type { LLMProvider } from '../providers/index.js';
+import type { ImageAttachment, LLMProvider } from '../providers/index.js';
+import { loadImage } from '../features/image-source.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import type { StageDetail } from '../telemetry/index.js';
-import { EvaluatorError, wrapProviderError } from '../errors.js';
+import { ConfigurationError, EvaluatorError, wrapProviderError } from '../errors.js';
 import { runPreprocessingStep } from '../features/preprocessing.js';
 import {
   BaseEvaluator,
@@ -44,6 +45,20 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
   outcome?: { score: string; reasoning: string };
 }
 
+/**
+ * An input the model receives as an attached image rather than as text in the prompt.
+ *
+ * The contract declares the input as a string naming where the image lives (a file path or
+ * URL). The shared config schema has no field for this yet, so the declaration sits here
+ * until it does; the SDK reads the image in the caller's environment and hands it to the
+ * provider as a request attachment, placed ahead of the rendered user prompt.
+ */
+export interface Attachment {
+  /** The input field, as declared in `input_schema.json`. */
+  input: string;
+  kind: 'image';
+}
+
 export interface SingleStepDefinition<TResult> {
   contract: SingleStepContract;
   inputSchema: DeclaredInputSchema;
@@ -52,6 +67,8 @@ export interface SingleStepDefinition<TResult> {
   systemPrompt: string;
   /** The contract's `user.txt`, verbatim. */
   userPrompt: string;
+  /** Inputs attached to the user turn as content parts. Empty for a text-only evaluator. */
+  attachments?: readonly Attachment[];
 }
 
 /**
@@ -127,11 +144,20 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string>,
   definition: SingleStepDefinition<TResult>,
 ): SingleStepEvaluatorClass<TInput, TResult> {
   const { contract, inputSchema, outputSchema, systemPrompt, userPrompt } = definition;
+  const ATTACHMENTS = definition.attachments ?? [];
 
   const STEP = stepFor(contract);
   const VENDOR = vendorOf(STEP, contract.evaluator.name);
   const PREPROCESSING = contract.preprocessing ?? [];
-  const TEXT_FIELD = primaryTextField(inputSchema);
+  // An attached input is a path or URL, not prose; the primary text is the first field that
+  // is neither attached nor an enum.
+  const ATTACHED_FIELDS = new Set(ATTACHMENTS.map((a) => a.input));
+  const TEXT_FIELD = primaryTextField({
+    ...inputSchema,
+    properties: Object.fromEntries(
+      Object.entries(inputSchema.properties).filter(([name]) => !ATTACHED_FIELDS.has(name)),
+    ),
+  });
   const PROMPTS = createPromptRenderers(
     systemPrompt,
     userPrompt,
@@ -165,6 +191,14 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string>,
     constructor(config: BaseEvaluatorConfig) {
       super(config);
       this.provider = this.createConfiguredProvider(VENDOR, STEP.model.name, this.keyFor(VENDOR, config));
+      // Refused here, not at call time: a provider that ignores attachments would otherwise
+      // judge the claim with no image and return a confident verdict about nothing.
+      if (ATTACHMENTS.length > 0 && !this.provider.supportsAttachments) {
+        throw new ConfigurationError(
+          `${LABEL} attaches an image to each request, and the configured provider ` +
+            `"${this.provider.label}" does not declare support for attachments.`,
+        );
+      }
     }
 
     private keyFor(vendor: Provider, config: BaseEvaluatorConfig): string | undefined {
@@ -204,11 +238,19 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string>,
           promptInputs[step.id] = String(runPreprocessingStep(text, step.implementation.typescript));
         }
 
+        // Attached inputs are read here, after validation and before any paid call; the
+        // provider places them on the user turn ahead of the text.
+        const attachments: ImageAttachment[] = [];
+        for (const attachment of ATTACHMENTS) {
+          attachments.push(await loadImage(attachment.input, fields[attachment.input]));
+        }
+
         const response = await this.provider.generateStructured({
           messages: [
             { role: 'system', content: PROMPTS.getSystemPrompt(promptInputs) },
             { role: 'user', content: PROMPTS.getUserPrompt(promptInputs) },
           ],
+          ...(attachments.length ? { attachments } : {}),
           schema: outputSchema,
           temperature: STEP.generation?.temperature,
         });

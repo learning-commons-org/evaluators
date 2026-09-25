@@ -17,6 +17,7 @@ import { StudentResponseSpecificityEvaluator } from './feedback/ela-writing/stud
 import { ToneAppropriatenessEvaluator } from './feedback/ela-writing/tone-appropriateness.js';
 import { WithholdingAnswersEvaluator } from './feedback/ela-writing/withholding-answers.js';
 import { MathStandardsAlignmentEvaluator } from './academic-standards-alignment/mathematics/math-standards-alignment.js';
+import { GraphicsAccuracyEvaluator } from './academic-standards-alignment/mathematics/graphics-accuracy.js';
 
 /**
  * An evaluator class as the registry holds it: constructible, and carrying its own metadata.
@@ -49,6 +50,7 @@ export interface RegisteredEvaluator {
  * shallow: it protects the list, not each class's own `metadata`.
  */
 const EVALUATORS: readonly RegisteredEvaluator[] = Object.freeze([
+  GraphicsAccuracyEvaluator,
   MathStandardsAlignmentEvaluator,
   RevisionAccuracyEvaluator,
   RevisionActionabilityEvaluator,

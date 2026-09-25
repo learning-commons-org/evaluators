@@ -235,6 +235,7 @@ Standards alignment — checks a math item against a standard, component by comp
 | Evaluator                         | Grades | Default provider | Also needs                                | Docs                                                                                                       |
 | --------------------------------- | ------ | ---------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `MathStandardsAlignmentEvaluator` | K–12   | Anthropic        | `learningCommonsApiKey` (Knowledge Graph) | [Link](https://docs.learningcommons.org/evaluators/academic-standards-evaluators/math-standards-alignment) |
+| `GraphicsAccuracyEvaluator`       | K–12   | Google           | —                                         | Early access; docs pending                                                                                  |
 
 ```typescript
 import {
