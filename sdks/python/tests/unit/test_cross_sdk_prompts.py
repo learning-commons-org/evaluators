@@ -28,6 +28,10 @@ import pytest
 
 from learning_commons_evaluators.contracts import Contract, load_contract
 from learning_commons_evaluators.contracts.loader import Preprocessing, Step
+from learning_commons_evaluators.dependencies.knowledge_graph import LearningComponent
+from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
+    MathStandardsAlignmentEvaluator,
+)
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.inputs import validate_inputs
 from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
@@ -120,9 +124,14 @@ def typescript_inputs(
         else:
             output = source.removeprefix("preprocessing.")
             entry = entry_producing(contract, output, values)
-            resolved[name] = (
-                MASK if output in COMPUTED else contract.document(entry.source_path or "")
-            )
+            if entry.type == "api":
+                # Fetched at run time from the Knowledge Graph, so there is no value to
+                # compare offline; the format both SDKs build it in is checked below.
+                resolved[name] = MASK
+            else:
+                resolved[name] = (
+                    MASK if output in COMPUTED else contract.document(entry.source_path or "")
+                )
     return resolved
 
 
@@ -138,7 +147,15 @@ def python_inputs(
     if isinstance(instance, MultiStepEvaluator):
         outputs = {declared.id: MASK for declared in evaluator.contract.steps}
         return instance._prompt_inputs(step, values, outputs, {output: MASK for output in COMPUTED})
-    assert isinstance(instance, SingleStepEvaluator)
+    if not isinstance(instance, SingleStepEvaluator):
+        # An evaluator that renders its own prompts rather than being built by a factory.
+        # It binds the caller's inputs by name; a placeholder it fills from a live fetch
+        # has no offline value, so it is masked on both sides here.
+        assert step.prompt is not None
+        return {
+            name: values[name] if placeholder.source == "input" else MASK
+            for name, placeholder in step.prompt.placeholders.items()
+        }
     computed = instance._prompt_inputs(values)
     return {k: (MASK if k in COMPUTED else v) for k, v in computed.items()}
 
@@ -167,6 +184,34 @@ def test_python_renders_what_typescript_renders(
             assert rendered == typescript_render(template, theirs, keys), (step.id, message.role)
             for key in keys:
                 assert "{" + key + "}" not in rendered, (step.id, key)
+
+
+def test_the_learning_component_list_is_formatted_as_typescript_formats_it() -> None:
+    """The one placeholder no contract describes: a list the SDK builds in code.
+
+    Masked in the rendering check above because it is fetched at run time, so it is
+    compared here instead. TypeScript builds it as ``components.map((lc, i) =>
+    `${i + 1}. [${lc.identifier}] ${lc.description}`).join('\n')``; that is restated here
+    the way this module restates the renderer, so both SDKs send the model the same
+    characters for the same components. The numbering is one-based and the identifier is
+    bracketed in both, which is what lets each SDK check that every component it sent was
+    judged.
+    """
+    components = [
+        LearningComponent(identifier="lc-1", description="Add within 20"),
+        LearningComponent(identifier="lc-2", description="Subtract within 20"),
+    ]
+    typescript = "\n".join(
+        f"{index + 1}. [{lc.identifier}] {lc.description}" for index, lc in enumerate(components)
+    )
+
+    instance = MathStandardsAlignmentEvaluator.__new__(MathStandardsAlignmentEvaluator)
+    rendered = "\n".join(
+        message["content"] for message in instance._render_messages("What is 2 + 2?", components)
+    )
+
+    assert typescript in rendered
+    assert "{learning_components}" not in rendered
 
 
 #: Kinds a contract supplies in code rather than by a library call over the input text.

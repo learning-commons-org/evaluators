@@ -25,10 +25,14 @@ from learning_commons_evaluators import (
     PurposeClarityEvaluator,
     SentenceStructureEvaluator,
     TelemetryOptions,
+    ToneAppropriatenessEvaluator,
     __version__,
 )
 from learning_commons_evaluators.contracts import load_contract
 from learning_commons_evaluators.errors import RateLimitError
+from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
+    MathStandardsAlignmentEvaluator,
+)
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.inputs import primary_text_field
 from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
@@ -36,7 +40,7 @@ from learning_commons_evaluators.evaluators.registry import EVALUATORS
 from learning_commons_evaluators.telemetry import client as telemetry_client
 from learning_commons_evaluators.telemetry.client import TelemetryClient
 from tests.conftest import EventSink
-from tests.unit.conftest import ProviderFactory
+from tests.unit.conftest import FakeKnowledgeGraph, ProviderFactory
 
 EVALS_ROOT = Path(__file__).resolve().parents[5] / "evals"
 
@@ -56,8 +60,26 @@ def fixture_input(evaluator: type[BaseEvaluator]) -> dict[str, Any]:
     return dict(json.loads((directory / path).read_text(encoding="utf-8"))[0]["input"])
 
 
+def evaluate_with(evaluator: BaseEvaluator, inputs: Mapping[str, Any]) -> Any:
+    """The coroutine that evaluates ``inputs``, from whichever entry point takes them.
+
+    Every evaluator's fixtures describe one ``evaluate``. Math Standards Alignment has a
+    second entry point for the same inputs — the contract names a standard by code, and
+    its ``evaluate`` is the UUID primitive — so the fixtures reach it through that one.
+    """
+    if isinstance(evaluator, MathStandardsAlignmentEvaluator):
+        return evaluator.evaluate_by_code(**inputs)
+    return evaluator.evaluate(**inputs)
+
+
 def construct(evaluator: type[BaseEvaluator], **overrides: Any) -> BaseEvaluator:
     keys = {f"{p.value}_api_key": "test-key" for p in evaluator.metadata.default_providers}
+    if evaluator is MathStandardsAlignmentEvaluator:
+        # The one evaluator with a non-LLM dependency: injected rather than keyed, so the
+        # telemetry checks below never reach the Knowledge Graph.
+        overrides.setdefault("knowledge_graph", FakeKnowledgeGraph())
+    else:
+        keys.update({key: "test-key" for key in evaluator.metadata.required_credentials})
     return evaluator(**keys, **overrides)
 
 
@@ -65,7 +87,9 @@ def steps_planned(evaluator: type[BaseEvaluator], inputs: Mapping[str, Any]) -> 
     """The step ids these inputs run, read off the contract rather than the evaluator."""
     contract = load_contract(evaluator.metadata.id)
     if not issubclass(evaluator, MultiStepEvaluator):
-        return [contract.steps[0].id]
+        # Non-optional, not simply the first declared: a contract may declare an optional
+        # step the caller has to opt into, and none of these calls does.
+        return [step.id for step in contract.steps if not step.optional]
     values = {key: str(value) for key, value in inputs.items()}
     return [
         step.id for step in contract.steps if step.condition is None or step.condition.holds(values)
@@ -80,7 +104,7 @@ class TestEveryEvaluatorReports:
         self, providers: ProviderFactory, event_sink: EventSink, evaluator: type[BaseEvaluator]
     ) -> None:
         inputs = fixture_input(evaluator)
-        await construct(evaluator).evaluate(**inputs)
+        await evaluate_with(construct(evaluator), inputs)
 
         [event] = event_sink.events()
         assert event["evaluator_type"] == evaluator.metadata.id
@@ -104,7 +128,7 @@ class TestEveryEvaluatorReports:
     ) -> None:
         providers.failures.append(RateLimitError("slow down", dependency="openai"))
         with pytest.raises(RateLimitError):
-            await construct(evaluator).evaluate(**fixture_input(evaluator))
+            await evaluate_with(construct(evaluator), fixture_input(evaluator))
 
         [event] = event_sink.events()
         assert event["status"] == "error"
@@ -127,7 +151,7 @@ class TestEveryEvaluatorReports:
         if fail:
             providers.failures.append(RateLimitError("slow down", dependency="openai"))
         with contextlib.suppress(RateLimitError):
-            await construct(evaluator).evaluate(**inputs)
+            await evaluate_with(construct(evaluator), inputs)
 
         [request] = event_sink.requests()
         # Every free text the evaluator was given, which is every string input that is not
@@ -213,7 +237,7 @@ class TestWhatTheEventSays:
     async def test_an_evaluator_without_a_grade_reports_an_empty_one(
         self, providers: ProviderFactory, event_sink: EventSink
     ) -> None:
-        evaluator = construct(EVALUATORS[0])
+        evaluator = construct(ToneAppropriatenessEvaluator)
         assert "grade_level" not in evaluator.contract.input_schema["properties"]
         await evaluator.evaluate(**fixture_input(type(evaluator)))
 

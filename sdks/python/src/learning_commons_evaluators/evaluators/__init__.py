@@ -4,6 +4,11 @@ Concrete evaluators live in the nested ``<family>/<subject>/`` packages mirrorin
 ``evals/``; the public barrel re-exports every class flat.
 """
 
+from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
+    LearningComponentResult,
+    MathStandardsAlignmentEvaluator,
+    MathStandardsAlignmentResult,
+)
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.feedback.ela_writing.revision_accuracy import (
     RevisionAccuracyEvaluator,
@@ -64,6 +69,9 @@ __all__ = [
     "BackgroundKnowledgeDemandsEvaluator",
     "BaseEvaluator",
     "GradeLevelAppropriatenessEvaluator",
+    "LearningComponentResult",
+    "MathStandardsAlignmentEvaluator",
+    "MathStandardsAlignmentResult",
     "MeaningDirectnessEvaluator",
     "MultiStepEvaluator",
     "OrganizationalStructureEvaluator",

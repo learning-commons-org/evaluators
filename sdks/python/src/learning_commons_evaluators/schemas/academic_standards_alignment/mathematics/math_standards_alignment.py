@@ -81,6 +81,7 @@ class MathStandardsAlignmentInput(BaseModel):
 class LearningComponentsItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    identifier: str = Field(description="Knowledge Graph identifier of the learning component, so a verdict can be joined back to the component it judges")
     description: str = Field(description="The learning component description from the Knowledge Graph")
     reasoning: str = Field(description="Concise explanation of what the LC requires, what the question asks, and why they do or do not align")
     aligned: bool = Field(description="True if the question directly elicits the skill described by this learning component")

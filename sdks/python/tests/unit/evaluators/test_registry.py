@@ -33,6 +33,7 @@ from learning_commons_evaluators.evaluators.registry import (
 
 def test_lists_every_evaluator_in_taxonomy_order() -> None:
     assert [m.id for m in get_evaluators()] == [
+        "academic_standards_alignment.mathematics.math_standards_alignment",
         "feedback.ela_writing.revision_accuracy",
         "feedback.ela_writing.revision_actionability",
         "feedback.ela_writing.revision_manageability",
