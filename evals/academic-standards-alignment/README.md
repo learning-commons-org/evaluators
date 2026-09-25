@@ -3,3 +3,4 @@
 Measures whether educational content is aligned to a standard's learning components.
 
 - [Math Standards Alignment](./mathematics/math-standards-alignment/)
+- [Graphics Accuracy](./mathematics/graphics-accuracy/)
