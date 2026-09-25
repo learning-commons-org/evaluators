@@ -250,9 +250,8 @@ does.
 the Knowledge Graph returns one result per copy. Passing the grade separates them, at the
 cost of one extra lookup per candidate — and only when a code turned out to be ambiguous,
 never on the ordinary path. When nothing separates them, the first is evaluated and the
-choice is logged at `warning` with the alternatives, matching the TypeScript SDK's
-behaviour. `evaluation.result.statement_code` always reports the Knowledge Graph's own
-spelling of whatever was resolved.
+choice is logged at `warning` with the alternatives. `evaluation.result.statement_code`
+always reports the Knowledge Graph's own spelling of whatever was resolved.
 
 `evaluate_by_code()`'s inputs are the contract's, under the contract's names, plus that
 one optional extra — so anything written against the registry is a valid call, and the
