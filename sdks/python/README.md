@@ -2,9 +2,9 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/learning-commons-evaluators)](https://pypi.org/project/learning-commons-evaluators/)
 
-Python SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction) — sixteen LLM-backed evaluators for the complexity of text students read, the quality of feedback they receive, and the alignment of math items to standards.
+Python SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction),  which measure the quality of AI-generated educational content by assessing specific dimensions of text and identifying areas for improvement.
 
-Every evaluator is built from its shared contract under [`evals/`](../../evals) (prompts, models, schemas) and returns the same result envelope as the [TypeScript SDK](../typescript), so a payload is identical whichever SDK produced it.
+Every evaluator is built from its shared contract under [`evals/`](../../evals) (prompts, models, schemas) - and every one returns the same result envelope, so generic code works across all of them.
 
 ## Installation
 
@@ -43,7 +43,7 @@ synchronous code. Inputs are the contract's names (`text`, `grade_level`, `stude
 (`PurposeClarityInput`).
 
 Every evaluator resolves to the same three-part envelope, so generic code works across all
-sixteen:
+of them:
 
 ```python
 class EvaluationResult(BaseModel):
@@ -142,7 +142,7 @@ Both return `EvaluatorMetadata` — `id`, `stable_id`, `id_history`, `name`, `de
 `supported_grades`, `default_providers`, `required_credentials`, and `outcome` where the
 evaluator declares a single verdict. `required_credentials` lists only **non-LLM** services —
 it is `("learning_commons_api_key",)` for math standards alignment and empty for the other
-fifteen, so it is not the answer to "which keys does this need". Provider keys follow
+evaluators, so it is not the answer to "which keys does this need". Provider keys follow
 `default_providers`: `(Provider.GOOGLE,)` means supply `google_api_key`. To *run* an
 evaluator, import it by name — the metadata does not say which named inputs it takes, and
 each evaluator's are different.
