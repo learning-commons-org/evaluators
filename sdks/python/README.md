@@ -1,8 +1,10 @@
 # learning-commons-evaluators (Python)
 
-Python SDK for Learning Commons educational text evaluators. Every evaluator is built from its shared contract under [`evals/`](../../evals) (prompts, models, schemas) and returns the same result envelope as the [TypeScript SDK](../typescript).
+[![PyPI version](https://img.shields.io/pypi/v/learning-commons-evaluators)](https://pypi.org/project/learning-commons-evaluators/)
 
-> **Under rebuild.** `main` carries the 1.0 rebuild in progress: sixteen of the seventeen evaluators, being the whole Text Complexity family (`BackgroundKnowledgeDemandsEvaluator`, `GradeLevelAppropriatenessEvaluator`, `MeaningDirectnessEvaluator`, `OrganizationalStructureEvaluator`, `PurposeClarityEvaluator`, `ReferenceKnowledgeDemandsEvaluator`, `SentenceStructureEvaluator`, `VocabularyComplexityEvaluator`), the whole Feedback family (`RevisionAccuracyEvaluator`, `RevisionActionabilityEvaluator`, `RevisionManageabilityEvaluator`, `StrengthAcknowledgmentEvaluator`, `StudentResponseSpecificityEvaluator`, `ToneAppropriatenessEvaluator`, `WithholdingAnswersEvaluator`), and `MathStandardsAlignmentEvaluator`, with Critical Thinking still to come. Nothing is published from this state; the last released version is [0.2.0 on PyPI](https://pypi.org/project/learning-commons-evaluators/0.2.0/), whose documentation remains on the [docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview).
+Python SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction),  which measure the quality of AI-generated educational content by assessing specific dimensions of text and identifying areas for improvement.
+
+Every evaluator is built from its shared contract under [`evals/`](../../evals) (prompts, models, schemas) - and every one returns the same result envelope, so generic code works across all of them.
 
 ## Installation
 
@@ -10,7 +12,10 @@ Python SDK for Learning Commons educational text evaluators. Every evaluator is 
 pip install learning-commons-evaluators
 ```
 
-Requires **Python 3.11+**. Provider API keys are passed in explicitly; the SDK never reads them from the environment.
+Requires **Python 3.11+**. Provider API keys are passed in explicitly; the SDK never reads
+them from the environment, so setting `GOOGLE_API_KEY` in your shell does not satisfy
+`google_api_key`. Omitting a key an evaluator needs raises `ConfigurationError` at
+construction, before any I/O.
 
 ## Quick start
 
@@ -32,9 +37,115 @@ outcome = read_outcome(evaluation, PurposeClarityEvaluator.metadata.outcome)
 print(outcome.score)                        # the same verdict, as one comparable string
 ```
 
-`await evaluator.evaluate(...)` is the primary form; `evaluate_sync` wraps it for synchronous code. Inputs are the contract's names (`text`, `grade_level`, `student_text`, `feedback_text`), passed as keywords or as the evaluator's typed input model (`PurposeClarityInput`).
+`await evaluator.evaluate(...)` is the primary form; `evaluate_sync` wraps it for
+synchronous code. Inputs are the contract's names (`text`, `grade_level`, `student_text`,
+`feedback_text`), passed as keywords or as the evaluator's typed input model
+(`PurposeClarityInput`).
 
-Every `evaluate()` returns the same three-field envelope: `evaluator` (the registry id), `result` (the full structured output, as the contract's `output_schema.json` declares it), and `metadata` (`model`, `processing_time_ms`, `token_usage`). An evaluator whose contract declares several steps sums the token usage across them, and `model` names every model that ran, joined with `+`.
+Every evaluator resolves to the same three-part envelope, so generic code works across all
+of them:
+
+```python
+class EvaluationResult(BaseModel):
+    evaluator: str                     # registry id, e.g. "text_complexity.ela_reading.vocabulary_complexity"
+    result: ResultT                    # the evaluator's own payload, exactly as its output schema declares it
+    metadata: EvaluationMetadata
+
+
+class EvaluationMetadata(BaseModel):
+    model: str                         # "provider:model" that ran; "a+b" when several did
+    processing_time_ms: int
+    token_usage: EvaluationTokenUsage  # .input_tokens, .output_tokens
+```
+
+`result` is the model's structured output with keys and values unaltered. An evaluator whose
+contract declares several steps sums the token usage across them, and `model` names every
+model that ran, joined with `+`. Which models run can depend on the input: Vocabulary
+Complexity takes a different branch for grades 3–4 than for 5–12, but construction validates
+the union of keys it could need, so it demands both keys at any grade.
+
+When you want one comparable value per evaluation regardless of evaluator, use
+`read_outcome`. `score` is always a string, or `None` for an evaluator that declares no
+single verdict — which today means Math Standards Alignment.
+
+## Evaluators
+
+**Text complexity** — how demanding a text is for a given grade. Each takes
+`{ text, grade_level }` and returns a `complexity_score` on a four-level scale —
+`slightly_complex`, `moderately_complex`, `very_complex`, `exceedingly_complex` — with
+`reasoning`. Purpose Clarity has a fifth value, `more_context_needed`, so a match over the
+four above is not exhaustive for it. Payloads carry more than the verdict, and how much
+varies: Vocabulary Complexity adds `tier_2_words`, `tier_3_words`, `archaic_words` and
+`other_complex_words`; only Sentence Structure returns just the score and reasoning. Each
+evaluator's payload model (`VocabularyComplexityOutput` and so on) is the authoritative shape.
+
+| Evaluator | Grades | Default provider | Docs |
+| --- | --- | --- | --- |
+| `BackgroundKnowledgeDemandsEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/background-knowledge-demands) |
+| `MeaningDirectnessEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/meaning-directness) |
+| `OrganizationalStructureEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/organizational-structure) |
+| `PurposeClarityEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/purpose-clarity) |
+| `ReferenceKnowledgeDemandsEvaluator` | 3–12 | Google | [Link](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/reference-knowledge-demands) |
+| `SentenceStructureEvaluator` | 3–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/sentence-structure) |
+| `VocabularyComplexityEvaluator` | 3–12 | OpenAI + Google | [Link](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/vocabulary-complexity) |
+
+**Grade band** — takes `{ text }` only, and determines the grade rather than judging against
+one. Returns `grade_band`, `alternative_grade_band`, `scaffolding_needed`, `reasoning`. Bands
+are `K-1`, `2-3`, `4-5`, `6-8`, `9-10`, `11-12` — spans on the CCSS text-complexity scale, not
+single grades.
+
+| Evaluator | Grades | Default provider | Docs |
+| --- | --- | --- | --- |
+| `GradeLevelAppropriatenessEvaluator` | K–12 | Google | [Link](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/grade-level-appropriateness) |
+
+**Feedback quality** — judges a teacher comment on a student's writing. Each takes
+`{ student_text, feedback_text }` and returns a binary `quality_score` (the integer `0` or
+`1`, not a bool) with `reasoning`, `key_features` and `proposed_adjustment`. `key_features` is
+a model, not a dict, and **its criterion keys differ per evaluator** — Tone Appropriateness
+declares `neutral_professional_language`, `targets_work_not_student` and
+`praise_proportionate_to_work`. Read them with
+`list(ToneAppropriatenessOutput.model_fields["key_features"].annotation.model_fields)`.
+
+| Evaluator | Grades | Default provider | Docs |
+| --- | --- | --- | --- |
+| `RevisionAccuracyEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-accuracy) |
+| `RevisionActionabilityEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-actionability) |
+| `RevisionManageabilityEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/revision-manageability) |
+| `StrengthAcknowledgmentEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/strength-acknowledgment) |
+| `StudentResponseSpecificityEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/student-response-specificity) |
+| `ToneAppropriatenessEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/tone-appropriateness) |
+| `WithholdingAnswersEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/withholding-answers) |
+
+**Standards alignment** — checks a math item against a standard, component by component.
+See [Math Standards Alignment](#math-standards-alignment) below, which has two entry points.
+
+| Evaluator | Grades | Default provider | Also needs | Docs |
+| --- | --- | --- | --- | --- |
+| `MathStandardsAlignmentEvaluator` | K–12 | Anthropic | `learning_commons_api_key` (Knowledge Graph) | [Link](https://docs.learningcommons.org/evaluators/academic-standards-evaluators/math-standards-alignment) |
+
+## Discovering evaluators
+
+Every evaluator is listed in a registry, keyed by the registry id that appears on each result:
+
+```python
+from learning_commons_evaluators import get_evaluator, get_evaluators
+
+for m in get_evaluators():
+    print(f"{m.name} ({m.id}) — grades {', '.join(m.supported_grades)}")
+
+# Renamed ids still resolve, so a stored result stays identifiable.
+get_evaluator("conventionality").name          # "Meaning Directness Evaluator"
+get_evaluator("grade-level-appropriateness").id  # "text_complexity.ela_reading.grade_level_appropriateness"
+```
+
+Both return `EvaluatorMetadata` — `id`, `stable_id`, `id_history`, `name`, `description`,
+`supported_grades`, `default_providers`, `required_credentials`, and `outcome` where the
+evaluator declares a single verdict. `required_credentials` lists only **non-LLM** services —
+it is `("learning_commons_api_key",)` for math standards alignment and empty for the other
+evaluators, so it is not the answer to "which keys does this need". Provider keys follow
+`default_providers`: `(Provider.GOOGLE,)` means supply `google_api_key`. To *run* an
+evaluator, import it by name — the metadata does not say which named inputs it takes, and
+each evaluator's are different.
 
 ## Configuration
 
@@ -139,9 +250,8 @@ does.
 the Knowledge Graph returns one result per copy. Passing the grade separates them, at the
 cost of one extra lookup per candidate — and only when a code turned out to be ambiguous,
 never on the ordinary path. When nothing separates them, the first is evaluated and the
-choice is logged at `warning` with the alternatives, matching the TypeScript SDK's
-behaviour. `evaluation.result.statement_code` always reports the Knowledge Graph's own
-spelling of whatever was resolved.
+choice is logged at `warning` with the alternatives. `evaluation.result.statement_code`
+always reports the Knowledge Graph's own spelling of whatever was resolved.
 
 `evaluate_by_code()`'s inputs are the contract's, under the contract's names, plus that
 one optional extra — so anything written against the registry is a valid call, and the
@@ -152,11 +262,51 @@ standard before judging it and raises `InputValidationError` for a non-mathemati
 before fetching components and before any model call. `evaluate_by_code()` needs no such
 check: its search is already scoped to Mathematics, so a non-math code never resolves.
 
+## Errors
+
+Errors are grouped by fault domain, so you can catch by who is at fault rather than by
+individual failure. All extend `EvaluatorError`, which carries a boolean `retryable`.
+
+| Class | Meaning |
+| --- | --- |
+| `ConfigurationError` | The SDK was set up wrong — missing key, unknown field, a model the provider rejects |
+| `InputValidationError` | The input was rejected before any model ran; `StandardNotFoundError` is a subclass |
+| `EvaluationError` | The evaluation ran but could not be completed; `LLMOutputProcessingError` is a subclass |
+| `DependencyError` | Something the SDK depends on failed. Subclasses: `AuthenticationError`, `RateLimitError`, `NetworkError`, `RequestTimeoutError`, `LLMProviderError`, `KnowledgeGraphError` |
+
+`EvaluatorError`, `EvaluationError` and `DependencyError` are abstract; the SDK always raises
+a concrete subclass. Every `DependencyError` carries `dependency`, `status_code`,
+`request_id` and `model`, so which external system failed is data rather than a class per
+provider.
+
+```python
+from learning_commons_evaluators import (
+    DependencyError,
+    InputValidationError,
+    RateLimitError,
+)
+
+try:
+    evaluation = evaluator.evaluate_sync(text=text, grade_level=5)
+except RateLimitError as error:
+    retry_later(error.retry_after_ms)
+except DependencyError as error:
+    report_upstream_outage(error.dependency, error.status_code)
+except InputValidationError as error:
+    fix_the_row(error)
+```
+
+`retryable` is data, not hierarchy — read the flag rather than memorising which class means
+what. The SDK already retries internally per `max_retries`, so an error that reaches you has
+exhausted that budget.
+
 ## More resources
 
 - [Local development](./docs/local-development.md) – Local setup, testing, regenerating from `evals/`
 - [Error handling](./docs/error-handling.md) — Exception hierarchy, retries, and how provider failures are classified
 - [Evaluator contracts](../../evals/README.md) — The shared `evals/` registry every SDK is built from
+
+Full reference at [our docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview).
 
 ## License
 
