@@ -8,6 +8,23 @@ export interface Message {
   content: string;
 }
 
+/** Image formats every supported vendor accepts natively. */
+export type ImageMediaType = 'image/png' | 'image/jpeg' | 'image/webp';
+
+/**
+ * An image the model is asked to read alongside the prompt text.
+ *
+ * Carried on the request rather than inside a message so that text-only providers,
+ * including caller-supplied ones, keep their `content: string` contract unchanged. A
+ * provider that can attach images says so with {@link LLMProvider.supportsAttachments};
+ * one that cannot is refused before any call rather than silently sent text alone.
+ */
+export interface ImageAttachment {
+  type: 'image';
+  data: Uint8Array;
+  mediaType: ImageMediaType;
+}
+
 /**
  * Request configuration for structured LLM generation
  */
@@ -17,6 +34,8 @@ export interface LLMRequest<T> {
   /** `null` sends no temperature at all, for models that reject an explicit value. */
   temperature?: number | null;
   maxTokens?: number;
+  /** Images to place on the final user turn, ahead of its text. */
+  attachments?: readonly ImageAttachment[];
 }
 
 /**
@@ -50,6 +69,12 @@ export interface TextGenerationResponse {
 export interface LLMProvider {
   /** Canonical label for the provider and model in use (e.g. "openai:gpt-4o") */
   readonly label: string;
+
+  /**
+   * Whether {@link LLMRequest.attachments} are honoured. Absent means no: an evaluator
+   * that needs to attach an image refuses such a provider up front.
+   */
+  readonly supportsAttachments?: boolean;
 
   /**
    * Generate structured output from LLM using Zod schema
