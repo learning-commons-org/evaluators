@@ -8,24 +8,9 @@
   "additionalProperties": false,
   "properties": {
     "image": {
-      "type": "object",
-      "description": "The math visual under review.",
-      "required": ["data", "media_type"],
-      "additionalProperties": false,
-      "properties": {
-        "data": {
-          "type": "string",
-          "contentEncoding": "base64",
-          "minLength": 1,
-          "maxLength": 13981016,
-          "description": "Raw image bytes, base64-encoded. At most 10 MB decoded (13,981,016 base64 characters). SDK callers may pass bytes directly; this schema describes the wire shape."
-        },
-        "media_type": {
-          "type": "string",
-          "enum": ["image/png", "image/jpeg", "image/webp"],
-          "description": "IANA media type of the image."
-        }
-      }
+      "type": "string",
+      "minLength": 1,
+      "description": "Local file path or http(s) URL to the math visual under review. Supported: PNG, JPEG, WEBP (detected by file signature, not by extension). At most 10 MB."
     },
     "claim": {
       "type": "string",
