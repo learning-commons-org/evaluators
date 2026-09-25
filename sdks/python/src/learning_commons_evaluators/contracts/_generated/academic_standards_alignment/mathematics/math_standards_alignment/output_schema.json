@@ -19,6 +19,7 @@
       "items": {
         "type": "object",
         "required": [
+          "identifier",
           "description",
           "reasoning",
           "aligned",
@@ -26,6 +27,10 @@
         ],
         "additionalProperties": false,
         "properties": {
+          "identifier": {
+            "type": "string",
+            "description": "Knowledge Graph identifier of the learning component, so a verdict can be joined back to the component it judges"
+          },
           "description": {
             "type": "string",
             "description": "The learning component description from the Knowledge Graph"
