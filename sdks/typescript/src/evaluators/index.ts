@@ -1,6 +1,13 @@
 export { getEvaluators, getEvaluator } from './registry.js';
 
 export {
+  GraphicsAccuracyEvaluator,
+  evaluateGraphicsAccuracy,
+  composeSpecification,
+  type GraphicsAccuracyInput,
+} from './academic-standards-alignment/mathematics/graphics-accuracy.js';
+
+export {
   BaseEvaluator,
   Provider,
   type BaseEvaluatorConfig,

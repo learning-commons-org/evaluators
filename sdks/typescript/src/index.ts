@@ -110,6 +110,8 @@ export type { ToneAppropriatenessResult } from './schemas/feedback/ela-writing/t
 export { ToneAppropriatenessOutputSchema } from './schemas/feedback/ela-writing/tone-appropriateness.js';
 export type { WithholdingAnswersResult } from './schemas/feedback/ela-writing/withholding-answers.js';
 export { WithholdingAnswersOutputSchema } from './schemas/feedback/ela-writing/withholding-answers.js';
+export type { GraphicsAccuracyResult } from './schemas/academic-standards-alignment/mathematics/graphics-accuracy.js';
+export { GraphicsAccuracyOutputSchema } from './schemas/academic-standards-alignment/mathematics/graphics-accuracy.js';
 
 export {
   VocabularyComplexityEvaluator,
@@ -160,6 +162,10 @@ export {
   evaluateWithholdingAnswers,
   MathStandardsAlignmentEvaluator,
   evaluateMathStandardsAlignment,
+  GraphicsAccuracyEvaluator,
+  evaluateGraphicsAccuracy,
+  composeSpecification,
+  type GraphicsAccuracyInput,
   type MathStandardsAlignmentEvaluatorConfig,
   type LearningComponentResult,
   type MathStandardsAlignmentResult,
