@@ -2,7 +2,7 @@
 
 Python SDK for Learning Commons educational text evaluators. Every evaluator is built from its shared contract under [`evals/`](../../evals) (prompts, models, schemas) and returns the same result envelope as the [TypeScript SDK](../typescript).
 
-> **Under rebuild.** `main` carries the 1.0 rebuild in progress: fifteen of the seventeen evaluators, being the whole Text Complexity family (`BackgroundKnowledgeDemandsEvaluator`, `GradeLevelAppropriatenessEvaluator`, `MeaningDirectnessEvaluator`, `OrganizationalStructureEvaluator`, `PurposeClarityEvaluator`, `ReferenceKnowledgeDemandsEvaluator`, `SentenceStructureEvaluator`, `VocabularyComplexityEvaluator`) and the whole Feedback family (`RevisionAccuracyEvaluator`, `RevisionActionabilityEvaluator`, `RevisionManageabilityEvaluator`, `StrengthAcknowledgmentEvaluator`, `StudentResponseSpecificityEvaluator`, `ToneAppropriatenessEvaluator`, `WithholdingAnswersEvaluator`), with Math Standards Alignment and Critical Thinking still to come. Nothing is published from this state; the last released version is [0.2.0 on PyPI](https://pypi.org/project/learning-commons-evaluators/0.2.0/), whose documentation remains on the [docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview).
+> **Under rebuild.** `main` carries the 1.0 rebuild in progress: sixteen of the seventeen evaluators, being the whole Text Complexity family (`BackgroundKnowledgeDemandsEvaluator`, `GradeLevelAppropriatenessEvaluator`, `MeaningDirectnessEvaluator`, `OrganizationalStructureEvaluator`, `PurposeClarityEvaluator`, `ReferenceKnowledgeDemandsEvaluator`, `SentenceStructureEvaluator`, `VocabularyComplexityEvaluator`), the whole Feedback family (`RevisionAccuracyEvaluator`, `RevisionActionabilityEvaluator`, `RevisionManageabilityEvaluator`, `StrengthAcknowledgmentEvaluator`, `StudentResponseSpecificityEvaluator`, `ToneAppropriatenessEvaluator`, `WithholdingAnswersEvaluator`), and `MathStandardsAlignmentEvaluator`, with Critical Thinking still to come. Nothing is published from this state; the last released version is [0.2.0 on PyPI](https://pypi.org/project/learning-commons-evaluators/0.2.0/), whose documentation remains on the [docs site](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview).
 
 ## Installation
 
@@ -86,6 +86,71 @@ async with KnowledgeGraphClient(api_key) as kg:
 `academic_subject`; more than one match means the code is reused across frameworks and you
 choose. Evaluators that own a client close it from their own `aclose()` / `close()`, which every
 evaluator accepts and which does nothing for the ones that own nothing.
+
+### Math Standards Alignment
+
+The one evaluator that reads a dependency. It judges a question against every learning
+component the Knowledge Graph holds for one standard, and reports a verdict per component
+plus the aligned and total counts. There is no single score — the contract declares no
+outcome — so `read_outcome` reports `None` for it, as it does in the TypeScript SDK.
+
+There are two ways to name the standard, because there are two ways callers have one.
+`evaluate()` takes the CASE Network UUID — what a standard picker hands you, and what the
+Knowledge Graph itself keys on. `evaluate_by_code()` takes the standard the way a teacher
+names it, resolves it to a UUID, and runs the same evaluation.
+
+```python
+from learning_commons_evaluators import MathStandardsAlignmentEvaluator
+
+async with MathStandardsAlignmentEvaluator(
+    anthropic_api_key="...", learning_commons_api_key="..."
+) as evaluator:
+    # The primitive: one UUID names exactly one standard.
+    evaluation = await evaluator.evaluate(
+        question="A playground is shaped like an L ...",
+        case_identifier_uuid="6ba25656-d7cc-11e8-824f-0242ac160002",
+    )
+
+    # The same evaluation, reached from a code.
+    evaluation = await evaluator.evaluate_by_code(
+        question="A playground is shaped like an L ...",
+        statement_code="3.MD.C.7.d",
+        jurisdiction="Multi-State",   # optional; Multi-State is Common Core
+        grade_level="3",              # optional; see below
+    )
+
+print(evaluation.result.statement_code, evaluation.result.aligned_count)
+```
+
+Both cost two Knowledge Graph calls and return the same payload. Passing one method's
+input to the other names the method that takes it rather than calling the key unknown.
+
+**Spell the code the way its jurisdiction spells it.** A code is a lookup key, not an
+identity: the Knowledge Graph holds one copy of a standard per adopting jurisdiction, each
+with its own UUID and often its own spelling — Ohio writes `3.MD.7` where Common Core
+writes `3.MD.C.7`, New York `NY-3.MD.7`, and Florida's B.E.S.T. framework uses a different
+scheme entirely (`MA.3.GR.2.2`). Passing a Common Core code with `jurisdiction="Ohio"`
+raises `StandardNotFoundError` rather than finding Ohio's equivalent. Jurisdiction variants
+of the same Common Core standard share their learning components, so the choice between
+them does not change the judgement; a different framework, such as Florida's, genuinely
+does.
+
+**`grade_level` disambiguates.** Within one framework a code can be reused across courses, and
+the Knowledge Graph returns one result per copy. Passing the grade separates them, at the
+cost of one extra lookup per candidate — and only when a code turned out to be ambiguous,
+never on the ordinary path. When nothing separates them, the first is evaluated and the
+choice is logged at `warning` with the alternatives, matching the TypeScript SDK's
+behaviour. `evaluation.result.statement_code` always reports the Knowledge Graph's own
+spelling of whatever was resolved.
+
+`evaluate_by_code()`'s inputs are the contract's, under the contract's names, plus that
+one optional extra — so anything written against the registry is a valid call, and the
+contract's own fixtures drive this evaluator as they drive every other one.
+
+**A UUID names any standard, including another subject's.** `evaluate()` reads the
+standard before judging it and raises `InputValidationError` for a non-mathematics one,
+before fetching components and before any model call. `evaluate_by_code()` needs no such
+check: its search is already scoped to Mathematics, so a non-math code never resolves.
 
 ## More resources
 

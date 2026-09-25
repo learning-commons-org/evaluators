@@ -28,9 +28,14 @@ ATTEMPTS = 3
 COMPLEXITY_ORDER = ["slightly_complex", "moderately_complex", "very_complex", "exceedingly_complex"]
 GRADE_BAND_ORDER = list(GradeBand.__args__)  # type: ignore[attr-defined]
 
+#: Every evaluator whose contract declares an ``outcome``, paired with each of its fixture
+#: cases. The declaration is what this module judges against, so an evaluator without one
+#: has no single verdict to compare and is covered by its own live test instead — today
+#: that is Math Standards Alignment, whose payload is a verdict per learning component.
 CASES = [
     pytest.param(evaluator, case, id=f"{evaluator.metadata.slug}/{case['id']}")
     for evaluator in EVALUATORS
+    if evaluator.contract.outcome is not None
     for case in fixtures_for(evaluator.contract)
 ]
 
