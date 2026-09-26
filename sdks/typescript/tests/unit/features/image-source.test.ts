@@ -19,6 +19,8 @@ describe('sniffImageMediaType', () => {
 
   it('rejects anything else, including a GIF and plain text', () => {
     expect(sniffImageMediaType(GIF)).toBeUndefined();
+    // The four "PNG" letters alone are not the signature; all eight bytes are.
+    expect(sniffImageMediaType(Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0, 1, 2]))).toBeUndefined();
     expect(sniffImageMediaType(new TextEncoder().encode('not an image'))).toBeUndefined();
     expect(sniffImageMediaType(new Uint8Array(0))).toBeUndefined();
   });
@@ -109,5 +111,19 @@ describe('loadImage from a URL', () => {
     await expect(loadImage('image', 'https://example.org/stream.png')).rejects.toThrow(/maximum is 10 MB/);
     // Cut off just past the cap: 11 reads, not an unbounded number.
     expect(pulls).toBeLessThanOrEqual(12);
+  });
+
+  it('reports a body that fails mid-stream as the caller\'s input, keeping the cause', async () => {
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(PNG);
+        controller.error(new Error('connection reset'));
+      },
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body, { status: 200 }));
+    const err = await loadImage('image', 'https://example.org/reset.png').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(InputValidationError);
+    expect((err as Error).message).toMatch(/could not be read/);
+    expect(((err as Error).cause as Error).message).toBe('connection reset');
   });
 });
