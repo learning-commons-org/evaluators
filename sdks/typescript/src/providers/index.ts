@@ -4,6 +4,8 @@ export type {
   LLMResponse,
   TextGenerationResponse,
   Message,
+  ImageAttachment,
+  ImageMediaType,
   ProviderConfig,
 } from './base.js';
 

@@ -34,6 +34,7 @@ function adapterImportError(error: unknown, vendor: string, pkg: string): unknow
     : error;
 }
 import type {
+  ImageAttachment,
   LLMProvider,
   LLMRequest,
   LLMResponse,
@@ -42,11 +43,37 @@ import type {
 } from './base.js';
 
 /**
+ * Place attachments on the final user turn, ahead of its text, as the AI SDK's content
+ * parts. Each image travels as a `file` part — bytes plus media type, the one inline form
+ * every vendor adapter accepts (the SDK's older `image` part is deprecated). Turns before
+ * the last user turn, and all text-only requests, pass through unchanged.
+ */
+function withAttachments(messages: Message[], attachments: readonly ImageAttachment[] | undefined) {
+  if (!attachments?.length) return messages;
+  const last = messages.map((m) => m.role).lastIndexOf('user');
+  if (last === -1) {
+    throw new Error('Attachments need a user message to be attached to.');
+  }
+  return messages.map((m, i) =>
+    i === last
+      ? {
+          role: 'user' as const,
+          content: [
+            ...attachments.map((a) => ({ type: 'file' as const, data: a.data, mediaType: a.mediaType })),
+            { type: 'text' as const, text: m.content },
+          ],
+        }
+      : m,
+  );
+}
+
+/**
  * Vercel AI SDK provider implementation
  * Supports OpenAI, Anthropic, and Google Gemini
  */
 export class VercelAIProvider implements LLMProvider {
   readonly label: string;
+  readonly supportsAttachments = true;
   private readonly model: string;
 
   constructor(private config: ProviderConfig) {
@@ -77,7 +104,7 @@ export class VercelAIProvider implements LLMProvider {
     const { output, usage } = await aiGenerateText({
       model,
       ...(systemMsg ? { system: systemMsg.content } : {}),
-      messages: nonSystemMessages,
+      messages: withAttachments(nonSystemMessages, request.attachments),
       output: Output.object({ schema: request.schema }),
       // A null temperature means "send nothing" — see config.schema.json for
       // which models require that.

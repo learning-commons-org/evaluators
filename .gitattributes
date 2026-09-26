@@ -12,6 +12,7 @@ sdks/python/src/learning_commons_evaluators/settings/_generated_*.py linguist-ge
 sdks/python/src/learning_commons_evaluators/settings/**/contracts.toml linguist-generated=true
 sdks/settings/**/contracts.toml linguist-generated=true
 sdks/typescript/src/knowledge-graph/kg-api.d.ts linguist-generated=true
+sdks/typescript/src/schemas/academic-standards-alignment/mathematics/graphics-accuracy.ts linguist-generated=true
 sdks/typescript/src/schemas/feedback/ela-writing/revision-accuracy.ts linguist-generated=true
 sdks/typescript/src/schemas/feedback/ela-writing/revision-actionability.ts linguist-generated=true
 sdks/typescript/src/schemas/feedback/ela-writing/revision-manageability.ts linguist-generated=true
