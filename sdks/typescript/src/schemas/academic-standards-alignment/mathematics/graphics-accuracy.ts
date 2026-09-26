@@ -7,7 +7,7 @@ import { z } from 'zod';
 
 /** What this evaluator accepts, from its input schema. */
 export type GraphicsAccuracyInput = {
-  /** Local file path or http(s) URL to the math visual under review. Supported: PNG, JPEG, WEBP (detected by file signature, not by extension). At most 10 MB. */
+  /** Local file path (absolute, or relative to the process working directory) or http(s) URL to the math visual under review. Supported: PNG, JPEG, WEBP (detected by file signature, not by extension). At most 10 MB. The SDK reads the file or fetches the URL in the caller's environment; do not pass strings from untrusted parties. */
   "image": string;
   /** The specification the image is checked against. Either a claim about what the image shows ("The chart shows 12 apples.") or a question with its expected answer in the form `Question: "<question>" The answer is <answer>.` */
   "claim": string;

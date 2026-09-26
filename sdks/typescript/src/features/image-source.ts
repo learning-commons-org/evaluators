@@ -27,7 +27,11 @@ const FETCH_TIMEOUT_MS = 30_000;
 
 /** The image format a byte string declares itself to be, or undefined if none we accept. */
 export function sniffImageMediaType(bytes: Uint8Array): ImageMediaType | undefined {
-  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
+    bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+  ) {
     return 'image/png';
   }
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
@@ -98,7 +102,12 @@ async function readSource(field: string, source: string): Promise<Uint8Array> {
     if (!response.ok) {
       throw new InputValidationError(`${field}: fetching "${source}" returned HTTP ${response.status}.`);
     }
-    return readBounded(field, source, response);
+    try {
+      return await readBounded(field, source, response);
+    } catch (cause) {
+      if (cause instanceof InputValidationError) throw cause;
+      throw new InputValidationError(`${field}: the body of "${source}" could not be read.`, cause);
+    }
   }
   try {
     const { size } = await stat(source);

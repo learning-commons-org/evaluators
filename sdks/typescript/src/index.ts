@@ -46,6 +46,8 @@ export { LogLevel } from './logger.js';
 export type {
   LLMProvider,
   LLMRequest,
+  ImageAttachment,
+  ImageMediaType,
   LLMResponse,
   TextGenerationResponse,
   Message,
