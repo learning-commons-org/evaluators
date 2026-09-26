@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "input_schema.json",
+  "title": "EvaluatorInput",
+  "description": "The image is what is under review. The claim is the specification it is checked against.",
+  "type": "object",
+  "required": ["image", "claim"],
+  "additionalProperties": false,
+  "properties": {
+    "image": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Local file path (absolute, or relative to the process working directory) or http(s) URL to the math visual under review. Supported: PNG, JPEG, WEBP (detected by file signature, not by extension). At most 10 MB. The SDK reads the file or fetches the URL in the caller's environment; do not pass strings from untrusted parties."
+    },
+    "claim": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 12000,
+      "description": "The specification the image is checked against. Either a claim about what the image shows (\"The chart shows 12 apples.\") or a question with its expected answer in the form `Question: \"<question>\" The answer is <answer>.`"
+    }
+  }
+}

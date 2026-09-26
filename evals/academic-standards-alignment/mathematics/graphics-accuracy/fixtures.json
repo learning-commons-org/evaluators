@@ -1,0 +1,61 @@
+[
+  {
+    "id": "question_answer_true",
+    "description": "Question + expected answer, image correct. Five ladybirds carrying 2, 3, 3, 5, 6 dots; the derivation sums to 19 and matches.",
+    "input": {
+      "image": "images/ladybirds.png",
+      "claim": "Question: \"How many dots do all ladybirds have together?\" The answer is 19."
+    },
+    "expected": {
+      "is_correct": true,
+      "basis": "supported"
+    }
+  },
+  {
+    "id": "question_answer_false",
+    "description": "Same image, the expected answer replaced by a plausible wrong one. The derivation completes and disagrees, so the verdict is a contradiction.",
+    "input": {
+      "image": "images/ladybirds.png",
+      "claim": "Question: \"How many dots do all ladybirds have together?\" The answer is 15."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "contradicted"
+    }
+  },
+  {
+    "id": "descriptive_claim_true",
+    "description": "Descriptive claim, no question. Scatter plot of five students, distance against time; Carlos is the highest point.",
+    "input": {
+      "image": "images/students-scatter-plot.png",
+      "claim": "Carlos ran the greatest distance of the five students."
+    },
+    "expected": {
+      "is_correct": true,
+      "basis": "supported"
+    }
+  },
+  {
+    "id": "descriptive_claim_false",
+    "description": "Descriptive claim the image contradicts: Alicia, not Bea, is the rightmost point on the time axis.",
+    "input": {
+      "image": "images/students-scatter-plot.png",
+      "claim": "Bea took the longest time of the five students."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "contradicted"
+    }
+  },
+  {
+    "id": "image_missing_element",
+    "description": "The specification is right but the figure is drawn wrong: the central circle of radius 2 is absent, only its radius line is present. A correct evaluator returns incorrect. It may arrive as unverified (derivation could not be completed from the image) or contradicted (the drawing is faulted directly); measured runs produced both, so only the verdict is pinned.",
+    "input": {
+      "image": "images/four-circles-in-square.png",
+      "claim": "Question: \"Four circles of radius 1 are each tangent to two sides of a square and externally tangent to a circle of radius 2, as shown. What is the area of the square?\" The answer is 22+12\\sqrt{2}."
+    },
+    "expected": {
+      "is_correct": false
+    }
+  }
+]
