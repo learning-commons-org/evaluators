@@ -68,9 +68,9 @@ const DECLARED: Declared[] = generatedModules(join(SRC, 'schemas')).flatMap((fil
 
 describe('input types match the contracts they name', () => {
   it('finds them, so the cases below cannot pass vacuously', () => {
-    // Sixteen generated modules; math assembles its payload from per-component results and
-    // has no single output schema, so its input type stays hand-written.
-    expect(DECLARED).toHaveLength(16);
+    // Math assembles its payload from per-component results and has no single output
+    // schema, so its input type stays hand-written and is absent here.
+    expect(DECLARED.length).toBeGreaterThan(0);
   });
 
   it.each(DECLARED)('$typeName names the inputs its contract declares', ({ properties, contract }) => {

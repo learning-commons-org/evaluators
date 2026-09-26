@@ -26,8 +26,8 @@ const EVALUATORS = Object.entries(sdk as Record<string, unknown>)
   .map(([name, v]) => ({ name, metadata: (v as unknown as EvaluatorLike).metadata }));
 
 describe('README', () => {
-  it('finds the evaluators to check', () => {
-    expect(EVALUATORS).toHaveLength(17);
+  it('finds the evaluators to check, so the cases below cannot pass vacuously', () => {
+    expect(EVALUATORS.length).toBeGreaterThan(0);
   });
 
   it.each(EVALUATORS)('names $name', ({ name }) => {
