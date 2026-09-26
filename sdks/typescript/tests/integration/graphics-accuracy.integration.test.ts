@@ -43,13 +43,12 @@ interface Fixture {
 const FIXTURES: Fixture[] = JSON.parse(readFileSync(join(CONTRACT_DIR, 'fixtures.json'), 'utf-8'));
 
 describeIntegration('GraphicsAccuracyEvaluator — contract fixtures, real calls', () => {
-  const evaluator = new GraphicsAccuracyEvaluator({ googleApiKey: process.env.GOOGLE_API_KEY!, telemetry: false });
-
   it('has fixtures to run, so nothing below passes vacuously', () => {
     expect(FIXTURES.length).toBeGreaterThan(0);
   });
 
   it.each(FIXTURES)('$id — $description', async (fixture) => {
+    const evaluator = new GraphicsAccuracyEvaluator({ googleApiKey: process.env.GOOGLE_API_KEY!, telemetry: false });
     const image = join(CONTRACT_DIR, fixture.input.image);
     const seen: Array<{ is_correct: boolean; basis: string; correction: string }> = [];
 
