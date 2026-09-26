@@ -3,6 +3,7 @@
   "evaluator": {
     "id": "academic_standards_alignment.mathematics.graphics_accuracy",
     "stable_id": "2ae27d83-5a77-444b-b48d-9285179dae73",
+    "id_history": [],
     "name": "Graphics Accuracy Evaluator",
     "description": "Checks whether a math visual (plot, chart, equation, diagram, worked solution, or word problem) correctly shows what its specification states. The specification is a claim about the image; a question with its expected answer is expressed as the claim `Question: \"<question>\" The answer is <answer>.` Built for AI-generated content: the text is trusted, the image is under review. Returns a correct/incorrect verdict, the derivation that produced it, and whether a false verdict came from a contradiction or an incomplete derivation. EARLY ACCESS.",
     "supported_grades": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
