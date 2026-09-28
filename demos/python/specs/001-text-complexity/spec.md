@@ -103,8 +103,10 @@ returned.
 ### Key Entities
 
 - **EvaluatorRun**: one evaluator's outcome in a run — the evaluator's display name, and either
-  its `EvaluationResult` or the exception it raised. Runs are shown in a fixed order: the
-  seven grade-judged evaluators alphabetically, then Grade Level Appropriateness.
+  its `EvaluationResult` or the exception it raised. Runs are shown in a fixed order: Grade Level
+  Appropriateness, Background Knowledge Demands, Vocabulary Complexity, Sentence Structure,
+  Meaning Directness, Purpose Clarity, Organizational Structure, then Reference Knowledge
+  Demands.
 
 ## Out of Scope
 

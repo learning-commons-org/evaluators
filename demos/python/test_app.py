@@ -4,12 +4,18 @@ import re
 import pytest
 from fastapi.testclient import TestClient
 from learning_commons_evaluators import (
+    BackgroundKnowledgeDemandsEvaluator,
     ConfigurationError,
     EvaluationMetadata,
     EvaluationResult,
     EvaluationTokenUsage,
     GradeLevelAppropriatenessEvaluator,
+    MeaningDirectnessEvaluator,
+    OrganizationalStructureEvaluator,
+    PurposeClarityEvaluator,
+    ReferenceKnowledgeDemandsEvaluator,
     SentenceStructureEvaluator,
+    VocabularyComplexityEvaluator,
     get_evaluators,
 )
 
@@ -18,13 +24,15 @@ import app
 TEXT = "Some text to evaluate."
 
 
-def make_stub(real_cls, calls, fail=None):
+def make_stub(real_cls, calls, fail=None, keys_seen=None):
     outcome = real_cls.metadata.outcome
 
     class Stub:
         metadata = real_cls.metadata
 
         def __init__(self, **keys):
+            if keys_seen is not None:
+                keys_seen[real_cls.metadata.name] = keys
             if fail is not None:
                 raise fail
 
@@ -49,7 +57,12 @@ def calls():
 
 
 @pytest.fixture
-def stubbed(monkeypatch, calls):
+def keys_seen():
+    return {}
+
+
+@pytest.fixture
+def stubbed(monkeypatch, calls, keys_seen):
     real = list(app.EVALUATORS)
 
     def install(failing=None, error=None):
@@ -57,7 +70,12 @@ def stubbed(monkeypatch, calls):
             app,
             "EVALUATORS",
             [
-                (make_stub(cls, calls, fail=error if cls is failing else None), takes_grade)
+                (
+                    make_stub(
+                        cls, calls, fail=error if cls is failing else None, keys_seen=keys_seen
+                    ),
+                    takes_grade,
+                )
                 for cls, takes_grade in real
             ],
         )
@@ -71,9 +89,9 @@ def client():
     return TestClient(app.app)
 
 
-def test_index_offers_grades_3_to_12(client):
+def test_index_offers_grades_3_to_12_and_an_empty_form(client):
     body = client.get("/").text
-    assert 'name="text"' in body
+    assert re.search(r'<textarea name="text"[^>]*></textarea>', body)
     assert "Grade 3" in body
     assert "Grade 12" in body
     assert "Grade 2" not in body
@@ -118,6 +136,22 @@ def test_only_grade_level_appropriateness_runs_without_the_grade(client, stubbed
     assert all(inputs == {"text": TEXT, "grade_level": 7} for inputs in calls.values())
 
 
+def test_every_evaluator_is_constructed_with_both_configured_keys(
+    client, stubbed, keys_seen, monkeypatch
+):
+    monkeypatch.setattr(app, "GOOGLE_API_KEY", "google-key")
+    monkeypatch.setattr(app, "OPENAI_API_KEY", "openai-key")
+    client.post("/", data={"text": TEXT, "grade": 5})
+    assert len(keys_seen) == 8
+    expected = {"google_api_key": "google-key", "openai_api_key": "openai-key"}
+    assert all(keys == expected for keys in keys_seen.values())
+
+
+def test_only_grade_level_appropriateness_carries_the_text_alone_note(client, stubbed):
+    body = client.post("/", data={"text": TEXT, "grade": 5}).text
+    assert body.count("Judged on the text alone") == 1
+
+
 def test_submitted_text_and_grade_are_kept_in_the_form(client, stubbed):
     body = client.post("/", data={"text": TEXT, "grade": 7}).text
     assert f">{TEXT}</textarea>" in body
@@ -128,3 +162,19 @@ def test_demo_runs_exactly_the_sdk_text_complexity_family():
     ids = {cls.metadata.id for cls, _ in app.EVALUATORS}
     assert ids == {m.id for m in get_evaluators() if m.id.startswith("text_complexity.")}
     assert len(ids) == 8
+
+
+def test_results_render_in_the_fixed_display_order(client, stubbed):
+    body = client.post("/", data={"text": TEXT, "grade": 5}).text
+    expected = [
+        GradeLevelAppropriatenessEvaluator,
+        BackgroundKnowledgeDemandsEvaluator,
+        VocabularyComplexityEvaluator,
+        SentenceStructureEvaluator,
+        MeaningDirectnessEvaluator,
+        PurposeClarityEvaluator,
+        OrganizationalStructureEvaluator,
+        ReferenceKnowledgeDemandsEvaluator,
+    ]
+    rendered = re.findall(r"<strong>([^<]+)</strong>", body)
+    assert rendered == [cls.metadata.name for cls in expected]

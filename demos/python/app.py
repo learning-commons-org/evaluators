@@ -32,14 +32,14 @@ DEFAULT_GRADE = 5
 # (class, takes grade_level). Grade Level Appropriateness determines a grade band from
 # the text alone, so it is the one evaluator not given the selected grade.
 EVALUATORS: list[tuple[type[BaseEvaluator], bool]] = [
-    (BackgroundKnowledgeDemandsEvaluator, True),
-    (MeaningDirectnessEvaluator, True),
-    (OrganizationalStructureEvaluator, True),
-    (PurposeClarityEvaluator, True),
-    (ReferenceKnowledgeDemandsEvaluator, True),
-    (SentenceStructureEvaluator, True),
-    (VocabularyComplexityEvaluator, True),
     (GradeLevelAppropriatenessEvaluator, False),
+    (BackgroundKnowledgeDemandsEvaluator, True),
+    (VocabularyComplexityEvaluator, True),
+    (SentenceStructureEvaluator, True),
+    (MeaningDirectnessEvaluator, True),
+    (PurposeClarityEvaluator, True),
+    (OrganizationalStructureEvaluator, True),
+    (ReferenceKnowledgeDemandsEvaluator, True),
 ]
 
 
