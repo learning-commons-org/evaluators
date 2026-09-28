@@ -355,12 +355,48 @@ and do not edit anything under `sdks/`. The implementer cannot read or write `.e
       application code changed. Then tick "Implemented and verified" in `spec.md` and set
       **Status** to `Implemented`.
 
+## Phase 3.7: Identified telemetry (added after implementation; see FR-014)
+
+- [x] T015 [USER] Append to `.env.example` (the implementer cannot read or write `.env*`
+      files):
+      ```
+      # Optional. Learning Commons API key: attributes the SDK's telemetry to your Learning
+      # Commons user. Leave empty to send anonymous telemetry.
+      TELEMETRY_LEARNING_COMMONS_API_KEY=
+      ```
+- [x] T016 `app.py`: import `TelemetryOptions`; read
+      `TELEMETRY_LEARNING_COMMONS_API_KEY = os.environ.get("TELEMETRY_LEARNING_COMMONS_API_KEY", "").strip()`; add
+      `telemetry()` returning `TelemetryOptions(learning_commons_api_key=TELEMETRY_LEARNING_COMMONS_API_KEY)`
+      when that is non-empty and `True` otherwise; pass `telemetry=telemetry()` to every
+      evaluator constructor in `run_one`.
+- [x] T017 `test_app.py`: the key-passing test also expects `"telemetry": True` with the
+      Learning Commons key set to `""`; a new test sets it to `"lc-key"` and expects every
+      evaluator to receive `TelemetryOptions(learning_commons_api_key="lc-key")`.
+- [x] T018 [P] `README.md`: add `TELEMETRY_LEARNING_COMMONS_API_KEY` to the keys table as
+      optional, and say in the Telemetry section that it attributes events to a Learning Commons user.
+- [x] T019 Run T010's commands. **Pass**: all exit 0, 11 tests pass. Construct one real
+      evaluator with `telemetry=TelemetryOptions(learning_commons_api_key="lc-key")` and
+      confirm it constructs without error.
+
+## Phase 3.8: Pre-filled form (added after implementation; see FR-002)
+
+- [x] T020 `app.py`: set `DEFAULT_GRADE = 4`; add `DEFAULT_TEXT`, the sample passage "The sun
+      is the star at the center of the Solar System. It is a nearly perfect sphere of hot
+      plasma, heated to incandescence by nuclear fusion reactions in its core. The sun radiates
+      this energy mainly as light, ultraviolet, and infrared radiation, and is the most
+      important source of energy for life on Earth."; make it `render()`'s default `text`.
+- [x] T021 `test_app.py`: the index test expects the textarea to hold `DEFAULT_TEXT` and
+      grade 4 to be the only selected option. Run T010's commands. **Pass**: all exit 0,
+      11 tests pass.
+
 ## Dependencies
 
 - T001 before everything. T002 → T003 → T004.
 - T005 can run alongside T004; T006 needs both.
 - T007–T009 are independent of the code and of each other.
 - T010–T011 after T004–T009; T012 after T011; T013 after T012; T014 last, after release.
+- T015–T019 after T013 and independent of T014; T016 before T017, T019 last.
+- T020 before T021; both independent of T014–T019.
 
 ## Parallel Example
 

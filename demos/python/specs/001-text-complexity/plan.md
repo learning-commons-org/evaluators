@@ -33,7 +33,15 @@ ships and from PyPI afterwards.
   - `read_outcome(evaluation, Cls.metadata.outcome).score` gives the headline for every
     evaluator in the family: its contract declares `complexity_score` for seven and
     `grade_band` for Grade Level Appropriateness.
-- **Keys**: `GOOGLE_API_KEY`, `OPENAI_API_KEY`.
+- **Keys**: `GOOGLE_API_KEY`, `OPENAI_API_KEY`; optional `TELEMETRY_LEARNING_COMMONS_API_KEY`
+  for identified telemetry. The name mirrors the SDK setting it feeds,
+  `telemetry.learning_commons_api_key`, and leaves `LEARNING_COMMONS_API_KEY` for Learning
+  Commons API calls (Knowledge Graph, Math Standards Alignment), as the TypeScript demo uses
+  it.
+- **Telemetry**: every constructor takes `telemetry=True | False | TelemetryOptions(...)`.
+  `TelemetryOptions(learning_commons_api_key=...)` opts in to identified telemetry; the SDK
+  forwards it to the telemetry client (`evaluators/base.py`), which sends it as the
+  `X-API-Key` header.
 - **Tooling**: plain `venv` + `pip`, as `sdks/python` uses. Ruff for lint and format; pytest
   with FastAPI's `TestClient` for the tests.
 
@@ -68,7 +76,7 @@ demos/python/
                          #   python-dotenv, and the SDK as ../../sdks/python
   requirements-dev.txt   # -r requirements.txt, pytest, httpx, ruff
   ruff.toml              # py311, line length 100, the SDK's rule selection
-  .env.example           # GOOGLE_API_KEY=, OPENAI_API_KEY=
+  .env.example           # GOOGLE_API_KEY=, OPENAI_API_KEY=, TELEMETRY_LEARNING_COMMONS_API_KEY=
   .gitignore             # .env, .venv/, __pycache__/
   README.md              # what it is, install, keys, run, test
   CLAUDE.md              # verify commands; spec-driven note (mirrors demos/typescript)
@@ -109,8 +117,13 @@ per-workspace table.
 - **Payload rendering.** `evaluation.model_dump()["result"]` gives every payload field for the
   detail table (lists such as Vocabulary Complexity's `tier_2_words` render as
   comma-separated values); `evaluation.model_dump_json(indent=2)` gives the raw envelope.
-- **Telemetry** stays at the SDK default (on), as for an integrator. The README says so and
-  shows how to turn it off. The demo adds no toggle.
+- **Telemetry** stays on, as for an integrator. The README says so and shows how to turn it
+  off. Anonymous events carry only a per-machine client id and `sdk_version`, and this branch
+  reports the same `sdk_version` as PyPI's 0.2.1, so the demo's events cannot be told apart
+  from other anonymous traffic. Passing the optional `TELEMETRY_LEARNING_COMMONS_API_KEY` as
+  `TelemetryOptions(learning_commons_api_key=...)` attributes them to a Learning Commons user
+  (FR-014). The SDK has no field naming the calling application, so identifying the user is
+  as specific as it gets.
 - **In-progress state (spec scenario 7).** A synchronous form post already keeps the page
   waiting. A few lines of inline `onsubmit` disable the button and show "Running…". That is
   plain JavaScript, not a framework, so FR-001 still holds.
@@ -120,7 +133,7 @@ per-workspace table.
 ### Request flow
 
 ```
-GET  /  → render index.html(text="", grade=5, runs=None)
+GET  /  → render index.html(text=DEFAULT_TEXT, grade=DEFAULT_GRADE (4), runs=None)
 POST /  form: text: Annotated[str, Form()] = ""
               grade: Annotated[int, Form(ge=3, le=12)]
         text.strip() == ""        → render with error message, runs=None
@@ -164,7 +177,10 @@ async def run_all(text, grade) -> list[EvaluatorRun]:
     return await asyncio.gather(*(run_one(c, g, text, grade) for c, g in EVALUATORS))
 ```
 
-- Every constructor receives both keys (unused keys are ignored; see Technical Context).
+- Every constructor receives both keys (unused keys are ignored; see Technical Context) and
+  `telemetry=telemetry()`, which returns `TelemetryOptions(learning_commons_api_key=...)` when
+  `TELEMETRY_LEARNING_COMMONS_API_KEY` is non-blank and `True` otherwise. It reads the module
+  global at call time so the tests can monkeypatch it.
 - Keys are read once at startup with `load_dotenv()` and `os.environ.get(...)`. A missing key
   is passed as `None` and left to the SDK to reject, which exercises its documented error.
 - `EVALUATORS` is module-level so the tests can monkeypatch it with stub classes.
@@ -190,6 +206,8 @@ raise:
 4. The text-only stub receives no `grade_level`; the others receive the selected grade.
 5. The submitted text and grade are echoed back into the form.
 6. `EVALUATORS` lists exactly the eight text complexity classes (guards FR-003).
+7. Every evaluator receives both provider keys and `telemetry=True` when no Learning Commons
+   key is set, and `TelemetryOptions(learning_commons_api_key=...)` when one is (FR-014).
 
 ## Phase 2: Task Planning Approach
 

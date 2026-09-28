@@ -24,12 +24,13 @@ pip install --force-reinstall --no-deps ../../sdks/python
 
 Copy `.env.example` to `.env` and add your keys:
 
-| Key              | Evaluators                                   |
-| ---------------- | -------------------------------------------- |
-| `GOOGLE_API_KEY` | All except Sentence Structure                |
-| `OPENAI_API_KEY` | Sentence Structure and Vocabulary Complexity |
+| Key                                  | Used for                                                     |
+| ------------------------------------ | ------------------------------------------------------------ |
+| `GOOGLE_API_KEY`                     | All evaluators except Sentence Structure                     |
+| `OPENAI_API_KEY`                     | Sentence Structure and Vocabulary Complexity                 |
+| `TELEMETRY_LEARNING_COMMONS_API_KEY` | Optional: attributes telemetry to your Learning Commons user |
 
-A missing key fails only the evaluators that need it, with the SDK's `ConfigurationError`. The app continues and shows the error in that evaluator's section.
+A missing provider key fails only the evaluators that need it, with the SDK's `ConfigurationError`. The app continues and shows the error in that evaluator's section.
 
 ## Run
 
@@ -43,7 +44,7 @@ Each run makes ten paid model calls: one for each evaluator, except Sentence Str
 
 ## Telemetry
 
-The SDK sends anonymous usage telemetry by default; this demo leaves it on, as an integrator's code would. See the [SDK README's Telemetry section](../../sdks/python/README.md#telemetry) for what is sent and how to disable it with `telemetry=False`.
+The SDK sends usage telemetry by default, and this demo leaves it on, as an integrator's code would. Without `TELEMETRY_LEARNING_COMMONS_API_KEY` the events are anonymous; with it set, the demo passes it as `TelemetryOptions(learning_commons_api_key=...)`, so every event is attributed to your Learning Commons user. See the [SDK README's Telemetry section](../../sdks/python/README.md#telemetry) for what is sent and how to disable it with `telemetry=False`.
 
 ## Test
 

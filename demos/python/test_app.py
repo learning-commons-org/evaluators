@@ -15,6 +15,7 @@ from learning_commons_evaluators import (
     PurposeClarityEvaluator,
     ReferenceKnowledgeDemandsEvaluator,
     SentenceStructureEvaluator,
+    TelemetryOptions,
     VocabularyComplexityEvaluator,
     get_evaluators,
 )
@@ -89,9 +90,12 @@ def client():
     return TestClient(app.app)
 
 
-def test_index_offers_grades_3_to_12_and_an_empty_form(client):
+def test_index_offers_grades_3_to_12_prefilled_with_the_sample_text_and_grade_4(client):
     body = client.get("/").text
-    assert re.search(r'<textarea name="text"[^>]*></textarea>', body)
+    assert re.search(rf'<textarea name="text"[^>]*>{re.escape(app.DEFAULT_TEXT)}</textarea>', body)
+    assert app.DEFAULT_TEXT.startswith("The sun is the star at the center of the Solar System.")
+    assert re.search(r'<option[^>]*value="4"[^>]*selected', body)
+    assert len(re.findall(r"<option[^>]*selected", body)) == 1
     assert "Grade 3" in body
     assert "Grade 12" in body
     assert "Grade 2" not in body
@@ -141,10 +145,21 @@ def test_every_evaluator_is_constructed_with_both_configured_keys(
 ):
     monkeypatch.setattr(app, "GOOGLE_API_KEY", "google-key")
     monkeypatch.setattr(app, "OPENAI_API_KEY", "openai-key")
+    monkeypatch.setattr(app, "TELEMETRY_LEARNING_COMMONS_API_KEY", "")
     client.post("/", data={"text": TEXT, "grade": 5})
     assert len(keys_seen) == 8
-    expected = {"google_api_key": "google-key", "openai_api_key": "openai-key"}
+    expected = {"google_api_key": "google-key", "openai_api_key": "openai-key", "telemetry": True}
     assert all(keys == expected for keys in keys_seen.values())
+
+
+def test_a_learning_commons_key_attributes_every_evaluators_telemetry(
+    client, stubbed, keys_seen, monkeypatch
+):
+    monkeypatch.setattr(app, "TELEMETRY_LEARNING_COMMONS_API_KEY", "lc-key")
+    client.post("/", data={"text": TEXT, "grade": 5})
+    assert len(keys_seen) == 8
+    expected = TelemetryOptions(learning_commons_api_key="lc-key")
+    assert all(keys["telemetry"] == expected for keys in keys_seen.values())
 
 
 def test_only_grade_level_appropriateness_carries_the_text_alone_note(client, stubbed):

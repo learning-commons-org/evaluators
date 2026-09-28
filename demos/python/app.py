@@ -18,6 +18,7 @@ from learning_commons_evaluators import (
     PurposeClarityEvaluator,
     ReferenceKnowledgeDemandsEvaluator,
     SentenceStructureEvaluator,
+    TelemetryOptions,
     VocabularyComplexityEvaluator,
     read_outcome,
 )
@@ -25,9 +26,19 @@ from learning_commons_evaluators import (
 load_dotenv()
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+TELEMETRY_LEARNING_COMMONS_API_KEY = os.environ.get(
+    "TELEMETRY_LEARNING_COMMONS_API_KEY", ""
+).strip()
 
 GRADES = range(3, 13)
-DEFAULT_GRADE = 5
+# Pre-filled so the page can be run straight away.
+DEFAULT_GRADE = 4
+DEFAULT_TEXT = (
+    "The sun is the star at the center of the Solar System. It is a nearly perfect sphere of "
+    "hot plasma, heated to incandescence by nuclear fusion reactions in its core. The sun "
+    "radiates this energy mainly as light, ultraviolet, and infrared radiation, and is the "
+    "most important source of energy for life on Earth."
+)
 
 # (class, takes grade_level). Grade Level Appropriateness determines a grade band from
 # the text alone, so it is the one evaluator not given the selected grade.
@@ -41,6 +52,14 @@ EVALUATORS: list[tuple[type[BaseEvaluator], bool]] = [
     (OrganizationalStructureEvaluator, True),
     (ReferenceKnowledgeDemandsEvaluator, True),
 ]
+
+
+def telemetry() -> bool | TelemetryOptions:
+    # With a key, events are attributed to that Learning Commons user; without one the SDK
+    # sends its default anonymous telemetry.
+    if TELEMETRY_LEARNING_COMMONS_API_KEY:
+        return TelemetryOptions(learning_commons_api_key=TELEMETRY_LEARNING_COMMONS_API_KEY)
+    return True
 
 
 @dataclass
@@ -66,7 +85,9 @@ async def run_one(
     run = EvaluatorRun(name=cls.metadata.name, takes_grade=takes_grade)
     # Constructed here, not at startup, so a missing key fails only this evaluator.
     try:
-        evaluator = cls(google_api_key=GOOGLE_API_KEY, openai_api_key=OPENAI_API_KEY)
+        evaluator = cls(
+            google_api_key=GOOGLE_API_KEY, openai_api_key=OPENAI_API_KEY, telemetry=telemetry()
+        )
         inputs: dict[str, Any] = {"text": text}
         if takes_grade:
             inputs["grade_level"] = grade
@@ -87,7 +108,7 @@ templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 def render(
     request: Request,
-    text: str = "",
+    text: str = DEFAULT_TEXT,
     grade: int = DEFAULT_GRADE,
     runs: list[EvaluatorRun] | None = None,
     error: str | None = None,

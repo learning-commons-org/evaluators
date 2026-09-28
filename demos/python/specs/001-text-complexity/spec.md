@@ -32,7 +32,7 @@ returned.
 
 1. **Given** the app is running with both keys configured, **When** the developer opens the
    app root, **Then** a page renders with a text area, a grade selector offering grades 3–12,
-   and a run button.
+   and a run button, pre-filled with a sample passage and grade 4 so it can be run at once.
 2. **Given** a non-empty text and a grade, **When** the developer runs, **Then** all eight text
    complexity evaluators run against it and one collapsible section per evaluator appears, in a
    fixed order, each labelled with the evaluator's name and its headline verdict.
@@ -53,6 +53,8 @@ returned.
 ### Edge Cases
 
 - Empty or whitespace-only text → a validation message; no evaluators run.
+- `TELEMETRY_LEARNING_COMMONS_API_KEY` unset, empty, or whitespace → anonymous telemetry;
+  evaluation is unaffected either way, because telemetry never changes a result.
 - Non-blank text shorter than 10 characters → Background Knowledge Demands, Grade Level
   Appropriateness, Meaning Directness and Sentence Structure reject it (their input schemas'
   minimum length is 10), while the other four, which accept one character, still run. This is
@@ -71,7 +73,8 @@ returned.
 - **FR-001**: The app MUST be a single Python web server rendering HTML pages server-side; no
   separate frontend build or JavaScript framework.
 - **FR-002**: The app MUST present one page at `/` with a text input, a grade selector limited
-  to grades 3–12, and a run action.
+  to grades 3–12, and a run action. On first load the text input MUST hold a sample passage
+  (a paragraph about the sun) and grade 4 MUST be selected, so testing needs no typing.
 - **FR-003**: A run MUST invoke all eight text complexity evaluators exported by the SDK:
   Background Knowledge Demands, Meaning Directness, Organizational Structure, Purpose Clarity,
   Reference Knowledge Demands, Sentence Structure, Vocabulary Complexity, and Grade Level
@@ -88,17 +91,20 @@ returned.
 - **FR-008**: An expanded successful section MUST show every field of the evaluator's result
   payload, the model, processing time, token usage, and the full result envelope as JSON.
 - **FR-009**: A failed section MUST show the SDK exception's class name and message.
-- **FR-010**: Provider keys MUST be loaded from a `.env` file, with a checked-in
-  `.env.example`, and passed to the SDK explicitly (the SDK does not read them from the
-  environment). Keys MUST never reach the browser.
+- **FR-010**: Provider keys and the optional telemetry key MUST be loaded from a
+  `.env` file, with a checked-in `.env.example`, and passed to the SDK explicitly (the SDK
+  does not read them from the environment). Keys MUST never reach the browser.
 - **FR-011**: The demo MUST depend on the SDK as an installed package, never by importing from
-  `sdks/python/src`. Switching to the published release of this SDK MUST be a dependency-declaration change only, with no
-  application code change.
-
+  `sdks/python/src`. Switching to the published release of this SDK MUST be a
+  dependency-declaration change only, with no application code change.
 - **FR-012**: Empty or whitespace-only text MUST be rejected before any evaluator runs, with
   one validation message rather than eight identical per-evaluator errors.
-- **FR-013**: The demo MUST leave SDK telemetry at its default (enabled), as an integrator's
-  code would, and its README MUST say so and point to the SDK's `telemetry` option.
+- **FR-013**: The demo MUST leave SDK telemetry enabled, as an integrator's code would, and
+  its README MUST say so and point to the SDK's `telemetry` option.
+- **FR-014**: When `TELEMETRY_LEARNING_COMMONS_API_KEY` is set to a non-blank value, every
+  evaluator's telemetry MUST be attributed to that Learning Commons user; when it is unset or
+  blank, telemetry MUST stay anonymous (the SDK default). This lets the demo's events be told apart
+  from other anonymous traffic in the collector.
 
 ### Key Entities
 
