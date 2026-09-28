@@ -18,7 +18,7 @@ and do not edit anything under `sdks/`. The implementer cannot read or write `.e
 
 ## Phase 3.1: Setup
 
-- [x] T001 (SKIPPED: network down) From the repo root: `git fetch origin release-python-sdk-1.0` then
+- [x] T001 From the repo root: `git fetch origin release-python-sdk-1.0` then
       `git rebase origin/release-python-sdk-1.0`. The branch was cut from a stale local copy
       while GitHub was unreachable.
       **Pass**: `git log -1 --format=%H origin/release-python-sdk-1.0` equals
@@ -332,7 +332,7 @@ and do not edit anything under `sdks/`. The implementer cannot read or write `.e
       `curl -s -o /dev/null -w '%{http_code}' localhost:8000/` → `200`, and
       `curl -s -X POST -d 'text=%20&grade=5' localhost:8000/ | grep -c 'Enter some text'` →
       `1`. Stop the server with `lsof -ti:8000 | xargs kill`.
-- [ ] T012 [USER] (SKIPPED) Live run. Ask the user to create `.env` from `.env.example` with real keys,
+- [x] T012 [USER] Live run. Ask the user to create `.env` from `.env.example` with real keys,
       run `uvicorn app:app --reload`, open http://localhost:8000, paste a grade-appropriate
       passage of a few paragraphs, pick grade 5, and click Evaluate. This makes paid model
       calls. **Pass**: eight sections, each with a headline; Grade Level Appropriateness shows
