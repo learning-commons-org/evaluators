@@ -11,4 +11,4 @@ npm run dev         # Express server + Vite together
 
 ## Spec-driven
 
-This is the one place in the repo that uses spec-driven development. Features live in `specs/<nnn>-<slug>/` and progress spec → plan → tasks → implementation. Add a spec before building a feature here.
+This and `demos/python/` are the places in the repo that use spec-driven development. Features live in `specs/<nnn>-<slug>/` and progress spec → plan → tasks → implementation. Add a spec before building a feature here.
