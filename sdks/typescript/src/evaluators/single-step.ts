@@ -1,6 +1,6 @@
 import type { ZodType } from 'zod';
 import type { ImageAttachment, LLMProvider } from '../providers/index.js';
-import { loadImage } from '../features/image-source.js';
+import { loadImage, type ImageBounds } from '../features/image-source.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { ConfigurationError, EvaluatorError, wrapProviderError } from '../errors.js';
@@ -36,6 +36,8 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
     prompt: { placeholders: Record<string, unknown> };
     required_credentials?: string[];
     optional?: boolean;
+    /** Inputs whose files are attached to the user turn as content parts; see `config.schema.json`. */
+    attachments?: ReadonlyArray<{ input: string; kind: string }>;
   }>;
   preprocessing?: Array<{
     id: string;
@@ -43,20 +45,6 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
     required_credentials?: string[];
   }>;
   outcome?: { score: string; reasoning: string };
-}
-
-/**
- * An input the model receives as an attached image rather than as text in the prompt.
- *
- * The contract declares the input as a string naming where the image lives (a file path or
- * URL). The shared config schema has no field for this yet, so the declaration sits here
- * until it does; the SDK reads the image in the caller's environment and hands it to the
- * provider as a request attachment, placed ahead of the rendered user prompt.
- */
-export interface Attachment {
-  /** The input field, as declared in `input_schema.json`. */
-  input: string;
-  kind: 'image';
 }
 
 export interface SingleStepDefinition<TResult> {
@@ -67,8 +55,36 @@ export interface SingleStepDefinition<TResult> {
   systemPrompt: string;
   /** The contract's `user.txt`, verbatim. */
   userPrompt: string;
-  /** Inputs attached to the user turn as content parts. Empty for a text-only evaluator. */
-  attachments?: readonly Attachment[];
+}
+
+/**
+ * The step's attached inputs, each paired with the `x-image` bounds on its items.
+ *
+ * Read from the contract, and refused at module load if a declaration cannot be honoured:
+ * an attached input without complete bounds, or of a kind this SDK cannot send, would
+ * otherwise reach the model unchecked or not at all. A missing or misspelled bound would
+ * compare against `undefined` and silently pass, so every field is checked here.
+ */
+export function attachmentsOf(
+  step: SingleStepContract['steps'][number],
+  inputSchema: DeclaredInputSchema,
+  evaluatorName: string,
+): Array<{ input: string; bounds: ImageBounds }> {
+  return (step.attachments ?? []).map(({ input, kind }) => {
+    const refuse = (why: string): never => {
+      throw new Error(`${evaluatorName} config.json attaches "${input}": ${why}`);
+    };
+    if (kind !== 'image') refuse(`kind "${kind}" is not supported; this SDK sends only images.`);
+    const bounds = inputSchema.properties[input]?.items?.['x-image'] as Partial<ImageBounds> | undefined;
+    if (!bounds) refuse('its items need an `x-image` block.');
+    const b = bounds as Partial<ImageBounds>;
+    if (!Array.isArray(b.formats) || b.formats.length === 0) refuse('`x-image.formats` must be a non-empty list.');
+    if (b.detect !== 'signature') refuse('`x-image.detect` must be "signature".');
+    for (const key of ['min_bytes', 'max_bytes', 'min_edge', 'max_edge'] as const) {
+      if (typeof b[key] !== 'number') refuse(`\`x-image.${key}\` must be a number.`);
+    }
+    return { input, bounds: b as ImageBounds };
+  });
 }
 
 /**
@@ -140,16 +156,16 @@ function vendorOf(step: { model: { provider: string } }, name: string): Provider
  * }) {}
  * ```
  */
-export function defineSingleStepEvaluator<TInput extends Record<string, string>, TResult>(
+export function defineSingleStepEvaluator<TInput extends Record<string, string | string[]>, TResult>(
   definition: SingleStepDefinition<TResult>,
 ): SingleStepEvaluatorClass<TInput, TResult> {
   const { contract, inputSchema, outputSchema, systemPrompt, userPrompt } = definition;
-  const ATTACHMENTS = definition.attachments ?? [];
 
   const STEP = stepFor(contract);
   const VENDOR = vendorOf(STEP, contract.evaluator.name);
+  const ATTACHMENTS = attachmentsOf(STEP, inputSchema, contract.evaluator.name);
   const PREPROCESSING = contract.preprocessing ?? [];
-  // An attached input is a path or URL, not prose; the primary text is the first field that
+  // An attached input holds file paths, not prose; the primary text is the first field that
   // is neither attached nor an enum.
   const ATTACHED_FIELDS = new Set(ATTACHMENTS.map((a) => a.input));
   const TEXT_FIELD = primaryTextField({
@@ -195,7 +211,7 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string>,
       // judge the claim with no image and return a confident verdict about nothing.
       if (ATTACHMENTS.length > 0 && !this.provider.supportsAttachments) {
         throw new ConfigurationError(
-          `${LABEL} attaches an image to each request, and the configured provider ` +
+          `${LABEL} attaches images to each request, and the configured provider ` +
             `"${this.provider.label}" does not declare support for attachments.`,
         );
       }
@@ -220,7 +236,11 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string>,
         // Inside the try so a validation failure is telemetered as an error event,
         // and before the inputs are read so a non-object is reported as one.
         validateInputs(input, inputSchema);
-        const fields = input as Record<string, string>;
+        const all = input as Record<string, string | string[]>;
+        // Attached inputs are files, never prompt text; only the string inputs render.
+        const fields = Object.fromEntries(
+          Object.entries(all).filter(([name]) => !ATTACHED_FIELDS.has(name)),
+        ) as Record<string, string>;
         text = TEXT_FIELD ? fields[TEXT_FIELD] : '';
         gradeLevel = fields.grade_level ?? '';
 
@@ -238,11 +258,14 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string>,
           promptInputs[step.id] = String(runPreprocessingStep(text, step.implementation.typescript));
         }
 
-        // Attached inputs are read here, after validation and before any paid call; the
-        // provider places them on the user turn ahead of the text.
+        // Attached files are read here, in array order, after validation and before any
+        // paid call; the provider places them on the user turn ahead of the text.
         const attachments: ImageAttachment[] = [];
-        for (const attachment of ATTACHMENTS) {
-          attachments.push(await loadImage(attachment.input, fields[attachment.input]));
+        for (const { input: name, bounds } of ATTACHMENTS) {
+          const paths = (all[name] as string[] | undefined) ?? [];
+          for (const [i, path] of paths.entries()) {
+            attachments.push(await loadImage(`${name}[${i}]`, path, bounds));
+          }
         }
 
         const response = await this.provider.generateStructured({

@@ -1,6 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { z } from 'zod';
-import { defineSingleStepEvaluator, requireStep } from '../../../src/evaluators/single-step.js';
+import { attachmentsOf, defineSingleStepEvaluator, requireStep } from '../../../src/evaluators/single-step.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import {
   EvaluatorError,
@@ -443,5 +446,97 @@ describe('requireStep', () => {
     expect(() => requireStep(steps, 'third', 'Thing Evaluator')).toThrow(
       'Step "third" not found in Thing Evaluator config.json',
     );
+  });
+});
+
+// --- attachments ---
+
+const X_IMAGE = {
+  formats: ['image/png', 'image/jpeg', 'image/webp'],
+  detect: 'signature',
+  min_bytes: 64,
+  max_bytes: 5242880,
+  min_edge: 16,
+  max_edge: 2560,
+};
+
+const IMAGE_INPUT_SCHEMA = {
+  properties: {
+    figures: { type: 'array', minItems: 1, maxItems: 3, items: { type: 'string', minLength: 1, 'x-image': X_IMAGE } },
+    text: { type: 'string', minLength: 1 },
+  },
+  required: ['figures', 'text'],
+};
+
+const imageStep = (attachments: unknown) => ({
+  id: 'evaluate_thing',
+  model: { provider: 'google', name: 'gemini-3-flash-preview' },
+  prompt: { placeholders: { text: {} } },
+  attachments,
+});
+
+describe('attachmentsOf refuses a declaration it cannot honour', () => {
+  const withBounds = (xImage: unknown) => ({
+    properties: { figures: { type: 'array', items: { type: 'string', 'x-image': xImage } } },
+  });
+  const declare = (attachments: unknown, schema: unknown) =>
+    () => attachmentsOf(imageStep(attachments) as never, schema as never, 'Thing Evaluator');
+
+  it('accepts a complete declaration', () => {
+    expect(declare([{ input: 'figures', kind: 'image' }], withBounds(X_IMAGE))()).toEqual([
+      { input: 'figures', bounds: X_IMAGE },
+    ]);
+  });
+
+  it('refuses a kind other than image', () => {
+    expect(declare([{ input: 'figures', kind: 'document' }], withBounds(X_IMAGE))).toThrow(/kind "document" is not supported/);
+  });
+
+  it('refuses an attached input with no x-image on its items', () => {
+    expect(declare([{ input: 'figures', kind: 'image' }], withBounds(undefined))).toThrow(/need an `x-image` block/);
+  });
+
+  it('refuses a bound that is missing or misspelled, which would otherwise pass silently', () => {
+    const noMinEdge: Record<string, unknown> = { ...X_IMAGE };
+    delete noMinEdge.min_edge;
+    expect(declare([{ input: 'figures', kind: 'image' }], withBounds(noMinEdge))).toThrow(/`x-image.min_edge` must be a number/);
+    expect(declare([{ input: 'figures', kind: 'image' }], withBounds({ ...X_IMAGE, detect: 'extension' }))).toThrow(/must be "signature"/);
+  });
+});
+
+describe('defineSingleStepEvaluator attaches several images in array order', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'single-step-images-'));
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  /** A minimal PNG declaring `w`×`h`, distinct per size so the order is observable. */
+  const png = (name: string, w: number, h: number) => {
+    const be32 = (n: number) => [(n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff];
+    const bytes = new Uint8Array(100);
+    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, ...be32(w), ...be32(h)]);
+    const path = join(dir, name);
+    writeFileSync(path, bytes);
+    return { path, bytes };
+  };
+
+  it('loads every path, in order, and keeps them out of the prompt text', async () => {
+    const E = defineSingleStepEvaluator<{ figures: string[]; text: string }, Output>({
+      contract: contract({ steps: [imageStep([{ input: 'figures', kind: 'image' }])] }) as never,
+      inputSchema: IMAGE_INPUT_SCHEMA as never,
+      outputSchema: OUTPUT_SCHEMA,
+      systemPrompt: 'system',
+      userPrompt: 'user: {text}',
+    });
+    const provider = { ...fakeProvider(), supportsAttachments: true };
+    const evaluator = new E({ llmProvider: provider, telemetry: false });
+
+    const a = png('a.png', 100, 50);
+    const b = png('b.png', 60, 90);
+    const c = png('c.png', 30, 30);
+    await evaluator.evaluate({ figures: [a.path, b.path, c.path], text: 'Three figures.' });
+
+    const call = vi.mocked(provider.generateStructured).mock.calls[0][0];
+    expect(call.attachments?.map((p) => p.data)).toEqual([a.bytes, b.bytes, c.bytes]);
+    expect(call.messages[1].content).toBe('user: Three figures.');
+    expect(call.messages[1].content).not.toContain(dir);
   });
 });

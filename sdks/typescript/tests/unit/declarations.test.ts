@@ -33,7 +33,7 @@ interface Declared {
   typeName: string;
   /** Property name -> the TypeScript type text the generator emitted. */
   properties: Record<string, string>;
-  contract: Record<string, { enum?: string[] }>;
+  contract: Record<string, { enum?: string[]; type?: string }>;
 }
 
 /** The generated schema modules, which now carry each evaluator's input type. */
@@ -61,7 +61,7 @@ const DECLARED: Declared[] = generatedModules(join(SRC, 'schemas')).flatMap((fil
 
   const relative = sourceMatch[1].replace(/^(\.\.\/)+/, '').replace(/^evals\//, '');
   const contract = JSON.parse(readFileSync(join(EVALS, relative), 'utf-8')) as {
-    properties: Record<string, { enum?: string[] }>;
+    properties: Record<string, { enum?: string[]; type?: string }>;
   };
 
   return [{ file, typeName: typeMatch[1], properties, contract: contract.properties }];
@@ -93,14 +93,17 @@ describe('input types match the contracts they name', () => {
     expect(Object.keys(properties).sort()).toEqual(Object.keys(contract).sort());
   });
 
-  it.each(DECLARED)('$typeName carries the contract\'s enum values', ({ typeName, properties, contract }) => {
+  it.each(DECLARED)('$typeName carries the contract\'s enum values and array shape', ({ typeName, properties, contract }) => {
     // The reason for generating these rather than deriving them: a declared `enum` becomes a
     // literal union, so a bad grade is a compile error instead of a run-time one on a paid
-    // call. A field with no enum stays `string` — the length bounds are not expressible.
+    // call. An array of strings (an attached input's paths) is `string[]`. Anything else stays
+    // `string` — the length and count bounds are not expressible.
     for (const [name, spec] of Object.entries(contract)) {
       const expected = spec.enum
         ? spec.enum.map((v) => JSON.stringify(v)).join(' | ')
-        : 'string';
+        : spec.type === 'array'
+          ? 'string[]'
+          : 'string';
 
       expect(properties[name], `${typeName}.${name}`).toBe(expected);
     }
