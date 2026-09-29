@@ -144,7 +144,7 @@ export async function loadImage(field: string, path: string, bounds: ImageBounds
 
   if (data.length < bounds.min_bytes) {
     throw new InputValidationError(
-      `${field}: "${path}" is ${data.length} bytes; the minimum is ${bounds.min_bytes}.`,
+      `${field}: "${path}" is ${size(data.length)}; the minimum is ${size(bounds.min_bytes)}.`,
     );
   }
   if (data.length > bounds.max_bytes) {
