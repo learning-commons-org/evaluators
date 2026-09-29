@@ -1,4 +1,5 @@
 import { describe, it, expect, afterAll } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -158,6 +159,13 @@ describe('loadImage', () => {
 
   it('rejects a path that is not a regular file, rather than reading it unbounded', async () => {
     await expect(loadImage('f', dir, BOUNDS)).rejects.toThrow(/is not a regular file/);
+  });
+
+  it('refuses a FIFO without blocking on it', async () => {
+    const fifo = join(dir, 'pipe.png');
+    execFileSync('mkfifo', [fifo]);
+    // With a blocking open this would hang until a writer appeared; the test timeout would fail it.
+    await expect(loadImage('f', fifo, BOUNDS)).rejects.toThrow(/is not a regular file/);
   });
 
   it('rejects a header it cannot read', async () => {
