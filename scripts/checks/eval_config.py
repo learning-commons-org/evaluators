@@ -10,6 +10,7 @@ Each config is validated in two complementary layers:
        - referenced files actually exist ($ref schemas, prompt files, fixtures)
        - each declared sha256 matches the prompt file on disk (drift tripwire)
        - placeholders declared in config line up with the {vars} in the prompts
+       - every attachment names an input the input schema declares
        - system prompts carry no user-input placeholders
        - no obsolete format-instruction placeholders survive anywhere
 
@@ -77,6 +78,7 @@ class EvalConfig(Check):
             template_vars = self._check_prompts(prompt, base, fail, step_id)
             self._check_placeholders(prompt, template_vars, fail, step_id)
         self._check_placeholder_sources(config, base, fail)
+        self._check_attachments(config, base, fail)
         self._check_supported_grades(config, base, fail)
         self._check_outcome(config, base, fail)
         self._check_fixtures_path(config, base, fail)
@@ -160,6 +162,30 @@ class EvalConfig(Check):
                     if producer not in step_ids:
                         fail(f"{where} names no earlier step; {producer!r} does not run before {step_id!r}")
             step_ids.add(step_id)
+
+    @staticmethod
+    def _check_attachments(config: dict, base: str, fail) -> None:
+        """Every `attachments[].input` must name a property of the input schema.
+
+        An attachment is not a placeholder, so nothing else ties it to an input: a typo here
+        (`image` for `image_path`) passes the schema and leaves a runner with no file to
+        send, so it would send the prompt text alone.
+        """
+        try:
+            input_props = set(
+                load_json(os.path.join(base, config["input_schema"]["$ref"]))
+                .get("properties", {})
+                .keys()
+            )
+        except (KeyError, TypeError, OSError, json.JSONDecodeError):
+            return  # _check_referenced_files already reported this
+
+        for step in config.get("steps", []):
+            step_id = step.get("id", "?")
+            for entry in step.get("attachments") or []:
+                name = entry.get("input")
+                if name not in input_props:
+                    fail(f"{step_id}.attachments: input {name!r} is not declared in input_schema")
 
     @staticmethod
     def _check_supported_grades(config: dict, base: str, fail) -> None:
