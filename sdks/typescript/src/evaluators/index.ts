@@ -3,7 +3,7 @@ export { getEvaluators, getEvaluator } from './registry.js';
 export {
   GraphicsAccuracyEvaluator,
   evaluateGraphicsAccuracy,
-  composeSpecification,
+  composeGraphicsAccuracyClaim,
   type GraphicsAccuracyInput,
 } from './graphics/math/graphics-accuracy.js';
 

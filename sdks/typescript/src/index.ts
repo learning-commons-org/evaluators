@@ -166,7 +166,7 @@ export {
   evaluateMathStandardsAlignment,
   GraphicsAccuracyEvaluator,
   evaluateGraphicsAccuracy,
-  composeSpecification,
+  composeGraphicsAccuracyClaim,
   type GraphicsAccuracyInput,
   type MathStandardsAlignmentEvaluatorConfig,
   type LearningComponentResult,

@@ -17,7 +17,7 @@ export type { GraphicsAccuracyInput };
  *
  * The claim is the specification: a statement about the image, or a question with its
  * expected answer written as `Question: "…" The answer is ….` (see
- * {@link composeSpecification}). `image_paths` is a one-item array holding the local path of
+ * {@link composeGraphicsAccuracyClaim}). `image_paths` is a one-item array holding the local path of
  * the image under review; its bytes are read in the caller's environment, checked against
  * the contract's `x-image` bounds, and attached to the model request ahead of the text.
  *
@@ -50,8 +50,9 @@ export async function evaluateGraphicsAccuracy(
  * The `claim` text for a question with an expected answer.
  *
  * Byte-for-byte the text the evaluator was benchmarked on, so a caller who has a problem and
- * its answer key gets the measured behaviour rather than a paraphrase of it.
+ * its answer key gets the measured behaviour rather than a paraphrase of it. Surrounding
+ * whitespace is trimmed from both parts; nothing else is changed.
  */
-export function composeSpecification(question: string, answer: string): string {
+export function composeGraphicsAccuracyClaim(question: string, answer: string): string {
   return `Question: "${question.trim()}" The answer is ${answer.trim()}.`;
 }

@@ -3,9 +3,10 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import CONFIG from '../../../../../evals/graphics/math/graphics-accuracy/config.json';
+import INPUT_SCHEMA from '../../../../../evals/graphics/math/graphics-accuracy/input_schema.json';
 import {
   GraphicsAccuracyEvaluator,
-  composeSpecification,
+  composeGraphicsAccuracyClaim,
 } from '../../../src/evaluators/graphics/math/graphics-accuracy.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import { ConfigurationError, InputValidationError } from '../../../src/errors.js';
@@ -95,9 +96,19 @@ describe('GraphicsAccuracyEvaluator - Metadata', () => {
   });
 });
 
-describe('composeSpecification', () => {
+describe('composeGraphicsAccuracyClaim', () => {
   it('produces the benchmarked claim text and trims its parts', () => {
-    expect(composeSpecification(` ${QUESTION} `, ' 19 ')).toBe(`Question: "${QUESTION}" The answer is 19.`);
+    expect(composeGraphicsAccuracyClaim(` ${QUESTION} `, ' 19 ')).toBe(`Question: "${QUESTION}" The answer is 19.`);
+  });
+
+  it('matches the form the contract documents for the claim input', () => {
+    // The contract's `claim` description is the canonical statement of the format; the helper
+    // must not drift from it, or callers following the docs and callers using the helper would
+    // send different text.
+    const documented = INPUT_SCHEMA.properties.claim.description.match(/`(Question: "<question>" The answer is <answer>\.)`/);
+    expect(documented, 'claim description names the question + answer form').not.toBeNull();
+    const expected = documented![1].replace('<question>', QUESTION).replace('<answer>', '19');
+    expect(composeGraphicsAccuracyClaim(QUESTION, '19')).toBe(expected);
   });
 });
 
@@ -116,7 +127,7 @@ describe('GraphicsAccuracyEvaluator - LLM call contract', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('sends the image bytes as a request attachment and the rendered claim as the user text', async () => {
-    await evaluator.evaluate({ image_paths: [LADYBIRDS], claim: composeSpecification(QUESTION, '19') });
+    await evaluator.evaluate({ image_paths: [LADYBIRDS], claim: composeGraphicsAccuracyClaim(QUESTION, '19') });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
     expect(call.messages).toHaveLength(2);
@@ -142,7 +153,7 @@ describe('GraphicsAccuracyEvaluator - LLM call contract', () => {
   });
 
   it('maps the response onto the envelope', async () => {
-    const result = await evaluator.evaluate({ image_paths: [LADYBIRDS], claim: composeSpecification(QUESTION, '19') });
+    const result = await evaluator.evaluate({ image_paths: [LADYBIRDS], claim: composeGraphicsAccuracyClaim(QUESTION, '19') });
     expect(result.evaluator).toBe(CONFIG.evaluator.id);
     expect(result.result).toEqual(MOCK_RESPONSE.data);
     expect(result.result.basis).toBe('supported');
