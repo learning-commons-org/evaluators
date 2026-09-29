@@ -3,4 +3,4 @@ uvicorn
 jinja2
 python-multipart
 python-dotenv
-../../sdks/python
+learning-commons-evaluators>=1.0.0

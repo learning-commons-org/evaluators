@@ -12,13 +12,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-`requirements.txt` currently builds the SDK from `../../sdks/python` because this release is not yet on PyPI. Once the SDK is published, this file will reference the published version instead.
-
-After SDK source changes, refresh the local install:
-
-```shell
-pip install --force-reinstall --no-deps ../../sdks/python
-```
+This installs the published `learning-commons-evaluators` package from PyPI, as an integrator would.
 
 ## Keys
 
