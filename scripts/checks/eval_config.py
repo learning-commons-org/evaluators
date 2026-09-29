@@ -172,14 +172,16 @@ class EvalConfig(Check):
         send, so it would send the prompt text alone. The input is always an array -- one
         image and many images are the same shape with different bounds -- so it must declare
         string items, `minItems` >= 1 and `maxItems` >= `minItems`, and, for `kind: "image"`,
-        an `x-image` block on its items giving the SDK the per-file bounds to enforce.
+        an `x-image` block on its items giving the SDK the per-file bounds to enforce. It
+        must also be `required`: `minItems` only applies when the property is present, so an
+        optional input would let a request through with no image at all.
         """
         try:
-            input_props = load_json(os.path.join(base, config["input_schema"]["$ref"])).get(
-                "properties", {}
-            )
+            input_schema = load_json(os.path.join(base, config["input_schema"]["$ref"]))
         except (KeyError, TypeError, OSError, json.JSONDecodeError):
             return  # _check_referenced_files already reported this
+        input_props = input_schema.get("properties", {})
+        required = set(input_schema.get("required", []))
 
         for step in config.get("steps", []):
             step_id = step.get("id", "?")
@@ -190,6 +192,8 @@ class EvalConfig(Check):
                 if not isinstance(spec, dict):
                     fail(f"{where} is not declared in input_schema")
                     continue
+                if name not in required:
+                    fail(f"{where} must be listed in input_schema `required`")
                 if spec.get("type") != "array":
                     fail(f"{where} must be an array of file locators, not {spec.get('type')!r}")
                     continue

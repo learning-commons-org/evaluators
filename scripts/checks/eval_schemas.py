@@ -35,6 +35,10 @@ def _to_snake(name: str) -> str:
     return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
+# JSON Schema keywords whose values are instance data, not subschemas.
+_INSTANCE_KEYWORDS = frozenset({"const", "default", "enum", "examples"})
+
+
 def _evals_root(schema_path: str) -> str:
     """The `evals/` directory an evaluator schema file lives under."""
     here = os.path.dirname(os.path.abspath(schema_path))
@@ -106,13 +110,17 @@ class EvalSchemas(Check):
                         )
 
     def _x_image_blocks(self, node: object, where: str):
-        """Yield (location, block) for every `x-image` key anywhere under `node`."""
+        """Yield (location, block) for every `x-image` keyword under `node`.
+
+        Keywords whose values are instance data rather than schemas are not entered, so an
+        example or default that happens to contain an `x-image` key is not mistaken for one.
+        """
         if isinstance(node, dict):
             for key, value in node.items():
                 here = f"{where}/{key}" if where else key
                 if key == "x-image":
                     yield where or "(root)", value
-                else:
+                elif key not in _INSTANCE_KEYWORDS:
                     yield from self._x_image_blocks(value, here)
         elif isinstance(node, list):
             for i, item in enumerate(node):
