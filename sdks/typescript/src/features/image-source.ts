@@ -1,4 +1,5 @@
-import { readFile, stat } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { open, type FileHandle } from 'node:fs/promises';
 import { InputValidationError } from '../errors.js';
 import type { ImageAttachment, ImageMediaType } from '../providers/base.js';
 
@@ -111,6 +112,21 @@ export function readImageDimensions(
   return undefined;
 }
 
+/**
+ * Read at most `limit` bytes from an open file. A file that grew after `stat` is cut off here
+ * rather than read whole; the caller's size check then rejects it.
+ */
+async function readBounded(file: FileHandle, limit: number): Promise<Uint8Array> {
+  const buffer = new Uint8Array(limit);
+  let total = 0;
+  while (total < limit) {
+    const { bytesRead } = await file.read(buffer, total, limit - total, total);
+    if (bytesRead === 0) break;
+    total += bytesRead;
+  }
+  return buffer.subarray(0, total);
+}
+
 /** Exact bytes, with MB alongside for readability: a file one byte over must not read as equal. */
 const size = (bytes: number) => `${bytes.toLocaleString('en-US')} bytes (${(bytes / (1024 * 1024)).toFixed(2)} MB)`;
 
@@ -126,20 +142,24 @@ const size = (bytes: number) => `${bytes.toLocaleString('en-US')} bytes (${(byte
  */
 export async function loadImage(field: string, path: string, bounds: ImageBounds): Promise<ImageAttachment> {
   let data: Uint8Array;
+  let file: FileHandle | undefined;
   try {
-    // Size first, from the filesystem, so an oversized file is refused before it is read. A
-    // FIFO or device reports size 0 and would be read without limit, so only regular files.
-    const info = await stat(path);
+    // One handle for the check and the read, so the file cannot be swapped between them.
+    // O_NONBLOCK keeps a FIFO from blocking the open; it is then refused as not a regular file.
+    file = await open(path, constants.O_RDONLY | constants.O_NONBLOCK);
+    const info = await file.stat();
     if (!info.isFile()) {
       throw new InputValidationError(`${field}: "${path}" is not a regular file.`);
     }
     if (info.size > bounds.max_bytes) {
       throw new InputValidationError(`${field}: "${path}" is ${size(info.size)}; the maximum is ${size(bounds.max_bytes)}.`);
     }
-    data = new Uint8Array(await readFile(path));
+    data = await readBounded(file, bounds.max_bytes + 1);
   } catch (cause) {
     if (cause instanceof InputValidationError) throw cause;
     throw new InputValidationError(`${field}: could not read file "${path}".`, cause);
+  } finally {
+    await file?.close();
   }
 
   if (data.length < bounds.min_bytes) {
