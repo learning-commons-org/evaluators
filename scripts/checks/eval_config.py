@@ -10,7 +10,8 @@ Each config is validated in two complementary layers:
        - referenced files actually exist ($ref schemas, prompt files, fixtures)
        - each declared sha256 matches the prompt file on disk (drift tripwire)
        - placeholders declared in config line up with the {vars} in the prompts
-       - every attachment names an input the input schema declares
+       - every attachment names a required, bounded array input with `x-image` items,
+         and no input carries `x-image` unless a step attaches it
        - system prompts carry no user-input placeholders
        - no obsolete format-instruction placeholders survive anywhere
 
@@ -165,7 +166,7 @@ class EvalConfig(Check):
 
     @staticmethod
     def _check_attachments(config: dict, base: str, fail) -> None:
-        """Every `attachments[].input` must be a bounded array of file locators.
+        """Every `attachments[].input` must be a required, bounded array of local file paths.
 
         An attachment is not a placeholder, so nothing else ties it to an input: a typo here
         (`image` for `image_paths`) passes the schema and leaves a runner with no file to
@@ -174,7 +175,11 @@ class EvalConfig(Check):
         string items, `minItems` >= 1 and `maxItems` >= `minItems`, and, for `kind: "image"`,
         an `x-image` block on its items giving the SDK the per-file bounds to enforce. It
         must also be `required`: `minItems` only applies when the property is present, so an
-        optional input would let a request through with no image at all.
+        optional input would let a request through with no image at all. `items` must be
+        written inline, not as a `$ref`.
+
+        Conversely, `x-image` anywhere other than the items of an attached input is flagged:
+        no runner would read those bounds, so they would go silently unenforced.
         """
         try:
             input_schema = load_json(os.path.join(base, config["input_schema"]["$ref"]))
@@ -182,11 +187,15 @@ class EvalConfig(Check):
             return  # _check_referenced_files already reported this
         input_props = input_schema.get("properties", {})
         required = set(input_schema.get("required", []))
+        attached: set[str] = set()
 
         for step in config.get("steps", []):
             step_id = step.get("id", "?")
             for entry in step.get("attachments") or []:
-                name = entry.get("input")
+                name = entry.get("input") if isinstance(entry, dict) else None
+                if not isinstance(name, str):
+                    continue  # the schema layer already reports a malformed entry
+                attached.add(name)
                 where = f"{step_id}.attachments: input {name!r}"
                 spec = input_props.get(name)
                 if not isinstance(spec, dict):
@@ -195,20 +204,29 @@ class EvalConfig(Check):
                 if name not in required:
                     fail(f"{where} must be listed in input_schema `required`")
                 if spec.get("type") != "array":
-                    fail(f"{where} must be an array of file locators, not {spec.get('type')!r}")
+                    fail(f"{where} must be an array of local file paths, not {spec.get('type')!r}")
                     continue
                 items = spec.get("items") if isinstance(spec.get("items"), dict) else {}
                 if items.get("type") != "string":
-                    fail(f"{where} items must be strings (file locators)")
+                    fail(f"{where} items must be inline string schemas (local file paths)")
                 lo, hi = spec.get("minItems"), spec.get("maxItems")
-                if not isinstance(lo, int) or lo < 1:
+                if type(lo) is not int or lo < 1:
                     fail(f"{where} must declare minItems >= 1")
-                if not isinstance(hi, int):
+                if type(hi) is not int:
                     fail(f"{where} must declare maxItems")
-                elif isinstance(lo, int) and hi < lo:
+                elif type(lo) is int and hi < lo:
                     fail(f"{where} maxItems ({hi}) is below minItems ({lo})")
                 if entry.get("kind") == "image" and "x-image" not in items:
                     fail(f"{where} items must declare x-image bounds")
+
+        for name, spec in input_props.items():
+            if not isinstance(spec, dict):
+                continue
+            if "x-image" in spec:
+                fail(f"input {name!r}: x-image belongs on the items of an attached array input")
+            items = spec.get("items")
+            if isinstance(items, dict) and "x-image" in items and name not in attached:
+                fail(f"input {name!r}: carries x-image but no step attaches it")
 
     @staticmethod
     def _check_supported_grades(config: dict, base: str, fail) -> None:

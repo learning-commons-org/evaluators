@@ -11,8 +11,8 @@ preference - it forces one evaluator's public surface to differ from its fifteen
 siblings' in every SDK at once. Math Standards Alignment carried four such keys,
 inherited from the Knowledge Graph API's own field names, until they were renamed.
 
-Input properties may carry an `x-image` block bounding the image file their value names;
-each block is validated against `_schemas/x-image.schema.json`, since meta-validation
+The `items` of an attached array input carry an `x-image` block bounding each image file;
+every block is validated against `_schemas/x-image.schema.json`, since meta-validation
 accepts any value for an extension keyword.
 """
 
@@ -25,7 +25,7 @@ import re
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
-from .base import Check, Result, Violation, evaluator_configs, load_json
+from .base import Check, Result, Violation, evaluator_configs, load_json, shared_schema_path
 
 # Digits are allowed mid-name: `tier_2_words` is a real key.
 SNAKE_CASE = re.compile(r"[a-z][a-z0-9]*(_[a-z0-9]+)*")
@@ -38,13 +38,8 @@ def _to_snake(name: str) -> str:
 # JSON Schema keywords whose values are instance data, not subschemas.
 _INSTANCE_KEYWORDS = frozenset({"const", "default", "enum", "examples"})
 
-
-def _evals_root(schema_path: str) -> str:
-    """The `evals/` directory an evaluator schema file lives under."""
-    here = os.path.dirname(os.path.abspath(schema_path))
-    while os.path.basename(here) != "evals" and os.path.dirname(here) != here:
-        here = os.path.dirname(here)
-    return here
+# Keywords whose value maps names to subschemas; the names are not keywords.
+_NAMED_SUBSCHEMAS = frozenset({"properties", "patternProperties", "$defs", "definitions"})
 
 
 class EvalSchemas(Check):
@@ -53,6 +48,9 @@ class EvalSchemas(Check):
 
     def run(self, fix: bool) -> Result:
         result = Result(self.name)
+        self._x_image_validator = Draft202012Validator(
+            load_json(shared_schema_path("x-image.schema.json"))
+        )
         for cfg_path in evaluator_configs():
             base = os.path.dirname(cfg_path)
             try:
@@ -92,34 +90,33 @@ class EvalSchemas(Check):
         nothing consistent to enforce. Blocks are found at any depth, so a nested one is
         checked as strictly as a top-level one.
         """
-        blocks = list(self._x_image_blocks(doc, ""))
-        if not blocks:
-            return
-        meta_path = os.path.join(_evals_root(path), "_schemas", "x-image.schema.json")
-        validator = Draft202012Validator(load_json(meta_path))
-        for name, block in blocks:
-            for err in sorted(validator.iter_errors(block), key=lambda e: list(e.path)):
+        for name, block in self._x_image_blocks(doc, ""):
+            for err in sorted(self._x_image_validator.iter_errors(block), key=lambda e: list(e.path)):
                 loc = "/".join(str(p) for p in err.path) or "(root)"
                 result.violations.append(Violation(path, f"{name}.x-image: {loc}: {err.message}"))
             if isinstance(block, dict):
                 for lo, hi in (("min_bytes", "max_bytes"), ("min_edge", "max_edge")):
                     a, b = block.get(lo), block.get(hi)
-                    if isinstance(a, int) and isinstance(b, int) and a > b:
+                    if type(a) is int and type(b) is int and a > b:
                         result.violations.append(
                             Violation(path, f"{name}.x-image: {lo} ({a}) exceeds {hi} ({b})")
                         )
 
     def _x_image_blocks(self, node: object, where: str):
-        """Yield (location, block) for every `x-image` keyword under `node`.
+        """Yield (location, block) for every `x-image` keyword in the schema `node`.
 
-        Keywords whose values are instance data rather than schemas are not entered, so an
-        example or default that happens to contain an `x-image` key is not mistaken for one.
+        Walks schema positions only. Instance-valued keywords (`examples`, `default`, ...)
+        are not entered, and under `properties`/`$defs` the keys are names, not keywords,
+        so a property called `default` or `x-image` is walked as the schema it names.
         """
         if isinstance(node, dict):
             for key, value in node.items():
                 here = f"{where}/{key}" if where else key
                 if key == "x-image":
                     yield where or "(root)", value
+                elif key in _NAMED_SUBSCHEMAS and isinstance(value, dict):
+                    for name, sub in value.items():
+                        yield from self._x_image_blocks(sub, f"{here}/{name}")
                 elif key not in _INSTANCE_KEYWORDS:
                     yield from self._x_image_blocks(value, here)
         elif isinstance(node, list):

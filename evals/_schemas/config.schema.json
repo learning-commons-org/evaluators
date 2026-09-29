@@ -219,7 +219,7 @@
                 "input": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Name of an `input_schema` property that is an array of file locators, bounded by `minItems`/`maxItems`; each item is attached, in array order. Not a placeholder: the input is never interpolated into prompt text."
+                  "description": "Name of a required `input_schema` property that is an array of local image file paths, bounded by `minItems`/`maxItems`; each item is attached, in array order. Not a placeholder: the input is never interpolated into prompt text."
                 },
                 "kind": { "enum": ["image"] }
               }

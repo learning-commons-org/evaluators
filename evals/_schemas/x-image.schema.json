@@ -18,8 +18,8 @@
       "const": "signature",
       "description": "The format is read from the file's leading bytes, never from its extension or a content-type header."
     },
-    "min_bytes": { "type": "integer", "minimum": 1 },
-    "max_bytes": { "type": "integer", "minimum": 1 },
+    "min_bytes": { "type": "integer", "minimum": 1, "description": "Smallest allowed file size, in bytes." },
+    "max_bytes": { "type": "integer", "minimum": 1, "description": "Largest allowed file size, in bytes." },
     "min_edge": { "type": "integer", "minimum": 1, "description": "Smallest allowed width and height, in pixels." },
     "max_edge": { "type": "integer", "minimum": 1, "description": "Largest allowed width and height, in pixels." }
   }
