@@ -230,7 +230,7 @@ Feedback quality — judges a teacher comment on a student's writing. Each takes
 | `ToneAppropriatenessEvaluator`        | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/tone-appropriateness)         |
 | `WithholdingAnswersEvaluator`         | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/withholding-answers)          |
 
-Graphics — checks an image against the claim made about it. Takes `{ image_paths, claim }`: `image_paths` holds local image file paths (one, for this evaluator), each bounded by its contract's format, size and edge limits before any model call. Returns `is_correct` with `reasoning`, and a `basis` saying whether a false verdict was `contradicted` or `unverified`.
+Graphics — checks an image against the claim made about it. Takes `{ image_paths, claim }`: `image_paths` holds local image file paths (one, for this evaluator), each bounded by its contract's format, size and edge limits before any model call. Returns `is_correct` with `reasoning`, and a `basis` saying whether a false verdict was `contradicted` or `unverified`. For a question with its expected answer, build the claim with `composeGraphicsAccuracyClaim(question, answer)`, which produces the exact text the evaluator was benchmarked on.
 
 | Evaluator                   | Grades | Default provider | Docs                       |
 | --------------------------- | ------ | ---------------- | -------------------------- |
