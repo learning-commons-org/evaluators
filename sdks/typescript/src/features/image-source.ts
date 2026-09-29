@@ -5,25 +5,26 @@ import type { ImageAttachment, ImageMediaType } from '../providers/base.js';
 /**
  * Loading an image input for a vision evaluator.
  *
- * A contract declares the image as a string: a local file path (absolute, or relative to
- * the process working directory) or an http(s) URL. Whatever the string points at is read
- * here, in the caller's environment, and never leaves it except as part of the model
- * request. The format is taken from the file's own bytes, not from its extension or the
- * server's content type, so a mislabelled file is caught before a paid call.
+ * A contract declares an attached input as an array of local file paths, and bounds each
+ * file with an `x-image` block on the array's items. Each path is read here, in the
+ * caller's environment, and its bytes leave only as part of the model request. Format and
+ * dimensions are taken from the file's own bytes, never from its name, so a mislabelled or
+ * oversized file is caught before a paid call.
  *
- * The SDK is therefore reading files and fetching URLs the caller names. That is the
- * intended posture — the caller's own environment, the caller's own images — and callers
- * relaying strings from untrusted parties should resolve them to files they control first.
+ * The SDK is therefore reading files the caller names. That is the intended posture — the
+ * caller's own environment, the caller's own images — and callers relaying paths from
+ * untrusted parties should resolve them to files they control first.
  */
 
-/** Every vendor the SDK supports accepts these three natively; the contracts declare no others. */
-export const IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = ['image/png', 'image/jpeg', 'image/webp'];
-
-/** The cap the contracts declare. Gemini's inline limit is 20 MB; Claude's request cap is 32 MB. */
-export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-
-/** How long a URL fetch may take before it is the caller's problem. */
-const FETCH_TIMEOUT_MS = 30_000;
+/** The per-file bounds a contract declares in `x-image`, as the SDK reads them. */
+export interface ImageBounds {
+  formats: readonly ImageMediaType[];
+  detect: 'signature';
+  min_bytes: number;
+  max_bytes: number;
+  min_edge: number;
+  max_edge: number;
+}
 
 /** The image format a byte string declares itself to be, or undefined if none we accept. */
 export function sniffImageMediaType(bytes: Uint8Array): ImageMediaType | undefined {
@@ -47,99 +48,128 @@ export function sniffImageMediaType(bytes: Uint8Array): ImageMediaType | undefin
   return undefined;
 }
 
-function isHttpUrl(source: string): boolean {
-  return /^https?:\/\//i.test(source);
+/**
+ * Width and height from the image header, without decoding pixels.
+ *
+ * PNG stores them in IHDR; JPEG in its first start-of-frame marker; WebP in the VP8, VP8L or
+ * VP8X chunk header. Undefined when the header cannot be read, which means the file is
+ * malformed whatever its signature says.
+ */
+export function readImageDimensions(
+  bytes: Uint8Array,
+  mediaType: ImageMediaType,
+): { width: number; height: number } | undefined {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const has = (n: number) => bytes.length >= n;
+
+  if (mediaType === 'image/png') {
+    // Signature (8) + IHDR length (4) + "IHDR" (4), then width and height, big-endian.
+    // IHDR must be the first chunk; anything else after a valid signature is not a PNG.
+    if (!has(24) || String.fromCharCode(bytes[12], bytes[13], bytes[14], bytes[15]) !== 'IHDR') return undefined;
+    return { width: view.getUint32(16), height: view.getUint32(20) };
+  }
+
+  if (mediaType === 'image/jpeg') {
+    let offset = 2;
+    while (offset + 4 <= bytes.length) {
+      if (bytes[offset] !== 0xff) return undefined;
+      const marker = bytes[offset + 1];
+      // Padding and standalone markers carry no length.
+      if (marker === 0xff) { offset += 1; continue; }
+      if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) { offset += 2; continue; }
+      const length = view.getUint16(offset + 2);
+      // SOF0–SOF15, excluding DHT (C4), JPG (C8) and DAC (CC).
+      const isFrame = marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+      if (isFrame) {
+        if (offset + 9 > bytes.length) return undefined;
+        return { height: view.getUint16(offset + 5), width: view.getUint16(offset + 7) };
+      }
+      offset += 2 + length;
+    }
+    return undefined;
+  }
+
+  // WebP: RIFF (4) size (4) "WEBP" (4), then the first chunk's FourCC at 12.
+  if (!has(30)) return undefined;
+  const chunk = String.fromCharCode(bytes[12], bytes[13], bytes[14], bytes[15]);
+  if (chunk === 'VP8 ') {
+    // Frame tag (3) + start code 9d 01 2a (3), then 14-bit width and height, little-endian.
+    if (bytes[23] !== 0x9d || bytes[24] !== 0x01 || bytes[25] !== 0x2a) return undefined;
+    return { width: view.getUint16(26, true) & 0x3fff, height: view.getUint16(28, true) & 0x3fff };
+  }
+  if (chunk === 'VP8L') {
+    // Signature byte 0x2f at 20, then 14-bit width-1 and height-1 packed little-endian.
+    if (bytes[20] !== 0x2f) return undefined;
+    const bits = view.getUint32(21, true);
+    return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
+  }
+  if (chunk === 'VP8X') {
+    // Canvas width-1 and height-1 as 24-bit little-endian at 24 and 27.
+    const u24 = (at: number) => bytes[at] | (bytes[at + 1] << 8) | (bytes[at + 2] << 16);
+    return { width: u24(24) + 1, height: u24(27) + 1 };
+  }
+  return undefined;
 }
 
-function tooLarge(field: string, source: string, bytes: number): InputValidationError {
-  return new InputValidationError(
-    `${field}: "${source}" is ${(bytes / (1024 * 1024)).toFixed(1)} MB; the maximum is ${MAX_IMAGE_BYTES / (1024 * 1024)} MB.`,
-  );
-}
+/** Exact bytes, with MB alongside for readability: a file one byte over must not read as equal. */
+const size = (bytes: number) => `${bytes.toLocaleString('en-US')} bytes (${(bytes / (1024 * 1024)).toFixed(2)} MB)`;
 
 /**
- * Read a response body with a byte budget, so an oversized or hostile URL is cut off at the
- * cap rather than buffered whole. `Content-Length`, when present, is checked first.
+ * Read the image at `path` and return it as an attachment, enforcing every bound the
+ * contract declares for it.
+ *
+ * @param field the input's name and position, for error messages (e.g. `image_paths[0]`)
+ * @param path a local file path, absolute or relative to the working directory
+ * @param bounds the contract's `x-image` block for this input
+ * @throws {InputValidationError} if the file cannot be read, is not an accepted format by
+ * its bytes, has an unreadable header, or falls outside the declared size or edge bounds
  */
-async function readBounded(field: string, source: string, response: Response): Promise<Uint8Array> {
-  const declared = Number(response.headers.get('content-length'));
-  if (Number.isFinite(declared) && declared > MAX_IMAGE_BYTES) {
-    throw tooLarge(field, source, declared);
-  }
-  if (!response.body) {
-    return new Uint8Array(await response.arrayBuffer());
-  }
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > MAX_IMAGE_BYTES) {
-      await reader.cancel();
-      throw tooLarge(field, source, total);
-    }
-    chunks.push(value);
-  }
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const c of chunks) {
-    out.set(c, offset);
-    offset += c.byteLength;
-  }
-  return out;
-}
-
-async function readSource(field: string, source: string): Promise<Uint8Array> {
-  if (isHttpUrl(source)) {
-    let response: Response;
-    try {
-      response = await fetch(source, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-    } catch (cause) {
-      throw new InputValidationError(`${field}: could not fetch "${source}".`, cause);
-    }
-    if (!response.ok) {
-      throw new InputValidationError(`${field}: fetching "${source}" returned HTTP ${response.status}.`);
-    }
-    try {
-      return await readBounded(field, source, response);
-    } catch (cause) {
-      if (cause instanceof InputValidationError) throw cause;
-      throw new InputValidationError(`${field}: the body of "${source}" could not be read.`, cause);
-    }
-  }
+export async function loadImage(field: string, path: string, bounds: ImageBounds): Promise<ImageAttachment> {
+  let data: Uint8Array;
   try {
-    const { size } = await stat(source);
-    if (size > MAX_IMAGE_BYTES) throw tooLarge(field, source, size);
-    return new Uint8Array(await readFile(source));
+    // Size first, from the filesystem, so an oversized file is refused before it is read. A
+    // FIFO or device reports size 0 and would be read without limit, so only regular files.
+    const info = await stat(path);
+    if (!info.isFile()) {
+      throw new InputValidationError(`${field}: "${path}" is not a regular file.`);
+    }
+    if (info.size > bounds.max_bytes) {
+      throw new InputValidationError(`${field}: "${path}" is ${size(info.size)}; the maximum is ${size(bounds.max_bytes)}.`);
+    }
+    data = new Uint8Array(await readFile(path));
   } catch (cause) {
     if (cause instanceof InputValidationError) throw cause;
-    throw new InputValidationError(`${field}: could not read file "${source}".`, cause);
+    throw new InputValidationError(`${field}: could not read file "${path}".`, cause);
   }
-}
 
-/**
- * Read the image `source` names and return it as an attachment.
- *
- * @param field the input's name, for error messages
- * @param source a local file path or an http(s) URL
- * @throws {InputValidationError} if the source cannot be read, is not PNG, JPEG or WEBP by
- * its bytes, or exceeds {@link MAX_IMAGE_BYTES}
- */
-export async function loadImage(field: string, source: string): Promise<ImageAttachment> {
-  const data = await readSource(field, source);
-  if (data.length === 0) {
-    throw new InputValidationError(`${field}: "${source}" is empty.`);
-  }
-  if (data.length > MAX_IMAGE_BYTES) {
-    throw tooLarge(field, source, data.length);
-  }
-  const mediaType = sniffImageMediaType(data);
-  if (!mediaType) {
+  if (data.length < bounds.min_bytes) {
     throw new InputValidationError(
-      `${field}: "${source}" is not a PNG, JPEG or WEBP image (judged by its bytes, not its name).`,
+      `${field}: "${path}" is ${data.length} bytes; the minimum is ${bounds.min_bytes}.`,
     );
   }
+  if (data.length > bounds.max_bytes) {
+    throw new InputValidationError(`${field}: "${path}" is ${size(data.length)}; the maximum is ${size(bounds.max_bytes)}.`);
+  }
+
+  const mediaType = sniffImageMediaType(data);
+  if (!mediaType || !bounds.formats.includes(mediaType)) {
+    const accepted = bounds.formats.map((f) => f.replace('image/', '').toUpperCase()).join(', ');
+    throw new InputValidationError(
+      `${field}: "${path}" is not an accepted image (${accepted}), judged by its bytes, not its name.`,
+    );
+  }
+
+  const dims = readImageDimensions(data, mediaType);
+  if (!dims) {
+    throw new InputValidationError(`${field}: "${path}" has an unreadable ${mediaType} header.`);
+  }
+  const { width, height } = dims;
+  if (Math.min(width, height) < bounds.min_edge || Math.max(width, height) > bounds.max_edge) {
+    throw new InputValidationError(
+      `${field}: "${path}" is ${width}×${height} px; each edge must be ${bounds.min_edge} to ` +
+        `${bounds.max_edge} px. Resize to ${bounds.max_edge} px on the long edge before submitting.`,
+    );
+  }
+
   return { type: 'image', data, mediaType };
 }
