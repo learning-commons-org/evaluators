@@ -75,7 +75,12 @@ export function attachmentsOf(
       throw new Error(`${evaluatorName} config.json attaches "${input}": ${why}`);
     };
     if (kind !== 'image') refuse(`kind "${kind}" is not supported; this SDK sends only images.`);
-    const bounds = inputSchema.properties[input]?.items?.['x-image'] as Partial<ImageBounds> | undefined;
+    const spec = inputSchema.properties[input];
+    // Optional or non-array, a request could omit the images and be sent without them.
+    if (spec?.type !== 'array') refuse('it must be an array input.');
+    if (!(inputSchema.required ?? []).includes(input)) refuse('it must be listed in `required`.');
+    if (typeof spec!.minItems !== 'number' || spec!.minItems < 1) refuse('it must declare `minItems` of at least 1.');
+    const bounds = spec!.items?.['x-image'] as Partial<ImageBounds> | undefined;
     if (!bounds) refuse('its items need an `x-image` block.');
     const b = bounds as Partial<ImageBounds>;
     const supported: readonly string[] = ['image/png', 'image/jpeg', 'image/webp'];
@@ -267,7 +272,7 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
         // paid call; the provider places them on the user turn ahead of the text.
         const attachments: ImageAttachment[] = [];
         for (const { input: name, bounds } of ATTACHMENTS) {
-          const paths = (all[name] as string[] | undefined) ?? [];
+          const paths = all[name] as string[];
           for (const [i, path] of paths.entries()) {
             attachments.push(await loadImage(`${name}[${i}]`, path, bounds));
           }
