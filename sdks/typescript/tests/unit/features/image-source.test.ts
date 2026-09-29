@@ -132,7 +132,7 @@ describe('loadImage', () => {
   });
 
   it('rejects a file below min_bytes, including an empty one', async () => {
-    await expect(loadImage('f', file('empty.png', new Uint8Array(0)), BOUNDS)).rejects.toThrow(/0 bytes; the minimum is 64/);
+    await expect(loadImage('f', file('empty.png', new Uint8Array(0)), BOUNDS)).rejects.toThrow(/0 bytes \(0\.00 MB\); the minimum is 64 bytes/);
     await expect(loadImage('f', file('tiny.png', png(20, 20).slice(0, 40)), BOUNDS)).rejects.toThrow(/minimum is 64/);
   });
 
