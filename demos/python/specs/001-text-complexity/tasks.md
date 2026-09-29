@@ -345,15 +345,18 @@ and do not edit anything under `sdks/`. The implementer cannot read or write `.e
       Acceptance Checklist and set **Status** to `Implemented (local SDK build)`. Leave
       "Implemented and verified" unticked until T014.
 
-## Phase 3.6: Published SDK (open until the release ships; blocks merging to `main`)
+## Phase 3.6: Published SDK (done: the demo installs the published 1.x release)
 
-- [ ] T014 [USER] Once the release carrying this SDK API is on PyPI: in `requirements.txt`
+- [x] T014 [USER] Once the release carrying this SDK API is on PyPI: in `requirements.txt`
       replace `../../sdks/python` with `learning-commons-evaluators>=<that version>`, rewrite
       the README's Setup note to drop the local-build text, recreate the venv from scratch
       (`rm -rf .venv`, then T002's venv commands), and rerun T003, T010, T011, and T012.
       **Pass**: `pip show learning-commons-evaluators` shows the published version; no
       application code changed. Then tick "Implemented and verified" in `spec.md` and set
       **Status** to `Implemented`.
+      **Done**: `requirements.txt` reads `learning-commons-evaluators>=1.0.0`; a fresh venv
+      installed it from PyPI (no `direct_url.json`, so not a local path); T003, T010 and T011
+      pass against it, and the real-key run passed on the published SDK.
 
 ## Phase 3.7: Identified telemetry (added after implementation; see FR-014)
 

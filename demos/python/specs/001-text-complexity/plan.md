@@ -10,8 +10,8 @@
 A single FastAPI app that renders one Jinja page. The form posts text and grade; the handler
 runs all eight text complexity evaluators concurrently with `asyncio.gather`, catching each
 evaluator's exception separately, and re-renders the page with one `<details>` accordion per
-evaluator. The SDK is installed as a package, built from `sdks/python` until this release
-ships and from PyPI afterwards.
+evaluator. The SDK is installed as a package: the published 1.x release from PyPI. Until that
+release shipped it was built from `sdks/python` (see Phase 0).
 
 ## Technical Context
 
@@ -73,7 +73,8 @@ demos/python/
   test_app.py            # TestClient tests with evaluators stubbed
   templates/index.html   # form + accordions; inline CSS and one onsubmit handler
   requirements.txt       # runtime: fastapi, uvicorn, jinja2, python-multipart,
-                         #   python-dotenv, and the SDK as ../../sdks/python
+                         #   python-dotenv, learning-commons-evaluators>=1.0.0
+                         #   (../../sdks/python until the 1.x release shipped)
   requirements-dev.txt   # -r requirements.txt, pytest, httpx, ruff
   ruff.toml              # py311, line length 100, the SDK's rule selection
   .env.example           # GOOGLE_API_KEY=, OPENAI_API_KEY=, TELEMETRY_LEARNING_COMMONS_API_KEY=
@@ -106,6 +107,9 @@ per-workspace table.
 - **Switching to PyPI** replaces that one line with `learning-commons-evaluators>=<first
   release carrying this API>`: a dependency-declaration change only. The README describes the
   path install for now; the final task rewrites that section too.
+- **Resolved (T014).** The 1.x release is published, so `requirements.txt` now reads
+  `learning-commons-evaluators>=1.0.0`, which PyPI's 0.2.1 cannot satisfy. The demo was
+  re-verified in a fresh venv against the package installed from PyPI, not a local path.
 - **Construction inside the isolated task.** Constructing an evaluator raises
   `ConfigurationError` when a key is missing. Evaluators are therefore constructed per run,
   inside the same `try` as `evaluate`, so a missing key fails only that evaluator's panel
@@ -213,13 +217,14 @@ raise:
 
 Tasks go in `tasks.md` in dependency order: scaffold and requirements, then the SDK install
 check, app and template, tests, docs, the verification gates, and the live smoke run. The
-last task stays open: move to the published package and re-verify.
+last task moves to the published package and re-verifies; it is done.
 
 ## Risks
 
 - **Same-version collision with PyPI's 0.2.1** (see Phase 0). Avoided by the path
-  requirement; the final task replaces it with a lower bound that 0.2.1 cannot satisfy.
+  requirement, then removed by T014's `>=1.0.0` bound. Resolved.
 - **Release branch drift.** The branch was cut from a local copy of `release-python-sdk-1.0`
-  while GitHub was unreachable. Rebase and rebuild the wheel before opening the PR.
+  while GitHub was unreachable. Rebased onto the release branch, and then onto `main` once it
+  merged. Resolved.
 - **Provider rate limits** with eight concurrent calls on low-tier keys. Each one surfaces
   as a per-panel `RateLimitError`; no demo-side throttling.

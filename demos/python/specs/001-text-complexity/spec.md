@@ -3,7 +3,7 @@
 **Feature ID**: `001-text-complexity`
 **Branch**: `ahussain/python-demo-text-complexity`
 **Created**: 2026-09-28
-**Status**: Implemented (local SDK build)
+**Status**: Implemented (verified against the published SDK from PyPI)
 **Input**: "Build a minimal Python SDK demo, like the TS SDK demo, that runs every text
 complexity evaluator against one text and grade and shows each result in an accordion.
 Functional and usable, not fancy."
@@ -134,4 +134,4 @@ returned.
 - [x] Scenarios defined
 - [x] Requirements generated
 - [x] Entities identified
-- [ ] Implemented and verified
+- [x] Implemented and verified
