@@ -6,6 +6,8 @@ Annotated CLEAR Corpus is provided by Learning Commons (including annotations an
 
 Annotated PERSUADE 2.0 Corpus is provided by Learning Commons (including annotations and enhancements) under CC BY-NC-SA 4.0 ([CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en)). The original dataset from PERSUADE 2.0 Corpus can be found [here](https://github.com/scrosseye/persuade_corpus_2.0) licensed under CC BY-NC-SA 4.0.
 
+The Graphics Accuracy fixture images (`evals/graphics/math/graphics-accuracy/images/`) are from the [MathVision](https://huggingface.co/datasets/MathLLMs/MathVision) dataset (Wang et al., 2024), licensed under [MIT](https://opensource.org/license/mit).
+
 **How to Cite the Evaluator Code:**
 Learning Commons (2025). Evaluators. GitHub. [https://github.com/learning-commons-org/evaluators](https://github.com/learning-commons-org/evaluators).
 Licensed under MIT.
