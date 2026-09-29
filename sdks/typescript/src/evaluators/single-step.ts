@@ -78,11 +78,16 @@ export function attachmentsOf(
     const bounds = inputSchema.properties[input]?.items?.['x-image'] as Partial<ImageBounds> | undefined;
     if (!bounds) refuse('its items need an `x-image` block.');
     const b = bounds as Partial<ImageBounds>;
-    if (!Array.isArray(b.formats) || b.formats.length === 0) refuse('`x-image.formats` must be a non-empty list.');
+    const supported: readonly string[] = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!Array.isArray(b.formats) || b.formats.length === 0 || !b.formats.every((f) => supported.includes(f))) {
+      refuse(`\`x-image.formats\` must be a non-empty list drawn from ${supported.join(', ')}.`);
+    }
     if (b.detect !== 'signature') refuse('`x-image.detect` must be "signature".');
     for (const key of ['min_bytes', 'max_bytes', 'min_edge', 'max_edge'] as const) {
       if (typeof b[key] !== 'number') refuse(`\`x-image.${key}\` must be a number.`);
     }
+    if (b.min_bytes! > b.max_bytes!) refuse('`x-image.min_bytes` exceeds `max_bytes`.');
+    if (b.min_edge! > b.max_edge!) refuse('`x-image.min_edge` exceeds `max_edge`.');
     return { input, bounds: b as ImageBounds };
   });
 }

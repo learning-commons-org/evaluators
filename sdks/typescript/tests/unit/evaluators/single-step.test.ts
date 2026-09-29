@@ -502,6 +502,26 @@ describe('attachmentsOf refuses a declaration it cannot honour', () => {
     expect(declare([{ input: 'figures', kind: 'image' }], withBounds(noMinEdge))).toThrow(/`x-image.min_edge` must be a number/);
     expect(declare([{ input: 'figures', kind: 'image' }], withBounds({ ...X_IMAGE, detect: 'extension' }))).toThrow(/must be "signature"/);
   });
+
+  it('refuses an unsupported or empty format list and inverted bounds', () => {
+    const one = [{ input: 'figures', kind: 'image' }];
+    expect(declare(one, withBounds({ ...X_IMAGE, formats: ['png'] }))).toThrow(/`x-image.formats` must be/);
+    expect(declare(one, withBounds({ ...X_IMAGE, formats: [] }))).toThrow(/`x-image.formats` must be/);
+    expect(declare(one, withBounds({ ...X_IMAGE, min_edge: 3000 }))).toThrow(/min_edge` exceeds `max_edge/);
+    expect(declare(one, withBounds({ ...X_IMAGE, min_bytes: 9e9 }))).toThrow(/min_bytes` exceeds `max_bytes/);
+  });
+
+  it('fails when the evaluator is defined, not when it is first called', () => {
+    expect(() =>
+      defineSingleStepEvaluator({
+        contract: contract({ steps: [imageStep([{ input: 'figures', kind: 'image' }])] }) as never,
+        inputSchema: { properties: { figures: { type: 'array', items: { type: 'string' } } } } as never,
+        outputSchema: OUTPUT_SCHEMA,
+        systemPrompt: 'system',
+        userPrompt: 'user',
+      }),
+    ).toThrow(/need an `x-image` block/);
+  });
 });
 
 describe('defineSingleStepEvaluator attaches several images in array order', () => {
