@@ -477,7 +477,8 @@ const imageStep = (attachments: unknown) => ({
 
 describe('attachmentsOf refuses a declaration it cannot honour', () => {
   const withBounds = (xImage: unknown) => ({
-    properties: { figures: { type: 'array', items: { type: 'string', 'x-image': xImage } } },
+    properties: { figures: { type: 'array', minItems: 1, items: { type: 'string', 'x-image': xImage } } },
+    required: ['figures'],
   });
   const declare = (attachments: unknown, schema: unknown) =>
     () => attachmentsOf(imageStep(attachments) as never, schema as never, 'Thing Evaluator');
@@ -511,11 +512,23 @@ describe('attachmentsOf refuses a declaration it cannot honour', () => {
     expect(declare(one, withBounds({ ...X_IMAGE, min_bytes: 9e9 }))).toThrow(/min_bytes` exceeds `max_bytes/);
   });
 
+  it('refuses an attached input that could be omitted: not an array, not required, or minItems below 1', () => {
+    const one = [{ input: 'figures', kind: 'image' }];
+    const schema = (patch: (s: ReturnType<typeof withBounds>) => void) => {
+      const s = withBounds(X_IMAGE);
+      patch(s);
+      return s;
+    };
+    expect(declare(one, schema((s) => { (s.properties.figures as { type: string }).type = 'string'; }))).toThrow(/must be an array input/);
+    expect(declare(one, schema((s) => { s.required = []; }))).toThrow(/must be listed in `required`/);
+    expect(declare(one, schema((s) => { s.properties.figures.minItems = 0; }))).toThrow(/`minItems` of at least 1/);
+  });
+
   it('fails when the evaluator is defined, not when it is first called', () => {
     expect(() =>
       defineSingleStepEvaluator({
         contract: contract({ steps: [imageStep([{ input: 'figures', kind: 'image' }])] }) as never,
-        inputSchema: { properties: { figures: { type: 'array', items: { type: 'string' } } } } as never,
+        inputSchema: { properties: { figures: { type: 'array', minItems: 1, items: { type: 'string' } } }, required: ['figures'] } as never,
         outputSchema: OUTPUT_SCHEMA,
         systemPrompt: 'system',
         userPrompt: 'user',
