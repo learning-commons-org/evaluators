@@ -1,129 +1,166 @@
-import { describe, it, expect, vi, afterEach, afterAll } from 'vitest';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { describe, it, expect, afterAll } from 'vitest';
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadImage, sniffImageMediaType, MAX_IMAGE_BYTES } from '../../../src/features/image-source.js';
+import {
+  loadImage,
+  readImageDimensions,
+  sniffImageMediaType,
+  type ImageBounds,
+} from '../../../src/features/image-source.js';
 import { InputValidationError } from '../../../src/errors.js';
+import INPUT_SCHEMA from '../../../../../evals/graphics/math/graphics-accuracy/input_schema.json';
 
-const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
-const JPEG = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46]);
-const WEBP = Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50]);
-const GIF = Uint8Array.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0, 0, 0, 0, 0, 0]);
+/** The bounds a real contract declares, so these tests exercise the numbers that ship. */
+const BOUNDS = INPUT_SCHEMA.properties.image_paths.items['x-image'] as ImageBounds;
+const LADYBIRDS = join(process.cwd(), '..', '..', 'evals/graphics/math/graphics-accuracy/images/ladybirds.png');
+
+const pad = (head: number[], size = 100) => {
+  const out = new Uint8Array(size);
+  out.set(head);
+  return out;
+};
+const be32 = (n: number) => [(n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff];
+const be16 = (n: number) => [(n >>> 8) & 0xff, n & 0xff];
+const le24 = (n: number) => [n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff];
+
+/** A PNG header declaring `w`×`h`: signature, then an IHDR chunk. */
+const png = (w: number, h: number) =>
+  pad([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, ...be32(w), ...be32(h)]);
+/** A JPEG with an APP0 segment followed by a baseline start-of-frame declaring `w`×`h`. */
+const jpeg = (w: number, h: number) =>
+  pad([0xff, 0xd8, 0xff, 0xe0, 0, 4, 0, 0, 0xff, 0xc0, 0, 17, 8, ...be16(h), ...be16(w), 3]);
+/** An extended WebP (VP8X) declaring a `w`×`h` canvas. */
+const webpX = (w: number, h: number) =>
+  pad([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x58, 10, 0, 0, 0, 0, 0, 0, 0, ...le24(w - 1), ...le24(h - 1)]);
+/** A lossless WebP (VP8L) declaring `w`×`h`. */
+const webpL = (w: number, h: number) => {
+  const bits = ((w - 1) & 0x3fff) | (((h - 1) & 0x3fff) << 14);
+  return pad([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x4c, 0, 0, 0, 0, 0x2f,
+    bits & 0xff, (bits >>> 8) & 0xff, (bits >>> 16) & 0xff, (bits >>> 24) & 0xff]);
+};
+/** A lossy WebP (VP8) declaring `w`×`h`. */
+const webp = (w: number, h: number) =>
+  pad([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x20, 0, 0, 0, 0,
+    0, 0, 0, 0x9d, 0x01, 0x2a, w & 0xff, (w >>> 8) & 0x3f, h & 0xff, (h >>> 8) & 0x3f]);
 
 describe('sniffImageMediaType', () => {
-  it('recognises PNG, JPEG and WEBP by their signatures', () => {
-    expect(sniffImageMediaType(PNG)).toBe('image/png');
-    expect(sniffImageMediaType(JPEG)).toBe('image/jpeg');
-    expect(sniffImageMediaType(WEBP)).toBe('image/webp');
+  it('recognises PNG, JPEG and WebP by their signatures', () => {
+    expect(sniffImageMediaType(png(1, 1))).toBe('image/png');
+    expect(sniffImageMediaType(jpeg(1, 1))).toBe('image/jpeg');
+    expect(sniffImageMediaType(webpX(1, 1))).toBe('image/webp');
   });
 
-  it('rejects anything else, including a GIF and plain text', () => {
-    expect(sniffImageMediaType(GIF)).toBeUndefined();
+  it('rejects anything else, including a GIF and a forged PNG prefix', () => {
+    expect(sniffImageMediaType(pad([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]))).toBeUndefined();
     // The four "PNG" letters alone are not the signature; all eight bytes are.
-    expect(sniffImageMediaType(Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0, 1, 2]))).toBeUndefined();
+    expect(sniffImageMediaType(pad([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]))).toBeUndefined();
     expect(sniffImageMediaType(new TextEncoder().encode('not an image'))).toBeUndefined();
     expect(sniffImageMediaType(new Uint8Array(0))).toBeUndefined();
   });
 });
 
-describe('loadImage from a local path', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'image-source-'));
-  afterEach(() => vi.restoreAllMocks());
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
-
-  it('returns an attachment with the sniffed media type and the exact bytes', async () => {
-    const path = join(dir, 'chart.dat'); // extension deliberately meaningless
-    writeFileSync(path, PNG);
-    const part = await loadImage('image', path);
-    expect(part).toEqual({ type: 'image', data: PNG, mediaType: 'image/png' });
+describe('readImageDimensions', () => {
+  it('reads each format from its header', () => {
+    expect(readImageDimensions(png(640, 480), 'image/png')).toEqual({ width: 640, height: 480 });
+    expect(readImageDimensions(jpeg(1024, 768), 'image/jpeg')).toEqual({ width: 1024, height: 768 });
+    expect(readImageDimensions(webpX(2560, 16), 'image/webp')).toEqual({ width: 2560, height: 16 });
+    expect(readImageDimensions(webpL(300, 200), 'image/webp')).toEqual({ width: 300, height: 200 });
+    expect(readImageDimensions(webp(800, 600), 'image/webp')).toEqual({ width: 800, height: 600 });
   });
 
-  it('rejects a file that is not an accepted image format', async () => {
-    const path = join(dir, 'anim.png'); // named .png, actually a GIF
-    writeFileSync(path, GIF);
-    await expect(loadImage('image', path)).rejects.toThrow(InputValidationError);
-    await expect(loadImage('image', path)).rejects.toThrow(/not a PNG, JPEG or WEBP/);
+  it('reads a real fixture image', () => {
+    const dims = readImageDimensions(new Uint8Array(readFileSync(LADYBIRDS)), 'image/png');
+    expect(dims?.width).toBeGreaterThan(0);
+    expect(dims?.height).toBeGreaterThan(0);
   });
 
-  it('rejects a missing file as the caller\'s input, not a dependency failure', async () => {
-    await expect(loadImage('image', join(dir, 'missing.png'))).rejects.toThrow(InputValidationError);
-    await expect(loadImage('image', join(dir, 'missing.png'))).rejects.toThrow(/could not read file/);
+  it('returns undefined for a JPEG with no start-of-frame marker', () => {
+    expect(readImageDimensions(pad([0xff, 0xd8, 0xff, 0xd9]), 'image/jpeg')).toBeUndefined();
   });
 
-  it('rejects an empty file', async () => {
-    const path = join(dir, 'empty.png');
-    writeFileSync(path, new Uint8Array(0));
-    await expect(loadImage('image', path)).rejects.toThrow(/is empty/);
-  });
-
-  it('rejects a file over the 10 MB cap by its size, before reading it', async () => {
-    const path = join(dir, 'huge.png');
-    const big = new Uint8Array(MAX_IMAGE_BYTES + 1);
-    big.set(PNG, 0);
-    writeFileSync(path, big);
-    await expect(loadImage('image', path)).rejects.toThrow(/maximum is 10 MB/);
-    rmSync(path);
+  it('returns undefined when the marker bytes after a valid signature are wrong', () => {
+    // A PNG whose first chunk is not IHDR, so the bytes at 16..23 are not dimensions.
+    const notIhdr = png(640, 480);
+    notIhdr.set([0x74, 0x45, 0x58, 0x74], 12); // "tEXt"
+    expect(readImageDimensions(notIhdr, 'image/png')).toBeUndefined();
+    // VP8 without its 9d 01 2a start code; VP8L without its 0x2f signature byte.
+    const vp8 = webp(800, 600);
+    vp8[23] = 0;
+    expect(readImageDimensions(vp8, 'image/webp')).toBeUndefined();
+    const vp8l = webpL(300, 200);
+    vp8l[20] = 0;
+    expect(readImageDimensions(vp8l, 'image/webp')).toBeUndefined();
   });
 });
 
-describe('loadImage from a URL', () => {
-  afterEach(() => vi.restoreAllMocks());
+describe('loadImage', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'image-source-'));
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  const file = (name: string, bytes: Uint8Array) => {
+    const path = join(dir, name);
+    writeFileSync(path, bytes);
+    return path;
+  };
 
-  it('fetches the bytes with a timeout and sniffs them', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JPEG, { status: 200 }));
-    const part = await loadImage('image', 'https://example.org/figure');
-    expect(part.mediaType).toBe('image/jpeg');
-    expect(part.data).toEqual(JPEG);
-    const [url, init] = vi.mocked(fetch).mock.calls[0];
-    expect(url).toBe('https://example.org/figure');
-    expect((init as { signal?: unknown }).signal).toBeInstanceOf(AbortSignal);
+  it('returns an attachment with the sniffed media type and the exact bytes', async () => {
+    const bytes = png(512, 256);
+    const part = await loadImage('image_paths[0]', file('chart.dat', bytes), BOUNDS); // extension deliberately meaningless
+    expect(part).toEqual({ type: 'image', data: bytes, mediaType: 'image/png' });
   });
 
-  it('reports a non-2xx status as the caller\'s input', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('nope', { status: 404 }));
-    await expect(loadImage('image', 'https://example.org/gone.png')).rejects.toThrow(/HTTP 404/);
+  it('accepts a real fixture image within the shipped bounds', async () => {
+    const part = await loadImage('image_paths[0]', LADYBIRDS, BOUNDS);
+    expect(part.mediaType).toBe('image/png');
   });
 
-  it('reports a network failure as the caller\'s input, keeping the cause', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fetch failed'));
-    const err = await loadImage('image', 'https://example.org/x.png').catch((e) => e);
-    expect(err).toBeInstanceOf(InputValidationError);
-    expect(err.message).toMatch(/could not fetch/);
-    expect(err.cause).toBeInstanceOf(TypeError);
-  });
-
-  it('refuses an oversized response from its Content-Length before downloading it', async () => {
-    const body = new ReadableStream({ pull() { throw new Error('body must not be read'); } });
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(body, { status: 200, headers: { 'content-length': String(MAX_IMAGE_BYTES + 1) } }),
+  it('names the field and position in every error', async () => {
+    await expect(loadImage('image_paths[2]', join(dir, 'missing.png'), BOUNDS)).rejects.toThrow(
+      /^image_paths\[2\]: could not read file/,
     );
-    await expect(loadImage('image', 'https://example.org/huge.png')).rejects.toThrow(/maximum is 10 MB/);
   });
 
-  it('stops reading an unlabelled response once it passes the cap', async () => {
-    const chunk = new Uint8Array(1024 * 1024); // 1 MB per pull, no Content-Length
-    chunk.set(PNG, 0);
-    let pulls = 0;
-    const body = new ReadableStream<Uint8Array>({
-      pull(controller) { pulls++; controller.enqueue(chunk); },
-    });
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body, { status: 200 }));
-    await expect(loadImage('image', 'https://example.org/stream.png')).rejects.toThrow(/maximum is 10 MB/);
-    // Cut off just past the cap: 11 reads, not an unbounded number.
-    expect(pulls).toBeLessThanOrEqual(12);
+  it('rejects a file that is not an accepted image by its bytes', async () => {
+    const path = file('note.png', pad([...new TextEncoder().encode('not an image')]));
+    await expect(loadImage('f', path, BOUNDS)).rejects.toThrow(InputValidationError);
+    await expect(loadImage('f', path, BOUNDS)).rejects.toThrow(/not an accepted image \(PNG, JPEG, WEBP\)/);
   });
 
-  it('reports a body that fails mid-stream as the caller\'s input, keeping the cause', async () => {
-    const body = new ReadableStream<Uint8Array>({
-      start(controller) {
-        controller.enqueue(PNG);
-        controller.error(new Error('connection reset'));
-      },
-    });
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body, { status: 200 }));
-    const err = await loadImage('image', 'https://example.org/reset.png').catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(InputValidationError);
-    expect((err as Error).message).toMatch(/could not be read/);
-    expect(((err as Error).cause as Error).message).toBe('connection reset');
+  it('rejects a format the contract does not list', async () => {
+    const pngOnly: ImageBounds = { ...BOUNDS, formats: ['image/png'] };
+    await expect(loadImage('f', file('photo.jpg', jpeg(100, 100)), pngOnly)).rejects.toThrow(/\(PNG\)/);
+  });
+
+  it('rejects a file below min_bytes, including an empty one', async () => {
+    await expect(loadImage('f', file('empty.png', new Uint8Array(0)), BOUNDS)).rejects.toThrow(/0 bytes; the minimum is 64/);
+    await expect(loadImage('f', file('tiny.png', png(20, 20).slice(0, 40)), BOUNDS)).rejects.toThrow(/minimum is 64/);
+  });
+
+  it('rejects a file over max_bytes by its size on disk', async () => {
+    const big = new Uint8Array(BOUNDS.max_bytes + 1);
+    big.set(png(100, 100));
+    await expect(loadImage('f', file('huge.png', big), BOUNDS)).rejects.toThrow(/5,242,881 bytes \(5\.00 MB\); the maximum is 5,242,880 bytes/);
+  });
+
+  it('rejects an edge below min_edge', async () => {
+    await expect(loadImage('f', file('small.png', png(10, 400)), BOUNDS)).rejects.toThrow(/10×400 px; each edge must be 16 to 2560/);
+  });
+
+  it('rejects an edge above max_edge and says how to fix it', async () => {
+    await expect(loadImage('f', file('wide.webp', webpX(2677, 1605)), BOUNDS)).rejects.toThrow(
+      /2677×1605 px.*Resize to 2560 px on the long edge/,
+    );
+  });
+
+  it('accepts both edges exactly at the bounds', async () => {
+    await expect(loadImage('f', file('edge.png', png(2560, 16)), BOUNDS)).resolves.toMatchObject({ mediaType: 'image/png' });
+  });
+
+  it('rejects a path that is not a regular file, rather than reading it unbounded', async () => {
+    await expect(loadImage('f', dir, BOUNDS)).rejects.toThrow(/is not a regular file/);
+  });
+
+  it('rejects a header it cannot read', async () => {
+    await expect(loadImage('f', file('bad.jpg', pad([0xff, 0xd8, 0xff, 0xd9])), BOUNDS)).rejects.toThrow(/unreadable image\/jpeg header/);
   });
 });

@@ -1,17 +1,18 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import CONFIG from '../../../../../evals/academic-standards-alignment/mathematics/graphics-accuracy/config.json';
+import CONFIG from '../../../../../evals/graphics/math/graphics-accuracy/config.json';
 import {
   GraphicsAccuracyEvaluator,
   composeSpecification,
-} from '../../../src/evaluators/academic-standards-alignment/mathematics/graphics-accuracy.js';
+} from '../../../src/evaluators/graphics/math/graphics-accuracy.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import { ConfigurationError, InputValidationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 const STEP = CONFIG.steps[0];
-const CONTRACT_DIR = join(process.cwd(), '..', '..', 'evals/academic-standards-alignment/mathematics/graphics-accuracy');
+const CONTRACT_DIR = join(process.cwd(), '..', '..', 'evals/graphics/math/graphics-accuracy');
 const LADYBIRDS = join(CONTRACT_DIR, 'images/ladybirds.png');
 const LADYBIRDS_BYTES = new Uint8Array(readFileSync(LADYBIRDS));
 
@@ -39,7 +40,7 @@ vi.mock('../../../src/telemetry/client.js', () => ({
 const MOCK_RESPONSE = {
   data: {
     observed: 'Five ladybirds with 2, 3, 3, 5 and 6 dots.',
-    analysis: '2 + 3 + 3 + 5 + 6 = 19. The image yields 19; the specification states 19; therefore is_correct = true.',
+    reasoning: '2 + 3 + 3 + 5 + 6 = 19. The image yields 19; the specification states 19; therefore is_correct = true.',
     errors: [] as string[],
     correction: '19',
     basis: 'supported' as const,
@@ -89,8 +90,8 @@ describe('GraphicsAccuracyEvaluator - Metadata', () => {
     expect(GraphicsAccuracyEvaluator.metadata.supportedGrades).toEqual(CONFIG.evaluator.supported_grades);
   });
 
-  it('names is_correct as the score and analysis as the reasoning', () => {
-    expect(GraphicsAccuracyEvaluator.metadata.outcome).toEqual({ score: 'is_correct', reasoning: 'analysis' });
+  it('names is_correct as the score and reasoning as the reasoning', () => {
+    expect(GraphicsAccuracyEvaluator.metadata.outcome).toEqual({ score: 'is_correct', reasoning: 'reasoning' });
   });
 });
 
@@ -115,7 +116,7 @@ describe('GraphicsAccuracyEvaluator - LLM call contract', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('sends the image bytes as a request attachment and the rendered claim as the user text', async () => {
-    await evaluator.evaluate({ image: LADYBIRDS, claim: composeSpecification(QUESTION, '19') });
+    await evaluator.evaluate({ image_paths: [LADYBIRDS], claim: composeSpecification(QUESTION, '19') });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
     expect(call.messages).toHaveLength(2);
@@ -129,37 +130,32 @@ describe('GraphicsAccuracyEvaluator - LLM call contract', () => {
   });
 
   it('sends the system prompt verbatim from the contract', async () => {
-    await evaluator.evaluate({ image: LADYBIRDS, claim: 'The chart shows 12 apples.' });
+    await evaluator.evaluate({ image_paths: [LADYBIRDS], claim: 'The chart shows 12 apples.' });
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
     expect(call.messages[0].content).toBe(readFileSync(join(CONTRACT_DIR, 'system.txt'), 'utf-8'));
   });
 
   it('passes the temperature from config.json', async () => {
-    await evaluator.evaluate({ image: LADYBIRDS, claim: 'The chart shows 12 apples.' });
+    await evaluator.evaluate({ image_paths: [LADYBIRDS], claim: 'The chart shows 12 apples.' });
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
     expect(call.temperature).toBe(STEP.generation.temperature);
   });
 
   it('maps the response onto the envelope', async () => {
-    const result = await evaluator.evaluate({ image: LADYBIRDS, claim: composeSpecification(QUESTION, '19') });
+    const result = await evaluator.evaluate({ image_paths: [LADYBIRDS], claim: composeSpecification(QUESTION, '19') });
     expect(result.evaluator).toBe(CONFIG.evaluator.id);
     expect(result.result).toEqual(MOCK_RESPONSE.data);
     expect(result.result.basis).toBe('supported');
     expect(result.metadata.model).toBe(`${STEP.model.provider}:${STEP.model.name}`);
     expect(result.metadata.tokenUsage).toEqual({ inputTokens: 900, outputTokens: 150 });
   });
-
-  it('loads the image from an http(s) URL', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(LADYBIRDS_BYTES, { status: 200 }));
-    await evaluator.evaluate({ image: 'https://example.org/ladybirds.png', claim: 'Five ladybirds.' });
-    const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
-    expect(call.attachments).toEqual([{ type: 'image', data: LADYBIRDS_BYTES, mediaType: 'image/png' }]);
-  });
 });
 
 describe('GraphicsAccuracyEvaluator - input validation', () => {
   let evaluator: GraphicsAccuracyEvaluator;
   let mockProvider: LLMProvider;
+  const dir = mkdtempSync(join(tmpdir(), 'graphics-accuracy-'));
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
   beforeEach(() => {
     evaluator = new GraphicsAccuracyEvaluator({ googleApiKey: 'test-key', telemetry: false });
@@ -168,35 +164,58 @@ describe('GraphicsAccuracyEvaluator - input validation', () => {
   });
 
   it('rejects a missing claim before any model call', async () => {
-    await expect(evaluator.evaluate({ image: LADYBIRDS } as never)).rejects.toThrow(InputValidationError);
+    await expect(evaluator.evaluate({ image_paths: [LADYBIRDS] } as never)).rejects.toThrow(InputValidationError);
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
   it('rejects a whitespace-only claim', async () => {
-    await expect(evaluator.evaluate({ image: LADYBIRDS, claim: '   ' })).rejects.toThrow(/cannot be empty/);
+    await expect(evaluator.evaluate({ image_paths: [LADYBIRDS], claim: '   ' })).rejects.toThrow(/cannot be empty/);
   });
 
-  it('rejects a whitespace-only image source before trying to read it', async () => {
-    await expect(evaluator.evaluate({ image: '   ', claim: 'x' })).rejects.toThrow(/image cannot be empty/);
+  it('rejects a single path passed as a string instead of an array', async () => {
+    await expect(evaluator.evaluate({ image_paths: LADYBIRDS, claim: 'x' } as never)).rejects.toThrow(
+      /image_paths must be an array/,
+    );
+  });
+
+  it('rejects no images and more than one image, by the contract’s minItems/maxItems', async () => {
+    await expect(evaluator.evaluate({ image_paths: [], claim: 'x' })).rejects.toThrow(/at least 1 item; received 0/);
+    await expect(evaluator.evaluate({ image_paths: [LADYBIRDS, LADYBIRDS], claim: 'x' })).rejects.toThrow(
+      /at most 1 item; received 2/,
+    );
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
-  it('rejects an unknown input, so the old question + answer shape fails loudly', async () => {
-    await expect(
-      evaluator.evaluate({ image: LADYBIRDS, question: QUESTION, answer: '19' } as never),
-    ).rejects.toThrow(/Unknown input "question"/);
+  it('rejects a whitespace-only path before trying to read it', async () => {
+    await expect(evaluator.evaluate({ image_paths: ['   '], claim: 'x' })).rejects.toThrow(/image_paths\[0\] cannot be empty/);
+    expect(mockProvider.generateStructured).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown input, so the old single-path shape fails loudly', async () => {
+    await expect(evaluator.evaluate({ image: LADYBIRDS, claim: 'x' } as never)).rejects.toThrow(/Unknown input "image"/);
   });
 
   it('rejects an image path that does not exist, before any model call', async () => {
     await expect(
-      evaluator.evaluate({ image: join(CONTRACT_DIR, 'images/nope.png'), claim: 'x' }),
-    ).rejects.toThrow(/could not read file/);
+      evaluator.evaluate({ image_paths: [join(CONTRACT_DIR, 'images/nope.png')], claim: 'x' }),
+    ).rejects.toThrow(/image_paths\[0\]: could not read file/);
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
   it('rejects a file that is not an image', async () => {
     await expect(
-      evaluator.evaluate({ image: join(CONTRACT_DIR, 'system.txt'), claim: 'x' }),
-    ).rejects.toThrow(/not a PNG, JPEG or WEBP/);
+      evaluator.evaluate({ image_paths: [join(CONTRACT_DIR, 'system.txt')], claim: 'x' }),
+    ).rejects.toThrow(/not an accepted image/);
+  });
+
+  it('enforces the contract’s x-image edge bound before any model call', async () => {
+    // A PNG header declaring 3000×100, over the contract's 2560 px max edge.
+    const header = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0x0b, 0xb8, 0, 0, 0, 100];
+    const bytes = new Uint8Array(200);
+    bytes.set(header);
+    const path = join(dir, 'too-wide.png');
+    writeFileSync(path, bytes);
+    await expect(evaluator.evaluate({ image_paths: [path], claim: 'x' })).rejects.toThrow(/3000×100 px/);
+    expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 });
