@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import * as barrel from '../../src/index.js';
 
 /**
  * What the package publishes as types, and what a consumer can actually reach.
@@ -66,11 +67,26 @@ const DECLARED: Declared[] = generatedModules(join(SRC, 'schemas')).flatMap((fil
   return [{ file, typeName: typeMatch[1], properties, contract: contract.properties }];
 });
 
+type EvaluatorLike = { metadata: { id: string } };
+
+/** The name stem each exported evaluator shares with its generated `<Stem>Input` type. */
+const EVALUATOR_STEMS = Object.entries(barrel as Record<string, unknown>)
+  .filter(
+    ([, v]) =>
+      typeof v === 'function' && typeof (v as unknown as EvaluatorLike).metadata?.id === 'string',
+  )
+  .map(([name]) => name.replace(/Evaluator$/, ''))
+  // Math assembles its payload from per-component results and has no single output schema,
+  // so its input type stays hand-written and has no generated module.
+  .filter((stem) => stem !== 'MathStandardsAlignment')
+  .sort();
+
 describe('input types match the contracts they name', () => {
-  it('finds them, so the cases below cannot pass vacuously', () => {
-    // Fifteen generated modules; math assembles its payload from per-component results and
-    // has no single output schema, so its input type stays hand-written.
-    expect(DECLARED).toHaveLength(15);
+  it('has one generated module per exported evaluator, so the cases below cannot pass vacuously', () => {
+    // By name against the barrel rather than a pinned count: a module or an evaluator going
+    // missing fails here and says which, and adding an evaluator bumps nothing.
+    expect(EVALUATOR_STEMS.length).toBeGreaterThan(0);
+    expect(DECLARED.map((d) => d.typeName.replace(/Input$/, '')).sort()).toEqual(EVALUATOR_STEMS);
   });
 
   it.each(DECLARED)('$typeName names the inputs its contract declares', ({ properties, contract }) => {
