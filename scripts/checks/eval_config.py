@@ -165,17 +165,18 @@ class EvalConfig(Check):
 
     @staticmethod
     def _check_attachments(config: dict, base: str, fail) -> None:
-        """Every `attachments[].input` must name a property of the input schema.
+        """Every `attachments[].input` must be a bounded array of file locators.
 
         An attachment is not a placeholder, so nothing else ties it to an input: a typo here
-        (`image` for `image_path`) passes the schema and leaves a runner with no file to
-        send, so it would send the prompt text alone.
+        (`image` for `image_paths`) passes the schema and leaves a runner with no file to
+        send, so it would send the prompt text alone. The input is always an array -- one
+        image and many images are the same shape with different bounds -- so it must declare
+        string items, `minItems` >= 1 and `maxItems` >= `minItems`, and, for `kind: "image"`,
+        an `x-image` block on its items giving the SDK the per-file bounds to enforce.
         """
         try:
-            input_props = set(
-                load_json(os.path.join(base, config["input_schema"]["$ref"]))
-                .get("properties", {})
-                .keys()
+            input_props = load_json(os.path.join(base, config["input_schema"]["$ref"])).get(
+                "properties", {}
             )
         except (KeyError, TypeError, OSError, json.JSONDecodeError):
             return  # _check_referenced_files already reported this
@@ -184,8 +185,26 @@ class EvalConfig(Check):
             step_id = step.get("id", "?")
             for entry in step.get("attachments") or []:
                 name = entry.get("input")
-                if name not in input_props:
-                    fail(f"{step_id}.attachments: input {name!r} is not declared in input_schema")
+                where = f"{step_id}.attachments: input {name!r}"
+                spec = input_props.get(name)
+                if not isinstance(spec, dict):
+                    fail(f"{where} is not declared in input_schema")
+                    continue
+                if spec.get("type") != "array":
+                    fail(f"{where} must be an array of file locators, not {spec.get('type')!r}")
+                    continue
+                items = spec.get("items") if isinstance(spec.get("items"), dict) else {}
+                if items.get("type") != "string":
+                    fail(f"{where} items must be strings (file locators)")
+                lo, hi = spec.get("minItems"), spec.get("maxItems")
+                if not isinstance(lo, int) or lo < 1:
+                    fail(f"{where} must declare minItems >= 1")
+                if not isinstance(hi, int):
+                    fail(f"{where} must declare maxItems")
+                elif isinstance(lo, int) and hi < lo:
+                    fail(f"{where} maxItems ({hi}) is below minItems ({lo})")
+                if entry.get("kind") == "image" and "x-image" not in items:
+                    fail(f"{where} items must declare x-image bounds")
 
     @staticmethod
     def _check_supported_grades(config: dict, base: str, fail) -> None:

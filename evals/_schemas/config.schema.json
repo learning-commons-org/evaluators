@@ -219,12 +219,12 @@
                 "input": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Name of an `input_schema` property whose value locates the file to attach. Not a placeholder: the input is never interpolated into prompt text."
+                  "description": "Name of an `input_schema` property that is an array of file locators, bounded by `minItems`/`maxItems`; each item is attached, in array order. Not a placeholder: the input is never interpolated into prompt text."
                 },
                 "kind": { "enum": ["image"] }
               }
             },
-            "description": "Non-text content parts the step attaches to its final user message, ahead of the text. Declared so a contract-driven runner in any SDK knows which input is a file to read and send rather than text to interpolate -- without this a runner would silently send the prompt alone. Bounds on the file (format, size) are declared on the input property itself."
+            "description": "Non-text content parts the step attaches to its final user message. Declared so a contract-driven runner in any SDK knows which input holds files to read and send rather than text to interpolate -- without this a runner would silently send the prompt alone. The count is bounded on the input array; each file is bounded by `x-image` on its `items`."
           },
           "condition": { "$ref": "#/$defs/Condition" }
         },

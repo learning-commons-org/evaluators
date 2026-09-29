@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "x-image.schema.json",
   "title": "x-image",
-  "description": "Shape of the `x-image` block an input_schema property may carry to bound the image file its string value points at. JSON Schema has no keyword for a referenced file, and validators ignore unknown keywords, so the eval-schemas check validates every block against this schema. An SDK that loads a contract with `x-image` must enforce every field here before any model call, or refuse the contract.",
+  "description": "Shape of the `x-image` block that bounds each image file an input names. It sits on the `items` of an array input declared as an attachment; the array's own `minItems`/`maxItems` bound the count. JSON Schema has no keyword for a referenced file, and validators ignore unknown keywords, so the eval-schemas check validates every block against this schema. An SDK that loads a contract with `x-image` must enforce every field here, on every file, before any model call, or refuse the contract.",
   "type": "object",
   "additionalProperties": false,
   "required": ["formats", "detect", "min_bytes", "max_bytes", "min_edge", "max_edge"],

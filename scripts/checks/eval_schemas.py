@@ -82,16 +82,13 @@ class EvalSchemas(Check):
     def _check_x_image(self, doc: dict, path: str, result: Result) -> None:
         """Every `x-image` block must match `_schemas/x-image.schema.json`, with max >= min.
 
-        `x-image` bounds the file an input string points at. It is an extension keyword, so
-        Draft 2020-12 meta-validation accepts any value for it -- including `"garbage"` --
-        and the SDKs would then have nothing consistent to enforce. The bounds it declares
-        are the one thing every SDK must agree on, so their shape is checked here.
+        `x-image` bounds the file an input string points at; it normally sits on the `items`
+        of an array input. It is an extension keyword, so Draft 2020-12 meta-validation
+        accepts any value for it -- including `"garbage"` -- and the SDKs would then have
+        nothing consistent to enforce. Blocks are found at any depth, so a nested one is
+        checked as strictly as a top-level one.
         """
-        blocks = [
-            (name, spec["x-image"])
-            for name, spec in (doc.get("properties") or {}).items()
-            if isinstance(spec, dict) and "x-image" in spec
-        ]
+        blocks = list(self._x_image_blocks(doc, ""))
         if not blocks:
             return
         meta_path = os.path.join(_evals_root(path), "_schemas", "x-image.schema.json")
@@ -107,6 +104,19 @@ class EvalSchemas(Check):
                         result.violations.append(
                             Violation(path, f"{name}.x-image: {lo} ({a}) exceeds {hi} ({b})")
                         )
+
+    def _x_image_blocks(self, node: object, where: str):
+        """Yield (location, block) for every `x-image` key anywhere under `node`."""
+        if isinstance(node, dict):
+            for key, value in node.items():
+                here = f"{where}/{key}" if where else key
+                if key == "x-image":
+                    yield where or "(root)", value
+                else:
+                    yield from self._x_image_blocks(value, here)
+        elif isinstance(node, list):
+            for i, item in enumerate(node):
+                yield from self._x_image_blocks(item, f"{where}/{i}")
 
     def _check_key_casing(self, doc: dict, path: str, result: Result) -> None:
         for name in sorted(self._property_names(doc)):
