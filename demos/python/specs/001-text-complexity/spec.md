@@ -33,8 +33,8 @@ returned.
 1. **Given** the app is running with both keys configured, **When** the developer opens the
    app root, **Then** a page renders with a text area, a grade selector offering grades 3–12,
    and a run button, pre-filled with a sample passage and grade 4 so it can be run at once.
-2. **Given** a non-empty text and a grade, **When** the developer runs, **Then** all eight text
-   complexity evaluators run against it and one collapsible section per evaluator appears, in a
+2. **Given** a non-empty text and a grade, **When** the developer runs, **Then** every text
+   complexity evaluator runs against it and one collapsible section per evaluator appears, in a
    fixed order, each labelled with the evaluator's name and its headline verdict.
 3. **Given** a completed run, **When** the developer expands an evaluator's section, **Then** it
    shows the evaluator's full result payload, the model that ran, processing time, input and
@@ -57,7 +57,7 @@ returned.
   evaluation is unaffected either way, because telemetry never changes a result.
 - Non-blank text shorter than 10 characters → Background Knowledge Demands, Grade Level
   Appropriateness, Meaning Directness and Sentence Structure reject it (their input schemas'
-  minimum length is 10), while the other four, which accept one character, still run. This is
+  minimum length is 10), while the rest, which accept one character, still run. This is
   the easiest way to see some panels fail and the rest render.
 - A provider key missing from `.env` → the app still starts; evaluators needing that key show
   the SDK's `ConfigurationError` in their own section. Vocabulary Complexity needs both keys at
@@ -75,12 +75,12 @@ returned.
 - **FR-002**: The app MUST present one page at `/` with a text input, a grade selector limited
   to grades 3–12, and a run action. On first load the text input MUST hold a sample passage
   (a paragraph about the sun) and grade 4 MUST be selected, so testing needs no typing.
-- **FR-003**: A run MUST invoke all eight text complexity evaluators exported by the SDK:
+- **FR-003**: A run MUST invoke every text complexity evaluator exported by the SDK:
   Background Knowledge Demands, Meaning Directness, Organizational Structure, Purpose Clarity,
   Reference Knowledge Demands, Sentence Structure, Vocabulary Complexity, and Grade Level
   Appropriateness.
-- **FR-004**: Grade Level Appropriateness MUST receive the text only; the other seven MUST
-  receive the text and the selected grade.
+- **FR-004**: Grade Level Appropriateness MUST receive the text only; every other evaluator
+  MUST receive the text and the selected grade.
 - **FR-005**: The evaluators MUST run concurrently, so total wait is roughly the slowest
   evaluator rather than the sum.
 - **FR-006**: Each evaluator's outcome MUST be isolated: an exception from one MUST NOT prevent
@@ -98,7 +98,7 @@ returned.
   `sdks/python/src`. Switching to the published release of this SDK MUST be a
   dependency-declaration change only, with no application code change.
 - **FR-012**: Empty or whitespace-only text MUST be rejected before any evaluator runs, with
-  one validation message rather than eight identical per-evaluator errors.
+  one validation message rather than the same error repeated in every evaluator's section.
 - **FR-013**: The demo MUST leave SDK telemetry enabled, as an integrator's code would, and
   its README MUST say so and point to the SDK's `telemetry` option.
 - **FR-014**: When `TELEMETRY_LEARNING_COMMONS_API_KEY` is set to a non-blank value, every

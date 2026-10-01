@@ -8,10 +8,9 @@
 ## Summary
 
 A single FastAPI app that renders one Jinja page. The form posts text and grade; the handler
-runs all eight text complexity evaluators concurrently with `asyncio.gather`, catching each
+runs every text complexity evaluator concurrently with `asyncio.gather`, catching each
 evaluator's exception separately, and re-renders the page with one `<details>` accordion per
-evaluator. The SDK is installed as a package: the published 1.x release from PyPI. Until that
-release shipped it was built from `sdks/python` (see Phase 0).
+evaluator. The SDK is installed from PyPI as a package.
 
 ## Technical Context
 
@@ -31,8 +30,8 @@ release shipped it was built from `sdks/python` (see Phase 0).
   - Returns `EvaluationResult`: `.evaluator`, `.result` (pydantic payload), `.metadata`
     (`model`, `processing_time_ms`, `token_usage.input_tokens` / `.output_tokens`).
   - `read_outcome(evaluation, Cls.metadata.outcome).score` gives the headline for every
-    evaluator in the family: its contract declares `complexity_score` for seven and
-    `grade_band` for Grade Level Appropriateness.
+    evaluator in the family: its contract declares `grade_band` for Grade Level
+    Appropriateness and `complexity_score` for the rest.
 - **Keys**: `GOOGLE_API_KEY`, `OPENAI_API_KEY`; optional `TELEMETRY_LEARNING_COMMONS_API_KEY`
   for identified telemetry. The name mirrors the SDK setting it feeds,
   `telemetry.learning_commons_api_key`, and leaves `LEARNING_COMMONS_API_KEY` for Learning
@@ -73,8 +72,7 @@ demos/python/
   test_app.py            # TestClient tests with evaluators stubbed
   templates/index.html   # form + accordions; inline CSS and one onsubmit handler
   requirements.txt       # runtime: fastapi, uvicorn, jinja2, python-multipart,
-                         #   python-dotenv, learning-commons-evaluators>=1.0.0
-                         #   (../../sdks/python until the 1.x release shipped)
+                         #   python-dotenv, learning-commons-evaluators
   requirements-dev.txt   # -r requirements.txt, pytest, httpx, ruff
   ruff.toml              # py311, line length 100, the SDK's rule selection
   .env.example           # GOOGLE_API_KEY=, OPENAI_API_KEY=, TELEMETRY_LEARNING_COMMONS_API_KEY=
@@ -209,7 +207,7 @@ raise:
    panel; the failing one shows `ConfigurationError` and its message.
 4. The text-only stub receives no `grade_level`; the others receive the selected grade.
 5. The submitted text and grade are echoed back into the form.
-6. `EVALUATORS` lists exactly the eight text complexity classes (guards FR-003).
+6. `EVALUATORS` lists exactly the SDK's text complexity classes (guards FR-003).
 7. Every evaluator receives both provider keys and `telemetry=True` when no Learning Commons
    key is set, and `TelemetryOptions(learning_commons_api_key=...)` when one is (FR-014).
 
@@ -221,10 +219,5 @@ last task moves to the published package and re-verifies; it is done.
 
 ## Risks
 
-- **Same-version collision with PyPI's 0.2.1** (see Phase 0). Avoided by the path
-  requirement, then removed by T014's `>=1.0.0` bound. Resolved.
-- **Release branch drift.** The branch was cut from a local copy of `release-python-sdk-1.0`
-  while GitHub was unreachable. Rebased onto the release branch, and then onto `main` once it
-  merged. Resolved.
-- **Provider rate limits** with eight concurrent calls on low-tier keys. Each one surfaces
-  as a per-panel `RateLimitError`; no demo-side throttling.
+- **Provider rate limits** with one concurrent call per evaluator on low-tier keys. Each one
+  surfaces as a per-panel `RateLimitError`; no demo-side throttling.

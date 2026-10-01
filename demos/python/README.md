@@ -34,7 +34,7 @@ uvicorn app:app --reload
 
 Open http://localhost:8000. Paste a text, select a grade, and click Evaluate.
 
-Each run makes ten paid model calls: one for each evaluator, except Sentence Structure and Vocabulary Complexity, which each make two.
+Each run makes paid model calls: at least one per evaluator, and more for evaluators with several steps (Sentence Structure and Vocabulary Complexity).
 
 ## Telemetry
 
