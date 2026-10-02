@@ -117,7 +117,7 @@ Generated schema modules start with `# GENERATED — do not edit directly.` and 
 
 ## Adding an evaluator
 
-1. The contract exists under `evals/<family>/<subject>/<evaluator>/` (that is the registry's job). Run `make generate-contracts` so its bundle and `<Class>Input` / `<Class>Output` models exist.
+1. The contract exists under `evals/<family>/<subject>/<evaluator>/` (that is the registry's job). Run `make generate-contracts CONTRACT=../../evals/<family>/<subject>/<evaluator>/config.json` so its bundle and `<Class>Input` / `<Class>Output` models exist; after that, a plain `make generate-contracts` keeps them in sync.
 2. Add `evaluators/<family>/<subject>/<evaluator>.py` declaring the class. For a contract with one step:
 
    ```python
