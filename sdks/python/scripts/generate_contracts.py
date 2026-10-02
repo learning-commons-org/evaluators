@@ -69,13 +69,15 @@ def discover_contracts(evals_root: Path = _EVALS_ROOT) -> list[Path]:
         for path in evals_root.glob("*/*/*/config.json")
         if not path.parent.name.startswith("_")
         and ".ipynb_checkpoints" not in path.parts
-        and _bundle_dir(path).joinpath("config.json").is_file()
+        and _is_bundled(path)
     )
 
 
-def _bundle_dir(config_path: Path) -> Path:
-    evaluator_id = json.loads(config_path.read_text(encoding="utf-8"))["evaluator"]["id"]
-    return _BUNDLE_ROOT.joinpath(*evaluator_id.split("."))
+def _is_bundled(config_path: Path) -> bool:
+    """Bundled under its id or, after a rename, under any id in ``id_history``."""
+    evaluator = json.loads(config_path.read_text(encoding="utf-8"))["evaluator"]
+    ids = [evaluator["id"], *evaluator.get("id_history", [])]
+    return any(_BUNDLE_ROOT.joinpath(*i.split("."), "config.json").is_file() for i in ids)
 
 
 # ---------------------------------------------------------------------------
