@@ -130,10 +130,13 @@ class EvalFixtures(Check):
         ref = config.get("output_schema", {})
         if not (isinstance(ref, dict) and "$ref" in ref):
             return set()
-        out = self._load_or_none(os.path.join(base, ref["$ref"])) or {}
+        out = self._load_or_none(os.path.join(base, ref["$ref"]))
+        properties = out.get("properties") if isinstance(out, dict) else None
+        if not isinstance(properties, dict):
+            return set()  # eval-schemas reports a malformed output schema
         return {
             name
-            for name, spec in out.get("properties", {}).items()
+            for name, spec in properties.items()
             if isinstance(spec, dict) and spec.get("x-model-only") is True
         }
 

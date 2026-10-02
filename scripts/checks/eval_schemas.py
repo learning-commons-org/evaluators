@@ -92,6 +92,8 @@ class EvalSchemas(Check):
         It must be required: the marked fields are the working-out that conditions the
         returned answer, which the model would otherwise be free to skip.
         """
+        if not isinstance(doc, dict):
+            return  # a boolean schema declares no properties to mark
         top = doc.get("properties", {}) if key == "output_schema" else {}
         required = doc.get("required", []) if key == "output_schema" else []
         top_paths = {f"properties/{name}": name for name in top}

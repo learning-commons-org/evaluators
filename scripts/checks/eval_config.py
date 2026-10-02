@@ -283,7 +283,11 @@ class EvalConfig(Check):
                     f"outcome.{role} names {field!r}, which output_schema declares but "
                     "does not require -- a verdict that may be absent is not a verdict"
                 )
-            elif isinstance(properties[field], dict) and properties[field].get("x-model-only"):
+            elif (
+                isinstance(properties, dict)
+                and isinstance(properties[field], dict)
+                and properties[field].get("x-model-only")
+            ):
                 fail(
                     f"outcome.{role} names {field!r}, which is x-model-only -- SDKs strip "
                     "it before returning"
