@@ -14,7 +14,6 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 SDK_ROOT = Path(__file__).resolve().parents[3]
-REPO_ROOT = SDK_ROOT.parent.parent
 
 
 def _load_generator() -> ModuleType:
@@ -221,10 +220,30 @@ class TestEmitter:
 
 
 class TestBundling:
-    def test_discovers_every_registry_contract(self) -> None:
+    def test_discovers_every_bundled_contract(self) -> None:
         paths = generator.discover_contracts()
-        assert len(paths) == len(list((REPO_ROOT / "evals").glob("*/*/*/config.json")))
+        assert len(paths) == len(list(generator._BUNDLE_ROOT.glob("*/*/*/config.json")))
         assert paths == sorted(paths)
+
+    def test_a_renamed_contract_stays_bundled(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        evals_root, bundle_root = tmp_path / "evals", tmp_path / "bundle"
+        config_path = _write_contract(
+            evals_root / "a" / "b" / "c",
+            evaluator_id="a.b.new",
+            input_schema={"type": "object", "properties": {}},
+            output_schema={"type": "object", "properties": {}},
+        )
+        config = json.loads(config_path.read_text())
+        config["evaluator"]["id_history"] = ["a.b.old"]
+        config_path.write_text(json.dumps(config))
+        monkeypatch.setattr(generator, "_BUNDLE_ROOT", bundle_root)
+        assert generator.discover_contracts(evals_root) == []
+
+        (bundle_root / "a" / "b" / "old").mkdir(parents=True)
+        (bundle_root / "a" / "b" / "old" / "config.json").write_text("{}")
+        assert generator.discover_contracts(evals_root) == [config_path]
 
     def test_sha256_drift_fails_the_build(self, tmp_path: Path) -> None:
         directory = tmp_path / "a" / "b" / "c"
