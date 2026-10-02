@@ -41,6 +41,7 @@ help:
 	@echo "  integration-test   Live tests: needs RUN_INTEGRATION_TESTS=1 plus GOOGLE_API_KEY / OPENAI_API_KEY"
 	@echo ""
 	@echo "  generate-contracts Re-bundle evals/ contracts and regenerate schema modules"
+	@echo "                     (CONTRACT=<path to config.json> bundles one for the first time)"
 	@echo "  check-generated    Verify generated files match evals/ (exits 1 if stale or orphaned)"
 	@echo "  fetch-kg-openapi   Download the Knowledge Graph OpenAPI spec (network; not in verify)"
 	@echo "  generate-kg-client Re-generate the Knowledge Graph client from the vendored spec"
@@ -106,7 +107,7 @@ integration-test:
 # file against the sha256 its config.json declares before bundling it.
 
 generate-contracts:
-	$(PYTHON) scripts/generate_contracts.py
+	$(PYTHON) scripts/generate_contracts.py $(CONTRACT)
 
 check-generated:
 	$(PYTHON) scripts/generate_contracts.py --check

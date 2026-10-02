@@ -14,7 +14,6 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 SDK_ROOT = Path(__file__).resolve().parents[3]
-REPO_ROOT = SDK_ROOT.parent.parent
 
 
 def _load_generator() -> ModuleType:
@@ -221,9 +220,9 @@ class TestEmitter:
 
 
 class TestBundling:
-    def test_discovers_every_registry_contract(self) -> None:
+    def test_discovers_every_bundled_contract(self) -> None:
         paths = generator.discover_contracts()
-        assert len(paths) == len(list((REPO_ROOT / "evals").glob("*/*/*/config.json")))
+        assert len(paths) == len(list(generator._BUNDLE_ROOT.glob("*/*/*/config.json")))
         assert paths == sorted(paths)
 
     def test_sha256_drift_fails_the_build(self, tmp_path: Path) -> None:
