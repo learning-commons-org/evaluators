@@ -114,8 +114,8 @@ class EvalFixtures(Check):
             return None
         path = os.path.join(base, ref["$ref"])
         out = self._load_or_none(path)
-        if out is None:
-            return None
+        if not isinstance(out, dict):
+            return None  # absent, unreadable, or a boolean schema with no properties to bind
         schema = {
             "type": "object",
             "additionalProperties": False,

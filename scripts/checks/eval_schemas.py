@@ -40,7 +40,9 @@ def _to_snake(name: str) -> str:
 _INSTANCE_KEYWORDS = frozenset({"const", "default", "enum", "examples"})
 
 # Keywords whose value maps names to subschemas; the names are not keywords.
-_NAMED_SUBSCHEMAS = frozenset({"properties", "patternProperties", "$defs", "definitions"})
+_NAMED_SUBSCHEMAS = frozenset(
+    {"properties", "patternProperties", "dependentSchemas", "$defs", "definitions"}
+)
 
 
 class EvalSchemas(Check):
