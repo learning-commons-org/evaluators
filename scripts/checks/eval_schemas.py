@@ -13,7 +13,8 @@ inherited from the Knowledge Graph API's own field names, until they were rename
 
 The `items` of an attached array input carry an `x-image` block bounding each image file;
 every block is validated against `_schemas/x-image.schema.json`, since meta-validation
-accepts any value for an extension keyword.
+accepts any value for an extension keyword. For the same reason, `x-model-only` is checked
+to be `true` and to sit only on a top-level property of an output schema.
 """
 
 from __future__ import annotations
@@ -58,10 +59,10 @@ class EvalSchemas(Check):
             except (OSError, json.JSONDecodeError):
                 continue  # eval-config reports unreadable configs
             for key in ("input_schema", "output_schema"):
-                self._check_schema_file(config.get(key, {}), base, result)
+                self._check_schema_file(config.get(key, {}), key, base, result)
         return result
 
-    def _check_schema_file(self, ref: dict, base: str, result: Result) -> None:
+    def _check_schema_file(self, ref: dict, key: str, base: str, result: Result) -> None:
         if not (isinstance(ref, dict) and "$ref" in ref):
             return
         rel = ref["$ref"]
@@ -80,6 +81,30 @@ class EvalSchemas(Check):
             return
         self._check_key_casing(doc, path, result)
         self._check_x_image(doc, path, result)
+        self._check_model_only(doc, key, path, result)
+
+    def _check_model_only(self, doc: dict, key: str, path: str, result: Result) -> None:
+        """`x-model-only` is `true` on a required top-level output_schema property, and nowhere else.
+
+        It marks a field the model must produce but an SDK strips before returning, so the
+        caller gets the output schema minus the marked fields. Only a top-level output
+        property can be dropped that way; anywhere else the mark has no defined meaning.
+        It must be required: the marked fields are the working-out that conditions the
+        returned answer, which the model would otherwise be free to skip.
+        """
+        top = doc.get("properties", {}) if key == "output_schema" else {}
+        required = doc.get("required", []) if key == "output_schema" else []
+        top_paths = {f"properties/{name}": name for name in top}
+        for where, value in self._keyword_blocks(doc, "", "x-model-only"):
+            if where not in top_paths:
+                message = "x-model-only belongs only on a top-level output_schema property"
+            elif value is not True:
+                message = f"x-model-only must be true, got {value!r}"
+            elif top_paths[where] not in required:
+                message = "x-model-only property must be listed in required"
+            else:
+                continue
+            result.violations.append(Violation(path, f"{where}: {message}"))
 
     def _check_x_image(self, doc: dict, path: str, result: Result) -> None:
         """Every `x-image` block must match `_schemas/x-image.schema.json`, with max >= min.
@@ -90,7 +115,7 @@ class EvalSchemas(Check):
         nothing consistent to enforce. Blocks are found at any depth, so a nested one is
         checked as strictly as a top-level one.
         """
-        for name, block in self._x_image_blocks(doc, ""):
+        for name, block in self._keyword_blocks(doc, "", "x-image"):
             for err in sorted(self._x_image_validator.iter_errors(block), key=lambda e: list(e.path)):
                 loc = "/".join(str(p) for p in err.path) or "(root)"
                 result.violations.append(Violation(path, f"{name}.x-image: {loc}: {err.message}"))
@@ -102,8 +127,8 @@ class EvalSchemas(Check):
                             Violation(path, f"{name}.x-image: {lo} ({a}) exceeds {hi} ({b})")
                         )
 
-    def _x_image_blocks(self, node: object, where: str):
-        """Yield (location, block) for every `x-image` keyword in the schema `node`.
+    def _keyword_blocks(self, node: object, where: str, keyword: str):
+        """Yield (location, value) for every `keyword` in the schema `node`.
 
         Walks schema positions only. Instance-valued keywords (`examples`, `default`, ...)
         are not entered, and under `properties`/`$defs` the keys are names, not keywords,
@@ -112,16 +137,16 @@ class EvalSchemas(Check):
         if isinstance(node, dict):
             for key, value in node.items():
                 here = f"{where}/{key}" if where else key
-                if key == "x-image":
+                if key == keyword:
                     yield where or "(root)", value
                 elif key in _NAMED_SUBSCHEMAS and isinstance(value, dict):
                     for name, sub in value.items():
-                        yield from self._x_image_blocks(sub, f"{here}/{name}")
+                        yield from self._keyword_blocks(sub, f"{here}/{name}", keyword)
                 elif key not in _INSTANCE_KEYWORDS:
-                    yield from self._x_image_blocks(value, here)
+                    yield from self._keyword_blocks(value, here, keyword)
         elif isinstance(node, list):
             for i, item in enumerate(node):
-                yield from self._x_image_blocks(item, f"{where}/{i}")
+                yield from self._keyword_blocks(item, f"{where}/{i}", keyword)
 
     def _check_key_casing(self, doc: dict, path: str, result: Result) -> None:
         for name in sorted(self._property_names(doc)):

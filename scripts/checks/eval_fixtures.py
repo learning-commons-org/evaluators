@@ -6,7 +6,8 @@ Three layers, the first two mirroring eval-config:
   - per-evaluator binding: each case's `input` must satisfy that evaluator's own
     input_schema.json, and each field in `expected` must satisfy the matching
     property in its output_schema.json. (`expected` is a subset of the full
-    output — just the label(s) — so we validate present fields, not requireds.)
+    output — just the label(s) — so we validate present fields, not requireds. An
+    `x-model-only` field is never returned, so it cannot be expected.)
   - outcome coverage: if the config declares `outcome.score`, every case must pin
     that field. It is the only part of the output stable enough to assert, so a
     fixture that omits it asserts nothing a caller depends on.
@@ -70,6 +71,7 @@ class EvalFixtures(Check):
         # Layer 3: every case pins the declared outcome score.
         input_validator = self._validator_for(config, base, "input_schema")
         expected_validator = self._expected_validator(config, base)
+        model_only = self._model_only_fields(config, base)
         # Absent for evaluators whose payload has no single verdict field, such as
         # Math Standards Alignment; `outcome` is optional in the config schema.
         score_field = (config.get("outcome") or {}).get("score")
@@ -81,6 +83,11 @@ class EvalFixtures(Check):
             if expected_validator:
                 for err in expected_validator.iter_errors(case.get("expected", {})):
                     fail(f"{rel}[{cid}].expected: {self._loc(err)}: {err.message}")
+            for field in sorted(model_only & set(case.get("expected", {}))):
+                fail(
+                    f"{rel}[{cid}].expected names {field!r}, which is x-model-only -- "
+                    "SDKs strip it before returning"
+                )
             if score_field and score_field not in case.get("expected", {}):
                 fail(
                     f"{rel}[{cid}].expected: missing {score_field!r}, "
@@ -117,6 +124,18 @@ class EvalFixtures(Check):
         if "$defs" in out:
             schema["$defs"] = out["$defs"]
         return self._safe_validator(schema)
+
+    def _model_only_fields(self, config: dict, base: str) -> set[str]:
+        """Output properties marked `x-model-only`, which no caller ever receives."""
+        ref = config.get("output_schema", {})
+        if not (isinstance(ref, dict) and "$ref" in ref):
+            return set()
+        out = self._load_or_none(os.path.join(base, ref["$ref"])) or {}
+        return {
+            name
+            for name, spec in out.get("properties", {}).items()
+            if isinstance(spec, dict) and spec.get("x-model-only") is True
+        }
 
     @staticmethod
     def _load_or_none(path: str):

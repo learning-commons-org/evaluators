@@ -37,7 +37,10 @@
       }
     },
     "input_schema": { "type": "object" },
-    "output_schema": { "type": "object" },
+    "output_schema": {
+      "type": "object",
+      "description": "`$ref` to the JSON Schema of the evaluator's structured output. A top-level property may carry `\"x-model-only\": true`: the model must still produce it, so it must be listed in `required`, but an SDK strips it before returning: callers receive the schema minus the marked properties, which are also dropped from its `required`. Use it for working fields that condition the model's answer, such as per-item ratings behind an aggregate score. An SDK that loads a contract with `x-model-only` must strip every marked property, or refuse the contract. Marking an existing property of an evaluator an SDK already ships removes it from that SDK's output, which is a breaking change."
+    },
     "outcome": {
       "type": "object",
       "additionalProperties": false,
