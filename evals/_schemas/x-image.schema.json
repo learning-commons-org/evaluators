@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "x-image.schema.json",
+  "title": "x-image",
+  "description": "Shape of the `x-image` block that bounds each image file an input names. It sits on the `items` of an array input declared as an attachment; the array's own `minItems`/`maxItems` bound the count. JSON Schema has no keyword for a referenced file, and validators ignore unknown keywords, so the eval-schemas check validates every block against this schema. An SDK that loads a contract with `x-image` must enforce every field here, on every file, before any model call, or refuse the contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["formats", "detect", "min_bytes", "max_bytes", "min_edge", "max_edge"],
+  "properties": {
+    "formats": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["image/png", "image/jpeg", "image/webp"] },
+      "description": "Accepted media types. The three every supported provider takes natively."
+    },
+    "detect": {
+      "const": "signature",
+      "description": "The format is read from the file's leading bytes, never from its extension or a content-type header."
+    },
+    "min_bytes": { "type": "integer", "minimum": 1, "description": "Smallest allowed file size, in bytes." },
+    "max_bytes": { "type": "integer", "minimum": 1, "description": "Largest allowed file size, in bytes." },
+    "min_edge": { "type": "integer", "minimum": 1, "description": "Smallest allowed width and height, in pixels." },
+    "max_edge": { "type": "integer", "minimum": 1, "description": "Largest allowed width and height, in pixels." }
+  }
+}
