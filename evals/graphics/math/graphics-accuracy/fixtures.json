@@ -1,0 +1,97 @@
+[
+  {
+    "id": "question_answer_true",
+    "description": "Question + expected answer, image correct. Three baskets hold 4, 5 and 3 apples; the count sums to 12 and matches.",
+    "input": {
+      "image_paths": ["images/apples-in-baskets.png"],
+      "claim": "Question: \"How many apples are in the three baskets altogether?\" The answer is 12."
+    },
+    "expected": {
+      "is_correct": true,
+      "basis": "supported"
+    }
+  },
+  {
+    "id": "question_answer_false",
+    "description": "Same image, the expected answer off by one. The count completes and disagrees, so the verdict is a contradiction.",
+    "input": {
+      "image_paths": ["images/apples-in-baskets.png"],
+      "claim": "Question: \"How many apples are in the three baskets altogether?\" The answer is 11."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "contradicted"
+    }
+  },
+  {
+    "id": "descriptive_claim_true",
+    "description": "Descriptive claim, no question. Bar chart with value labels: Apple 8, Banana 5, Grape 7, Orange 4.",
+    "input": {
+      "image_paths": ["images/favorite-fruit-bar-chart.png"],
+      "claim": "More students chose Apple than Grape."
+    },
+    "expected": {
+      "is_correct": true,
+      "basis": "supported"
+    }
+  },
+  {
+    "id": "descriptive_claim_false",
+    "description": "Descriptive claim the chart contradicts: Banana (5) is below Grape (7).",
+    "input": {
+      "image_paths": ["images/favorite-fruit-bar-chart.png"],
+      "claim": "More students chose Banana than Grape."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "contradicted"
+    }
+  },
+  {
+    "id": "geometry_true",
+    "description": "Rectangle labelled 9 cm by 4 cm; the area is 36 square centimeters.",
+    "input": {
+      "image_paths": ["images/labelled-rectangle.png"],
+      "claim": "Question: \"What is the area of the rectangle in square centimeters?\" The answer is 36."
+    },
+    "expected": {
+      "is_correct": true,
+      "basis": "supported"
+    }
+  },
+  {
+    "id": "geometry_false",
+    "description": "Same rectangle, the area stated as the perimeter. The perimeter is 26 cm, not 36.",
+    "input": {
+      "image_paths": ["images/labelled-rectangle.png"],
+      "claim": "Question: \"What is the perimeter of the rectangle in centimeters?\" The answer is 36."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "contradicted"
+    }
+  },
+  {
+    "id": "pie_chart_claim_true",
+    "description": "Pie chart labelled Walk 40%, Bus 30%, Car 20%, Bike 10%. Walking (40%) is twice car travel (20%).",
+    "input": {
+      "image_paths": ["images/travel-to-school-pie-chart.png"],
+      "claim": "Twice as many students walk to school as travel by car."
+    },
+    "expected": {
+      "is_correct": true,
+      "basis": "supported"
+    }
+  },
+  {
+    "id": "image_missing_element",
+    "description": "The specification is right but the figure omits what it needs: only the 9 cm side is labelled, so the area cannot be derived from the image. A correct evaluator returns incorrect, most likely as unverified; only the verdict is pinned.",
+    "input": {
+      "image_paths": ["images/rectangle-one-side-labelled.png"],
+      "claim": "Question: \"What is the area of the rectangle in square centimeters?\" The answer is 36."
+    },
+    "expected": {
+      "is_correct": false
+    }
+  }
+]

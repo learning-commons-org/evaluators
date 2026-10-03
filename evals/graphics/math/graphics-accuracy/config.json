@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../_schemas/config.schema.json",
+  "evaluator": {
+    "id": "graphics.math.graphics_accuracy",
+    "stable_id": "2ae27d83-5a77-444b-b48d-9285179dae73",
+    "id_history": [],
+    "name": "Graphics Accuracy Evaluator",
+    "description": "Checks whether a math graphic (plot, chart, diagram, equation, or worked solution) correctly shows what its claim states. The claim is trusted; the image is under review. Returns a correct/incorrect verdict, the reasoning, and whether a false verdict came from a contradiction or an incomplete derivation. Early access.",
+    "supported_grades": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+  },
+  "input_schema": {
+    "$ref": "input_schema.json"
+  },
+  "preprocessing": [],
+  "steps": [
+    {
+      "id": "evaluate_graphics_accuracy",
+      "type": "llm",
+      "description": "Single vision-LLM call; the image in `image_paths` is attached ahead of the user text (see `attachments`). Reason-first structured output with the verdict written last; the output schema's field descriptions are sent with the request.",
+      "prompt": {
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "7ea52898a43c89a7045dece59053e1547d542c503496ca613c21a4e75f58097c"
+          },
+          {
+            "role": "user",
+            "source_path": "user.txt",
+            "sha256": "c2d55245e28bc0b3c245b89c8d7fe3822bebfa6b8d2a72c0837760e96fcbcc23"
+          }
+        ],
+        "placeholders": {
+          "claim": {
+            "required": true,
+            "source": "input",
+            "note": "The specification, verbatim: a statement about the image, or `Question: \"<question>\" The answer is <answer>.`"
+          }
+        }
+      },
+      "model": {
+        "provider": "google",
+        "name": "gemini-3.6-flash"
+      },
+      "generation": {
+        "temperature": 0
+      },
+      "parser": {
+        "kind": "structured_output"
+      },
+      "attachments": [
+        { "input": "image_paths", "kind": "image" }
+      ]
+    }
+  ],
+  "output_schema": {
+    "$ref": "output_schema.json"
+  },
+  "outcome": {
+    "score": "is_correct",
+    "reasoning": "reasoning"
+  },
+  "fixtures": {
+    "path": "fixtures.json"
+  }
+}
