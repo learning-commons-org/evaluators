@@ -5,7 +5,7 @@
     "stable_id": "2ae27d83-5a77-444b-b48d-9285179dae73",
     "id_history": [],
     "name": "Graphics Accuracy Evaluator",
-    "description": "Checks whether a math graphic (plot, chart, diagram, equation, or worked solution) correctly shows what its claim states. The claim is trusted; the image is under review. Returns a correct/incorrect verdict, the reasoning, and whether a false verdict came from a contradiction or an incomplete derivation. Early access.",
+    "description": "Checks whether a math graphic (plot, chart, diagram, equation, or worked solution) correctly shows what its claim states. The claim is trusted; the image is under review and must also be sound in itself (complete, legible, internally consistent). Returns a correct/incorrect verdict, the reasoning, any defects in the image, and whether a false verdict came from a contradiction, an incomplete derivation, or a defect. Early access.",
     "supported_grades": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
   },
   "input_schema": {
@@ -16,13 +16,13 @@
     {
       "id": "evaluate_graphics_accuracy",
       "type": "llm",
-      "description": "Single vision-LLM call; the image in `image_paths` is attached ahead of the user text (see `attachments`). Reason-first structured output with the verdict written last; the output schema's field descriptions are sent with the request.",
+      "description": "Single vision-LLM call; the image in `image_paths` is attached ahead of the user text (see `attachments`). Reason-first structured output with the verdict written last; the output schema's field descriptions are sent with the request. Temperature is null because Google's guidance for Gemini 3.x models is to omit sampling parameters from requests.",
       "prompt": {
         "messages": [
           {
             "role": "system",
             "source_path": "system.txt",
-            "sha256": "7ea52898a43c89a7045dece59053e1547d542c503496ca613c21a4e75f58097c"
+            "sha256": "93877efb952acda201030b2f0544d16c185ab0304aaa0e8c6d46569d5bf69f1f"
           },
           {
             "role": "user",
@@ -43,7 +43,7 @@
         "name": "gemini-3.6-flash"
       },
       "generation": {
-        "temperature": 0
+        "temperature": null
       },
       "parser": {
         "kind": "structured_output"

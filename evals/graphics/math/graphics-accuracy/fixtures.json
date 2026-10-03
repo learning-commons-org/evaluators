@@ -85,13 +85,37 @@
   },
   {
     "id": "image_missing_element",
-    "description": "The specification is right but the figure omits what it needs: only the 9 cm side is labelled, so the area cannot be derived from the image. A correct evaluator returns incorrect, most likely as unverified; only the verdict is pinned.",
+    "description": "The specification is right but the figure omits what it needs: only the 9 cm side is labelled, so the area cannot be derived from the image. A correct evaluator returns incorrect, as defective or unverified; only the verdict is pinned.",
     "input": {
       "image_paths": ["images/rectangle-one-side-labelled.png"],
       "claim": "Question: \"What is the area of the rectangle in square centimeters?\" The answer is 36."
     },
     "expected": {
       "is_correct": false
+    }
+  },
+  {
+    "id": "defect_claim_intact_pie",
+    "description": "Pie chart whose printed percentages sum to 110%: Juice is labelled 25% but drawn as about 15% of the circle. The claim compares Water (35%) and Milk (30%), which are drawn and labelled consistently, so it still holds; the image itself is defective.",
+    "input": {
+      "image_paths": ["images/favorite-drink-pie-chart-110.png"],
+      "claim": "More students chose Water than Milk."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "defective"
+    }
+  },
+  {
+    "id": "defect_claim_intact_bar",
+    "description": "Bar chart with value labels where Thursday is labelled 6 but drawn reaching 9. The claim compares Tuesday (7) and Monday (4), whose bars match their labels, so it still holds; the image itself is defective.",
+    "input": {
+      "image_paths": ["images/books-read-bar-chart-mismatch.png"],
+      "claim": "More books were read on Tuesday than on Monday."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "defective"
     }
   }
 ]
