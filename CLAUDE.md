@@ -35,5 +35,5 @@ Per-workspace suites are separate and not yet delegated to by the harness:
 ## Conventions
 
 - **Conventional commits are enforced** on PR titles and commits by `.github/workflows/conventional-commits.yml`.
-- **Releases are automated by release-please.** Never hand-edit a version or `CHANGELOG.md` in `evals/prompts`, `sdks/python`, or `sdks/typescript`.
+- **Releases are automated by release-please.** Never hand-edit a version or `CHANGELOG.md` in `evals`, `sdks/python`, or `sdks/typescript`.
 - **Generated files are never hand-edited.** `.gitattributes` lists them all, each with the command that regenerates it.

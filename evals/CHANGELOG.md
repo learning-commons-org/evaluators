@@ -5,6 +5,21 @@ All notable changes to the evaluator prompt files will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.8.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.7.0...evals-prompts-v1.8.0) (2026-10-02)
+
+
+### Features
+
+* **evals:** add Critical Thinking onto the shared evaluator contract ([#188](https://github.com/learning-commons-org/evaluators/issues/188)) ([02d1a3c](https://github.com/learning-commons-org/evaluators/commit/02d1a3ced12d5985cc3ca0b0608e02cc7622244d))
+* **evals:** declare non-text attachments on prompt steps in the contract schema ([#331](https://github.com/learning-commons-org/evaluators/issues/331)) ([a8d1018](https://github.com/learning-commons-org/evaluators/commit/a8d10185b68bce17cd68bb741df8bc9d6a732ca9))
+* rename the Student-Facing Text family to Text Complexity; evaluator ids move from `student_facing_text.*` to `text_complexity.*` ([#292](https://github.com/learning-commons-org/evaluators/issues/292)) ([2006d86](https://github.com/learning-commons-org/evaluators/commit/2006d8664a08f2f82023ad2ded76892579067c0e))
+
+
+### Documentation
+
+* Audit READMEs for v1.0 launch ([#213](https://github.com/learning-commons-org/evaluators/issues/213)) ([7e0a650](https://github.com/learning-commons-org/evaluators/commit/7e0a65008075a479f512d2a8410ed116a76ce19d))
+* point text complexity links at the renamed docs site paths ([#294](https://github.com/learning-commons-org/evaluators/issues/294)) ([991dbc5](https://github.com/learning-commons-org/evaluators/commit/991dbc5a837114c7d973187750539a92bbbe1310))
+
 ## [1.7.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.6.0...evals-prompts-v1.7.0) (2026-08-31)
 
 
