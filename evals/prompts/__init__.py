@@ -1,3 +1,0 @@
-"""
-    Evaluators literacy package: Prompts
-"""

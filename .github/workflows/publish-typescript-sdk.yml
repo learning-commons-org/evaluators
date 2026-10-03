@@ -6,8 +6,9 @@ on:
 
 jobs:
   publish:
-    if: startsWith(github.event.release.tag_name, 'sdks-typescript-v')
+    if: startsWith(github.ref, 'refs/tags/sdks-typescript-v')
     runs-on: ubuntu-latest
+    environment: npm
     permissions:
       contents: read
       id-token: write
