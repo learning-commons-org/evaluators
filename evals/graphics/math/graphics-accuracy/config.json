@@ -16,7 +16,7 @@
     {
       "id": "evaluate_graphics_accuracy",
       "type": "llm",
-      "description": "Single vision-LLM call; the image in `image_paths` is attached ahead of the user text (see `attachments`). Reason-first structured output with the verdict written last; the output schema's field descriptions are sent with the request. Temperature is null because Google's guidance for Gemini 3.x models is to omit sampling parameters from requests.",
+      "description": "Single vision-LLM call; the image in `image_paths` is attached ahead of the user text (see `attachments`). Reason-first structured output with the verdict written last; the output schema's field descriptions are sent with the request.",
       "prompt": {
         "messages": [
           {
