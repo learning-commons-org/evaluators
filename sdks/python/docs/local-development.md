@@ -111,13 +111,13 @@ Generated schema modules start with `# GENERATED — do not edit directly.` and 
 - `tests/unit/providers/` — each adapter against a fake client, the factory, and the resampling loop.
 - `tests/unit/contracts/` — every bundled contract read back and cross-checked against `evals/` (sha256, placeholder sources, outcome fields), plus the generator's emitter on synthetic schemas.
 - `tests/unit/schemas/` — parser tests: hand-written payloads per `output_schema.json` against the generated `<Class>Output` models.
-- `tests/unit/evaluators/` — the single-step and multi-step flows on synthetic contracts, config and `model_override` checks, input validation, the registry, and `test_registry_conformance.py`: every contract in `evals/` has a registered class or an entry in its `UNIMPLEMENTED` allowlist, and porting an evaluator without deleting its entry fails the build.
+- `tests/unit/evaluators/` — the single-step and multi-step flows on synthetic contracts, config and `model_override` checks, input validation, the registry, and `test_registry_conformance.py`: every registered evaluator matches its contract in `evals/`. A contract with no Python evaluator yet is not reported.
 - `tests/unit/test_cross_sdk_prompts.py` — for every fixture, and every step the inputs run, Python renders the prompt the TypeScript renderer would. Placeholders each SDK computes with its own language's library are masked, and so are step outputs, which would mean calling a model; the masked numbers' rounding is checked separately in the same file.
 - `tests/integration/` — live provider calls driven by `evals/**/fixtures.json`, skipped unless `RUN_INTEGRATION_TESTS=1` and the provider keys are set (`make integration-test`).
 
 ## Adding an evaluator
 
-1. The contract exists under `evals/<family>/<subject>/<evaluator>/` (that is the registry's job). Run `make generate-contracts` so its bundle and `<Class>Input` / `<Class>Output` models exist.
+1. The contract exists under `evals/<family>/<subject>/<evaluator>/` (that is the registry's job). Run `make generate-contracts CONTRACT=../../evals/<family>/<subject>/<evaluator>/config.json` so its bundle and `<Class>Input` / `<Class>Output` models exist; after that, a plain `make generate-contracts` keeps them in sync.
 2. Add `evaluators/<family>/<subject>/<evaluator>.py` declaring the class. For a contract with one step:
 
    ```python
@@ -148,5 +148,4 @@ Generated schema modules start with `# GENERATED — do not edit directly.` and 
    A step's own output model has no schema in the registry, so it is written by hand beside
    the evaluator; the contract's `output_schema.json` describes the evaluator's result only.
 
-3. Register it in `evaluators/registry.py` and export it (class, input, output) from `evaluators/__init__.py` and the package barrel.
-4. Delete its id from `UNIMPLEMENTED` in `tests/unit/evaluators/test_registry_conformance.py`; the conformance, cross-SDK prompt, and integration suites pick it up automatically.
+3. Register it in `evaluators/registry.py` and export it (class, input, output) from `evaluators/__init__.py` and the package barrel, and bump the evaluator counts in `test_discovery_finds_every_registered_evaluator`. The conformance, cross-SDK prompt, and integration suites then pick it up.

@@ -2,7 +2,7 @@
 """Bundle the ``evals/`` registry into the package and generate its schema modules (D1).
 
 Each ``evals/<family>/<subject>/<evaluator>/config.json`` is one evaluator contract. For
-every contract this script:
+every contract the package bundles this script:
 
 1. Copies the contract into ``src/learning_commons_evaluators/contracts/_generated/`` —
    ``config.json``, the input and output schemas it references, and every prompt or rubric
@@ -19,8 +19,10 @@ carries them and a stale checkout fails ``--check`` in CI rather than at a user'
 
 Usage (from ``sdks/python/``)::
 
-    python scripts/generate_contracts.py            # write everything
+    python scripts/generate_contracts.py            # regenerate every bundled contract
     python scripts/generate_contracts.py --check    # exit 1 if anything is stale or orphaned
+    python scripts/generate_contracts.py ../../evals/<family>/<subject>/<evaluator>/config.json
+                                                    # bundle a contract for the first time
 
 The Makefile wraps these as ``make generate-contracts`` and ``make check-generated``.
 """
@@ -57,12 +59,25 @@ _INDENT = "    "
 
 
 def discover_contracts(evals_root: Path = _EVALS_ROOT) -> list[Path]:
-    """Every ``config.json`` under ``evals/``, sorted so output order is stable."""
+    """Every ``config.json`` under ``evals/`` already bundled, sorted so output order is stable.
+
+    Contracts land in ``evals/`` ahead of the SDK, so one is bundled only once it is named on
+    the command line; from then on it is regenerated and checked with the rest.
+    """
     return sorted(
         path
         for path in evals_root.glob("*/*/*/config.json")
-        if not path.parent.name.startswith("_") and ".ipynb_checkpoints" not in path.parts
+        if not path.parent.name.startswith("_")
+        and ".ipynb_checkpoints" not in path.parts
+        and _is_bundled(path)
     )
+
+
+def _is_bundled(config_path: Path) -> bool:
+    """Bundled under its id or, after a rename, under any id in ``id_history``."""
+    evaluator = json.loads(config_path.read_text(encoding="utf-8"))["evaluator"]
+    ids = [evaluator["id"], *evaluator.get("id_history", [])]
+    return any(_BUNDLE_ROOT.joinpath(*i.split("."), "config.json").is_file() for i in ids)
 
 
 # ---------------------------------------------------------------------------
@@ -569,9 +584,15 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Verify the committed files match what would be generated; exit 1 otherwise.",
     )
+    parser.add_argument(
+        "contracts",
+        nargs="*",
+        type=Path,
+        help="config.json of a contract to bundle for the first time.",
+    )
     args = parser.parse_args(argv)
 
-    config_paths = discover_contracts()
+    config_paths = sorted({*discover_contracts(), *(p.resolve() for p in args.contracts)})
     if not config_paths:
         print(f"No contracts found under {_EVALS_ROOT}", file=sys.stderr)
         return 1
