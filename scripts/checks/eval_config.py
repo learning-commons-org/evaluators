@@ -12,6 +12,7 @@ Each config is validated in two complementary layers:
        - placeholders declared in config line up with the {vars} in the prompts
        - every attachment names a required, bounded array input with `x-image` items,
          and no input carries `x-image` unless a step attaches it
+       - `outcome` names output fields a caller receives, never an `x-model-only` one
        - system prompts carry no user-input placeholders
        - no obsolete format-instruction placeholders survive anywhere
 
@@ -259,7 +260,8 @@ class EvalConfig(Check):
         """`outcome` must name properties the output schema declares *and* requires.
 
         Declared is not enough: a verdict the schema permits to be absent is not a
-        verdict a report can rely on.
+        verdict a report can rely on. Nor may it name an `x-model-only` property, which
+        SDKs strip before returning, so the caller would never see the verdict.
         """
         outcome = config.get("outcome")
         if not outcome:
@@ -280,6 +282,15 @@ class EvalConfig(Check):
                 fail(
                     f"outcome.{role} names {field!r}, which output_schema declares but "
                     "does not require -- a verdict that may be absent is not a verdict"
+                )
+            elif (
+                isinstance(properties, dict)
+                and isinstance(properties[field], dict)
+                and properties[field].get("x-model-only")
+            ):
+                fail(
+                    f"outcome.{role} names {field!r}, which is x-model-only -- SDKs strip "
+                    "it before returning"
                 )
 
     def _check_referenced_files(self, config: dict, base: str, fail) -> None:
