@@ -10,3 +10,4 @@ Measures qualitative text complexity across dimensions like sentence structure, 
 - [Purpose Clarity](./ela-reading/purpose-clarity/)
 - [Organizational Structure](./ela-reading/organizational-structure/)
 - [Reference Knowledge Demands](./ela-reading/reference-knowledge-demands/)
+- [Graphics Complexity](./ela-reading/graphics-complexity/)

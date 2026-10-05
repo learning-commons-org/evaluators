@@ -1,4 +1,4 @@
-# [Graphics Complexity](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/graphics-complexity)
+# [Graphics Complexity](https://docs.learningcommons.org/evaluators/text-complexity-evaluators/graphics-complexity)
 
 Evaluates how demanding a text's graphics are for readers at the target grade.
 
