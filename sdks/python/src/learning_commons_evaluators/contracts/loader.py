@@ -107,6 +107,13 @@ class Parser(_ContractModel):
     kind: str
 
 
+class Attachment(_ContractModel):
+    """One entry of a step's ``attachments``: an input whose files go to the model as content."""
+
+    input: str
+    kind: str
+
+
 class Step(_ContractModel):
     """One entry of ``config.steps``. An ``llm`` step always carries ``prompt`` and ``model``."""
 
@@ -120,6 +127,8 @@ class Step(_ContractModel):
     parser: Parser | None = None
     condition: Condition | None = None
     required_credentials: list[str] = Field(default_factory=list)
+    #: Inputs whose files are attached to the user turn rather than rendered into it.
+    attachments: list[Attachment] = Field(default_factory=list)
 
     @property
     def temperature(self) -> float | None:
@@ -325,6 +334,7 @@ def load_contract(evaluator_id: str) -> Contract:
 
 
 __all__ = [
+    "Attachment",
     "BUNDLE_DIR",
     "CONFIG_FILE",
     "Condition",

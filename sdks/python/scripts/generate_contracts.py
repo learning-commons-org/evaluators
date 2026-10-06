@@ -366,7 +366,9 @@ def emit_schema_module(config: dict[str, Any], config_dir: Path) -> str:
 
     # --- Input: placeholder names as kwargs; bounds and enums are enforced by the
     # evaluator from the schema (SDK spec §4), so the model carries only the shape. Grade
-    # tokens are digits in every contract today, and Python callers pass an int.
+    # tokens are digits in every contract today, and Python callers pass an int. An array
+    # of strings — an attached input's file paths — is ``list[str]``; its item count is
+    # checked by the evaluator and each file's ``x-image`` bounds by the image loader.
     constants: list[str] = []
     overrides: dict[str, str] = {}
     for prop, spec in input_schema.get("properties", {}).items():
@@ -385,6 +387,14 @@ def emit_schema_module(config: dict[str, Any], config_dir: Path) -> str:
             overrides[prop] = "int"
         elif spec.get("type") == "string":
             overrides[prop] = "str"
+        elif spec.get("type") == "array":
+            items = spec.get("items") or {}
+            if items.get("type") != "string":
+                raise ValueError(
+                    f'Input "{prop}" is an array of {items.get("type")}; only arrays of strings '
+                    "are rendered."
+                )
+            overrides[prop] = "list[str]"
     input_name = emitter.unique(f"{class_base}Input")
     emitter.emit_class(
         input_name,
