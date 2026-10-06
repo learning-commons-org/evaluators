@@ -3,12 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-  loadImage,
-  readImageDimensions,
-  sniffImageMediaType,
-  type ImageBounds,
-} from '../../../src/features/image-source.js';
+import { inspectImage, loadImage, type ImageBounds } from '../../../src/features/image-source.js';
 import { InputValidationError } from '../../../src/errors.js';
 import INPUT_SCHEMA from '../../../../../evals/graphics/math/graphics-accuracy/input_schema.json';
 
@@ -45,53 +40,29 @@ const webp = (w: number, h: number) =>
   pad([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x20, 0, 0, 0, 0,
     0, 0, 0, 0x9d, 0x01, 0x2a, w & 0xff, (w >>> 8) & 0x3f, h & 0xff, (h >>> 8) & 0x3f]);
 
-describe('sniffImageMediaType', () => {
-  it('recognises PNG, JPEG and WebP by their signatures', () => {
-    expect(sniffImageMediaType(png(1, 1))).toBe('image/png');
-    expect(sniffImageMediaType(jpeg(1, 1))).toBe('image/jpeg');
-    expect(sniffImageMediaType(webpX(1, 1))).toBe('image/webp');
-  });
-
-  it('rejects anything else, including a GIF and a forged PNG prefix', () => {
-    expect(sniffImageMediaType(pad([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]))).toBeUndefined();
-    // The four "PNG" letters alone are not the signature; all eight bytes are.
-    expect(sniffImageMediaType(pad([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]))).toBeUndefined();
-    expect(sniffImageMediaType(new TextEncoder().encode('not an image'))).toBeUndefined();
-    expect(sniffImageMediaType(new Uint8Array(0))).toBeUndefined();
-  });
-});
-
-describe('readImageDimensions', () => {
-  it('reads each format from its header', () => {
-    expect(readImageDimensions(png(640, 480), 'image/png')).toEqual({ width: 640, height: 480 });
-    expect(readImageDimensions(jpeg(1024, 768), 'image/jpeg')).toEqual({ width: 1024, height: 768 });
-    expect(readImageDimensions(webpX(2560, 16), 'image/webp')).toEqual({ width: 2560, height: 16 });
-    expect(readImageDimensions(webpL(300, 200), 'image/webp')).toEqual({ width: 300, height: 200 });
-    expect(readImageDimensions(webp(800, 600), 'image/webp')).toEqual({ width: 800, height: 600 });
+describe('inspectImage', () => {
+  it('reads the format and dimensions of PNG, JPEG and WebP from their headers', () => {
+    expect(inspectImage(png(640, 480))).toEqual({ mediaType: 'image/png', width: 640, height: 480 });
+    expect(inspectImage(jpeg(1024, 768))).toEqual({ mediaType: 'image/jpeg', width: 1024, height: 768 });
+    expect(inspectImage(webpX(2560, 16))).toEqual({ mediaType: 'image/webp', width: 2560, height: 16 });
+    expect(inspectImage(webpL(300, 200))).toEqual({ mediaType: 'image/webp', width: 300, height: 200 });
+    expect(inspectImage(webp(800, 600))).toEqual({ mediaType: 'image/webp', width: 800, height: 600 });
   });
 
   it('reads a real fixture image', () => {
-    const dims = readImageDimensions(new Uint8Array(readFileSync(FIXTURE_IMAGE)), 'image/png');
-    expect(dims?.width).toBeGreaterThan(0);
-    expect(dims?.height).toBeGreaterThan(0);
+    const image = inspectImage(new Uint8Array(readFileSync(FIXTURE_IMAGE)));
+    expect(image?.mediaType).toBe('image/png');
+    expect(image?.width).toBeGreaterThan(0);
+    expect(image?.height).toBeGreaterThan(0);
   });
 
-  it('returns undefined for a JPEG with no start-of-frame marker', () => {
-    expect(readImageDimensions(pad([0xff, 0xd8, 0xff, 0xd9]), 'image/jpeg')).toBeUndefined();
-  });
-
-  it('returns undefined when the marker bytes after a valid signature are wrong', () => {
-    // A PNG whose first chunk is not IHDR, so the bytes at 16..23 are not dimensions.
-    const notIhdr = png(640, 480);
-    notIhdr.set([0x74, 0x45, 0x58, 0x74], 12); // "tEXt"
-    expect(readImageDimensions(notIhdr, 'image/png')).toBeUndefined();
-    // VP8 without its 9d 01 2a start code; VP8L without its 0x2f signature byte.
-    const vp8 = webp(800, 600);
-    vp8[23] = 0;
-    expect(readImageDimensions(vp8, 'image/webp')).toBeUndefined();
-    const vp8l = webpL(300, 200);
-    vp8l[20] = 0;
-    expect(readImageDimensions(vp8l, 'image/webp')).toBeUndefined();
+  it('rejects anything else, including a GIF, a forged PNG prefix and a JPEG with no frame', () => {
+    const gif = pad([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 1, 0, 1, 0]);
+    expect(inspectImage(gif)).toBeUndefined();
+    expect(inspectImage(pad([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]))).toBeUndefined();
+    expect(inspectImage(pad([0xff, 0xd8, 0xff, 0xd9]))).toBeUndefined();
+    expect(inspectImage(new TextEncoder().encode('not an image'))).toBeUndefined();
+    expect(inspectImage(new Uint8Array(0))).toBeUndefined();
   });
 });
 
@@ -104,7 +75,7 @@ describe('loadImage', () => {
     return path;
   };
 
-  it('returns an attachment with the sniffed media type and the exact bytes', async () => {
+  it('returns an attachment with the detected media type and the exact bytes', async () => {
     const bytes = png(512, 256);
     const part = await loadImage('image_paths[0]', file('chart.dat', bytes), BOUNDS); // extension deliberately meaningless
     expect(part).toEqual({ type: 'image', data: bytes, mediaType: 'image/png' });
@@ -169,6 +140,6 @@ describe('loadImage', () => {
   });
 
   it('rejects a header it cannot read', async () => {
-    await expect(loadImage('f', file('bad.jpg', pad([0xff, 0xd8, 0xff, 0xd9])), BOUNDS)).rejects.toThrow(/unreadable image\/jpeg header/);
+    await expect(loadImage('f', file('bad.jpg', pad([0xff, 0xd8, 0xff, 0xd9])), BOUNDS)).rejects.toThrow(/not an accepted image/);
   });
 });

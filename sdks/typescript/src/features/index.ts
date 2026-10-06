@@ -13,4 +13,4 @@ export {
   type PostTransformConfig,
 } from './preprocessing.js';
 
-export { loadImage, sniffImageMediaType, readImageDimensions, type ImageBounds } from './image-source.js';
+export { loadImage, inspectImage, type ImageBounds } from './image-source.js';
