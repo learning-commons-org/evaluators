@@ -1,5 +1,5 @@
 import type { ZodType } from 'zod';
-import type { ImageAttachment, LLMProvider } from '../providers/index.js';
+import type { ImageAttachment, ImageMediaType, LLMProvider } from '../providers/index.js';
 import { loadImage, type ImageBounds } from '../features/image-source.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import type { StageDetail } from '../telemetry/index.js';
@@ -57,6 +57,9 @@ export interface SingleStepDefinition<TResult> {
   userPrompt: string;
 }
 
+/** Keyed by the union, so a new `ImageMediaType` fails to compile until it is listed here. */
+const SUPPORTED_FORMATS: Record<ImageMediaType, true> = { 'image/png': true, 'image/jpeg': true, 'image/webp': true };
+
 /**
  * The step's attached inputs, each paired with the `x-image` bounds on its items.
  *
@@ -71,7 +74,8 @@ export function attachmentsOf(
   evaluatorName: string,
 ): Array<{ input: string; bounds: ImageBounds }> {
   return (step.attachments ?? []).map(({ input, kind }) => {
-    const refuse = (why: string): never => {
+    // Annotated on the binding, not the arrow, so a call narrows like a `throw`.
+    const refuse: (why: string) => never = (why) => {
       throw new Error(`${evaluatorName} config.json attaches "${input}": ${why}`);
     };
     if (kind !== 'image') refuse(`kind "${kind}" is not supported; this SDK sends only images.`);
@@ -79,21 +83,26 @@ export function attachmentsOf(
     // Optional or non-array, a request could omit the images and be sent without them.
     if (spec?.type !== 'array') refuse('it must be an array input.');
     if (!(inputSchema.required ?? []).includes(input)) refuse('it must be listed in `required`.');
-    if (typeof spec!.minItems !== 'number' || spec!.minItems < 1) refuse('it must declare `minItems` of at least 1.');
-    const bounds = spec!.items?.['x-image'] as Partial<ImageBounds> | undefined;
-    if (!bounds) refuse('its items need an `x-image` block.');
-    const b = bounds as Partial<ImageBounds>;
-    const supported: readonly string[] = ['image/png', 'image/jpeg', 'image/webp'];
-    if (!Array.isArray(b.formats) || b.formats.length === 0 || !b.formats.every((f) => supported.includes(f))) {
-      refuse(`\`x-image.formats\` must be a non-empty list drawn from ${supported.join(', ')}.`);
+    if (typeof spec.minItems !== 'number' || spec.minItems < 1) refuse('it must declare `minItems` of at least 1.');
+    if (typeof spec.maxItems !== 'number' || spec.maxItems < spec.minItems) {
+      refuse('it must declare `maxItems` of at least `minItems`.');
     }
-    if (b.detect !== 'signature') refuse('`x-image.detect` must be "signature".');
+    if (spec.items?.type !== 'string') refuse('its items must be strings (file paths).');
+    const declared = spec.items['x-image'] as Partial<ImageBounds> | undefined;
+    if (!declared) refuse('its items need an `x-image` block.');
+    const { formats, detect } = declared;
+    if (!Array.isArray(formats) || formats.length === 0 || !formats.every((f) => Object.hasOwn(SUPPORTED_FORMATS, f))) {
+      refuse(`\`x-image.formats\` must be a non-empty list drawn from ${Object.keys(SUPPORTED_FORMATS).join(', ')}.`);
+    }
+    if (detect !== 'signature') refuse('`x-image.detect` must be "signature".');
     for (const key of ['min_bytes', 'max_bytes', 'min_edge', 'max_edge'] as const) {
-      if (typeof b[key] !== 'number') refuse(`\`x-image.${key}\` must be a number.`);
+      if (typeof declared[key] !== 'number') refuse(`\`x-image.${key}\` must be a number.`);
     }
-    if (b.min_bytes! > b.max_bytes!) refuse('`x-image.min_bytes` exceeds `max_bytes`.');
-    if (b.min_edge! > b.max_edge!) refuse('`x-image.min_edge` exceeds `max_edge`.');
-    return { input, bounds: b as ImageBounds };
+    // The loop above checked every bound; TypeScript cannot narrow through it.
+    const bounds = declared as ImageBounds;
+    if (bounds.min_bytes > bounds.max_bytes) refuse('`x-image.min_bytes` exceeds `max_bytes`.');
+    if (bounds.min_edge > bounds.max_edge) refuse('`x-image.min_edge` exceeds `max_edge`.');
+    return { input, bounds };
   });
 }
 
