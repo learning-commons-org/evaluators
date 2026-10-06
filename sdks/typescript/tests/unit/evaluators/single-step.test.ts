@@ -1,6 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { attachmentsOf, defineSingleStepEvaluator, requireStep } from '../../../src/evaluators/single-step.js';
@@ -550,17 +549,12 @@ describe('attachmentsOf refuses a declaration it cannot honour', () => {
 });
 
 describe('defineSingleStepEvaluator attaches several images in array order', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'single-step-images-'));
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  const dir = join(process.cwd(), 'tests/fixtures/images');
 
-  /** A minimal PNG declaring `w`×`h`, distinct per size so the order is observable. */
-  const png = (name: string, w: number, h: number) => {
-    const be32 = (n: number) => [(n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff];
-    const bytes = new Uint8Array(100);
-    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, ...be32(w), ...be32(h)]);
+  /** Real images in three formats, so each attachment is distinct and the order is observable. */
+  const fixture = (name: string) => {
     const path = join(dir, name);
-    writeFileSync(path, bytes);
-    return { path, bytes };
+    return { path, bytes: new Uint8Array(readFileSync(path)) };
   };
 
   it('loads every path, in order, and keeps them out of the prompt text', async () => {
@@ -574,9 +568,9 @@ describe('defineSingleStepEvaluator attaches several images in array order', () 
     const provider = { ...fakeProvider(), supportsAttachments: true };
     const evaluator = new E({ llmProvider: provider, telemetry: false });
 
-    const a = png('a.png', 100, 50);
-    const b = png('b.png', 60, 90);
-    const c = png('c.png', 30, 30);
+    const a = fixture('512x256.png');
+    const b = fixture('512x256.jpg');
+    const c = fixture('512x256.webp');
     await evaluator.evaluate({ figures: [a.path, b.path, c.path], text: 'Three figures.' });
 
     const call = vi.mocked(provider.generateStructured).mock.calls[0][0];

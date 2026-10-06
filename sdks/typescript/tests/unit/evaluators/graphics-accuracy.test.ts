@@ -1,6 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import CONFIG from '../../../../../evals/graphics/math/graphics-accuracy/config.json';
 import INPUT_SCHEMA from '../../../../../evals/graphics/math/graphics-accuracy/input_schema.json';
@@ -166,8 +165,6 @@ describe('GraphicsAccuracyEvaluator - LLM call contract', () => {
 describe('GraphicsAccuracyEvaluator - input validation', () => {
   let evaluator: GraphicsAccuracyEvaluator;
   let mockProvider: LLMProvider;
-  const dir = mkdtempSync(join(tmpdir(), 'graphics-accuracy-'));
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
   beforeEach(() => {
     evaluator = new GraphicsAccuracyEvaluator({ googleApiKey: 'test-key', telemetry: false });
@@ -221,13 +218,8 @@ describe('GraphicsAccuracyEvaluator - input validation', () => {
   });
 
   it('enforces the contract’s x-image edge bound before any model call', async () => {
-    // A PNG header declaring 3000×100, over the contract's 2560 px max edge.
-    const header = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0x0b, 0xb8, 0, 0, 0, 100];
-    const bytes = new Uint8Array(200);
-    bytes.set(header);
-    const path = join(dir, 'too-wide.png');
-    writeFileSync(path, bytes);
-    await expect(evaluator.evaluate({ image_paths: [path], claim: 'x' })).rejects.toThrow(/3000×100 px/);
+    const tooWide = join(process.cwd(), 'tests/fixtures/images/2677x1605.png');
+    await expect(evaluator.evaluate({ image_paths: [tooWide], claim: 'x' })).rejects.toThrow(/2677×1605 px/);
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 });
