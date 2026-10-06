@@ -4,4 +4,5 @@ Checks whether a math graphic (plot, chart, diagram, equation, or worked solutio
 
 - Schemas: [input](./input_schema.json), [output](./output_schema.json)
 - [Fixtures](./fixtures.json), images in [`images/`](./images/) (synthetic figures drawn for these fixtures)
+- [Python notebook](./example_notebook.ipynb)
 - Prompts: [`system.txt`](./system.txt), [`user.txt`](./user.txt)
