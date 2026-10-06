@@ -98,9 +98,9 @@ export function toPascalCase(str: string): string {
  *
  * A declared `enum` becomes a literal union, which is the point: the contract's accepted
  * values become a compile error instead of a run-time one. An array of strings — an attached
- * input's file paths — is `string[]`. Anything else is `string`. Bounds (`minLength`,
- * `maxLength`, `minItems`, `maxItems`, `x-image`) are not expressible in the type system and
- * stay with `validateInputs` and the image loader, which are the authoritative checks.
+ * input's file paths — is `string[]`. Anything else is `string`. Bounds are not expressible in the
+ * type system, so they are enforced at runtime: `minLength`, `maxLength`, `minItems` and
+ * `maxItems` by `validateInputs`, and each file's `x-image` bounds by the image loader.
  */
 function renderInputProperty(name: string, spec: JsonObject): string {
   const enumValues = spec['enum'];

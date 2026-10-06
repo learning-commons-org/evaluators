@@ -17,17 +17,17 @@ interface DeclaredStringSpec {
   enum?: string[];
 }
 
+/** A declared array input. Only arrays of strings: the only arrays contracts declare are file paths. */
+interface DeclaredStringArraySpec {
+  minItems?: number;
+  maxItems?: number;
+  /** Its items. `x-image` bounds, if any, are read by the image loader. */
+  items?: DeclaredStringSpec & Record<string, unknown>;
+}
+
 /** The shape of an `input_schema.json`, as much of it as validation reads. */
 export interface DeclaredInputSchema {
-  properties: Record<
-    string,
-    DeclaredStringSpec & {
-      minItems?: number;
-      maxItems?: number;
-      /** For an array input: its items. `x-image` bounds, if any, are read by the image loader. */
-      items?: DeclaredStringSpec & Record<string, unknown>;
-    }
-  >;
+  properties: Record<string, DeclaredStringSpec & DeclaredStringArraySpec>;
   required?: string[];
 }
 
@@ -109,7 +109,7 @@ export function validateInputs(
 function validateArrayField(
   field: string,
   value: unknown,
-  spec: { minItems?: number; maxItems?: number; items?: DeclaredStringSpec },
+  spec: DeclaredStringArraySpec,
 ): void {
   if (!Array.isArray(value)) {
     throw new InputValidationError(`${field} must be an array.`);
