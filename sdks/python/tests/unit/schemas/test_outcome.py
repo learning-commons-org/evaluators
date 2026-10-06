@@ -68,3 +68,12 @@ def test_a_scalar_payload_has_no_verdict() -> None:
     assert (
         read_outcome(_evaluation("text"), DeclaredOutcome(score="s", reasoning="r")).score is None
     )
+
+
+def test_a_scalar_score_is_rendered_as_typescript_renders_it() -> None:
+    # String(true) and String(7) on the TypeScript side; the same verdict must read the same
+    # in a report whichever SDK produced it.
+    declared = DeclaredOutcome(score="score", reasoning="reasoning")
+    for value, token in [(True, "true"), (False, "false"), (7, "7"), (7.0, "7"), (0.5, "0.5")]:
+        outcome = read_outcome(_evaluation({"score": value, "reasoning": "r"}), declared)
+        assert outcome.score == token, value
