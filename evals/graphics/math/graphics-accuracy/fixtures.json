@@ -85,13 +85,14 @@
   },
   {
     "id": "image_missing_element",
-    "description": "The specification is right but the figure omits what it needs: only the 9 cm side is labelled, so the area cannot be derived from the image. A correct evaluator returns incorrect, as defective or unverified; only the verdict is pinned.",
+    "description": "The specification is right but the figure omits what it needs: only the 9 cm side is labelled, so the area cannot be derived from the image. A correct evaluator flags the missing label as a defect.",
     "input": {
       "image_paths": ["images/rectangle-one-side-labelled.png"],
       "claim": "Question: \"What is the area of the rectangle in square centimeters?\" The answer is 36."
     },
     "expected": {
-      "is_correct": false
+      "is_correct": false,
+      "basis": "defective"
     }
   },
   {
@@ -116,6 +117,18 @@
     "expected": {
       "is_correct": false,
       "basis": "defective"
+    }
+  },
+  {
+    "id": "claim_not_shown",
+    "description": "Descriptive claim about something the bar chart does not show at all (when the votes were collected). The image is not defective and does not contradict the claim; it cannot confirm it, so the verdict is unverified.",
+    "input": {
+      "image_paths": ["images/favorite-fruit-bar-chart.png"],
+      "claim": "These votes were collected in March."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "unverified"
     }
   }
 ]
