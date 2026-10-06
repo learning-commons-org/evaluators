@@ -81,6 +81,12 @@ describe('loadImage', () => {
     expect(part).toEqual({ type: 'image', data: bytes, mediaType: 'image/png' });
   });
 
+  it('returns bytes that do not hold the max_bytes read buffer', async () => {
+    const bytes = png(512, 256);
+    const part = await loadImage('f', file('small.png', bytes), BOUNDS);
+    expect(part.data.buffer.byteLength).toBe(bytes.length);
+  });
+
   it('accepts a real fixture image within the shipped bounds', async () => {
     const part = await loadImage('image_paths[0]', FIXTURE_IMAGE, BOUNDS);
     expect(part.mediaType).toBe('image/png');

@@ -47,7 +47,8 @@ export function inspectImage(bytes: Uint8Array): { mediaType: ImageMediaType; wi
 
 /**
  * Read at most `limit` bytes from an open file. A file that grew after `stat` is cut off here
- * rather than read whole; the caller's size check then rejects it.
+ * rather than read whole; the caller's size check then rejects it. The result is a right-sized
+ * copy, so an attachment does not hold the `limit`-sized read buffer.
  */
 async function readBounded(file: FileHandle, limit: number): Promise<Uint8Array> {
   const buffer = new Uint8Array(limit);
@@ -57,7 +58,7 @@ async function readBounded(file: FileHandle, limit: number): Promise<Uint8Array>
     if (bytesRead === 0) break;
     total += bytesRead;
   }
-  return buffer.subarray(0, total);
+  return buffer.slice(0, total);
 }
 
 /** Exact bytes, with MB alongside for readability: a file one byte over must not read as equal. */

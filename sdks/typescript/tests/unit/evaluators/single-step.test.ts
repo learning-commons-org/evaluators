@@ -477,7 +477,7 @@ const imageStep = (attachments: unknown) => ({
 
 describe('attachmentsOf refuses a declaration it cannot honour', () => {
   const withBounds = (xImage: unknown) => ({
-    properties: { figures: { type: 'array', minItems: 1, items: { type: 'string', 'x-image': xImage } } },
+    properties: { figures: { type: 'array', minItems: 1, maxItems: 3, items: { type: 'string', 'x-image': xImage } } },
     required: ['figures'],
   });
   const declare = (attachments: unknown, schema: unknown) =>
@@ -524,11 +524,23 @@ describe('attachmentsOf refuses a declaration it cannot honour', () => {
     expect(declare(one, schema((s) => { s.properties.figures.minItems = 0; }))).toThrow(/`minItems` of at least 1/);
   });
 
+  it('refuses an unbounded or inverted item count, and items that are not file paths', () => {
+    const one = [{ input: 'figures', kind: 'image' }];
+    const schema = (patch: (figures: Record<string, unknown>) => void) => {
+      const s = withBounds(X_IMAGE);
+      patch(s.properties.figures as Record<string, unknown>);
+      return s;
+    };
+    expect(declare(one, schema((f) => { delete f.maxItems; }))).toThrow(/`maxItems` of at least `minItems`/);
+    expect(declare(one, schema((f) => { f.minItems = 2; f.maxItems = 1; }))).toThrow(/`maxItems` of at least `minItems`/);
+    expect(declare(one, schema((f) => { (f.items as Record<string, unknown>).type = 'number'; }))).toThrow(/items must be strings/);
+  });
+
   it('fails when the evaluator is defined, not when it is first called', () => {
     expect(() =>
       defineSingleStepEvaluator({
         contract: contract({ steps: [imageStep([{ input: 'figures', kind: 'image' }])] }) as never,
-        inputSchema: { properties: { figures: { type: 'array', minItems: 1, items: { type: 'string' } } }, required: ['figures'] } as never,
+        inputSchema: { properties: { figures: { type: 'array', minItems: 1, maxItems: 3, items: { type: 'string' } } }, required: ['figures'] } as never,
         outputSchema: OUTPUT_SCHEMA,
         systemPrompt: 'system',
         userPrompt: 'user',
