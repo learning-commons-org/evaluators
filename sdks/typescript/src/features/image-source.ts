@@ -1,5 +1,6 @@
 import { constants } from 'node:fs';
 import { open, type FileHandle } from 'node:fs/promises';
+import { imageSize } from 'image-size';
 import { InputValidationError } from '../errors.js';
 import type { ImageAttachment, ImageMediaType } from '../providers/base.js';
 
@@ -27,89 +28,21 @@ export interface ImageBounds {
   max_edge: number;
 }
 
-/** The image format a byte string declares itself to be, or undefined if none we accept. */
-export function sniffImageMediaType(bytes: Uint8Array): ImageMediaType | undefined {
-  if (
-    bytes.length >= 8 &&
-    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
-    bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
-  ) {
-    return 'image/png';
-  }
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
-    return 'image/jpeg';
-  }
-  if (
-    bytes.length >= 12 &&
-    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && // RIFF
-    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50 // WEBP
-  ) {
-    return 'image/webp';
-  }
-  return undefined;
-}
+const MEDIA_TYPES: Record<string, ImageMediaType> = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
 
 /**
- * Width and height from the image header, without decoding pixels.
- *
- * PNG stores them in IHDR; JPEG in its first start-of-frame marker; WebP in the VP8, VP8L or
- * VP8X chunk header. Undefined when the header cannot be read, which means the file is
- * malformed whatever its signature says.
+ * Format and dimensions read from the image's own bytes — its signature and header, without
+ * decoding pixels — or undefined when the bytes are not a PNG, JPEG or WebP with a readable
+ * header, whatever the file is named.
  */
-export function readImageDimensions(
-  bytes: Uint8Array,
-  mediaType: ImageMediaType,
-): { width: number; height: number } | undefined {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const has = (n: number) => bytes.length >= n;
-
-  if (mediaType === 'image/png') {
-    // Signature (8) + IHDR length (4) + "IHDR" (4), then width and height, big-endian.
-    // IHDR must be the first chunk; anything else after a valid signature is not a PNG.
-    if (!has(24) || String.fromCharCode(bytes[12], bytes[13], bytes[14], bytes[15]) !== 'IHDR') return undefined;
-    return { width: view.getUint32(16), height: view.getUint32(20) };
-  }
-
-  if (mediaType === 'image/jpeg') {
-    let offset = 2;
-    while (offset + 4 <= bytes.length) {
-      if (bytes[offset] !== 0xff) return undefined;
-      const marker = bytes[offset + 1];
-      // Padding and standalone markers carry no length.
-      if (marker === 0xff) { offset += 1; continue; }
-      if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) { offset += 2; continue; }
-      const length = view.getUint16(offset + 2);
-      // SOF0–SOF15, excluding DHT (C4), JPG (C8) and DAC (CC).
-      const isFrame = marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
-      if (isFrame) {
-        if (offset + 9 > bytes.length) return undefined;
-        return { height: view.getUint16(offset + 5), width: view.getUint16(offset + 7) };
-      }
-      offset += 2 + length;
-    }
+export function inspectImage(bytes: Uint8Array): { mediaType: ImageMediaType; width: number; height: number } | undefined {
+  try {
+    const { type, width, height } = imageSize(bytes);
+    const mediaType = type ? MEDIA_TYPES[type] : undefined;
+    return mediaType && width > 0 && height > 0 ? { mediaType, width, height } : undefined;
+  } catch {
     return undefined;
   }
-
-  // WebP: RIFF (4) size (4) "WEBP" (4), then the first chunk's FourCC at 12.
-  if (!has(30)) return undefined;
-  const chunk = String.fromCharCode(bytes[12], bytes[13], bytes[14], bytes[15]);
-  if (chunk === 'VP8 ') {
-    // Frame tag (3) + start code 9d 01 2a (3), then 14-bit width and height, little-endian.
-    if (bytes[23] !== 0x9d || bytes[24] !== 0x01 || bytes[25] !== 0x2a) return undefined;
-    return { width: view.getUint16(26, true) & 0x3fff, height: view.getUint16(28, true) & 0x3fff };
-  }
-  if (chunk === 'VP8L') {
-    // Signature byte 0x2f at 20, then 14-bit width-1 and height-1 packed little-endian.
-    if (bytes[20] !== 0x2f) return undefined;
-    const bits = view.getUint32(21, true);
-    return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
-  }
-  if (chunk === 'VP8X') {
-    // Canvas width-1 and height-1 as 24-bit little-endian at 24 and 27.
-    const u24 = (at: number) => bytes[at] | (bytes[at + 1] << 8) | (bytes[at + 2] << 16);
-    return { width: u24(24) + 1, height: u24(27) + 1 };
-  }
-  return undefined;
 }
 
 /**
@@ -137,8 +70,8 @@ const size = (bytes: number) => `${bytes.toLocaleString('en-US')} bytes (${(byte
  * @param field the input's name and position, for error messages (e.g. `image_paths[0]`)
  * @param path a local file path, absolute or relative to the working directory
  * @param bounds the contract's `x-image` block for this input
- * @throws {InputValidationError} if the file cannot be read, is not an accepted format by
- * its bytes, has an unreadable header, or falls outside the declared size or edge bounds
+ * @throws {InputValidationError} if the file cannot be read, is not an accepted format with a
+ * readable header by its bytes, or falls outside the declared size or edge bounds
  */
 export async function loadImage(field: string, path: string, bounds: ImageBounds): Promise<ImageAttachment> {
   let data: Uint8Array;
@@ -171,19 +104,14 @@ export async function loadImage(field: string, path: string, bounds: ImageBounds
     throw new InputValidationError(`${field}: "${path}" is ${size(data.length)}; the maximum is ${size(bounds.max_bytes)}.`);
   }
 
-  const mediaType = sniffImageMediaType(data);
-  if (!mediaType || !bounds.formats.includes(mediaType)) {
+  const image = inspectImage(data);
+  if (!image || !bounds.formats.includes(image.mediaType)) {
     const accepted = bounds.formats.map((f) => f.replace('image/', '').toUpperCase()).join(', ');
     throw new InputValidationError(
       `${field}: "${path}" is not an accepted image (${accepted}), judged by its bytes, not its name.`,
     );
   }
-
-  const dims = readImageDimensions(data, mediaType);
-  if (!dims) {
-    throw new InputValidationError(`${field}: "${path}" has an unreadable ${mediaType} header.`);
-  }
-  const { width, height } = dims;
+  const { mediaType, width, height } = image;
   if (Math.min(width, height) < bounds.min_edge || Math.max(width, height) > bounds.max_edge) {
     throw new InputValidationError(
       `${field}: "${path}" is ${width}×${height} px; each edge must be ${bounds.min_edge} to ` +
