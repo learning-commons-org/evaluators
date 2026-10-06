@@ -55,7 +55,6 @@ IMPORT_NAME = {
 TRANSITIVE_OR_LOCAL = {
     "langchain_core": "ships with langchain",
     "IPython": "ships with jupyter/ipykernel",
-    "prompts": "local package under evals/prompts, not a PyPI dependency",
 }
 
 
