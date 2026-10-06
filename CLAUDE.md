@@ -12,6 +12,7 @@ Learning-science-backed LLM-as-a-judge evaluators, shipped three ways: prompt + 
 | `sdks/settings/`    | Per-evaluator TOML shared by both SDKs (source of truth)          |
 | `datasets/`         | Expert-annotated datasets behind the evaluators                   |
 | `demos/typescript/` | Vite + React + Express demo of the published TS SDK               |
+| `demos/python/`     | FastAPI + Jinja demo of the Python SDK                            |
 | `scripts/`          | Repo check harness — see [`scripts/README.md`](scripts/README.md) |
 
 ## Before committing
@@ -29,9 +30,10 @@ Per-workspace suites are separate and not yet delegated to by the harness:
 | `sdks/typescript/`  | `npm run lint && npm run typecheck && npm run test:unit` |
 | `sdks/python/`      | `make verify`                                            |
 | `demos/typescript/` | `npm run typecheck`                                      |
+| `demos/python/`     | `ruff check . && ruff format --check . && pytest -q`     |
 
 ## Conventions
 
 - **Conventional commits are enforced** on PR titles and commits by `.github/workflows/conventional-commits.yml`.
-- **Releases are automated by release-please.** Never hand-edit a version or `CHANGELOG.md` in `evals/prompts`, `sdks/python`, or `sdks/typescript`.
+- **Releases are automated by release-please.** Never hand-edit a version or `CHANGELOG.md` in `evals`, `sdks/python`, or `sdks/typescript`.
 - **Generated files are never hand-edited.** `.gitattributes` lists them all, each with the command that regenerates it.

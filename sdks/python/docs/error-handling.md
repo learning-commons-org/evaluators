@@ -1,31 +1,44 @@
 # Error handling
 
-During a normal `evaluate()` / `evaluate_sync()` run, failures from evaluator input checks, configuration, LLM prompt steps, and output validation typically surface as subclasses of `EvaluatorError`. Failures inside LLM prompt steps are wrapped at the boundary so callers see a predictable, sanitized hierarchy instead of raw LangChain, OpenAI, Anthropic, or HTTP-client exceptions. **Programmer errors** (such as misusing the API, passing the wrong types, or violating invariants) may still raise standard Python exceptions (e.g., `ValueError`, `TypeError`, `RuntimeError`). Only evaluation failures are wrapped; not all exceptions are guaranteed to be subclasses of `EvaluatorError`.
+Every failure the SDK raises during `evaluate()` / `evaluate_sync()` is a subclass of `EvaluatorError`. Failures inside LLM calls are classified at the evaluator boundary by `wrap_provider_error()`, so callers see one predictable hierarchy instead of raw OpenAI, Anthropic, Google, or `httpx` exceptions. **Programmer errors** (misusing the API, passing the wrong types) may still raise standard Python exceptions such as `TypeError`; only evaluation failures are wrapped.
+
+The hierarchy, field names, and classification rules are the [SDK specification's](../../SPEC.md) §6 and are identical in the TypeScript SDK: an error caught in one SDK has the same class name and the same fields in the other.
 
 ## Hierarchy
 
+Errors classify by **fault domain** — who must act — not by mechanism.
+
 ```
-EvaluatorError
-├── ConfigurationError       — bad config (missing provider, unknown model, malformed settings)
-├── InputValidationError     — caller-supplied input failed validation
-└── APIError                 — failures originating in the LLM provider call
-    ├── AuthenticationError  — 401 / 403
-    ├── RateLimitError       — 429; carries `retry_after` (seconds)
-    ├── NetworkError         — connection refused, DNS failure, broken TLS
-    ├── RequestTimeoutError  — request exceeded the configured timeout
-    └── OutputValidationError — LLM response failed to parse or didn't match the expected schema
+EvaluatorError                      (abstract; carries `retryable`)
+├── ConfigurationError              caller: missing or invalid key, unknown provider or model, malformed settings
+├── InputValidationError            caller: text or grade failed validation
+│   └── StandardNotFoundError       caller: an academic-standard code the Knowledge Graph does not know (`statement_code`)
+├── EvaluationError                 (abstract) the SDK's own logic failed after the dependency call succeeded
+│   └── LLMOutputProcessingError    model output failed parsing or its output schema (`validation_errors`)
+└── DependencyError                 (abstract) an external system failed (`dependency`, `status_code`, `request_id`, `model`)
+    ├── AuthenticationError         401 / 403
+    ├── RateLimitError              429 (`retry_after_ms`)
+    ├── NetworkError                connection failure: DNS, refused, reset, TLS
+    ├── RequestTimeoutError         the request exceeded its timeout, or a 408
+    ├── LLMProviderError            catch-all for LLM-provider failures not mapped above
+    └── KnowledgeGraphError         catch-all for Knowledge Graph failures not mapped above
 ```
 
-`InputValidationError` is named that way deliberately to avoid collision with `pydantic.ValidationError`. `RequestTimeoutError` is named that way to avoid shadowing the builtin `TimeoutError`. There is **no** `ValidationError` or `EvaluatorTimeoutError` in the public API.
+The three abstract classes cannot be instantiated; they exist so you can catch a whole category. `InputValidationError` is named to avoid the collision with `pydantic.ValidationError`, and `RequestTimeoutError` to avoid shadowing the builtin `TimeoutError`.
 
 ## Knowing when to retry
 
-Every `EvaluatorError` exposes a boolean `retryable` attribute. This is the single signal callers should consult when wrapping `evaluate()` in retry logic — there is no separate marker class to check. Subclasses set sensible defaults:
+`retryable` on the instance is the single signal to consult. It resolves as: an explicit per-instance override, else `True` for any 5xx status, else the class default.
 
-- Retryable by default: `RateLimitError`, `NetworkError`, `RequestTimeoutError`, `OutputValidationError`, and any `APIError` with a 5xx status code (retryable is inferred automatically if not explicitly set).
-- Not retryable: `ConfigurationError`, `InputValidationError`, `AuthenticationError`, and `APIError` with a 4xx status code.
+| Class | Retryable | Strategy |
+| --- | --- | --- |
+| `ConfigurationError`, `InputValidationError`, `StandardNotFoundError` | No | Fix the call |
+| `LLMOutputProcessingError` | Yes | Resample immediately: the failure is sampling variance, so waiting only adds latency |
+| `AuthenticationError` | No | Fix the credential |
+| `RateLimitError`, `NetworkError`, `RequestTimeoutError` | Yes | Back off, honouring `retry_after_ms` when present |
+| `LLMProviderError`, `KnowledgeGraphError` | Only on 5xx | Back off |
 
-`retryable` is also accepted as an `__init__` kwarg on `APIError` and `NetworkError` if you need to flag a specific instance differently (e.g. a permanently-bad hostname). If you construct an `APIError` with a status code >= 500 and do not specify `retryable`, it will default to `True`.
+Strategy follows the category: **external failures back off, internal failures resample.** The SDK applies both itself. The `max_retries` setting is handed to the native provider SDKs, which back off on their own retryable statuses and connection failures; the Knowledge Graph client applies the same budget itself, since there is no vendor SDK beneath it; and the evaluator resamples an `LLMOutputProcessingError` up to the same number of times. A retryable error that still reaches you has exhausted that budget.
 
 ```python
 import time
@@ -38,59 +51,61 @@ for attempt in range(3):
     except EvaluatorError as e:
         if not e.retryable or attempt == 2:
             raise
-        delay = e.retry_after if isinstance(e, RateLimitError) and e.retry_after else 2 ** attempt
-        time.sleep(delay)  # retry_after is in seconds
+        delay_ms = e.retry_after_ms if isinstance(e, RateLimitError) and e.retry_after_ms else 500 * 2**attempt
+        time.sleep(delay_ms / 1000)
 ```
 
-## Sanitization and debugging context
+## Fields
 
-Error **messages** (the value returned by `str(err)`) are short and controlled. Raw provider strings — which may contain prompt echoes, user text, or fragments of API keys — are **not** interpolated into the SDK exception's message. Structured detail lives on attributes instead:
+Every `EvaluatorError` exposes `retryable`. `DependencyError` and its subclasses add:
 
-- `status_code` on `APIError` — HTTP status from the provider, when one was returned. Populated from the provider exception's `.status_code` or `.response.status_code`/`.response.status` attribute when present (preferred over message regex).
-- `retry_after` on `RateLimitError` — suggested delay before retry, **in seconds**, or `None` if the provider didn't return a `Retry-After` header.
-- `provider` on `APIError` — the `LLMProvider` being called when the failure occurred.
-- `model` on `APIError` — the model ID requested.
-- `response_body` on `APIError` — decoded response body. Opt-in for debugging; may contain echoed prompt content, so treat as sensitive.
-- `request_id` on `APIError` — provider request ID, useful for support escalation.
-- `validation_errors` on `OutputValidationError` — per-field entries from Pydantic's `errors()` API after `sanitize_pydantic_errors` (only `loc`, `type`, optional `url`, and numeric/boolean `ctx` values are retained — all `input`, `msg`, string or mapping `ctx` values are dropped, which can echo model output).
+- `dependency` — which service failed: `"openai"`, `"google"`, `"anthropic"`, `"knowledge-graph"`, or `"custom"` for a caller-injected provider.
+- `status_code` — the HTTP status, or `None`.
+- `request_id` — the dependency's request id for support escalation, read from `x-request-id`, `request-id`, or `x-amzn-requestid`, or `None`.
+- `model` — the model id in use when the dependency is an LLM provider, or `None`.
 
-The original provider exception is preserved on `__cause__` (via `raise … from e`), so debuggers, tracebacks, and `logging.exception()` retain full detail even though `str(err)` is sanitized.
+`RateLimitError` adds `retry_after_ms`: the provider's `Retry-After` converted to milliseconds, `None` when absent, unusable (zero, negative, an HTTP-date), or implausible (capped at one hour). `LLMOutputProcessingError` adds `validation_errors`: pydantic's per-field failures reduced to `loc`, `type`, and numeric constraint context, with the rejected values and messages stripped so the list is safe to log.
+
+`str(err)` is the message, which carries the provider's own wording for diagnosis. The original exception is always on `__cause__`, so tracebacks and `logging.exception()` keep full detail.
+
+## How dependency failures are classified
+
+`wrap_provider_error(error, dependency=..., model=...)` classifies by **structured signals only**: HTTP status codes, typed exceptions from the native SDKs, `httpx`, and the standard library, structured error payloads, and errnos, each searched along the exception's cause chain. Message text is never matched — wording is not a contract, and the catch-all is safer than a wrong class.
+
+| Signal | Maps to |
+| --- | --- |
+| 404, or 400 whose body blames the model (`param: "model"` or `code: "model_not_found"`) | `ConfigurationError` |
+| 401 / 403 | `AuthenticationError` |
+| 429 | `RateLimitError`, with `retry_after_ms` |
+| Typed connection failure (`httpx.NetworkError`, `ConnectionError`, `socket.gaierror`, `ssl.SSLError`, the SDKs' `APIConnectionError`, host/network-unreachable errnos) | `NetworkError` |
+| Typed timeout (`httpx.TimeoutException`, `TimeoutError`, the SDKs' `APITimeoutError`, `ETIMEDOUT`) or 408 | `RequestTimeoutError` |
+| `pydantic.ValidationError` or `json.JSONDecodeError` on a *successful* response | `LLMOutputProcessingError` |
+| Anything else | `LLMProviderError`, retryable iff 5xx |
+
+Two refinements: an unparseable body that arrived with an HTTP error status is the dependency's fault (the body is an error page, not a malformed completion), so it stays in the catch-all rather than being resampled against a failing service; and a provider's own retryability hint (`x-should-retry`) can only widen the catch-all's verdict, never make an `AuthenticationError` retryable or stop a `RateLimitError` from retrying.
 
 ```python
 import logging
-import time
 
-from learning_commons_evaluators import APIError, OutputValidationError, RateLimitError
+from learning_commons_evaluators import (
+    DependencyError,
+    LLMOutputProcessingError,
+    RateLimitError,
+)
 
 log = logging.getLogger(__name__)
 try:
     result = evaluator.evaluate_sync(input)
 except RateLimitError as e:
-    time.sleep(e.retry_after or 30)  # seconds
-except OutputValidationError as e:
-    # Structured entries omit Pydantic msg/input (may echo LLM text); use __cause__ for full detail.
-    log.warning("Bad LLM output: %s", e.validation_errors)
-    # Original pydantic.ValidationError / OutputParserException available as e.__cause__
-except APIError as e:
+    time.sleep((e.retry_after_ms or 30_000) / 1000)
+except LLMOutputProcessingError as e:
+    log.warning("Bad model output: %s", e.validation_errors)  # loc/type only, no model text
+except DependencyError as e:
     log.error(
-        "Provider call failed",
-        extra={
-            "provider": e.provider,
-            "model": e.model,
-            "status": e.status_code,
-            "request_id": e.request_id,
-        },
+        "Dependency call failed",
+        extra={"dependency": e.dependency, "model": e.model, "status": e.status_code, "request_id": e.request_id},
     )
     raise
 ```
 
-## Metadata and telemetry
-
-On evaluation failure, the run metadata object (the same `EvaluationMetadata` attached as `result.metadata` on success) has `status` set to `failed` and `error_details` populated before `evaluate()` / `evaluate_sync()` re-raises. `error_details` is itself sanitized:
-
-- SDK errors record only the class name (for example `"RateLimitError"`).
-- Any other exception that escapes records only `"Unexpected error: ClassName"` — the message is omitted because arbitrary exception text may contain user data or field values that aren't safe for telemetry.
-
-The same policy applies to per-step `StepMetadata.error_details`. Both fields are emitted on the evaluation end log line.
-
-For custom code that calls LLM providers outside `execute_prompt_chain_step`, the package exports `wrap_provider_error()` to apply the same routing and sanitization rules.
+For custom code that calls a provider outside the evaluators, `wrap_provider_error()` is exported so the same classification applies.

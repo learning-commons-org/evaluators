@@ -1,0 +1,59 @@
+# GENERATED — do not edit directly.
+# Source: evals/feedback/ela-writing/revision-manageability/output_schema.json
+#         evals/feedback/ela-writing/revision-manageability/input_schema.json
+# Regenerate: make generate-contracts
+"""Input and output models for the Revision Manageability Evaluator."""
+
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+EVALUATOR_ID = "feedback.ela_writing.revision_manageability"
+
+
+class RevisionManageabilityInput(BaseModel):
+    """Inputs to the Revision Manageability Evaluator, named as its input_schema.json declares them."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    student_text: str = Field(description="The student's written response.")
+    feedback_text: str = Field(description="The teacher's feedback to the student.")
+
+
+class KeyFeatureAssessment(BaseModel):
+    """Independent assessment of a single key feature."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    met: Literal[0, 1] = Field(description="1 if this key feature is satisfied by the feedback, 0 otherwise.")
+    justification: str = Field(description="One or two sentences grounding the met/not-met decision in the specific student response and teacher feedback.")
+
+
+class KeyFeatures(BaseModel):
+    """Per-key-feature assessment; each feature judged independently."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    length: KeyFeatureAssessment = Field(description="The length of the feedback")
+    number_of_distinct_issues: KeyFeatureAssessment = Field(description="Number of distinct issues raised")
+    clear_priority: KeyFeatureAssessment = Field(description="Whether those issues are clearly prioritized")
+    student_knows_next_step: KeyFeatureAssessment = Field(description="Whether the student would know immediately what to do first and could process and act on the feedback in one revision attempt.")
+
+
+class RevisionManageabilityOutput(BaseModel):
+    """Output of the Revision Manageability Evaluator, per its output_schema.json."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reasoning: str = Field(description="Step-by-step reasoning before the final answer: assess the student response against the task goal, then judge whether the teacher feedback meets the criterion.")
+    key_features: KeyFeatures
+    proposed_adjustment: str = Field(description="How the teacher feedback could be modified to meet the criterion. If it already meets the criterion, say so briefly.")
+    quality_score: Literal[0, 1] = Field(description="Overall: 1 if the feedback meets the criterion, 0 otherwise.")
+
+
+__all__ = [
+    "RevisionManageabilityInput",
+    "RevisionManageabilityOutput",
+]

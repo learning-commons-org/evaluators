@@ -10,6 +10,9 @@ Each config is validated in two complementary layers:
        - referenced files actually exist ($ref schemas, prompt files, fixtures)
        - each declared sha256 matches the prompt file on disk (drift tripwire)
        - placeholders declared in config line up with the {vars} in the prompts
+       - every attachment names a required, bounded array input with `x-image` items,
+         and no input carries `x-image` unless a step attaches it
+       - `outcome` names output fields a caller receives, never an `x-model-only` one
        - system prompts carry no user-input placeholders
        - no obsolete format-instruction placeholders survive anywhere
 
@@ -77,6 +80,7 @@ class EvalConfig(Check):
             template_vars = self._check_prompts(prompt, base, fail, step_id)
             self._check_placeholders(prompt, template_vars, fail, step_id)
         self._check_placeholder_sources(config, base, fail)
+        self._check_attachments(config, base, fail)
         self._check_supported_grades(config, base, fail)
         self._check_outcome(config, base, fail)
         self._check_fixtures_path(config, base, fail)
@@ -162,6 +166,70 @@ class EvalConfig(Check):
             step_ids.add(step_id)
 
     @staticmethod
+    def _check_attachments(config: dict, base: str, fail) -> None:
+        """Every `attachments[].input` must be a required, bounded array of local file paths.
+
+        An attachment is not a placeholder, so nothing else ties it to an input: a typo here
+        (`image` for `image_paths`) passes the schema and leaves a runner with no file to
+        send, so it would send the prompt text alone. The input is always an array -- one
+        image and many images are the same shape with different bounds -- so it must declare
+        string items, `minItems` >= 1 and `maxItems` >= `minItems`, and, for `kind: "image"`,
+        an `x-image` block on its items giving the SDK the per-file bounds to enforce. It
+        must also be `required`: `minItems` only applies when the property is present, so an
+        optional input would let a request through with no image at all. `items` must be
+        written inline, not as a `$ref`.
+
+        Conversely, `x-image` anywhere other than the items of an attached input is flagged:
+        no runner would read those bounds, so they would go silently unenforced.
+        """
+        try:
+            input_schema = load_json(os.path.join(base, config["input_schema"]["$ref"]))
+        except (KeyError, TypeError, OSError, json.JSONDecodeError):
+            return  # _check_referenced_files already reported this
+        input_props = input_schema.get("properties", {})
+        required = set(input_schema.get("required", []))
+        attached: set[str] = set()
+
+        for step in config.get("steps", []):
+            step_id = step.get("id", "?")
+            for entry in step.get("attachments") or []:
+                name = entry.get("input") if isinstance(entry, dict) else None
+                if not isinstance(name, str):
+                    continue  # the schema layer already reports a malformed entry
+                attached.add(name)
+                where = f"{step_id}.attachments: input {name!r}"
+                spec = input_props.get(name)
+                if not isinstance(spec, dict):
+                    fail(f"{where} is not declared in input_schema")
+                    continue
+                if name not in required:
+                    fail(f"{where} must be listed in input_schema `required`")
+                if spec.get("type") != "array":
+                    fail(f"{where} must be an array of local file paths, not {spec.get('type')!r}")
+                    continue
+                items = spec.get("items") if isinstance(spec.get("items"), dict) else {}
+                if items.get("type") != "string":
+                    fail(f"{where} items must be inline string schemas (local file paths)")
+                lo, hi = spec.get("minItems"), spec.get("maxItems")
+                if type(lo) is not int or lo < 1:
+                    fail(f"{where} must declare minItems >= 1")
+                if type(hi) is not int:
+                    fail(f"{where} must declare maxItems")
+                elif type(lo) is int and hi < lo:
+                    fail(f"{where} maxItems ({hi}) is below minItems ({lo})")
+                if entry.get("kind") == "image" and "x-image" not in items:
+                    fail(f"{where} items must declare x-image bounds")
+
+        for name, spec in input_props.items():
+            if not isinstance(spec, dict):
+                continue
+            if "x-image" in spec:
+                fail(f"input {name!r}: x-image belongs on the items of an attached array input")
+            items = spec.get("items")
+            if isinstance(items, dict) and "x-image" in items and name not in attached:
+                fail(f"input {name!r}: carries x-image but no step attaches it")
+
+    @staticmethod
     def _check_supported_grades(config: dict, base: str, fail) -> None:
         """`supported_grades` must agree with the grades the evaluator actually accepts.
 
@@ -192,7 +260,8 @@ class EvalConfig(Check):
         """`outcome` must name properties the output schema declares *and* requires.
 
         Declared is not enough: a verdict the schema permits to be absent is not a
-        verdict a report can rely on.
+        verdict a report can rely on. Nor may it name an `x-model-only` property, which
+        SDKs strip before returning, so the caller would never see the verdict.
         """
         outcome = config.get("outcome")
         if not outcome:
@@ -213,6 +282,15 @@ class EvalConfig(Check):
                 fail(
                     f"outcome.{role} names {field!r}, which output_schema declares but "
                     "does not require -- a verdict that may be absent is not a verdict"
+                )
+            elif (
+                isinstance(properties, dict)
+                and isinstance(properties[field], dict)
+                and properties[field].get("x-model-only")
+            ):
+                fail(
+                    f"outcome.{role} names {field!r}, which is x-model-only -- SDKs strip "
+                    "it before returning"
                 )
 
     def _check_referenced_files(self, config: dict, base: str, fail) -> None:

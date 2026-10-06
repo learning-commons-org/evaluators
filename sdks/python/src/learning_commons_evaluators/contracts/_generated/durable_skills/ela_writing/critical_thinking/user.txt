@@ -1,0 +1,12 @@
+Rate the following student essay.
+
+Number of source passages provided: {source_count}
+
+## Assignment given to the student
+{assignment_text}
+
+## Source passage(s) given to the student
+{sources}
+
+## Essay (verbatim)
+{essay_text}

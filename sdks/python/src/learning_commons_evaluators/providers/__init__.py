@@ -1,15 +1,34 @@
-"""LLM providers for use in chains (e.g. LangChain).
+"""LLM providers (D10): one protocol, three native-SDK adapters.
 
-create_provider() returns a langchain_core BaseChatModel (OpenAI, Google, Anthropic).
-
-Config types (LLMProviderConfig and provider-specific configs:
-AnthropicLLMProviderConfig, GoogleLLMProviderConfig, OpenAILLMProviderConfig)
-live in learning_commons_evaluators.schemas.config.
+:class:`LLMProvider` is what an evaluator calls; :func:`create_provider` builds the
+built-in adapter for a :class:`ProviderConfig`. Each adapter owns its vendor's
+structured-output mechanism, and a caller may inject any object satisfying the protocol.
 """
 
-from learning_commons_evaluators.providers.langchain import (
-    create_provider,
-    token_usage_from_aimessage,
+from learning_commons_evaluators.providers.base import (
+    LLMProvider,
+    LLMResponse,
+    Message,
+    Provider,
+    ProviderConfig,
+    TextGenerationResponse,
+    TokenUsage,
+    provider_context,
+    provider_label,
 )
+from learning_commons_evaluators.providers.factory import create_provider
+from learning_commons_evaluators.providers.retry import call_with_resampling
 
-__all__ = ["create_provider", "token_usage_from_aimessage"]
+__all__ = [
+    "LLMProvider",
+    "LLMResponse",
+    "Message",
+    "Provider",
+    "ProviderConfig",
+    "TextGenerationResponse",
+    "TokenUsage",
+    "call_with_resampling",
+    "create_provider",
+    "provider_context",
+    "provider_label",
+]

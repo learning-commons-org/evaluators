@@ -34,6 +34,6 @@ The same check verifies that placeholders in `config.json` and `{vars}` in the t
 - New imports need a matching entry in `requirements.txt` (checked both ways).
 - `stable_id` / `id` / `id_history` values are never reused across evaluators.
 
-`evals/prompts/CHANGELOG.md` is release-please managed — don't hand-edit it.
+`evals/CHANGELOG.md` is release-please managed — don't hand-edit it.
 
 Run `make install` for the notebook environment; see [`README.md`](README.md).

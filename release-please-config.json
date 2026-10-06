@@ -1,5 +1,6 @@
 {
     "include-v-in-tag": true,
+    "separate-pull-requests": true,
     "pull-request-title-pattern": "chore${scope}: release${component} ${version}",
     "changelog-sections": [
         {
@@ -49,7 +50,7 @@
         }
     ],
     "packages": {
-        "evals/prompts": {
+        "evals": {
             "release-type": "simple",
             "changelog-path": "CHANGELOG.md",
             "component": "evals-prompts"
@@ -62,7 +63,10 @@
         "sdks/typescript": {
             "release-type": "node",
             "changelog-path": "CHANGELOG.md",
-            "component": "sdks-typescript"
+            "component": "sdks-typescript",
+            "exclude-paths": [
+                "sdks/typescript/tests"
+            ]
         }
     }
 }

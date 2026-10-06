@@ -1,85 +1,22 @@
-"""Schema and config types. Import from submodules or from learning_commons_evaluators."""
+"""Pydantic types shared by every evaluator: the result envelope and evaluator metadata.
 
-from learning_commons_evaluators.schemas.common_inputs import (
-    GradeInputField,
-    TextInputField,
-)
-from learning_commons_evaluators.schemas.config import (
-    EvaluationSettings,
-    LLMProvider,
-    PromptSettings,
-)
-from learning_commons_evaluators.schemas.conventionality import (
-    ConventionalityEvaluationSettings,
-    ConventionalityOutput,
-)
-from learning_commons_evaluators.schemas.errors import InputValidationError
+Per-evaluator ``<Class>Input`` and ``<Class>Output`` models are generated from each
+contract into the nested ``<family>/<subject>/`` packages.
+"""
+
 from learning_commons_evaluators.schemas.evaluator import (
-    EvaluationAnswer,
-    EvaluationExplanation,
-    EvaluationInput,
-    EvaluationResult,
-    InputField,
-)
-from learning_commons_evaluators.schemas.grade_level_appropriateness import (
-    GradeLevelAnswer,
-    GradeLevelAppropriatenessEvaluationSettings,
-    GradeLevelAppropriatenessOutput,
-    GradeLevelAppropriatenessResult,
-)
-from learning_commons_evaluators.schemas.input_specs import (
-    AnyInputSpec,
-    GradeInputSpec,
-    InputSpec,
-    TextInputSpec,
-)
-from learning_commons_evaluators.schemas.metadata import (
-    PROMPT_STEP_EXTRA_PROMPT_SETTINGS,
-    PROMPT_STEP_EXTRA_TOKEN_USAGE,
     EvaluationMetadata,
-    EvaluatorMaturity,
-    EvaluatorMetadata,
-    InputMetadata,
-    Status,
-    StepMetadata,
-    TokenUsage,
-    prompt_settings_to_extras_value,
+    EvaluationResult,
+    EvaluationTokenUsage,
 )
-from learning_commons_evaluators.schemas.text_complexity import (
-    TextComplexityEvaluationInput,
-)
+from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
+from learning_commons_evaluators.schemas.outcome import Outcome, read_outcome
 
 __all__ = [
-    "AnyInputSpec",
-    "ConventionalityEvaluationSettings",
-    "ConventionalityOutput",
-    "GradeLevelAnswer",
-    "GradeLevelAppropriatenessEvaluationSettings",
-    "GradeLevelAppropriatenessOutput",
-    "GradeLevelAppropriatenessResult",
-    "GradeInputSpec",
-    "InputSpec",
-    "TextInputSpec",
-    "EvaluationAnswer",
-    "EvaluationExplanation",
-    "EvaluationInput",
     "EvaluationMetadata",
     "EvaluationResult",
-    "EvaluationSettings",
+    "EvaluationTokenUsage",
     "EvaluatorMetadata",
-    "EvaluatorMaturity",
-    "GradeInputField",
-    "InputField",
-    "InputMetadata",
-    "LLMProvider",
-    "PromptSettings",
-    "PROMPT_STEP_EXTRA_PROMPT_SETTINGS",
-    "PROMPT_STEP_EXTRA_TOKEN_USAGE",
-    "Status",
-    "StepMetadata",
-    "TextComplexityEvaluationInput",
-    "TextInputField",
-    "TokenUsage",
-    "InputValidationError",
-    "prompt_settings_to_extras_value",
+    "Outcome",
+    "read_outcome",
 ]

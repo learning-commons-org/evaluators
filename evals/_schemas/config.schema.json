@@ -37,7 +37,10 @@
       }
     },
     "input_schema": { "type": "object" },
-    "output_schema": { "type": "object" },
+    "output_schema": {
+      "type": "object",
+      "description": "`$ref` to the JSON Schema of the evaluator's structured output. A top-level property may carry `\"x-model-only\": true`: the model must still produce it, so it must be listed in `required`, but an SDK strips it before returning: callers receive the schema minus the marked properties, which are also dropped from its `required`. Use it for working fields that condition the model's answer, such as per-item ratings behind an aggregate score. An SDK that loads a contract with `x-model-only` must strip every marked property, or refuse the contract. Marking an existing property of an evaluator an SDK already ships removes it from that SDK's output, which is a breaking change."
+    },
     "outcome": {
       "type": "object",
       "additionalProperties": false,
@@ -206,6 +209,25 @@
             "properties": {
               "kind": { "const": "structured_output" }
             }
+          },
+          "attachments": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["input", "kind"],
+              "properties": {
+                "input": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Name of a required `input_schema` property that is an array of local image file paths, bounded by `minItems`/`maxItems`; each item is attached, in array order. Not a placeholder: the input is never interpolated into prompt text."
+                },
+                "kind": { "enum": ["image"] }
+              }
+            },
+            "description": "Non-text content parts the step attaches to its final user message. Declared so a contract-driven runner in any SDK knows which input holds files to read and send rather than text to interpolate -- without this a runner would silently send the prompt alone. The count is bounded on the input array; each file is bounded by `x-image` on its `items`."
           },
           "condition": { "$ref": "#/$defs/Condition" }
         },

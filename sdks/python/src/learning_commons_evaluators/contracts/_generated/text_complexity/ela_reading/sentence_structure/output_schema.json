@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "output_schema.json",
+  "title": "EvaluatorOutput",
+  "description": "Final evaluator output for the Sentence Structure evaluator. This is the classify_complexity step's output -- the sentence_analysis step's own rich structured output (~30 grammatical counts) is an internal intermediate artifact, not part of this contract.",
+  "type": "object",
+  "required": ["complexity_score", "reasoning"],
+  "additionalProperties": false,
+  "properties": {
+    "complexity_score": {
+      "type": "string",
+      "enum": ["slightly_complex", "moderately_complex", "very_complex", "exceedingly_complex"],
+      "description": "The sentence structure complexity level of the text."
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "Detailed, pedagogically appropriate reasoning explaining how the qualitative structure and quantitative sentence statistics combine to produce the chosen complexity level."
+    }
+  }
+}

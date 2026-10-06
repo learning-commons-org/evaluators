@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "input_schema.json",
+  "title": "EvaluatorInput",
+  "description": "Runtime inputs for the Meaning Directness evaluator.",
+  "type": "object",
+  "required": ["text", "grade_level"],
+  "additionalProperties": false,
+  "properties": {
+    "text": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 10000,
+      "description": "The passage to evaluate. Bounds mirror the SDK text input spec (sdks/settings/conventionality/settings.toml: min_text_length / max_text_length)."
+    },
+    "grade_level": {
+      "type": "string",
+      "enum": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
+      "description": "Target student grade level."
+    }
+  }
+}
