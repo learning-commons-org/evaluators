@@ -5,6 +5,7 @@ langchain-anthropic
 anthropic
 requests
 textstat
+Pillow
 python-dotenv
 pydantic
 # The following is for the jupyter notebook support:
