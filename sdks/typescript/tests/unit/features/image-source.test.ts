@@ -14,7 +14,7 @@ import INPUT_SCHEMA from '../../../../../evals/graphics/math/graphics-accuracy/i
 
 /** The bounds a real contract declares, so these tests exercise the numbers that ship. */
 const BOUNDS = INPUT_SCHEMA.properties.image_paths.items['x-image'] as ImageBounds;
-const LADYBIRDS = join(process.cwd(), '..', '..', 'evals/graphics/math/graphics-accuracy/images/ladybirds.png');
+const FIXTURE_IMAGE = join(process.cwd(), '..', '..', 'evals/graphics/math/graphics-accuracy/images/apples-in-baskets.png');
 
 const pad = (head: number[], size = 100) => {
   const out = new Uint8Array(size);
@@ -71,7 +71,7 @@ describe('readImageDimensions', () => {
   });
 
   it('reads a real fixture image', () => {
-    const dims = readImageDimensions(new Uint8Array(readFileSync(LADYBIRDS)), 'image/png');
+    const dims = readImageDimensions(new Uint8Array(readFileSync(FIXTURE_IMAGE)), 'image/png');
     expect(dims?.width).toBeGreaterThan(0);
     expect(dims?.height).toBeGreaterThan(0);
   });
@@ -111,7 +111,7 @@ describe('loadImage', () => {
   });
 
   it('accepts a real fixture image within the shipped bounds', async () => {
-    const part = await loadImage('image_paths[0]', LADYBIRDS, BOUNDS);
+    const part = await loadImage('image_paths[0]', FIXTURE_IMAGE, BOUNDS);
     expect(part.mediaType).toBe('image/png');
   });
 

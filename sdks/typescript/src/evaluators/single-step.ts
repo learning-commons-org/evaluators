@@ -32,7 +32,7 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
   steps: Array<{
     id: string;
     model: { provider: string; name: string };
-    generation?: { temperature?: number };
+    generation?: { temperature?: number | null };
     prompt: { placeholders: Record<string, unknown> };
     required_credentials?: string[];
     optional?: boolean;

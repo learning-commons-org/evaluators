@@ -24,7 +24,8 @@ export type { GraphicsAccuracyInput };
  * One model call, so the flow comes from {@link defineSingleStepEvaluator}; the model,
  * temperature, prompt inputs and attachment are read from `config.json`. The verdict is
  * `is_correct`; `basis` says whether a false verdict came from a derivation that disagreed
- * (`contradicted`) or one that could not be completed (`unverified`).
+ * (`contradicted`), one that could not be completed (`unverified`), or a defect in the image
+ * itself (`defective`), which `defects` lists.
  *
  * @throws {InputValidationError} If an input is missing, unknown, or outside the bounds its schema declares; or if the image cannot be read, is not PNG/JPEG/WebP by its bytes, or falls outside the declared size or edge bounds
  * @throws {ConfigurationError} If modelOverride specifies a model ID that the provider rejects
@@ -49,7 +50,7 @@ export async function evaluateGraphicsAccuracy(
 /**
  * The `claim` text for a question with an expected answer.
  *
- * Byte-for-byte the text the evaluator was benchmarked on, so a caller who has a problem and
+ * Byte-for-byte the text the evaluator was measured with, so a caller who has a problem and
  * its answer key gets the measured behaviour rather than a paraphrase of it. Surrounding
  * whitespace is trimmed from both parts; nothing else is changed.
  */
