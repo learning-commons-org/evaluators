@@ -1,7 +1,7 @@
 {
   "$schema": "../../../_schemas/config.schema.json",
   "evaluator": {
-    "id": "text_complexity.ela_reading.graphics_complexity",
+    "id": "graphics.ela.graphics_complexity",
     "stable_id": "cdd884fe-fec7-4f6e-8ad2-37119c262f9d",
     "id_history": ["use-of-graphics"],
     "name": "Graphics Complexity Evaluator",
