@@ -326,7 +326,7 @@ const FEEDBACK_TEXT = 'Try adding a topic sentence so the reader knows your argu
 /** A real figure from the contract's own fixtures, so the image loader runs on real bytes. */
 const FIXTURE_IMAGE = join(
   REPO_ROOT,
-  'evals/graphics/math/graphics-accuracy/images/ladybirds.png',
+  'evals/graphics/math/graphics-accuracy/images/apples-in-baskets.png',
 );
 
 const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknown>> = {

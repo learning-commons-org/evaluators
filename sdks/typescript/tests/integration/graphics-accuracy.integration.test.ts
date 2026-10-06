@@ -11,10 +11,9 @@ import { GraphicsAccuracyEvaluator } from '../../src/evaluators/graphics/math/gr
  * place the image path, the provider's multimodal request and the model's behaviour are
  * exercised together; the unit tests mock the provider.
  *
- * `is_correct` is asserted strictly. `basis` is asserted only when the fixture expects
- * `supported`: a false verdict can legitimately arrive as `contradicted` or `unverified`
- * depending on how far the model's derivation got, and the fixtures record the more common
- * of the two, not the only acceptable one. Each case retries up to three times, since a
+ * `is_correct` is asserted strictly, and so is `basis` wherever the fixture pins it: the
+ * reasons for a false verdict (`contradicted`, `unverified`, `defective`) imply different
+ * actions, so drift between them must fail. Each case retries up to three times, since a
  * single call can land on the wrong side of a hard item.
  *
  * To run:
@@ -62,7 +61,7 @@ describeIntegration('GraphicsAccuracyEvaluator — contract fixtures, real calls
       expect(metadata.model).toBe('google:gemini-3.6-flash');
 
       const verdictOk = result.is_correct === fixture.expected.is_correct;
-      const basisOk = fixture.expected.basis !== 'supported' || result.basis === 'supported';
+      const basisOk = !fixture.expected.basis || result.basis === fixture.expected.basis;
       if (verdictOk && basisOk) return;
     }
 

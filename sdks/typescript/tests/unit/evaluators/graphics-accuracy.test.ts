@@ -14,8 +14,8 @@ import type { LLMProvider } from '../../../src/providers/base.js';
 
 const STEP = CONFIG.steps[0];
 const CONTRACT_DIR = join(process.cwd(), '..', '..', 'evals/graphics/math/graphics-accuracy');
-const LADYBIRDS = join(CONTRACT_DIR, 'images/ladybirds.png');
-const LADYBIRDS_BYTES = new Uint8Array(readFileSync(LADYBIRDS));
+const APPLES = join(CONTRACT_DIR, 'images/apples-in-baskets.png');
+const APPLES_BYTES = new Uint8Array(readFileSync(APPLES));
 
 const createMockProvider = (config?: { type?: string; model?: string }): LLMProvider => ({
   label: config?.type && config?.model ? `${config.type}:${config.model}` : 'mock:model',
@@ -40,10 +40,11 @@ vi.mock('../../../src/telemetry/client.js', () => ({
 
 const MOCK_RESPONSE = {
   data: {
-    observed: 'Five ladybirds with 2, 3, 3, 5 and 6 dots.',
-    reasoning: '2 + 3 + 3 + 5 + 6 = 19. The image yields 19; the specification states 19; therefore is_correct = true.',
+    observed: 'Three baskets holding 4, 5 and 3 apples.',
+    defects: [] as string[],
+    reasoning: '4 + 5 + 3 = 12. The image yields 12; the specification states 12; therefore is_correct = true.',
     errors: [] as string[],
-    correction: '19',
+    correction: '12',
     basis: 'supported' as const,
     is_correct: true,
   },
@@ -52,7 +53,7 @@ const MOCK_RESPONSE = {
   latencyMs: 700,
 };
 
-const QUESTION = 'How many dots do all ladybirds have together?';
+const QUESTION = 'How many apples are in the three baskets altogether?';
 
 describe('GraphicsAccuracyEvaluator - Constructor', () => {
   it('throws when the Google API key is missing', () => {
@@ -97,8 +98,8 @@ describe('GraphicsAccuracyEvaluator - Metadata', () => {
 });
 
 describe('composeGraphicsAccuracyClaim', () => {
-  it('produces the benchmarked claim text and trims its parts', () => {
-    expect(composeGraphicsAccuracyClaim(` ${QUESTION} `, ' 19 ')).toBe(`Question: "${QUESTION}" The answer is 19.`);
+  it('produces the measured claim text and trims its parts', () => {
+    expect(composeGraphicsAccuracyClaim(` ${QUESTION} `, ' 12 ')).toBe(`Question: "${QUESTION}" The answer is 12.`);
   });
 
   it('matches the form the contract documents for the claim input', () => {
@@ -107,8 +108,8 @@ describe('composeGraphicsAccuracyClaim', () => {
     // send different text.
     const documented = INPUT_SCHEMA.properties.claim.description.match(/`(Question: "<question>" The answer is <answer>\.)`/);
     expect(documented, 'claim description names the question + answer form').not.toBeNull();
-    const expected = documented![1].replace('<question>', QUESTION).replace('<answer>', '19');
-    expect(composeGraphicsAccuracyClaim(QUESTION, '19')).toBe(expected);
+    const expected = documented![1].replace('<question>', QUESTION).replace('<answer>', '12');
+    expect(composeGraphicsAccuracyClaim(QUESTION, '12')).toBe(expected);
   });
 });
 
@@ -127,33 +128,33 @@ describe('GraphicsAccuracyEvaluator - LLM call contract', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('sends the image bytes as a request attachment and the rendered claim as the user text', async () => {
-    await evaluator.evaluate({ image_paths: [LADYBIRDS], claim: composeGraphicsAccuracyClaim(QUESTION, '19') });
+    await evaluator.evaluate({ image_paths: [APPLES], claim: composeGraphicsAccuracyClaim(QUESTION, '12') });
 
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
     expect(call.messages).toHaveLength(2);
     expect(call.messages[0].role).toBe('system');
     expect(call.messages[1].role).toBe('user');
-    expect(call.messages[1].content).toContain(`Question: "${QUESTION}" The answer is 19.`);
+    expect(call.messages[1].content).toContain(`Question: "${QUESTION}" The answer is 12.`);
     expect(call.messages[1].content).not.toContain('{claim}');
     // The path is an input, not prompt text; it must never reach the model.
-    expect(call.messages[1].content).not.toContain(LADYBIRDS);
-    expect(call.attachments).toEqual([{ type: 'image', data: LADYBIRDS_BYTES, mediaType: 'image/png' }]);
+    expect(call.messages[1].content).not.toContain(APPLES);
+    expect(call.attachments).toEqual([{ type: 'image', data: APPLES_BYTES, mediaType: 'image/png' }]);
   });
 
   it('sends the system prompt verbatim from the contract', async () => {
-    await evaluator.evaluate({ image_paths: [LADYBIRDS], claim: 'The chart shows 12 apples.' });
+    await evaluator.evaluate({ image_paths: [APPLES], claim: 'The chart shows 12 apples.' });
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
     expect(call.messages[0].content).toBe(readFileSync(join(CONTRACT_DIR, 'system.txt'), 'utf-8'));
   });
 
   it('passes the temperature from config.json', async () => {
-    await evaluator.evaluate({ image_paths: [LADYBIRDS], claim: 'The chart shows 12 apples.' });
+    await evaluator.evaluate({ image_paths: [APPLES], claim: 'The chart shows 12 apples.' });
     const call = vi.mocked(mockProvider.generateStructured).mock.calls[0][0];
     expect(call.temperature).toBe(STEP.generation.temperature);
   });
 
   it('maps the response onto the envelope', async () => {
-    const result = await evaluator.evaluate({ image_paths: [LADYBIRDS], claim: composeGraphicsAccuracyClaim(QUESTION, '19') });
+    const result = await evaluator.evaluate({ image_paths: [APPLES], claim: composeGraphicsAccuracyClaim(QUESTION, '12') });
     expect(result.evaluator).toBe(CONFIG.evaluator.id);
     expect(result.result).toEqual(MOCK_RESPONSE.data);
     expect(result.result.basis).toBe('supported');
@@ -175,23 +176,23 @@ describe('GraphicsAccuracyEvaluator - input validation', () => {
   });
 
   it('rejects a missing claim before any model call', async () => {
-    await expect(evaluator.evaluate({ image_paths: [LADYBIRDS] } as never)).rejects.toThrow(InputValidationError);
+    await expect(evaluator.evaluate({ image_paths: [APPLES] } as never)).rejects.toThrow(InputValidationError);
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
   });
 
   it('rejects a whitespace-only claim', async () => {
-    await expect(evaluator.evaluate({ image_paths: [LADYBIRDS], claim: '   ' })).rejects.toThrow(/cannot be empty/);
+    await expect(evaluator.evaluate({ image_paths: [APPLES], claim: '   ' })).rejects.toThrow(/cannot be empty/);
   });
 
   it('rejects a single path passed as a string instead of an array', async () => {
-    await expect(evaluator.evaluate({ image_paths: LADYBIRDS, claim: 'x' } as never)).rejects.toThrow(
+    await expect(evaluator.evaluate({ image_paths: APPLES, claim: 'x' } as never)).rejects.toThrow(
       /image_paths must be an array/,
     );
   });
 
   it('rejects no images and more than one image, by the contract’s minItems/maxItems', async () => {
     await expect(evaluator.evaluate({ image_paths: [], claim: 'x' })).rejects.toThrow(/at least 1 item; received 0/);
-    await expect(evaluator.evaluate({ image_paths: [LADYBIRDS, LADYBIRDS], claim: 'x' })).rejects.toThrow(
+    await expect(evaluator.evaluate({ image_paths: [APPLES, APPLES], claim: 'x' })).rejects.toThrow(
       /at most 1 item; received 2/,
     );
     expect(mockProvider.generateStructured).not.toHaveBeenCalled();
@@ -203,7 +204,7 @@ describe('GraphicsAccuracyEvaluator - input validation', () => {
   });
 
   it('rejects an unknown input, so the old single-path shape fails loudly', async () => {
-    await expect(evaluator.evaluate({ image: LADYBIRDS, claim: 'x' } as never)).rejects.toThrow(/Unknown input "image"/);
+    await expect(evaluator.evaluate({ image: APPLES, claim: 'x' } as never)).rejects.toThrow(/Unknown input "image"/);
   });
 
   it('rejects an image path that does not exist, before any model call', async () => {
