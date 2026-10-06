@@ -15,6 +15,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from learning_commons_evaluators.contracts.loader import DeclaredOutcome
+from learning_commons_evaluators.features.preprocessing import format_number
 from learning_commons_evaluators.schemas.evaluator import EvaluationResult
 
 
@@ -29,6 +30,19 @@ class Outcome:
 
     score: str | None
     reasoning: str
+
+
+def _as_text(value: object) -> str:
+    """A verdict as JavaScript's ``String()`` renders it, so both SDKs report the same token.
+
+    A boolean verdict is ``"true"``/``"false"`` there, where Python's ``str`` would say
+    ``"True"``; a number is ``7`` rather than ``7.0``.
+    """
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return format_number(value)
+    return str(value)
 
 
 def read_outcome(evaluation: EvaluationResult[Any], outcome: DeclaredOutcome | None) -> Outcome:
@@ -51,7 +65,7 @@ def read_outcome(evaluation: EvaluationResult[Any], outcome: DeclaredOutcome | N
     score = record.get(outcome.score)
     reasoning = record.get(outcome.reasoning)
     return Outcome(
-        score=None if score is None else str(score),
+        score=None if score is None else _as_text(score),
         reasoning=reasoning if isinstance(reasoning, str) else "",
     )
 
