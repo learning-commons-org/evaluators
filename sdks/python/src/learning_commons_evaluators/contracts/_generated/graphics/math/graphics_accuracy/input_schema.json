@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "input_schema.json",
+  "title": "EvaluatorInput",
+  "description": "The image is under review; the claim is the specification it is checked against.",
+  "type": "object",
+  "required": ["image_paths", "claim"],
+  "additionalProperties": false,
+  "properties": {
+    "image_paths": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "description": "Local path to the image under review (absolute, or relative to the working directory), as a one-item array. Read in the caller's environment; format identified by file signature, not extension. The `x-image` bounds are enforced before any model call; an image outside them is rejected, not resized.",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "x-image": {
+          "formats": ["image/png", "image/jpeg", "image/webp"],
+          "detect": "signature",
+          "min_bytes": 64,
+          "max_bytes": 5242880,
+          "min_edge": 16,
+          "max_edge": 2560
+        }
+      }
+    },
+    "claim": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 12000,
+      "description": "The specification the image is checked against: a statement about what it shows (\"The chart shows 12 apples.\"), or a question with its expected answer as `Question: \"<question>\" The answer is <answer>.`"
+    }
+  }
+}

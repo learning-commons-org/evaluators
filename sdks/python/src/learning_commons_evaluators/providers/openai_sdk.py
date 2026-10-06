@@ -15,12 +15,15 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from pydantic import BaseModel
 
 from learning_commons_evaluators.providers._common import (
+    base64_data,
     elapsed_ms,
+    last_user_turn,
     no_structured_output,
     require_config,
     split_system,
 )
 from learning_commons_evaluators.providers.base import (
+    ImageAttachment,
     LLMResponse,
     Message,
     Provider,
@@ -39,6 +42,8 @@ T = TypeVar("T", bound=BaseModel)
 class OpenAIProvider:
     """``LLMProvider`` for OpenAI models."""
 
+    supports_attachments = True
+
     def __init__(self, config: ProviderConfig, *, client: AsyncOpenAI | None = None) -> None:
         model, api_key = require_config(config, Provider.OPENAI)
         self._model = model
@@ -54,13 +59,31 @@ class OpenAIProvider:
         messages: Sequence[Message],
         temperature: float | None,
         max_tokens: int | None,
+        attachments: Sequence[ImageAttachment] = (),
     ) -> dict[str, Any]:
         from openai import omit
 
         system, rest = split_system(messages)
+        turns: list[dict[str, Any]] = [{"role": m["role"], "content": m["content"]} for m in rest]
+        if attachments:
+            # Each image is an ``input_image`` part carrying a base64 data URL. ``detail`` is
+            # the API's own default, written out because the SDK's type requires it; the
+            # TypeScript SDK sends none and so gets the same.
+            index = last_user_turn(rest)
+            turns[index]["content"] = [
+                *(
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:{a.media_type};base64,{base64_data(a)}",
+                        "detail": "auto",
+                    }
+                    for a in attachments
+                ),
+                {"type": "input_text", "text": rest[index]["content"]},
+            ]
         return {
             "model": self._model,
-            "input": [{"role": m["role"], "content": m["content"]} for m in rest],
+            "input": turns,
             "instructions": system if system is not None else omit,
             # A None temperature means "send nothing" — see config.schema.json for which
             # models require that.
@@ -83,10 +106,11 @@ class OpenAIProvider:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        attachments: Sequence[ImageAttachment] = (),
     ) -> LLMResponse[T]:
         start = time.perf_counter()
         response = await self._client.responses.parse(
-            text_format=schema, **self._request(messages, temperature, max_tokens)
+            text_format=schema, **self._request(messages, temperature, max_tokens, attachments)
         )
         parsed = response.output_parsed
         if parsed is None:

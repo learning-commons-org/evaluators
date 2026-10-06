@@ -268,6 +268,14 @@ class TestRefusesAContractItCannotRun:
         with pytest.raises(ValueError, match='Step "notes".*is optional'):
             define(steps=raw["steps"])
 
+    def test_refuses_a_step_that_attaches_files(self) -> None:
+        # This base sends text only; running the step would judge its prompt without the
+        # image the contract says it reads.
+        raw = contract().model_dump(by_alias=True)
+        raw["steps"][0]["attachments"] = [{"input": "text", "kind": "image"}]
+        with pytest.raises(ValueError, match='Step "notes".*attaches text.*sends text only'):
+            define(steps=raw["steps"])
+
     def test_refuses_a_placeholder_source_it_cannot_read(self) -> None:
         raw = contract().model_dump(by_alias=True)
         raw["steps"][1]["prompt"]["placeholders"]["notes"]["source"] = "elsewhere.notes"
