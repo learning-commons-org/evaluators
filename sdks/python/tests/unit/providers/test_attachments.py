@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 
 from learning_commons_evaluators.providers import ImageAttachment, Message
+from learning_commons_evaluators.providers._common import last_user_turn
 from tests.unit.providers import test_anthropic_sdk, test_google_genai, test_openai_sdk
 
 PNG = ImageAttachment(data=b"\x89PNG first image bytes", media_type="image/png")
@@ -31,6 +32,12 @@ SYSTEM_ONLY: list[Message] = [{"role": "system", "content": "You are a reviewer.
 
 def b64(attachment: ImageAttachment) -> str:
     return base64.b64encode(attachment.data).decode("ascii")
+
+
+def test_the_last_user_turn_is_found_behind_a_trailing_assistant_turn() -> None:
+    # Every adapter places images through this index, so a conversation ending on an
+    # assistant turn must still put them on the user turn before it, not on the reply.
+    assert last_user_turn([*CONVERSATION[1:], {"role": "assistant", "content": "prefill"}]) == 2
 
 
 class TestOpenAI:

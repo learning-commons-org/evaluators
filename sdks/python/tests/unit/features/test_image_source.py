@@ -101,6 +101,22 @@ class TestInspectImage:
         assert inspect_image(b"not an image") is None
         assert inspect_image(b"") is None
 
+    @pytest.mark.parametrize("size", [(0, 480), (640, 0)])
+    def test_rejects_an_image_reported_with_an_empty_edge(
+        self, size: tuple[int, int], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Pillow refuses a zero edge in the header today; the guard keeps that from being
+        # this loader's only defence, as the TypeScript loader's own check does there.
+        real_open = Image.open
+
+        def open_reporting_size(*args: object, **kwargs: object) -> Image.Image:
+            image = real_open(*args, **kwargs)  # type: ignore[arg-type]
+            image._size = size  # noqa: SLF001
+            return image
+
+        monkeypatch.setattr(Image, "open", open_reporting_size)
+        assert inspect_image(encoded("PNG", 640, 480)) is None
+
     def test_rejects_a_header_that_is_not_followed_by_a_well_formed_image(self) -> None:
         # Stricter than a header sniffer, deliberately: bytes a decoder cannot walk are bytes
         # a model cannot read either.
