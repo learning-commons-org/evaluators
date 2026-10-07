@@ -51,6 +51,12 @@ _MEDIA_TYPES: dict[str, ImageMediaType] = {
     "WEBP": "image/webp",
 }
 
+#: The format names Pillow reports for an image opened by one of those readers. A JPEG
+#: carrying extra frames (MPO, as many cameras write) is still a JPEG stream, but Pillow's
+#: JPEG reader names it MPO; the TypeScript SDK reads it as JPEG too. MPO is not a reader of
+#: its own, so it stays out of the list Pillow is told to try.
+_REPORTED: dict[str, ImageMediaType] = {**_MEDIA_TYPES, "MPO": "image/jpeg"}
+
 
 def inspect_image(data: bytes) -> ImageInfo | None:
     """Format and dimensions read from the image's own bytes — its signature and header,
@@ -64,7 +70,7 @@ def inspect_image(data: bytes) -> ImageInfo | None:
 
     try:
         with Image.open(io.BytesIO(data), formats=list(_MEDIA_TYPES)) as image:
-            media_type = _MEDIA_TYPES.get(image.format or "")
+            media_type = _REPORTED.get(image.format or "")
             width, height = image.size
     except Image.DecompressionBombError:
         raise
