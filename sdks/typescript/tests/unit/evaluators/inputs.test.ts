@@ -155,3 +155,43 @@ describe('primaryTextField', () => {
     expect(primaryTextField({ properties: { n: { type: 'integer' } } })).toBeUndefined();
   });
 });
+
+describe('validateInputs — integers', () => {
+  const schema: DeclaredInputSchema = {
+    properties: {
+      text: { type: 'string', minLength: 1 },
+      count: { type: 'integer', minimum: 1, maximum: 4 },
+    },
+    required: ['text', 'count'],
+  };
+  const good = { text: 'an essay', count: 3 };
+
+  it('accepts an integer inside the declared bounds', () => {
+    expect(() => validateInputs(good, schema)).not.toThrow();
+  });
+
+  it('accepts the bounds themselves', () => {
+    expect(() => validateInputs({ ...good, count: 1 }, schema)).not.toThrow();
+    expect(() => validateInputs({ ...good, count: 4 }, schema)).not.toThrow();
+  });
+
+  it.each([
+    ['a numeric string', '3'],
+    ['a boolean', true],
+    ['a float', 1.5],
+  ])('rejects %s', (_label, count) => {
+    expect(() => validateInputs({ ...good, count }, schema)).toThrow('count must be an integer.');
+  });
+
+  it('rejects an integer under the declared minimum', () => {
+    expect(() => validateInputs({ ...good, count: 0 }, schema)).toThrow(
+      'count must be at least 1.',
+    );
+  });
+
+  it('rejects an integer over the declared maximum', () => {
+    expect(() => validateInputs({ ...good, count: 5 }, schema)).toThrow(
+      'count must be at most 4.',
+    );
+  });
+});

@@ -168,6 +168,39 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
     expect(vi.mocked(provider.generateStructured).mock.calls[0][0].temperature).toBe(0.5);
   });
 
+  it('renders an integer input as its decimal text', async () => {
+    const provider = fakeProvider();
+    const E = defineSingleStepEvaluator<{ text: string; source_count: number }, Output>({
+      contract: contract({
+        steps: [
+          {
+            id: 'evaluate_thing',
+            model: { provider: 'google', name: 'm' },
+            prompt: { placeholders: { text: {}, source_count: {} } },
+          },
+        ],
+      }) as never,
+      inputSchema: {
+        properties: {
+          text: { type: 'string', minLength: 1 },
+          source_count: { type: 'integer', minimum: 1 },
+        },
+        required: ['text', 'source_count'],
+      },
+      outputSchema: OUTPUT_SCHEMA,
+      systemPrompt: 'system',
+      userPrompt: 'sources: {source_count}',
+    });
+
+    await new E({ llmProvider: provider, telemetry: false }).evaluate({
+      text: 'An essay.',
+      source_count: 2,
+    });
+
+    const messages = vi.mocked(provider.generateStructured).mock.calls[0][0].messages;
+    expect(messages[1].content).toBe('sources: 2');
+  });
+
   it('sends no temperature when the step declares none', async () => {
     const provider = fakeProvider();
     const E = define({

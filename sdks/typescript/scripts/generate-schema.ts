@@ -97,15 +97,18 @@ export function toPascalCase(str: string): string {
  * Render one declared input as a TypeScript property.
  *
  * A declared `enum` becomes a literal union, which is the point: the contract's accepted
- * values become a compile error instead of a run-time one. Anything else is `string` — the
- * bounds (`minLength`, `maxLength`) are not expressible in the type system and stay with
- * `validateInputs`, which is the authoritative check either way.
+ * values become a compile error instead of a run-time one. An `integer` becomes `number`.
+ * Anything else is `string`. Bounds (`minLength`, `minimum`, and the rest) are not
+ * expressible in the type system and stay with `validateInputs`, which is the
+ * authoritative check either way.
  */
 function renderInputProperty(name: string, spec: JsonObject): string {
   const enumValues = spec['enum'];
   const type = Array.isArray(enumValues) && enumValues.length > 0
     ? enumValues.map((v) => JSON.stringify(v)).join(' | ')
-    : 'string';
+    : spec['type'] === 'integer'
+      ? 'number'
+      : 'string';
 
   const description = typeof spec['description'] === 'string' ? spec['description'] : undefined;
   const doc = description ? `  /** ${description} */\n` : '';

@@ -13,7 +13,14 @@ import { InputValidationError } from '../errors.js';
 export interface DeclaredInputSchema {
   properties: Record<
     string,
-    { type?: string; minLength?: number; maxLength?: number; enum?: string[] }
+    {
+      type?: string;
+      minLength?: number;
+      maxLength?: number;
+      minimum?: number;
+      maximum?: number;
+      enum?: string[];
+    }
   >;
   required?: string[];
 }
@@ -36,7 +43,8 @@ export type InputsOf<S extends { properties: object }> = Record<keyof S['propert
  * this SDK and in any other reading the same schema.
  *
  * @throws {InputValidationError} On an unknown key, a missing field, a whitespace-only
- * or out-of-bounds string, or a value outside a declared `enum`.
+ * or out-of-bounds string, a non-integer or out-of-bounds integer, or a value outside
+ * a declared `enum`.
  */
 export function validateInputs(
   inputs: Record<string, unknown>,
@@ -81,9 +89,34 @@ export function validateInputs(
       throw new InputValidationError(`${field} must be a string.`);
     }
 
+    if (spec.type === 'integer') {
+      validateIntegerField(field, value, spec);
+      continue;
+    }
+
     if (typeof value === 'string') {
       validateStringField(field, value, spec);
     }
+  }
+}
+
+function validateIntegerField(
+  field: string,
+  value: unknown,
+  spec: { minimum?: number; maximum?: number },
+): void {
+  // Booleans are not numbers here, and neither is a float or a numeric string. Python
+  // rejects the same cases; the prompt binds the decimal text of an accepted integer.
+  if (typeof value !== 'number' || !Number.isInteger(value)) {
+    throw new InputValidationError(`${field} must be an integer.`);
+  }
+
+  if (spec.minimum !== undefined && value < spec.minimum) {
+    throw new InputValidationError(`${field} must be at least ${spec.minimum}.`);
+  }
+
+  if (spec.maximum !== undefined && value > spec.maximum) {
+    throw new InputValidationError(`${field} must be at most ${spec.maximum}.`);
   }
 }
 

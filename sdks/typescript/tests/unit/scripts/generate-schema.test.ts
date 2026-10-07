@@ -278,6 +278,19 @@ describe('generateSchemaFile against real contracts', () => {
 
     expect(content).toContain('export const PurposeClarityOutputSchema');
   });
+
+  it('types an integer input as number and leaves strings as strings', () => {
+    // Critical Thinking is the first contract with a non-string input. The module is
+    // not committed here; this only checks what the generator would write.
+    const { content } = generateSchemaFile(
+      contract('durable-skills/ela-writing/critical-thinking'),
+    );
+
+    expect(content).toContain('"source_count": number;');
+    expect(content).toContain('"assignment_text": string;');
+    expect(content).toContain('"sources": string;');
+    expect(content).toContain('"essay_text": string;');
+  });
 });
 
 // --- discovery ---
