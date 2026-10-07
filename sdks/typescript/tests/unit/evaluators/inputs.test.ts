@@ -183,6 +183,23 @@ describe('validateInputs — integers', () => {
     expect(() => validateInputs({ ...good, count }, schema)).toThrow('count must be an integer.');
   });
 
+  it('rejects an integer JavaScript cannot represent exactly', () => {
+    const unbounded: DeclaredInputSchema = {
+      properties: {
+        text: { type: 'string', minLength: 1 },
+        count: { type: 'integer', minimum: 1 },
+      },
+      required: ['text', 'count'],
+    };
+    // 1e21 passes Number.isInteger, but String(1e21) is "1e+21", not decimal digits.
+    expect(() => validateInputs({ text: 'an essay', count: 1e21 }, unbounded)).toThrow(
+      'count must be an integer.',
+    );
+    expect(() =>
+      validateInputs({ text: 'an essay', count: Number.MAX_SAFE_INTEGER }, unbounded),
+    ).not.toThrow();
+  });
+
   it('rejects an integer under the declared minimum', () => {
     expect(() => validateInputs({ ...good, count: 0 }, schema)).toThrow(
       'count must be at least 1.',
