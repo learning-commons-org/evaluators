@@ -80,6 +80,10 @@ JAVASCRIPT_STRINGS: list[tuple[object, str]] = [
     (-7, "-7"),
     (7.0, "7"),
     (0.5, "0.5"),
+    # A decimal point inside the digits: whole part and fraction both written out.
+    (7.5, "7.5"),
+    (-7.5, "-7.5"),
+    (123.456, "123.456"),
     (0.1 + 0.2, "0.30000000000000004"),
     (-0.0, "0"),
     # Plain notation runs from 1e-6 up to, but not including, 1e21.
