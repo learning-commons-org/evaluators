@@ -96,9 +96,9 @@ CONTRACT_DRIVEN: list[type[BaseEvaluator]] = [
 
 
 def test_discovery_finds_every_registered_evaluator() -> None:
-    assert len(EXPORTED) == 16
+    assert len(EXPORTED) == 17
     assert set(EXPORTED) == set(EVALUATORS)
-    assert len(CONTRACT_DRIVEN) == 15
+    assert len(CONTRACT_DRIVEN) == 16
 
 
 class TestNoIdCollisions:

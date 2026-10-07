@@ -123,6 +123,18 @@ See [Math Standards Alignment](#math-standards-alignment) below, which has two e
 | --- | --- | --- | --- | --- |
 | `MathStandardsAlignmentEvaluator` | K–12 | Anthropic | `learning_commons_api_key` (Knowledge Graph) | [Link](https://docs.learningcommons.org/evaluators/academic-standards-evaluators/math-standards-alignment) |
 
+**Durable skills** — rates a student argumentative essay. Takes
+`assignment_text`, `sources`, `source_count`, and `essay_text`. `sources` is one
+string. `source_count` is an integer, at least 1, and indicator 2.1
+(`synthesizing_sources`) is omitted from the output when it is 1. Returns
+`critical_thinking_score` on a five-level scale — `not_evident`, `exploring`,
+`analyzing`, `integrating`, `extending` — with `reasoning` and per-indicator
+`indicators`.
+
+| Evaluator | Grades | Default provider | Docs |
+| --- | --- | --- | --- |
+| `CriticalThinkingEvaluator` | 8–10 | Anthropic | [Link](https://docs.learningcommons.org/evaluators/durable-skills-evaluators/critical-thinking) |
+
 ## Discovering evaluators
 
 Every evaluator is listed in a registry, keyed by the registry id that appears on each result:
