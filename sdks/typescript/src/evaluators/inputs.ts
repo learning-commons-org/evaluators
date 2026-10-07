@@ -105,9 +105,10 @@ function validateIntegerField(
   value: unknown,
   spec: { minimum?: number; maximum?: number },
 ): void {
-  // Booleans are not numbers here, and neither is a float or a numeric string. Python
-  // rejects the same cases; the prompt binds the decimal text of an accepted integer.
-  if (typeof value !== 'number' || !Number.isInteger(value)) {
+  // Booleans, floats, numeric strings, and values past the safe-integer range are
+  // not integers here. Past that range the value is not exact, and String(value)
+  // can render exponential notation instead of the decimal digits the prompt binds.
+  if (typeof value !== 'number' || !Number.isSafeInteger(value)) {
     throw new InputValidationError(`${field} must be an integer.`);
   }
 
