@@ -15,6 +15,7 @@ import {
   evaluateStudentResponseSpecificity,
   evaluateToneAppropriateness,
   evaluateWithholdingAnswers,
+  evaluateCriticalThinking,
 } from '../../../src/evaluators/index.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
@@ -181,5 +182,34 @@ describe('functional API wrappers — feedback family', () => {
       .join('\n');
     expect(prompts).toContain(STUDENT_TEXT);
     expect(prompts).toContain(FEEDBACK_TEXT);
+  });
+});
+
+describe('functional API wrappers — durable skills', () => {
+  const ASSIGNMENT = 'Using the sources, argue whether the town should limit cars downtown.';
+  const SOURCES = '### Source 1: A Car-Free Downtown\nFewer cars, cleaner air.';
+  const ESSAY = 'Dear city council, the sources disagree about the cost of fewer cars.';
+
+  it('evaluateCriticalThinking forwards every input, including the source count', async () => {
+    const result = await evaluateCriticalThinking(
+      {
+        assignment_text: ASSIGNMENT,
+        sources: SOURCES,
+        source_count: 2,
+        essay_text: ESSAY,
+      },
+      CONFIG,
+    );
+
+    expect(result).toBeDefined();
+
+    const prompts = vi
+      .mocked(mockProvider.generateStructured)
+      .mock.calls.flatMap((call) => call[0].messages.map((m) => m.content))
+      .join('\n');
+    expect(prompts).toContain('Number of source passages provided: 2');
+    expect(prompts).toContain(ASSIGNMENT);
+    expect(prompts).toContain(SOURCES);
+    expect(prompts).toContain(ESSAY);
   });
 });
