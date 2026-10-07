@@ -50,6 +50,7 @@ from learning_commons_evaluators.errors import (
 from learning_commons_evaluators.evaluators import (
     BackgroundKnowledgeDemandsEvaluator,
     BaseEvaluator,
+    CriticalThinkingEvaluator,
     GradeLevelAppropriatenessEvaluator,
     GraphicsAccuracyEvaluator,
     GraphicsComplexityEvaluator,
@@ -105,6 +106,10 @@ from learning_commons_evaluators.schemas.kg_taxonomy import (
     AcademicSubject,
     GradeLevel,
     Jurisdiction,
+)
+from learning_commons_evaluators.schemas.durable_skills.ela_writing.critical_thinking import (
+    CriticalThinkingInput,
+    CriticalThinkingOutput,
 )
 from learning_commons_evaluators.schemas.feedback.ela_writing.revision_accuracy import (
     RevisionAccuracyInput,
@@ -187,6 +192,9 @@ __all__ = [
     "BackgroundKnowledgeDemandsOutput",
     "BaseEvaluator",
     "ConfigurationError",
+    "CriticalThinkingEvaluator",
+    "CriticalThinkingInput",
+    "CriticalThinkingOutput",
     "DependencyError",
     "EvaluationError",
     "EvaluationMetadata",
