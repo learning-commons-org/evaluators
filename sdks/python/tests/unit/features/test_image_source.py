@@ -79,6 +79,13 @@ class TestInspectImage:
             "image/webp", 300, 200
         )
 
+    def test_reads_a_multi_picture_jpeg_as_jpeg(self) -> None:
+        # Pillow names a JPEG with extra frames MPO; its bytes are a JPEG stream all the same.
+        frames = [Image.new("RGB", (512, 256), colour) for colour in ("red", "blue")]
+        buffer = io.BytesIO()
+        frames[0].save(buffer, "MPO", save_all=True, append_images=frames[1:])
+        assert inspect_image(buffer.getvalue()) == ImageInfo("image/jpeg", 512, 256)
+
     def test_reads_a_real_fixture_image(self) -> None:
         image = inspect_image(FIXTURE_IMAGE.read_bytes())
         assert image is not None
