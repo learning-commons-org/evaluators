@@ -17,6 +17,7 @@ sdks/python/src/learning_commons_evaluators/schemas/*/** linguist-generated=true
 sdks/python/src/learning_commons_evaluators/dependencies/_generated/knowledge_graph/** linguist-generated=true
 sdks/python/openapi/knowledge-graph.yaml linguist-generated=true
 sdks/typescript/src/knowledge-graph/kg-api.d.ts linguist-generated=true
+sdks/typescript/src/schemas/durable-skills/ela-writing/critical-thinking.ts linguist-generated=true
 sdks/typescript/src/schemas/feedback/ela-writing/revision-accuracy.ts linguist-generated=true
 sdks/typescript/src/schemas/feedback/ela-writing/revision-actionability.ts linguist-generated=true
 sdks/typescript/src/schemas/feedback/ela-writing/revision-manageability.ts linguist-generated=true

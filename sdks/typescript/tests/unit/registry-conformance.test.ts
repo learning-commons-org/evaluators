@@ -22,6 +22,7 @@ import { StrengthAcknowledgmentEvaluator } from '../../src/evaluators/feedback/e
 import { StudentResponseSpecificityEvaluator } from '../../src/evaluators/feedback/ela-writing/student-response-specificity.js';
 import { ToneAppropriatenessEvaluator } from '../../src/evaluators/feedback/ela-writing/tone-appropriateness.js';
 import { WithholdingAnswersEvaluator } from '../../src/evaluators/feedback/ela-writing/withholding-answers.js';
+import { CriticalThinkingEvaluator } from '../../src/evaluators/durable-skills/ela-writing/critical-thinking.js';
 import { RevisionAccuracyOutputSchema } from '../../src/schemas/feedback/ela-writing/revision-accuracy.js';
 import { RevisionActionabilityOutputSchema } from '../../src/schemas/feedback/ela-writing/revision-actionability.js';
 import { RevisionManageabilityOutputSchema } from '../../src/schemas/feedback/ela-writing/revision-manageability.js';
@@ -29,6 +30,7 @@ import { StrengthAcknowledgmentOutputSchema } from '../../src/schemas/feedback/e
 import { StudentResponseSpecificityOutputSchema } from '../../src/schemas/feedback/ela-writing/student-response-specificity.js';
 import { ToneAppropriatenessOutputSchema } from '../../src/schemas/feedback/ela-writing/tone-appropriateness.js';
 import { WithholdingAnswersOutputSchema } from '../../src/schemas/feedback/ela-writing/withholding-answers.js';
+import { CriticalThinkingOutputSchema } from '../../src/schemas/durable-skills/ela-writing/critical-thinking.js';
 import { QTC_FAMILY } from '../../src/batch/families/qtc.js';
 import { InputValidationError } from '../../src/errors.js';
 import { readOutcome } from '../../src/schemas/outcome.js';
@@ -223,6 +225,7 @@ const SDK_OUTPUT_SCHEMAS: Record<string, { shape: Record<string, unknown> }> = {
   [StudentResponseSpecificityEvaluator.metadata.id]: StudentResponseSpecificityOutputSchema,
   [ToneAppropriatenessEvaluator.metadata.id]: ToneAppropriatenessOutputSchema,
   [WithholdingAnswersEvaluator.metadata.id]: WithholdingAnswersOutputSchema,
+  [CriticalThinkingEvaluator.metadata.id]: CriticalThinkingOutputSchema,
   [BackgroundKnowledgeDemandsEvaluator.metadata.id]: BackgroundKnowledgeDemandsOutputSchema,
   [GradeLevelAppropriatenessEvaluator.metadata.id]: GradeLevelAppropriatenessOutputSchema,
   [MeaningDirectnessEvaluator.metadata.id]: MeaningDirectnessOutputSchema,
@@ -246,7 +249,7 @@ interface Contract {
     evaluator: {
       id: string;
       stable_id: string;
-      id_history: string[];
+      id_history?: string[];
       name: string;
       description: string;
       supported_grades: string[];
@@ -341,6 +344,13 @@ const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknow
     construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
   [WithholdingAnswersEvaluator.metadata.id]: (E, text) =>
     construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
+  [CriticalThinkingEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({
+      assignment_text: 'Using the sources, argue whether your town should limit cars downtown.',
+      sources: '### Source 1: A passage.\n\n### Source 2: Another passage.',
+      source_count: 2,
+      essay_text: text,
+    }),
 };
 
 /**
@@ -441,7 +451,7 @@ describe('identity matches the contract', () => {
 
     expect(E.metadata.id).toBe(config.evaluator.id);
     expect(E.metadata.stableId).toBe(config.evaluator.stable_id);
-    expect(E.metadata.idHistory).toEqual(config.evaluator.id_history);
+    expect(E.metadata.idHistory).toEqual(config.evaluator.id_history ?? []);
     expect(E.metadata.name).toBe(config.evaluator.name);
     expect(E.metadata.description).toBe(config.evaluator.description);
   });

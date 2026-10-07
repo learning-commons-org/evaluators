@@ -100,6 +100,12 @@ export {
 } from './feedback/ela-writing/withholding-answers.js';
 
 export {
+  CriticalThinkingEvaluator,
+  evaluateCriticalThinking,
+  type CriticalThinkingInput,
+} from './durable-skills/ela-writing/critical-thinking.js';
+
+export {
   MathStandardsAlignmentEvaluator,
   evaluateMathStandardsAlignment,
   type MathStandardsAlignmentEvaluatorConfig,

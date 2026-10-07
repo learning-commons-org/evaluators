@@ -27,7 +27,7 @@ const EVALUATORS = Object.entries(sdk as Record<string, unknown>)
 
 describe('README', () => {
   it('finds the evaluators to check', () => {
-    expect(EVALUATORS).toHaveLength(16);
+    expect(EVALUATORS).toHaveLength(17);
   });
 
   it.each(EVALUATORS)('names $name', ({ name }) => {

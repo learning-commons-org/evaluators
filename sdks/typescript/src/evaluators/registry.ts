@@ -17,6 +17,7 @@ import { StudentResponseSpecificityEvaluator } from './feedback/ela-writing/stud
 import { ToneAppropriatenessEvaluator } from './feedback/ela-writing/tone-appropriateness.js';
 import { WithholdingAnswersEvaluator } from './feedback/ela-writing/withholding-answers.js';
 import { MathStandardsAlignmentEvaluator } from './academic-standards-alignment/mathematics/math-standards-alignment.js';
+import { CriticalThinkingEvaluator } from './durable-skills/ela-writing/critical-thinking.js';
 
 /**
  * An evaluator class as the registry holds it: constructible, and carrying its own metadata.
@@ -32,7 +33,7 @@ import { MathStandardsAlignmentEvaluator } from './academic-standards-alignment/
  */
 export interface RegisteredEvaluator {
   new (config: BaseEvaluatorConfig): {
-    evaluate(input: Record<string, string>): Promise<EvaluationResult<unknown>>;
+    evaluate(input: Record<string, string | number>): Promise<EvaluationResult<unknown>>;
   };
   readonly metadata: EvaluatorMetadata;
 }
@@ -50,6 +51,7 @@ export interface RegisteredEvaluator {
  */
 const EVALUATORS: readonly RegisteredEvaluator[] = Object.freeze([
   MathStandardsAlignmentEvaluator,
+  CriticalThinkingEvaluator,
   RevisionAccuracyEvaluator,
   RevisionActionabilityEvaluator,
   RevisionManageabilityEvaluator,

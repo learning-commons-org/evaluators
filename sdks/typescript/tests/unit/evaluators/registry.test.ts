@@ -38,8 +38,8 @@ const FORMER_IDS = EXPORTED.flatMap(({ name, cls }) =>
 );
 
 describe('the fixtures these tests are built from', () => {
-  it('finds all sixteen evaluators on the barrel', () => {
-    expect(EXPORTED).toHaveLength(16);
+  it('finds all seventeen evaluators on the barrel', () => {
+    expect(EXPORTED).toHaveLength(17);
   });
 
   it('finds historical ids, so the rename cases are not vacuous', () => {

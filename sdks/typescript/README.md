@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@learning-commons/evaluators)](https://www.npmjs.com/package/@learning-commons/evaluators)
 
-TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction) — sixteen LLM-backed evaluators for the complexity of text students read, the quality of feedback they receive, and the alignment of math items to standards.
+TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction) — seventeen LLM-backed evaluators for the complexity of text students read, the quality of feedback they receive, the alignment of math items to standards, and the critical thinking in student writing.
 
 Requires Node 20.19+ or 22.12+ (`^20.19.0 || >=22.12.0`) — the CommonJS build needs
 `require(esm)`, which Node 21.x and 22.0-22.11 lack.
@@ -130,7 +130,7 @@ console.log(result.scaffolding_needed); // what that band would need
 console.log(metadata.model); // "google:gemini-3.6-flash"
 ```
 
-Every evaluator resolves to the same three-part envelope, so generic code works across all sixteen:
+Every evaluator resolves to the same three-part envelope, so generic code works across all seventeen:
 
 ```typescript
 {
@@ -277,6 +277,28 @@ part of the standard an item does and does not reach:
 }
 ```
 
+Durable skills — rates a student argumentative essay. Takes `{ assignment_text, sources, source_count, essay_text }`. `sources` is one string. `source_count` is an integer, at least 1, and Indicator 2.1 (`synthesizing_sources`) is omitted from the output when it is 1. Returns `critical_thinking_score` on a five-level scale — `not_evident`, `exploring`, `analyzing`, `integrating`, `extending` — with `reasoning` and per-indicator `indicators`.
+
+| Evaluator                    | Grades | Default provider | Docs                                                                                                |
+| ---------------------------- | ------ | ---------------- | --------------------------------------------------------------------------------------------------- |
+| `CriticalThinkingEvaluator`  | 8–10   | Anthropic        | [Link](https://docs.learningcommons.org/evaluators/durable-skills-evaluators/critical-thinking)     |
+
+```typescript
+import { CriticalThinkingEvaluator } from "@learning-commons/evaluators";
+
+const { result } = await new CriticalThinkingEvaluator({
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+}).evaluate({
+  assignment_text: "Using the sources, argue whether your town should limit cars downtown.",
+  sources: "### Source 1: A Car-Free Downtown\n...\n\n### Source 2: The Cost of Going Car-Free\n...",
+  source_count: 2,
+  essay_text: "Dear city council, ...",
+});
+
+console.log(result.critical_thinking_score); // e.g. "analyzing"
+console.log(result.reasoning);
+```
+
 Each evaluator is also available as a function — `evaluateGradeLevelAppropriateness(input, config)` and so on — for callers who would rather not hold an instance.
 
 ## Discovering evaluators
@@ -295,7 +317,7 @@ getEvaluator("conventionality")?.name; // "Meaning Directness Evaluator"
 ```
 
 Both return metadata — `id`, `stableId`, `idHistory`, `name`, `description`, `supportedGrades`, `defaultProviders`, `requiredCredentials`, and `outcome` where the evaluator declares a single verdict. `requiredCredentials` lists only **non-LLM** services — it is `["learning_commons_api_key"]` for
-math standards alignment and `[]` for the other fifteen, so it is not the answer to "which keys
+math standards alignment and `[]` for the other sixteen, so it is not the answer to "which keys
 does this need". Provider keys follow `defaultProviders`: `["google"]` means supply
 `googleApiKey`. To _run_ an evaluator, import it by name: the metadata does not tell you which named inputs it takes, and each evaluator's are different.
 

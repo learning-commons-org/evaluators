@@ -22,7 +22,8 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
   evaluator: {
     id: string;
     stable_id: string;
-    id_history: string[];
+    /** Omitted when the evaluator has never been renamed. Python defaults this to []. */
+    id_history?: string[];
     name: string;
     description: string;
     /** Required of every contract, so a config.json omitting it fails to compile here. */
@@ -31,7 +32,7 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
   steps: Array<{
     id: string;
     model: { provider: string; name: string };
-    generation?: { temperature?: number };
+    generation?: { temperature?: number | null };
     prompt: { placeholders: Record<string, unknown> };
     required_credentials?: string[];
     optional?: boolean;
@@ -144,7 +145,7 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
   const METADATA = {
     id: contract.evaluator.id,
     stableId: contract.evaluator.stable_id,
-    idHistory: contract.evaluator.id_history,
+    idHistory: contract.evaluator.id_history ?? [],
     name: contract.evaluator.name,
     description: contract.evaluator.description,
     outcome: contract.outcome,

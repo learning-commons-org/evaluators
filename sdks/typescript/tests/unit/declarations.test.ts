@@ -32,7 +32,7 @@ interface Declared {
   typeName: string;
   /** Property name -> the TypeScript type text the generator emitted. */
   properties: Record<string, string>;
-  contract: Record<string, { enum?: string[] }>;
+  contract: Record<string, { type?: string; enum?: string[] }>;
 }
 
 /** The generated schema modules, which now carry each evaluator's input type. */
@@ -60,7 +60,7 @@ const DECLARED: Declared[] = generatedModules(join(SRC, 'schemas')).flatMap((fil
 
   const relative = sourceMatch[1].replace(/^(\.\.\/)+/, '').replace(/^evals\//, '');
   const contract = JSON.parse(readFileSync(join(EVALS, relative), 'utf-8')) as {
-    properties: Record<string, { enum?: string[] }>;
+    properties: Record<string, { type?: string; enum?: string[] }>;
   };
 
   return [{ file, typeName: typeMatch[1], properties, contract: contract.properties }];
@@ -68,9 +68,9 @@ const DECLARED: Declared[] = generatedModules(join(SRC, 'schemas')).flatMap((fil
 
 describe('input types match the contracts they name', () => {
   it('finds them, so the cases below cannot pass vacuously', () => {
-    // Fifteen generated modules; math assembles its payload from per-component results and
+    // Sixteen generated modules; math assembles its payload from per-component results and
     // has no single output schema, so its input type stays hand-written.
-    expect(DECLARED).toHaveLength(15);
+    expect(DECLARED).toHaveLength(16);
   });
 
   it.each(DECLARED)('$typeName names the inputs its contract declares', ({ properties, contract }) => {
@@ -80,11 +80,14 @@ describe('input types match the contracts they name', () => {
   it.each(DECLARED)('$typeName carries the contract\'s enum values', ({ typeName, properties, contract }) => {
     // The reason for generating these rather than deriving them: a declared `enum` becomes a
     // literal union, so a bad grade is a compile error instead of a run-time one on a paid
-    // call. A field with no enum stays `string` — the length bounds are not expressible.
+    // call. An integer becomes `number`. Anything else stays `string` — the length bounds
+    // are not expressible.
     for (const [name, spec] of Object.entries(contract)) {
       const expected = spec.enum
         ? spec.enum.map((v) => JSON.stringify(v)).join(' | ')
-        : 'string';
+        : spec.type === 'integer'
+          ? 'number'
+          : 'string';
 
       expect(properties[name], `${typeName}.${name}`).toBe(expected);
     }
