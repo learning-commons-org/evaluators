@@ -3,7 +3,7 @@
   "evaluator": {
     "id": "graphics.ela.graphics_complexity",
     "stable_id": "cdd884fe-fec7-4f6e-8ad2-37119c262f9d",
-    "id_history": ["use-of-graphics"],
+    "id_history": [],
     "name": "Graphics Complexity Evaluator",
     "description": "Evaluates the Graphics Complexity dimension of qualitative text complexity for grades 3-12 reading assessment, producing a 4-level rubric rating with structured pedagogical detail. Multimodal: takes the passage text plus one image per graphic in scope, and rates how demanding those graphics are for the target grade and how much work it takes to read them together with the written text.",
     "supported_grades": [
