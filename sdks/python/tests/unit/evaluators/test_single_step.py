@@ -284,7 +284,8 @@ class TestReadsBehaviourFromTheContract:
             "author": "City staff",
             "text": "Deliveries can be harmed.",
         }
-        third = {"text": "Shops reported fewer customers."}
+        by_author = {"author": "A parent", "text": "Our street got quieter."}
+        untitled = {"text": "Shops reported fewer customers."}
         evaluator = define(
             input_schema={
                 "type": "object",
@@ -341,23 +342,29 @@ class TestReadsBehaviourFromTheContract:
             documents={"user.txt": "count: {source_count}\n{sources}"},
         )
 
-        await evaluator(google_api_key="k").evaluate(source_passages=[first, second, third])
+        # Title and author, title only, author only, neither: the same four passages and
+        # the same expected text as the TypeScript test, which is the cross-SDK guarantee.
+        await evaluator(google_api_key="k").evaluate(
+            source_passages=[second, first, by_author, untitled]
+        )
         rendered = providers.last.calls[0]["messages"][0]["content"]
         assert rendered == (
-            "count: 3\n"
-            "### Source 1: A Car-Free Downtown\n\n"
-            "Air quality improved.\n\n"
-            "### Source 2: The Cost of Going Car-Free — by City staff\n\n"
+            "count: 4\n"
+            "### Source 1: The Cost of Going Car-Free — by City staff\n\n"
             "Deliveries can be harmed.\n\n"
-            "### Source 3\n\n"
+            "### Source 2: A Car-Free Downtown\n\n"
+            "Air quality improved.\n\n"
+            "### Source 3 — by A parent\n\n"
+            "Our street got quieter.\n\n"
+            "### Source 4\n\n"
             "Shops reported fewer customers."
         )
 
-        await evaluator(google_api_key="k").evaluate(source_passages=[second, first])
+        await evaluator(google_api_key="k").evaluate(source_passages=[first, second])
         swapped = providers.last.calls[0]["messages"][0]["content"]
         assert "count: 2\n" in swapped
-        assert swapped.index("### Source 1: The Cost of Going Car-Free — by City staff") < (
-            swapped.index("### Source 2: A Car-Free Downtown")
+        assert swapped.index("### Source 1: A Car-Free Downtown") < (
+            swapped.index("### Source 2: The Cost of Going Car-Free — by City staff")
         )
 
     async def test_a_conditional_preprocessing_entry_only_runs_when_its_condition_holds(
