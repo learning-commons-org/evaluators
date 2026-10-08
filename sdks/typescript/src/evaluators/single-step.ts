@@ -32,7 +32,7 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
     id: string;
     model: { provider: string; name: string };
     generation?: { temperature?: number };
-    prompt: { placeholders: Record<string, unknown> };
+    prompt: { placeholders: Record<string, { source?: string } | undefined> };
     required_credentials?: string[];
     optional?: boolean;
   }>;
@@ -123,7 +123,26 @@ function vendorOf(step: { model: { provider: string } }, name: string): Provider
  * }) {}
  * ```
  */
-export function defineSingleStepEvaluator<TInput extends Record<string, string | number>, TResult>(
+/** A caller-supplied value. Arrays stay structured until the prompt binder serializes them. */
+export type EvaluatorInputValue = string | number | readonly Record<string, unknown>[];
+
+/** The caller field a placeholder reads. Anything other than an input source is filled later. */
+function inputField(name: string, source: string | undefined): string | undefined {
+  if (source === undefined || source === 'input') return name;
+  if (source.startsWith('input.')) return source.slice('input.'.length);
+  return undefined;
+}
+
+/** Prompt text for one value. Objects and arrays are JSON so the prompt never sees a language repr. */
+function promptText(value: EvaluatorInputValue): string {
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  return JSON.stringify(value);
+}
+
+export function defineSingleStepEvaluator<
+  TInput extends Record<string, EvaluatorInputValue>,
+  TResult,
+>(
   definition: SingleStepDefinition<TResult>,
 ): SingleStepEvaluatorClass<TInput, TResult> {
   const { contract, inputSchema, outputSchema, systemPrompt, userPrompt } = definition;
@@ -186,7 +205,7 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
         // Inside the try so a validation failure is telemetered as an error event,
         // and before the inputs are read so a non-object is reported as one.
         validateInputs(input, inputSchema);
-        const fields = input as Record<string, string | number>;
+        const fields = input as Record<string, EvaluatorInputValue>;
         const rawText = TEXT_FIELD ? fields[TEXT_FIELD] : '';
         text = typeof rawText === 'string' ? rawText : '';
         gradeLevel = typeof fields.grade_level === 'string' ? fields.grade_level : '';
@@ -198,12 +217,17 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
           textLength: text.length,
         });
 
-        // Each declared preprocessing step becomes a prompt input under its own id, so
-        // adding one to a contract needs no code here. Integers are bound as decimal
-        // text, the same spelling Python's validator returns.
+        // Placeholders are filled from the source the contract names. `input` reads the
+        // field of the same name; `input.<field>` reads a caller field under a different
+        // name. Integers bind as decimal text. An array or object binds as JSON, never
+        // as `String(object)`, which would be "[object Object]".
         const promptInputs: Record<string, string> = {};
-        for (const [key, value] of Object.entries(fields)) {
-          promptInputs[key] = String(value);
+        for (const [name, placeholder] of Object.entries(STEP.prompt.placeholders)) {
+          if (!placeholder) continue;
+          const field = inputField(name, placeholder.source);
+          if (field === undefined) continue;
+          const value = fields[field];
+          if (value !== undefined) promptInputs[name] = promptText(value);
         }
         for (const step of PREPROCESSING) {
           promptInputs[step.id] = String(runPreprocessingStep(text, step.implementation.typescript));
