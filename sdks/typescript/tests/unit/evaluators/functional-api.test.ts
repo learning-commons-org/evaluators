@@ -215,4 +215,46 @@ describe('functional API wrappers — durable skills', () => {
     expect(prompts).toContain(ASSIGNMENT);
     expect(prompts).toContain(ESSAY);
   });
+
+  it('evaluateCriticalThinking accepts one passage and a response that omits synthesizing_sources', async () => {
+    const indicator = {
+      evidence: [{ quote: 'the face is a mesa', comment: 'restates the article' }],
+      reasoning: 'The essay names the article and stops there.',
+      rating: 'exploring' as const,
+    };
+    vi.mocked(mockProvider.generateStructured).mockResolvedValueOnce({
+      data: {
+        indicators: {
+          evidence_strength: indicator,
+          counterarguments: indicator,
+          facts_over_opinions: indicator,
+          drawing_conclusions: indicator,
+        },
+        reasoning: 'Median of the four ratings is exploring.',
+        critical_thinking_score: 'exploring',
+      },
+      model: 'gemini-3-flash-preview',
+      usage: { inputTokens: 10, outputTokens: 5 },
+      latencyMs: 1,
+    });
+
+    const result = await evaluateCriticalThinking(
+      {
+        assignment_text: ASSIGNMENT,
+        source_passages: [{ title: 'Unmasking the Face on Mars', text: 'The face is a mesa.' }],
+        essay_text: ESSAY,
+      },
+      CONFIG,
+    );
+
+    expect(result.result.critical_thinking_score).toBe('exploring');
+    expect(result.result.indicators.synthesizing_sources).toBeUndefined();
+
+    const prompts = vi
+      .mocked(mockProvider.generateStructured)
+      .mock.calls.flatMap((call) => call[0].messages.map((m) => m.content))
+      .join('\n');
+    expect(prompts).toContain('Number of source passages provided: 1');
+    expect(prompts).toContain('### Source 1: Unmasking the Face on Mars');
+  });
 });
