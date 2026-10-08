@@ -23,15 +23,18 @@ framework and the optional ``grade_level`` separates the reuses; see :meth:`_res
 Its inputs are the contract's, under the contract's names, plus that one optional extra,
 so anything written against the registry is a valid call to it.
 
-This is the only evaluator that calls a non-LLM dependency, so it is the only one holding
-something to release. Close it when you are done -- ``async with``, :meth:`aclose`, or
-:meth:`~learning_commons_evaluators.evaluators.base.BaseEvaluator.close` from sync code.
+This is the only evaluator that calls a non-LLM dependency. It builds its Knowledge Graph
+client per evaluation and closes it before the model is called, as the provider adapters do
+their clients per call, so between evaluations it holds nothing open: a connection pool is
+bound to the event loop that opened it, and ``evaluate_sync`` runs each evaluation on a
+loop of its own.
 """
 
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, Literal, TypeAlias
 from uuid import UUID
@@ -252,20 +255,28 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         knowledge_graph: KnowledgeGraphClient | None = None,
         **fields: Any,
     ) -> None:
-        """Build the evaluator, its Anthropic provider, and its Knowledge Graph client.
+        """Build the evaluator and its Anthropic provider; neither opens a connection.
 
-        :param knowledge_graph: A client to use instead of one built from the config. It
-            carries its own credentials, so ``learning_commons_api_key`` is not required
-            alongside it, and closing it stays the caller's job.
+        :param knowledge_graph: A client to use instead of one built per evaluation from the
+            config. It carries its own credentials, so ``learning_commons_api_key`` is not
+            required alongside it, and closing it stays the caller's job. Like any
+            ``KnowledgeGraphClient`` it is bound to one event loop, so share it across
+            ``evaluate`` calls, not across ``evaluate_sync`` ones.
         """
         # Assigned before super().__init__, which validates credentials and asks the hook
         # below whether an injected dependency already satisfies one.
         self._injected_knowledge_graph = knowledge_graph
         super().__init__(config, **fields)
-        # The provider first: it builds its client per call, so a failure here leaves
-        # nothing open, while the Knowledge Graph client opens a connection pool now.
         self.provider: LLMProvider = self._create_configured_provider(_MODEL.provider, _MODEL.name)
-        self._knowledge_graph = knowledge_graph or KnowledgeGraphClient.from_config(self.config)
+
+    @asynccontextmanager
+    async def _knowledge_graph(self) -> AsyncIterator[KnowledgeGraphClient]:
+        """The client for one evaluation: the injected one, or a new one closed on exit."""
+        if self._injected_knowledge_graph is not None:
+            yield self._injected_knowledge_graph
+            return
+        async with KnowledgeGraphClient.from_config(self.config) as knowledge_graph:
+            yield knowledge_graph
 
     def _credentials_satisfied_by_injection(self) -> frozenset[str]:
         if self._injected_knowledge_graph is None:
@@ -322,7 +333,11 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
     # --- the evaluation both entry points run -------------------------------------------
 
     async def _evaluated(
-        self, raw: Any, name_standard: Callable[[Any, TelemetryRun, _Context], Awaitable[_Request]]
+        self,
+        raw: Any,
+        name_standard: Callable[
+            [Any, TelemetryRun, _Context, KnowledgeGraphClient], Awaitable[_Request]
+        ],
     ) -> EvaluationResult[MathStandardsAlignmentResult]:
         """Judge whatever ``name_standard`` resolved, inside the telemetry boundary.
 
@@ -334,12 +349,14 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         context: _Context = {"evaluator": self.metadata.id, "operation": "evaluate"}
         with self._telemetry_run(self.provider.label) as run:
             try:
-                request = await name_standard(raw, run, context)
+                # Every Knowledge Graph call happens here, so the client is closed before
+                # the model is asked rather than held open through the slowest step.
+                async with self._knowledge_graph() as knowledge_graph:
+                    request = await name_standard(raw, run, context, knowledge_graph)
+                    component_set = await knowledge_graph.get_learning_component_set(
+                        request.case_identifier_uuid
+                    )
                 statement_code = request.statement_code
-
-                component_set = await self._knowledge_graph.get_learning_component_set(
-                    request.case_identifier_uuid
-                )
                 components = component_set.components
                 if component_set.undescribed_count:
                     # total_count reports what was judged, so say why it is short of what
@@ -436,7 +453,13 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
 
     # --- naming the standard ------------------------------------------------------------
 
-    async def _named_by_uuid(self, raw: Any, run: TelemetryRun, context: _Context) -> _Request:
+    async def _named_by_uuid(
+        self,
+        raw: Any,
+        run: TelemetryRun,
+        context: _Context,
+        knowledge_graph: KnowledgeGraphClient,
+    ) -> _Request:
         """The caller's UUID, checked and read into a request.
 
         The UUID's shape is checked before any request, so a typo costs nothing, reads as
@@ -458,9 +481,15 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
             self.metadata.label,
             extra={**context, "standard": uuid, "text_length": run.text_length},
         )
-        return _Request(question, uuid, await self._statement_code(uuid, context))
+        return _Request(question, uuid, await self._statement_code(uuid, context, knowledge_graph))
 
-    async def _named_by_code(self, raw: Any, run: TelemetryRun, context: _Context) -> _Request:
+    async def _named_by_code(
+        self,
+        raw: Any,
+        run: TelemetryRun,
+        context: _Context,
+        knowledge_graph: KnowledgeGraphClient,
+    ) -> _Request:
         """The caller's code, resolved to one standard.
 
         The resolved match already carries the Knowledge Graph's spelling of the code, so
@@ -485,7 +514,9 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                 "text_length": run.text_length,
             },
         )
-        match = await self._resolve(statement_code, jurisdiction, grade_level, context)
+        match = await self._resolve(
+            statement_code, jurisdiction, grade_level, context, knowledge_graph
+        )
         return _Request(question, match.case_identifier_uuid, match.statement_code)
 
     @staticmethod
@@ -504,7 +535,9 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                     )
         return validate_inputs(raw, schema)
 
-    async def _statement_code(self, uuid: str, context: _Context) -> str:
+    async def _statement_code(
+        self, uuid: str, context: _Context, knowledge_graph: KnowledgeGraphClient
+    ) -> str:
         """The Knowledge Graph's own spelling of the standard's code, once it is a math one.
 
         Read rather than taken from the input, because the input is a UUID: the payload
@@ -520,7 +553,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
 
         :raises InputValidationError: when the standard belongs to another subject.
         """
-        standard = await self._knowledge_graph.get_academic_standard(uuid)
+        standard = await knowledge_graph.get_academic_standard(uuid)
         self._require_subject(standard, context)
         if standard.statement_code:
             return standard.statement_code
@@ -566,6 +599,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         jurisdiction: str,
         grade_level: str | None,
         context: dict[str, Any],
+        knowledge_graph: KnowledgeGraphClient,
     ) -> StandardMatch:
         """The one standard a code names in a jurisdiction, with the grade breaking ties.
 
@@ -583,13 +617,15 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
 
         :raises StandardNotFoundError: raised by the search itself when nothing matches.
         """
-        matches = await self._knowledge_graph.search_standards(
+        matches = await knowledge_graph.search_standards(
             statement_code, jurisdiction=jurisdiction, academic_subject=ACADEMIC_SUBJECT
         )
         if len(matches) == 1:
             return matches[0]
 
-        at_grade = await self._at_grade(matches, grade_level) if grade_level else []
+        at_grade = (
+            await self._at_grade(matches, grade_level, knowledge_graph) if grade_level else []
+        )
         if len(at_grade) == 1:
             self.logger.debug(
                 "Statement code matched %d standards; grade %s identifies one",
@@ -637,7 +673,10 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         return chosen
 
     async def _at_grade(
-        self, matches: Sequence[StandardMatch], grade_level: str
+        self,
+        matches: Sequence[StandardMatch],
+        grade_level: str,
+        knowledge_graph: KnowledgeGraphClient,
     ) -> list[StandardMatch]:
         """The matches taught at ``grade_level``.
 
@@ -647,7 +686,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         """
         standards = await asyncio.gather(
             *(
-                self._knowledge_graph.get_academic_standard(match.case_identifier_uuid)
+                knowledge_graph.get_academic_standard(match.case_identifier_uuid)
                 for match in matches
             )
         )
@@ -739,17 +778,6 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                 ),
             ),
         )
-
-    # --- lifecycle -----------------------------------------------------------------
-
-    async def aclose(self) -> None:
-        """Close the Knowledge Graph client this evaluator built.
-
-        An injected client is the caller's to close: it may outlive this evaluator and be
-        shared with others.
-        """
-        if self._injected_knowledge_graph is None:
-            await self._knowledge_graph.aclose()
 
 
 __all__ = [

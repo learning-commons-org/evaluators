@@ -476,7 +476,8 @@ class KnowledgeGraphClient:
     """Async client for the Learning Commons Knowledge Graph.
 
     Owns an HTTP connection pool, so close it when you are done — ``async with``, or
-    :meth:`aclose`. An evaluator that builds one closes it from its own ``aclose``.
+    :meth:`aclose`. The pool is bound to the event loop that first used it, so keep a client
+    on one loop; an evaluator builds one per evaluation for that reason.
 
     :param api_key: The Learning Commons key, sent as ``x-api-key``.
     :param base_url: API origin including the ``/knowledge-graph/v0`` prefix.
@@ -561,10 +562,9 @@ class KnowledgeGraphClient:
     async def aclose(self) -> None:
         """Release the connection pool. Safe to call more than once.
 
-        Prefer closing from the loop that used the client. httpx tolerates the pool being
-        reused and closed across separate ``asyncio.run`` calls — measured, not assumed —
-        but an idle keep-alive connection outliving the loop that opened it is not a
-        property it documents, so a long-lived client is better off on one loop.
+        Close from the loop that used the client. A client is not reusable across separate
+        ``asyncio.run`` calls: the next call picks up an idle keep-alive connection whose
+        loop is gone and fails with ``RuntimeError: Event loop is closed``.
         """
         await self._client.get_async_httpx_client().aclose()
 
