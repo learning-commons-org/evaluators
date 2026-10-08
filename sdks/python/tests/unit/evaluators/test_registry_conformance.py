@@ -37,7 +37,7 @@ from learning_commons_evaluators.evaluators.single_step import SingleStepEvaluat
 from learning_commons_evaluators.schemas.academic_standards_alignment.mathematics.math_standards_alignment import (
     MathStandardsAlignmentOutput,
 )
-from tests.unit.conftest import ProviderFactory
+from tests.unit.conftest import ProviderFactory, resolve_attached_paths
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
 EVALS_ROOT = REPO_ROOT / "evals"
@@ -96,9 +96,9 @@ CONTRACT_DRIVEN: list[type[BaseEvaluator]] = [
 
 
 def test_discovery_finds_every_registered_evaluator() -> None:
-    assert len(EXPORTED) == 16
+    assert len(EXPORTED) == 17
     assert set(EXPORTED) == set(EVALUATORS)
-    assert len(CONTRACT_DRIVEN) == 15
+    assert len(CONTRACT_DRIVEN) == 16
 
 
 class TestNoIdCollisions:
@@ -287,7 +287,10 @@ def _fixture_cases(evaluator_id: str) -> list[dict[str, object]]:
     path = (
         contract.fixtures.path if contract.fixtures and contract.fixtures.path else "fixtures.json"
     )
-    return [dict(case["input"]) for case in json.loads((directory / path).read_text())]
+    return [
+        resolve_attached_paths(contract, directory, case["input"])
+        for case in json.loads((directory / path).read_text())
+    ]
 
 
 def _fixture_input(evaluator_id: str) -> dict[str, object]:
@@ -304,4 +307,4 @@ def _fixture_input(evaluator_id: str) -> dict[str, object]:
             )
         ).read_text()
     )[0]
-    return dict(case["input"])
+    return resolve_attached_paths(contract, directory, case["input"])

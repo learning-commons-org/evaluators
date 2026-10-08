@@ -12,8 +12,12 @@ from typing import Any
 
 from learning_commons_evaluators.errors import InputValidationError
 
+#: A validated input: the string the prompt binds, or for an array input (an attached
+#: input's file paths) its items, in order.
+InputValue = str | tuple[str, ...]
 
-def validate_inputs(inputs: Any, schema: Mapping[str, Any]) -> dict[str, str]:
+
+def validate_inputs(inputs: Any, schema: Mapping[str, Any]) -> dict[str, InputValue]:
     """Check ``inputs`` against ``schema`` in the order §4.1 fixes, returning canonical values.
 
     Fields are visited in declared order — ``required`` first, then any remaining
@@ -22,11 +26,13 @@ def validate_inputs(inputs: Any, schema: Mapping[str, Any]) -> dict[str, str]:
 
     Values come back as the strings the prompt binds: an ``int`` passed for an enumerated
     string input such as ``grade_level`` is the idiomatic Python convenience (§2.3) and is
-    rendered as its token before the enum check.
+    rendered as its token before the enum check. An array input comes back as a tuple of
+    its items, each checked as a string against the array's ``items``.
 
     :raises InputValidationError: On a non-mapping, an unknown key, a missing field, a
-        wrongly typed value, a whitespace-only or out-of-bounds string, or a value outside
-        a declared ``enum``.
+        wrongly typed value, a whitespace-only or out-of-bounds string, a value outside
+        a declared ``enum``, or an array input that is not a list of strings or has a count
+        outside ``minItems``/``maxItems``.
     """
     if not isinstance(inputs, Mapping):
         raise InputValidationError(
@@ -47,7 +53,7 @@ def validate_inputs(inputs: Any, schema: Mapping[str, Any]) -> dict[str, str]:
     required = list(schema.get("required", []))
     order = [*required, *(f for f in declared if f not in required)]
 
-    values: dict[str, str] = {}
+    values: dict[str, InputValue] = {}
     for field in order:
         spec = properties[field]
         value = inputs.get(field)
@@ -55,8 +61,54 @@ def validate_inputs(inputs: Any, schema: Mapping[str, Any]) -> dict[str, str]:
             if field in required:
                 raise InputValidationError(f"{field} is required.")
             continue
-        values[field] = _validate_field(field, value, spec)
+        values[field] = (
+            _validate_array(field, value, spec)
+            if spec.get("type") == "array"
+            else _validate_field(field, value, spec)
+        )
     return values
+
+
+def text_inputs(values: Mapping[str, InputValue]) -> dict[str, str]:
+    """The validated inputs that are strings, which are the only ones a prompt can bind.
+
+    For an evaluator whose contract declares no array input this is every input; one that
+    attaches files reads its array inputs from the full mapping instead.
+    """
+    return {name: value for name, value in values.items() if isinstance(value, str)}
+
+
+def _validate_array(field: str, value: Any, spec: Mapping[str, Any]) -> tuple[str, ...]:
+    # A list or a tuple; a bare string is a sequence too, but is exactly the mistake of
+    # passing one path where the contract asks for an array of them.
+    if not isinstance(value, (list, tuple)):
+        raise InputValidationError(f"{field} must be an array.")
+
+    def count(n: int) -> str:
+        return f"{n} item{'' if n == 1 else 's'}"
+
+    minimum, maximum = spec.get("minItems"), spec.get("maxItems")
+    if minimum is not None and len(value) < minimum:
+        raise InputValidationError(
+            f"{field} needs at least {count(minimum)}; received {len(value)}."
+        )
+    if maximum is not None and len(value) > maximum:
+        raise InputValidationError(
+            f"{field} accepts at most {count(maximum)}; received {len(value)}."
+        )
+    items = spec.get("items") or {}
+    if items.get("type") != "string":
+        # A contract fault, not a caller's: the only arrays contracts declare are file paths.
+        raise ValueError(
+            f"{field} is declared as an array of {items.get('type')}; only arrays of strings "
+            "are supported."
+        )
+    for index, item in enumerate(value):
+        where = f"{field}[{index}]"
+        if not isinstance(item, str):
+            raise InputValidationError(f"{where} must be a string.")
+        _validate_string(where, item, items)
+    return tuple(value)
 
 
 def _validate_field(field: str, value: Any, spec: Mapping[str, Any]) -> str:
@@ -115,4 +167,4 @@ def primary_text_field(schema: Mapping[str, Any]) -> str | None:
     return None
 
 
-__all__ = ["primary_text_field", "validate_inputs"]
+__all__ = ["InputValue", "primary_text_field", "text_inputs", "validate_inputs"]
