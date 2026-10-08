@@ -124,12 +124,39 @@ See [Math Standards Alignment](#math-standards-alignment) below, which has two e
 | `MathStandardsAlignmentEvaluator` | K–12 | Anthropic | `learning_commons_api_key` (Knowledge Graph) | [Link](https://docs.learningcommons.org/evaluators/academic-standards-evaluators/math-standards-alignment) |
 
 **Durable skills** — rates a student argumentative essay. Takes
-`assignment_text`, `sources`, `source_count`, and `essay_text`. `sources` is one
-string. `source_count` is an integer, at least 1, and indicator 2.1
-(`synthesizing_sources`) is omitted from the output when it is 1. Returns
-`critical_thinking_score` on a five-level scale — `not_evident`, `exploring`,
-`analyzing`, `integrating`, `extending` — with `reasoning` and per-indicator
-`indicators`.
+`assignment_text`, `source_passages`, and `essay_text`. `source_passages` is a
+list of `{title?, author?, text}` in the order the student received them. The
+first item is Source 1. A passage may omit `title` and `author`; the source
+number is still a valid way to name it. The SDK counts the list for the prompt.
+Indicator 2.1 (`synthesizing_sources`) is omitted from the output when that
+count is 1. Returns `critical_thinking_score` on a five-level scale —
+`not_evident`, `exploring`, `analyzing`, `integrating`, `extending` — with
+`reasoning` and per-indicator `indicators`.
+
+```python
+from learning_commons_evaluators import CriticalThinkingEvaluator
+
+evaluation = CriticalThinkingEvaluator(anthropic_api_key=api_key).evaluate_sync(
+    assignment_text="Using the sources, argue whether your town should limit cars downtown.",
+    source_passages=[
+        {
+            "title": "A Car-Free Downtown",
+            "text": "Several European cities closed their centers to cars; air quality improved and foot traffic to shops rose.",
+        },
+        {
+            "title": "The Cost of Going Car-Free",
+            "author": "City staff",
+            "text": "Critics note delivery businesses and people with disabilities can be harmed when car access is removed without alternatives.",
+        },
+        {
+            "text": "Downtown shops reported fewer customers in the first month after the pilot.",
+        },
+    ],
+    essay_text="Dear city council, Source 1 says the air got cleaner. Source 2 warns about deliveries. Source 3 says shops lost customers.",
+)
+
+print(evaluation.result.critical_thinking_score)
+```
 
 | Evaluator | Grades | Default provider | Docs |
 | --- | --- | --- | --- |
