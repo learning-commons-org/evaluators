@@ -15,6 +15,7 @@ defect in the image itself (``defective``), which ``defects`` lists.
 """
 
 from learning_commons_evaluators.contracts import load_contract
+from learning_commons_evaluators.errors import InputValidationError
 from learning_commons_evaluators.evaluators.single_step import SingleStepEvaluator
 from learning_commons_evaluators.schemas.graphics.math.graphics_accuracy import (
     EVALUATOR_ID,
@@ -35,8 +36,21 @@ def compose_graphics_accuracy_claim(question: str, answer: str) -> str:
     Byte-for-byte the text the evaluator was measured with, so a caller who has a problem
     and its answer key gets the measured behaviour rather than a paraphrase of it.
     Surrounding whitespace is trimmed from both parts; nothing else is changed.
+
+    :raises InputValidationError: if the question or answer is blank. The composed claim
+        would still be non-empty, so the evaluator would judge the image against a claim
+        with a part missing, and report the caller's gap as a wrong image.
     """
-    return f'Question: "{question.strip()}" The answer is {answer.strip()}.'
+    q, a = question.strip(), answer.strip()
+    if not q:
+        raise InputValidationError(
+            "compose_graphics_accuracy_claim: the question is blank; a claim needs both."
+        )
+    if not a:
+        raise InputValidationError(
+            "compose_graphics_accuracy_claim: the answer is blank; a claim needs both."
+        )
+    return f'Question: "{q}" The answer is {a}.'
 
 
 __all__ = [
