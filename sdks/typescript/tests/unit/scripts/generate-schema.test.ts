@@ -199,6 +199,36 @@ describe('generateSchemaFile', () => {
   });
 });
 
+// --- input declarations ---
+
+describe('renderInputDeclarations', () => {
+  it('throws when a $defs key is not a PascalCase identifier', () => {
+    expect(() =>
+      renderInputDeclarations(
+        {
+          $defs: { 'source-passage': { type: 'object', properties: {} } },
+          properties: {},
+          required: [],
+        },
+        'Example',
+      ),
+    ).toThrow('source-passage');
+  });
+
+  it.each(['ExampleInput', 'ExampleResult'])('throws when a $defs key collides with %s', (name) => {
+    expect(() =>
+      renderInputDeclarations(
+        {
+          $defs: { [name]: { type: 'object', properties: {} } },
+          properties: {},
+          required: [],
+        },
+        'Example',
+      ),
+    ).toThrow(name);
+  });
+});
+
 // --- main() CLI behavior ---
 
 describe('main() CLI', () => {
@@ -321,8 +351,8 @@ describe('generateSchemaFile against real contracts', () => {
     );
 
     expect(code).toContain('export interface SourcePassage {');
-    expect(code).toContain('"title"?: string;');
-    expect(code).toContain('"author"?: string;');
+    expect(code).toContain('"title"?: string | null;');
+    expect(code).toContain('"author"?: string | null;');
     expect(code).toContain('"text": string;');
     expect(code).toContain('"passages": SourcePassage[];');
     expect(code).toContain('"note": string;');
