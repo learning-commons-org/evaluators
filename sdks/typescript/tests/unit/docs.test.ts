@@ -25,9 +25,15 @@ const EVALUATORS = Object.entries(sdk as Record<string, unknown>)
   )
   .map(([name, v]) => ({ name, metadata: (v as unknown as EvaluatorLike).metadata }));
 
+/** Every evaluator the README's tables list, by the class name in the first column. */
+const DOCUMENTED = [...README.matchAll(/^\| `(\w+Evaluator)`/gm)].map((m) => m[1]).sort();
+
 describe('README', () => {
-  it('finds the evaluators to check', () => {
-    expect(EVALUATORS).toHaveLength(17);
+  it('lists exactly the evaluators the package exports', () => {
+    // Two-way, by name, in place of a pinned count: a row left behind by a removed evaluator
+    // and a missing row for a new one both fail here, and adding an evaluator bumps nothing.
+    expect(EVALUATORS.length).toBeGreaterThan(0);
+    expect(DOCUMENTED).toEqual(EVALUATORS.map((e) => e.name).sort());
   });
 
   it.each(EVALUATORS)('names $name', ({ name }) => {

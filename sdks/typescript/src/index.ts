@@ -46,6 +46,8 @@ export { LogLevel } from './logger.js';
 export type {
   LLMProvider,
   LLMRequest,
+  ImageAttachment,
+  ImageMediaType,
   LLMResponse,
   TextGenerationResponse,
   Message,
@@ -110,6 +112,8 @@ export type { ToneAppropriatenessResult } from './schemas/feedback/ela-writing/t
 export { ToneAppropriatenessOutputSchema } from './schemas/feedback/ela-writing/tone-appropriateness.js';
 export type { WithholdingAnswersResult } from './schemas/feedback/ela-writing/withholding-answers.js';
 export { WithholdingAnswersOutputSchema } from './schemas/feedback/ela-writing/withholding-answers.js';
+export type { GraphicsAccuracyResult } from './schemas/graphics/math/graphics-accuracy.js';
+export { GraphicsAccuracyOutputSchema } from './schemas/graphics/math/graphics-accuracy.js';
 
 // Durable Skills exports
 export type { CriticalThinkingResult } from './schemas/durable-skills/ela-writing/critical-thinking.js';
@@ -167,6 +171,10 @@ export {
   evaluateCriticalThinking,
   MathStandardsAlignmentEvaluator,
   evaluateMathStandardsAlignment,
+  GraphicsAccuracyEvaluator,
+  evaluateGraphicsAccuracy,
+  composeGraphicsAccuracyClaim,
+  type GraphicsAccuracyInput,
   type MathStandardsAlignmentEvaluatorConfig,
   type LearningComponentResult,
   type MathStandardsAlignmentResult,

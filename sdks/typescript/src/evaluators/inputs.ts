@@ -17,12 +17,15 @@ export interface DeclaredFieldSchema {
   minimum?: number;
   maximum?: number;
   minItems?: number;
+  maxItems?: number;
   enum?: string[];
   $ref?: string;
   additionalProperties?: boolean;
   required?: string[];
   properties?: Record<string, DeclaredFieldSchema>;
   items?: DeclaredFieldSchema;
+  /** An attached item's bounds, read by the image loader rather than by validation. */
+  'x-image'?: unknown;
 }
 
 /** The shape of an `input_schema.json`, as much of it as validation reads. */
@@ -50,8 +53,9 @@ export type InputsOf<S extends { properties: object }> = Record<keyof S['propert
  * this SDK and in any other reading the same schema.
  *
  * @throws {InputValidationError} On an unknown key, a missing field, a whitespace-only
- * or out-of-bounds string, a non-integer or out-of-bounds integer, or a value outside
- * a declared `enum`.
+ * or out-of-bounds string, a non-integer or out-of-bounds integer, a value outside a
+ * declared `enum`, or an array input with a count outside `minItems`/`maxItems` or an
+ * item that fails its own declaration.
  */
 export function validateInputs(
   inputs: Record<string, unknown>,
@@ -92,17 +96,17 @@ export function validateInputs(
       continue;
     }
 
+    if (spec.type === 'array') {
+      validateArrayField(field, value, spec, schema.$defs ?? {});
+      continue;
+    }
+
     if (spec.type === 'string' && typeof value !== 'string') {
       throw new InputValidationError(`${field} must be a string.`);
     }
 
     if (spec.type === 'integer') {
       validateIntegerField(field, value, spec);
-      continue;
-    }
-
-    if (spec.type === 'array') {
-      validateArrayField(field, value, spec, schema.$defs ?? {});
       continue;
     }
 
@@ -125,6 +129,23 @@ function resolveField(
   return def;
 }
 
+function validateIntegerField(field: string, value: unknown, spec: DeclaredFieldSchema): void {
+  // Booleans, floats, numeric strings, and values past the safe-integer range are
+  // not integers here. Past that range the value is not exact, and String(value)
+  // can render exponential notation instead of the decimal digits the prompt binds.
+  if (typeof value !== 'number' || !Number.isSafeInteger(value)) {
+    throw new InputValidationError(`${field} must be an integer.`);
+  }
+
+  if (spec.minimum !== undefined && value < spec.minimum) {
+    throw new InputValidationError(`${field} must be at least ${spec.minimum}.`);
+  }
+
+  if (spec.maximum !== undefined && value > spec.maximum) {
+    throw new InputValidationError(`${field} must be at most ${spec.maximum}.`);
+  }
+}
+
 function validateArrayField(
   field: string,
   value: unknown,
@@ -134,25 +155,30 @@ function validateArrayField(
   if (!Array.isArray(value)) {
     throw new InputValidationError(`${field} must be an array.`);
   }
+  const count = (n: number) => `${n} item${n === 1 ? '' : 's'}`;
   if (spec.minItems !== undefined && value.length < spec.minItems) {
-    const noun = spec.minItems === 1 ? 'item' : 'items';
-    throw new InputValidationError(`${field} must contain at least ${spec.minItems} ${noun}.`);
+    throw new InputValidationError(`${field} needs at least ${count(spec.minItems)}; received ${value.length}.`);
+  }
+  if (spec.maxItems !== undefined && value.length > spec.maxItems) {
+    throw new InputValidationError(`${field} accepts at most ${count(spec.maxItems)}; received ${value.length}.`);
   }
   const items = spec.items ? resolveField(spec.items, defs) : undefined;
-  if (!items) return;
-
-  value.forEach((item, index) => {
-    const path = `${field}[${index}]`;
+  if (items?.type !== 'string' && items?.type !== 'object') {
+    // A contract fault, not a caller's: the eval-schemas check admits only these two.
+    throw new Error(
+      `${field} is declared as an array of ${String(items?.type)}; only arrays of strings or objects are supported.`,
+    );
+  }
+  value.forEach((item, i) => {
+    const where = `${field}[${i}]`;
     if (items.type === 'object') {
-      validateObjectField(path, item, items);
+      validateObjectField(where, item, items);
       return;
     }
-    if (items.type === 'string') {
-      if (typeof item !== 'string') {
-        throw new InputValidationError(`${path} must be a string.`);
-      }
-      validateStringField(path, item, items);
+    if (typeof item !== 'string') {
+      throw new InputValidationError(`${where} must be a string.`);
     }
+    validateStringField(where, item, items);
   });
 }
 
@@ -177,47 +203,24 @@ function validateObjectField(path: string, value: unknown, spec: DeclaredFieldSc
     const propSpec = properties[prop];
     const propValue = record[prop];
     const propPath = `${path}.${prop}`;
+    if (propSpec.type !== 'string') {
+      // A contract fault, as above: object fields are strings.
+      throw new Error(`${propPath} is declared as ${String(propSpec.type)}; only string fields are supported.`);
+    }
     if (propValue === undefined || propValue === null) {
       if (required.includes(prop)) {
         throw new InputValidationError(`${propPath} is required.`);
       }
       continue;
     }
-    if (propSpec.type === 'string') {
-      if (typeof propValue !== 'string') {
-        throw new InputValidationError(`${propPath} must be a string.`);
-      }
-      validateStringField(propPath, propValue, propSpec);
+    if (typeof propValue !== 'string') {
+      throw new InputValidationError(`${propPath} must be a string.`);
     }
+    validateStringField(propPath, propValue, propSpec);
   }
 }
 
-function validateIntegerField(
-  field: string,
-  value: unknown,
-  spec: { minimum?: number; maximum?: number },
-): void {
-  // Booleans, floats, numeric strings, and values past the safe-integer range are
-  // not integers here. Past that range the value is not exact, and String(value)
-  // can render exponential notation instead of the decimal digits the prompt binds.
-  if (typeof value !== 'number' || !Number.isSafeInteger(value)) {
-    throw new InputValidationError(`${field} must be an integer.`);
-  }
-
-  if (spec.minimum !== undefined && value < spec.minimum) {
-    throw new InputValidationError(`${field} must be at least ${spec.minimum}.`);
-  }
-
-  if (spec.maximum !== undefined && value > spec.maximum) {
-    throw new InputValidationError(`${field} must be at most ${spec.maximum}.`);
-  }
-}
-
-function validateStringField(
-  field: string,
-  value: string,
-  spec: { minLength?: number; maxLength?: number; enum?: string[] },
-): void {
+function validateStringField(field: string, value: string, spec: DeclaredFieldSchema): void {
   if (spec.enum) {
     if (!spec.enum.includes(value)) {
       throw new InputValidationError(

@@ -31,6 +31,8 @@ import { StudentResponseSpecificityOutputSchema } from '../../src/schemas/feedba
 import { ToneAppropriatenessOutputSchema } from '../../src/schemas/feedback/ela-writing/tone-appropriateness.js';
 import { WithholdingAnswersOutputSchema } from '../../src/schemas/feedback/ela-writing/withholding-answers.js';
 import { CriticalThinkingOutputSchema } from '../../src/schemas/durable-skills/ela-writing/critical-thinking.js';
+import { GraphicsAccuracyEvaluator } from '../../src/evaluators/graphics/math/graphics-accuracy.js';
+import { GraphicsAccuracyOutputSchema } from '../../src/schemas/graphics/math/graphics-accuracy.js';
 import { QTC_FAMILY } from '../../src/batch/families/qtc.js';
 import { InputValidationError } from '../../src/errors.js';
 import { readOutcome } from '../../src/schemas/outcome.js';
@@ -76,6 +78,9 @@ vi.mock('../../src/providers/index.js', async (importOriginal) => {
       constructed.push({ type: config.type, model: config.model });
       return {
         label: `${config.type}:${config.model}`,
+        // Stands in for the real provider, which attaches images; without this the image
+        // evaluator refuses the mock at construction and its checks never run.
+        supportsAttachments: true,
         generateStructured: vi.fn(async (request: { temperature?: number; messages?: Array<{ role: string; content: string }> }) => {
           llmCalls.push({ temperature: request.temperature, messages: request.messages });
           return {
@@ -218,6 +223,7 @@ const FIXTURE_VALUE_GAPS = new Set<string>([
  * schema to compare.
  */
 const SDK_OUTPUT_SCHEMAS: Record<string, { shape: Record<string, unknown> }> = {
+  [GraphicsAccuracyEvaluator.metadata.id]: GraphicsAccuracyOutputSchema,
   [RevisionAccuracyEvaluator.metadata.id]: RevisionAccuracyOutputSchema,
   [RevisionActionabilityEvaluator.metadata.id]: RevisionActionabilityOutputSchema,
   [RevisionManageabilityEvaluator.metadata.id]: RevisionManageabilityOutputSchema,
@@ -320,7 +326,15 @@ const cases = EVALUATORS.map((E) => ({ name: E.metadata.name, E }));
 /** Stands in for the teacher comment the feedback family judges. */
 const FEEDBACK_TEXT = 'Try adding a topic sentence so the reader knows your argument.';
 
+/** A real figure from the contract's own fixtures, so the image loader runs on real bytes. */
+const FIXTURE_IMAGE = join(
+  REPO_ROOT,
+  'evals/graphics/math/graphics-accuracy/images/apples-in-baskets.png',
+);
+
 const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknown>> = {
+  [GraphicsAccuracyEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ image_paths: [FIXTURE_IMAGE], claim: text }),
   [GLA_ID]: (E, text) => construct(E).evaluate({ text }),
   [BKD_ID]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
   [MD_ID]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
