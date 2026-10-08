@@ -402,6 +402,10 @@ def emit_schema_module(config: dict[str, Any], config_dir: Path) -> str:
                     "or of a $defs object are rendered."
                 )
             overrides[prop] = "list[str]"
+    reserved = {f"{class_base}Input", f"{class_base}Output"}
+    for key in input_schema.get("$defs", {}):
+        if key in reserved:
+            raise ValueError(f'$defs key "{key}" collides with a generated declaration')
     input_name = emitter.unique(f"{class_base}Input")
     emitter.emit_class(
         input_name,
