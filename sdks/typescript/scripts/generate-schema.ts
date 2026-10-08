@@ -94,26 +94,86 @@ export function toPascalCase(str: string): string {
  * Returns slug, output path, and file content.
  */
 /**
- * Render one declared input as a TypeScript property.
+ * The TypeScript type for one schema node.
  *
- * A declared `enum` becomes a literal union, which is the point: the contract's accepted
- * values become a compile error instead of a run-time one. An `integer` becomes `number`.
- * Anything else is `string`. Bounds (`minLength`, `minimum`, and the rest) are not
- * expressible in the type system and stay with `validateInputs`, which is the
- * authoritative check either way.
+ * A `$ref` to an object `$def` uses that key as the type name (`SourcePassage`). An array
+ * is that item type plus `[]`. A declared `enum` becomes a literal union. An `integer`
+ * becomes `number`. Anything else is `string`. Bounds stay with `validateInputs`.
  */
-function renderInputProperty(name: string, spec: JsonObject): string {
-  const enumValues = spec['enum'];
-  const type = Array.isArray(enumValues) && enumValues.length > 0
-    ? enumValues.map((v) => JSON.stringify(v)).join(' | ')
-    : spec['type'] === 'integer'
-      ? 'number'
-      : 'string';
+function inputTsType(spec: JsonObject, defs: Record<string, JsonObject>): string {
+  const ref = spec['$ref'];
+  if (typeof ref === 'string') {
+    const key = ref.replace('#/$defs/', '');
+    const def = defs[key];
+    if (!def) throw new Error(`Cannot resolve $ref "${ref}": key "${key}" not found in $defs`);
+    if (def['type'] === 'object') return key;
+    return inputTsType(def, defs);
+  }
 
+  if (spec['type'] === 'array') {
+    const items = spec['items'];
+    if (typeof items !== 'object' || items === null || Array.isArray(items)) {
+      throw new Error('An array input declares no items schema');
+    }
+    return `${inputTsType(items, defs)}[]`;
+  }
+
+  const enumValues = spec['enum'];
+  if (Array.isArray(enumValues) && enumValues.length > 0) {
+    return enumValues.map((v) => JSON.stringify(v)).join(' | ');
+  }
+  return spec['type'] === 'integer' ? 'number' : 'string';
+}
+
+/** One property line, optional when the object does not list it in `required`. */
+function renderInputProperty(
+  name: string,
+  spec: JsonObject,
+  defs: Record<string, JsonObject>,
+  optional: boolean,
+): string {
   const description = typeof spec['description'] === 'string' ? spec['description'] : undefined;
   const doc = description ? `  /** ${description} */\n` : '';
+  const marker = optional ? '?' : '';
+  return `${doc}  ${JSON.stringify(name)}${marker}: ${inputTsType(spec, defs)};`;
+}
 
-  return `${doc}  ${JSON.stringify(name)}: ${type};`;
+/**
+ * Named object types declared in an input schema's `$defs`, then the input type itself.
+ *
+ * The `$defs` key is the interface name. Properties absent from that object's `required`
+ * are optional. Top-level inputs stay required: an optional caller field is still a
+ * generator error, because no shipped contract has one.
+ */
+export function renderInputDeclarations(schema: JsonObject, className: string): string {
+  const defs = (schema['$defs'] ?? {}) as Record<string, JsonObject>;
+  const properties = (schema['properties'] ?? {}) as Record<string, JsonObject>;
+  const required = new Set((schema['required'] ?? []) as string[]);
+  const names = Object.keys(properties);
+  const missing = names.filter((n) => !required.has(n));
+  if (missing.length > 0) {
+    throw new Error(
+      `input schema declares optional inputs (${missing.join(', ')}), which ` +
+        'this generator does not render yet — add optional-property support before shipping it.',
+    );
+  }
+
+  const interfaces = Object.entries(defs)
+    .filter(([, def]) => def['type'] === 'object')
+    .map(([name, def]) => {
+      const defRequired = new Set((def['required'] ?? []) as string[]);
+      const defProps = (def['properties'] ?? {}) as Record<string, JsonObject>;
+      const body = Object.entries(defProps)
+        .map(([prop, spec]) => renderInputProperty(prop, spec, defs, !defRequired.has(prop)))
+        .join('\n');
+      return `export interface ${name} {\n${body}\n}`;
+    });
+
+  const body = names
+    .map((name) => renderInputProperty(name, properties[name], defs, false))
+    .join('\n');
+  const input = `export type ${className}Input = {\n${body}\n};`;
+  return [...interfaces, input].join('\n\n');
 }
 
 /** The input type for a contract, or `undefined` when it declares no input schema. */
@@ -126,26 +186,10 @@ function renderInputType(
 
   const schemaPath = resolve(configDir, config.input_schema.$ref);
   const schema = JSON.parse(readFileSync(schemaPath, 'utf-8')) as JsonObject;
-  const properties = (schema['properties'] ?? {}) as Record<string, JsonObject>;
-
-  const names = Object.keys(properties);
-  if (names.length === 0) return undefined;
-
-  // Every declared input is required in every contract today; if that changes, an absent
-  // entry in `required` should render as optional rather than silently stay mandatory.
-  const required = new Set((schema['required'] ?? []) as string[]);
-  const missing = names.filter((n) => !required.has(n));
-  if (missing.length > 0) {
-    throw new Error(
-      `${config.input_schema.$ref} declares optional inputs (${missing.join(', ')}), which ` +
-        'this generator does not render yet — add optional-property support before shipping it.',
-    );
-  }
-
-  const body = names.map((name) => renderInputProperty(name, properties[name])).join('\n');
+  if (Object.keys((schema['properties'] ?? {}) as object).length === 0) return undefined;
 
   return {
-    code: `export type ${className}Input = {\n${body}\n};`,
+    code: renderInputDeclarations(schema, className),
     source: relative(SDK_ROOT, schemaPath),
   };
 }

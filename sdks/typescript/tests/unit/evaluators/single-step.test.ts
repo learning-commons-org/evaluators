@@ -201,6 +201,55 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
     expect(messages[1].content).toBe('sources: 2');
   });
 
+  it('fills {sources} from input.source_passages as JSON', async () => {
+    const provider = fakeProvider();
+    const passages = [
+      { title: 'A title', text: 'A passage.' },
+      { text: 'Another passage.' },
+    ];
+    const E = defineSingleStepEvaluator<{ source_passages: Record<string, unknown>[] }, Output>({
+      contract: contract({
+        steps: [
+          {
+            id: 'evaluate_thing',
+            model: { provider: 'google', name: 'm' },
+            prompt: { placeholders: { sources: { source: 'input.source_passages' } } },
+          },
+        ],
+      }) as never,
+      inputSchema: {
+        properties: {
+          source_passages: {
+            type: 'array',
+            minItems: 1,
+            items: { $ref: '#/$defs/SourcePassage' },
+          },
+        },
+        required: ['source_passages'],
+        $defs: {
+          SourcePassage: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['text'],
+            properties: {
+              title: { type: 'string', minLength: 1 },
+              text: { type: 'string', minLength: 1 },
+            },
+          },
+        },
+      },
+      outputSchema: OUTPUT_SCHEMA,
+      systemPrompt: 'system',
+      userPrompt: '{sources}',
+    });
+
+    await new E({ llmProvider: provider, telemetry: false }).evaluate({ source_passages: passages });
+
+    const messages = vi.mocked(provider.generateStructured).mock.calls[0][0].messages;
+    expect(messages[1].content).toBe(JSON.stringify(passages));
+    expect(messages[1].content).not.toContain('[object Object]');
+  });
+
   it('sends no temperature when the step declares none', async () => {
     const provider = fakeProvider();
     const E = define({

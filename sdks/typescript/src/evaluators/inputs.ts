@@ -9,20 +9,27 @@ import { InputValidationError } from '../errors.js';
  * something narrower, which §4.1 forbids.
  */
 
+/** One schema node, as much of it as validation reads. `$ref` points at a `$defs` entry. */
+export interface DeclaredFieldSchema {
+  type?: string;
+  minLength?: number;
+  maxLength?: number;
+  minimum?: number;
+  maximum?: number;
+  minItems?: number;
+  enum?: string[];
+  $ref?: string;
+  additionalProperties?: boolean;
+  required?: string[];
+  properties?: Record<string, DeclaredFieldSchema>;
+  items?: DeclaredFieldSchema;
+}
+
 /** The shape of an `input_schema.json`, as much of it as validation reads. */
 export interface DeclaredInputSchema {
-  properties: Record<
-    string,
-    {
-      type?: string;
-      minLength?: number;
-      maxLength?: number;
-      minimum?: number;
-      maximum?: number;
-      enum?: string[];
-    }
-  >;
+  properties: Record<string, DeclaredFieldSchema>;
   required?: string[];
+  $defs?: Record<string, DeclaredFieldSchema>;
 }
 
 /**
@@ -94,8 +101,93 @@ export function validateInputs(
       continue;
     }
 
+    if (spec.type === 'array') {
+      validateArrayField(field, value, spec, schema.$defs ?? {});
+      continue;
+    }
+
     if (typeof value === 'string') {
       validateStringField(field, value, spec);
+    }
+  }
+}
+
+function resolveField(
+  spec: DeclaredFieldSchema,
+  defs: Record<string, DeclaredFieldSchema>,
+): DeclaredFieldSchema {
+  if (!spec.$ref) return spec;
+  const key = spec.$ref.replace('#/$defs/', '');
+  const def = defs[key];
+  if (!def) {
+    throw new InputValidationError(`Cannot resolve $ref "${spec.$ref}".`);
+  }
+  return def;
+}
+
+function validateArrayField(
+  field: string,
+  value: unknown,
+  spec: DeclaredFieldSchema,
+  defs: Record<string, DeclaredFieldSchema>,
+): void {
+  if (!Array.isArray(value)) {
+    throw new InputValidationError(`${field} must be an array.`);
+  }
+  if (spec.minItems !== undefined && value.length < spec.minItems) {
+    const noun = spec.minItems === 1 ? 'item' : 'items';
+    throw new InputValidationError(`${field} must contain at least ${spec.minItems} ${noun}.`);
+  }
+  const items = spec.items ? resolveField(spec.items, defs) : undefined;
+  if (!items) return;
+
+  value.forEach((item, index) => {
+    const path = `${field}[${index}]`;
+    if (items.type === 'object') {
+      validateObjectField(path, item, items);
+      return;
+    }
+    if (items.type === 'string') {
+      if (typeof item !== 'string') {
+        throw new InputValidationError(`${path} must be a string.`);
+      }
+      validateStringField(path, item, items);
+    }
+  });
+}
+
+function validateObjectField(path: string, value: unknown, spec: DeclaredFieldSchema): void {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new InputValidationError(`${path} must be an object.`);
+  }
+  const record = value as Record<string, unknown>;
+  const properties = spec.properties ?? {};
+  const declared = Object.keys(properties);
+  if (spec.additionalProperties === false) {
+    for (const key of Object.keys(record)) {
+      if (!declared.includes(key)) {
+        throw new InputValidationError(
+          `Unknown input "${path}.${key}". This object accepts: ${declared.join(', ')}.`,
+        );
+      }
+    }
+  }
+  const required = spec.required ?? [];
+  for (const prop of [...required, ...declared.filter((name) => !required.includes(name))]) {
+    const propSpec = properties[prop];
+    const propValue = record[prop];
+    const propPath = `${path}.${prop}`;
+    if (propValue === undefined || propValue === null) {
+      if (required.includes(prop)) {
+        throw new InputValidationError(`${propPath} is required.`);
+      }
+      continue;
+    }
+    if (propSpec.type === 'string') {
+      if (typeof propValue !== 'string') {
+        throw new InputValidationError(`${propPath} must be a string.`);
+      }
+      validateStringField(propPath, propValue, propSpec);
     }
   }
 }
