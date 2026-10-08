@@ -128,8 +128,10 @@ See [Math Standards Alignment](#math-standards-alignment) below, which has two e
 list of `{title?, author?, text}` in the order the student received them. The
 first item is Source 1. A passage may omit `title` and `author`; the source
 number is still a valid way to name it. The SDK counts the list for the prompt.
-Indicator 2.1 (`synthesizing_sources`) is omitted from the output when that
-count is 1. Returns `critical_thinking_score` on a five-level scale —
+The prompt asks the model to omit indicator 2.1 (`synthesizing_sources`) when
+that count is 1. The published output schema still accepts the field either
+present or absent; the SDK does not reject a mismatch. Returns
+`critical_thinking_score` on a five-level scale —
 `not_evident`, `exploring`, `analyzing`, `integrating`, `extending` — with
 `reasoning` and per-indicator `indicators`.
 
