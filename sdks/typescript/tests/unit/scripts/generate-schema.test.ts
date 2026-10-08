@@ -10,6 +10,7 @@ import {
   generateSchemaFile,
   discoverContracts,
   generatedContracts,
+  renderInputDeclarations,
   GENERATED_MARKER,
 } from '../../../scripts/generate-schema.js';
 
@@ -290,6 +291,41 @@ describe('generateSchemaFile against real contracts', () => {
     expect(content).toContain('"assignment_text": string;');
     expect(content).toContain('"sources": string;');
     expect(content).toContain('"essay_text": string;');
+  });
+
+  it('names an input $def and types an array of it', () => {
+    const code = renderInputDeclarations(
+      {
+        type: 'object',
+        required: ['note', 'passages'],
+        properties: {
+          note: { type: 'string' },
+          passages: {
+            type: 'array',
+            items: { $ref: '#/$defs/SourcePassage' },
+          },
+        },
+        $defs: {
+          SourcePassage: {
+            type: 'object',
+            required: ['text'],
+            properties: {
+              title: { type: 'string', description: 'Optional heading.' },
+              author: { type: 'string' },
+              text: { type: 'string' },
+            },
+          },
+        },
+      },
+      'Widget',
+    );
+
+    expect(code).toContain('export interface SourcePassage {');
+    expect(code).toContain('"title"?: string;');
+    expect(code).toContain('"author"?: string;');
+    expect(code).toContain('"text": string;');
+    expect(code).toContain('"passages": SourcePassage[];');
+    expect(code).toContain('"note": string;');
   });
 });
 
