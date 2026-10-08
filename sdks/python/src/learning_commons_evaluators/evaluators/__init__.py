@@ -34,6 +34,10 @@ from learning_commons_evaluators.evaluators.feedback.ela_writing.tone_appropriat
 from learning_commons_evaluators.evaluators.feedback.ela_writing.withholding_answers import (
     WithholdingAnswersEvaluator,
 )
+from learning_commons_evaluators.evaluators.graphics.math.graphics_accuracy import (
+    GraphicsAccuracyEvaluator,
+    compose_graphics_accuracy_claim,
+)
 from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
 from learning_commons_evaluators.evaluators.registry import (
     EVALUATORS,
@@ -73,6 +77,7 @@ __all__ = [
     "BaseEvaluator",
     "CriticalThinkingEvaluator",
     "GradeLevelAppropriatenessEvaluator",
+    "GraphicsAccuracyEvaluator",
     "LearningComponentResult",
     "MathStandardsAlignmentEvaluator",
     "MathStandardsAlignmentResult",
@@ -91,6 +96,7 @@ __all__ = [
     "ToneAppropriatenessEvaluator",
     "VocabularyComplexityEvaluator",
     "WithholdingAnswersEvaluator",
+    "compose_graphics_accuracy_claim",
     "get_evaluator",
     "get_evaluator_class",
     "get_evaluators",

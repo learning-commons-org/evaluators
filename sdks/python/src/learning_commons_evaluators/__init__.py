@@ -52,6 +52,7 @@ from learning_commons_evaluators.evaluators import (
     BaseEvaluator,
     CriticalThinkingEvaluator,
     GradeLevelAppropriatenessEvaluator,
+    GraphicsAccuracyEvaluator,
     LearningComponentResult,
     MathStandardsAlignmentEvaluator,
     MathStandardsAlignmentResult,
@@ -70,6 +71,7 @@ from learning_commons_evaluators.evaluators import (
     ToneAppropriatenessEvaluator,
     VocabularyComplexityEvaluator,
     WithholdingAnswersEvaluator,
+    compose_graphics_accuracy_claim,
     get_evaluator,
     get_evaluators,
 )
@@ -82,7 +84,12 @@ from learning_commons_evaluators.logger import (
     create_silent_logger,
     get_logger,
 )
-from learning_commons_evaluators.providers import LLMProvider, Provider
+from learning_commons_evaluators.providers import (
+    ImageAttachment,
+    ImageMediaType,
+    LLMProvider,
+    Provider,
+)
 
 # Result envelope and metadata (SDK spec §5)
 from learning_commons_evaluators.schemas import (
@@ -129,6 +136,10 @@ from learning_commons_evaluators.schemas.feedback.ela_writing.tone_appropriatene
 from learning_commons_evaluators.schemas.feedback.ela_writing.withholding_answers import (
     WithholdingAnswersInput,
     WithholdingAnswersOutput,
+)
+from learning_commons_evaluators.schemas.graphics.math.graphics_accuracy import (
+    GraphicsAccuracyInput,
+    GraphicsAccuracyOutput,
 )
 from learning_commons_evaluators.schemas.text_complexity.ela_reading.background_knowledge_demands import (
     BackgroundKnowledgeDemandsInput,
@@ -189,6 +200,11 @@ __all__ = [
     "GradeLevelAppropriatenessEvaluator",
     "GradeLevelAppropriatenessInput",
     "GradeLevelAppropriatenessOutput",
+    "GraphicsAccuracyEvaluator",
+    "GraphicsAccuracyInput",
+    "GraphicsAccuracyOutput",
+    "ImageAttachment",
+    "ImageMediaType",
     "InputValidationError",
     "Jurisdiction",
     "KnowledgeGraphClient",
@@ -253,6 +269,7 @@ __all__ = [
     "WithholdingAnswersEvaluator",
     "WithholdingAnswersInput",
     "WithholdingAnswersOutput",
+    "compose_graphics_accuracy_claim",
     "create_logger",
     "create_silent_logger",
     "get_evaluator",

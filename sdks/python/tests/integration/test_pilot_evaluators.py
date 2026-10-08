@@ -33,10 +33,13 @@ CRITICAL_THINKING_ORDER = ["not_evident", "exploring", "analyzing", "integrating
 #: cases. The declaration is what this module judges against, so an evaluator without one
 #: has no single verdict to compare and is covered by its own live test instead — today
 #: that is Math Standards Alignment, whose payload is a verdict per learning component.
+#: An evaluator that attaches files is covered by its own live test too: its fixtures name
+#: images relative to the contract, and its verdict is judged together with ``basis``.
 CASES = [
     pytest.param(evaluator, case, id=f"{evaluator.metadata.slug}/{case['id']}")
     for evaluator in EVALUATORS
     if evaluator.contract.outcome is not None
+    and not any(step.attachments for step in evaluator.contract.steps)
     for case in fixtures_for(evaluator.contract)
 ]
 

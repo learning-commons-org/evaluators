@@ -65,8 +65,9 @@ Complexity takes a different branch for grades 3–4 than for 5–12, but constr
 the union of keys it could need, so it demands both keys at any grade.
 
 When you want one comparable value per evaluation regardless of evaluator, use
-`read_outcome`. `score` is always a string, or `None` for an evaluator that declares no
-single verdict — which today means Math Standards Alignment.
+`read_outcome`. `score` is always a string, rendered as the TypeScript SDK renders it (a
+boolean verdict is `"true"`/`"false"`), or `None` for an evaluator that declares no single
+verdict — which today means Math Standards Alignment.
 
 ## Evaluators
 
@@ -115,6 +116,32 @@ declares `neutral_professional_language`, `targets_work_not_student` and
 | `StudentResponseSpecificityEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/student-response-specificity) |
 | `ToneAppropriatenessEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/tone-appropriateness) |
 | `WithholdingAnswersEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/withholding-answers) |
+
+**Graphics** — checks an image against the claim made about it. Takes
+`{ image_paths, claim }`: `image_paths` is a list of local image file paths (one, for this
+evaluator), each bounded by its contract's format, size and edge limits before any model call,
+and read by the SDK in your process. A file outside those limits is rejected with
+`InputValidationError`, not resized. Returns `is_correct` with `reasoning`, any `defects` in
+the image itself, and a `basis` saying whether a false verdict was `contradicted`,
+`unverified` or `defective`. `read_outcome` reports the verdict as `"true"` or `"false"`, the
+same token the TypeScript SDK reports. For a question with its expected answer, build the
+claim with `compose_graphics_accuracy_claim(question, answer)`, which produces the exact text
+the evaluator was measured with.
+
+```python
+from learning_commons_evaluators import GraphicsAccuracyEvaluator, compose_graphics_accuracy_claim
+
+evaluator = GraphicsAccuracyEvaluator(google_api_key="...")
+evaluation = evaluator.evaluate_sync(
+    image_paths=["figures/apples-in-baskets.png"],
+    claim=compose_graphics_accuracy_claim("How many apples are there altogether?", "12"),
+)
+print(evaluation.result.is_correct, evaluation.result.basis)
+```
+
+| Evaluator | Grades | Default provider | Docs |
+| --- | --- | --- | --- |
+| `GraphicsAccuracyEvaluator` | K–12 | Google | Early access; docs pending |
 
 **Standards alignment** — checks a math item against a standard, component by component.
 See [Math Standards Alignment](#math-standards-alignment) below, which has two entry points.

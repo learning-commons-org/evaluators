@@ -40,7 +40,7 @@ from learning_commons_evaluators.evaluators.registry import EVALUATORS
 from learning_commons_evaluators.telemetry import client as telemetry_client
 from learning_commons_evaluators.telemetry.client import TelemetryClient
 from tests.conftest import EventSink
-from tests.unit.conftest import FakeKnowledgeGraph, ProviderFactory
+from tests.unit.conftest import FakeKnowledgeGraph, ProviderFactory, resolve_attached_paths
 
 EVALS_ROOT = Path(__file__).resolve().parents[5] / "evals"
 
@@ -57,7 +57,8 @@ def fixture_input(evaluator: type[BaseEvaluator]) -> dict[str, Any]:
     path = (
         contract.fixtures.path if contract.fixtures and contract.fixtures.path else "fixtures.json"
     )
-    return dict(json.loads((directory / path).read_text(encoding="utf-8"))[0]["input"])
+    case = json.loads((directory / path).read_text(encoding="utf-8"))[0]
+    return resolve_attached_paths(contract, directory, case["input"])
 
 
 def evaluate_with(evaluator: BaseEvaluator, inputs: Mapping[str, Any]) -> Any:
@@ -165,6 +166,17 @@ class TestEveryEvaluatorReports:
         assert texts, "an evaluator with no text input would make this check vacuous"
         for name in texts:
             assert inputs[name] not in request["body"]
+        # Nor any file an attached input named: a path can carry a user or project name.
+        # Nor any text inside an array of objects, such as a source passage.
+        for name, spec in schema["properties"].items():
+            if spec.get("type") == "array":
+                for item in inputs[name]:
+                    if isinstance(item, str):
+                        assert item not in request["body"]
+                        assert Path(item).name not in request["body"]
+                    else:
+                        for field in item.values():
+                            assert field not in request["body"]
         # A length, and no field that could hold the text.
         text_field = primary_text_field(schema)
         assert text_field is not None

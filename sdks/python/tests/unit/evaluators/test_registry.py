@@ -42,6 +42,7 @@ def test_lists_every_evaluator_in_taxonomy_order() -> None:
         "feedback.ela_writing.student_response_specificity",
         "feedback.ela_writing.tone_appropriateness",
         "feedback.ela_writing.withholding_answers",
+        "graphics.math.graphics_accuracy",
         "text_complexity.ela_reading.background_knowledge_demands",
         "text_complexity.ela_reading.grade_level_appropriateness",
         "text_complexity.ela_reading.meaning_directness",

@@ -33,7 +33,7 @@ from learning_commons_evaluators.evaluators.academic_standards_alignment.mathema
     MathStandardsAlignmentEvaluator,
 )
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
-from learning_commons_evaluators.evaluators.inputs import validate_inputs
+from learning_commons_evaluators.evaluators.inputs import InputValue, text_inputs, validate_inputs
 from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
 from learning_commons_evaluators.evaluators.registry import EVALUATORS
 from learning_commons_evaluators.evaluators.single_step import SingleStepEvaluator, step_for
@@ -82,6 +82,11 @@ def typescript_render(template: str, inputs: Mapping[str, str], keys: list[str])
         if key in inputs:
             text = text.replace("{" + key + "}", inputs[key])
     return text
+
+
+def _attached(contract: Contract) -> set[str]:
+    """The inputs any step attaches as files."""
+    return {entry.input for step in contract.steps for entry in step.attachments}
 
 
 def plan_for(evaluator: type[BaseEvaluator], values: Mapping[str, str]) -> list[Step]:
@@ -162,7 +167,7 @@ def python_inputs(
     evaluator: type[BaseEvaluator],
     step: Step,
     values: Mapping[str, str],
-    raw: Mapping[str, Any],
+    validated: Mapping[str, InputValue],
 ) -> dict[str, str]:
     """The SDK's own placeholder values for one step, with the masked sources pre-seeded.
 
@@ -182,7 +187,7 @@ def python_inputs(
             name: values[name] if placeholder.source == "input" else MASK
             for name, placeholder in step.prompt.placeholders.items()
         }
-    computed = instance._prompt_inputs(values, raw)
+    computed = instance._prompt_inputs(values, validated)
     return {k: (MASK if k in COMPUTED else v) for k, v in computed.items()}
 
 
@@ -192,14 +197,16 @@ def test_python_renders_what_typescript_renders(
 ) -> None:
     contract = evaluator.contract
     raw = case["input"]
-    values = validate_inputs(raw, contract.input_schema)
+    validated = validate_inputs(raw, contract.input_schema)
+    # Attached inputs are files, never prompt text, in either SDK.
+    values = text_inputs(validated, attached=_attached(contract))
     plan = plan_for(evaluator, values)
     assert plan, "every fixture runs at least one step"
 
     for step in plan:
         assert step.prompt is not None
         keys = list(step.prompt.placeholders)
-        ours = python_inputs(evaluator, step, values, raw)
+        ours = python_inputs(evaluator, step, values, validated)
         theirs = typescript_inputs(evaluator, step, values, raw)
 
         for message in step.prompt.messages:
@@ -257,7 +264,9 @@ def test_library_computations_bind_a_number_rounded_as_declared() -> None:
     for evaluator, case in PAIRS:
         contract = evaluator.contract
         raw = case["input"]
-        values = validate_inputs(raw, contract.input_schema)
+        values = text_inputs(
+            validate_inputs(raw, contract.input_schema), attached=_attached(contract)
+        )
         for entry in contract.preprocessing:
             if entry.kind in IN_CODE_KINDS or entry.python is None:
                 continue

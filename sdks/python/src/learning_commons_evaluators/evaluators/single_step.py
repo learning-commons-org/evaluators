@@ -16,19 +16,27 @@ SDK's ``defineSingleStepEvaluator`` factory.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
-from typing import Any, ClassVar, Generic, TypeVar, cast
+from dataclasses import dataclass
+from typing import Any, ClassVar, Generic, NoReturn, TypeGuard, TypeVar, cast, get_args
 
 from pydantic import BaseModel
 
 from learning_commons_evaluators.contracts.loader import Contract, Preprocessing, Step
 from learning_commons_evaluators.errors import ConfigurationError
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
-from learning_commons_evaluators.evaluators.inputs import primary_text_field, validate_inputs
+from learning_commons_evaluators.evaluators.inputs import (
+    InputValue,
+    primary_text_field,
+    text_inputs,
+    validate_inputs,
+)
 from learning_commons_evaluators.evaluators.source_passages import (
     render_source_passages,
     source_passage_fields,
 )
+from learning_commons_evaluators.features.image_source import ImageBounds, load_image
 from learning_commons_evaluators.features.preprocessing import (
     check_implementation,
     format_number,
@@ -36,6 +44,8 @@ from learning_commons_evaluators.features.preprocessing import (
 )
 from learning_commons_evaluators.prompts.render import render_prompt
 from learning_commons_evaluators.providers import (
+    ImageAttachment,
+    ImageMediaType,
     LLMProvider,
     Message,
     Provider,
@@ -59,6 +69,90 @@ def step_for(contract: Contract) -> Step:
     return contract.step(f"evaluate_{contract.evaluator.slug}")
 
 
+#: Read off the ``ImageMediaType`` literal, so a format added there is accepted here too.
+_SUPPORTED_FORMATS: tuple[ImageMediaType, ...] = get_args(ImageMediaType)
+
+
+def _is_number(value: object) -> TypeGuard[int | float]:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+@dataclass(frozen=True)
+class AttachedInput:
+    """An input whose files the step attaches, paired with the ``x-image`` bounds on its items."""
+
+    input: str
+    bounds: ImageBounds
+
+
+def attachments_of(
+    step: Step, input_schema: Mapping[str, Any], evaluator_name: str
+) -> tuple[AttachedInput, ...]:
+    """The step's attached inputs, each paired with the ``x-image`` bounds on its items.
+
+    Read from the contract, and refused at class creation if a declaration cannot be
+    honoured: an attached input without complete bounds, or of a kind this SDK cannot send,
+    would otherwise reach the model unchecked or not at all. A missing or misspelled bound
+    would compare against nothing and silently pass, so every field is checked here.
+    """
+    properties: Mapping[str, Any] = input_schema.get("properties", {})
+    required = input_schema.get("required", [])
+    attached: list[AttachedInput] = []
+    for entry in step.attachments:
+
+        def refuse(why: str, name: str = entry.input) -> NoReturn:
+            raise ValueError(f'{evaluator_name} config.json attaches "{name}": {why}')
+
+        if entry.kind != "image":
+            refuse(f'kind "{entry.kind}" is not supported; this SDK sends only images.')
+        spec = properties.get(entry.input)
+        # Optional or non-array, a request could omit the images and be sent without them.
+        if not isinstance(spec, Mapping) or spec.get("type") != "array":
+            refuse("it must be an array input.")
+        if entry.input not in required:
+            refuse("it must be listed in `required`.")
+        least, most = spec.get("minItems"), spec.get("maxItems")
+        if not _is_number(least) or least < 1:
+            refuse("it must declare `minItems` of at least 1.")
+        if not _is_number(most) or most < least:
+            refuse("it must declare `maxItems` of at least `minItems`.")
+        items = spec.get("items")
+        if not isinstance(items, Mapping) or items.get("type") != "string":
+            refuse("its items must be strings (file paths).")
+        declared = items.get("x-image")
+        if not isinstance(declared, Mapping):
+            refuse("its items need an `x-image` block.")
+        formats = declared.get("formats")
+        if (
+            not isinstance(formats, list)
+            or not formats
+            or not all(f in _SUPPORTED_FORMATS for f in formats)
+        ):
+            refuse(
+                "`x-image.formats` must be a non-empty list drawn from "
+                f"{', '.join(_SUPPORTED_FORMATS)}."
+            )
+        if declared.get("detect") != "signature":
+            refuse('`x-image.detect` must be "signature".')
+        for key in ("min_bytes", "max_bytes", "min_edge", "max_edge"):
+            if not _is_number(declared.get(key)):
+                refuse(f"`x-image.{key}` must be a number.")
+        bounds = ImageBounds(
+            formats=tuple(formats),
+            detect="signature",
+            min_bytes=declared["min_bytes"],
+            max_bytes=declared["max_bytes"],
+            min_edge=declared["min_edge"],
+            max_edge=declared["max_edge"],
+        )
+        if bounds.min_bytes > bounds.max_bytes:
+            refuse("`x-image.min_bytes` exceeds `max_bytes`.")
+        if bounds.min_edge > bounds.max_edge:
+            refuse("`x-image.min_edge` exceeds `max_edge`.")
+        attached.append(AttachedInput(entry.input, bounds))
+    return tuple(attached)
+
+
 class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
     """Base for every evaluator whose contract declares one LLM step."""
 
@@ -71,6 +165,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
     _vendor: ClassVar[Provider]
     _preprocessing: ClassVar[tuple[Preprocessing, ...]]
     _text_field: ClassVar[str | None]
+    _attachments: ClassVar[tuple[AttachedInput, ...]]
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -115,6 +210,9 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         cls._step = step
         cls._vendor = step.model.provider
         cls._preprocessing = tuple(contract.preprocessing)
+        cls._attachments = attachments_of(step, contract.input_schema, name)
+        # An attached input is an array of paths, never the primary text: that is the
+        # first declared *string* input, so the attached ones are passed over by type.
         cls._text_field = primary_text_field(contract.input_schema)
         cls.metadata = EvaluatorMetadata.from_contract(contract, (step.model.provider,))
 
@@ -124,13 +222,22 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         self.provider: LLMProvider = self._create_configured_provider(
             self._vendor, self._step.model.name
         )
+        # Refused here, not at call time: a provider that ignores attachments would otherwise
+        # judge the claim with no image and return a confident verdict about nothing.
+        if self._attachments and not getattr(self.provider, "supports_attachments", False):
+            raise ConfigurationError(
+                f"{self.metadata.label} attaches images to each request, and the configured "
+                f'provider "{self.provider.label}" does not declare support for attachments.'
+            )
 
     async def evaluate(
         self, input: InputT | None = None, /, **fields: Any
     ) -> EvaluationResult[OutputT]:
         """Evaluate the contract's inputs, passed as the typed input model or by name.
 
-        :raises InputValidationError: an input is missing, unknown, or outside its schema.
+        :raises InputValidationError: an input is missing, unknown, or outside its schema;
+            or an attached image cannot be read, is not an accepted format by its bytes, or
+            falls outside the contract's ``x-image`` size or edge bounds.
         :raises ConfigurationError: the provider rejected the configured model id, or a
             required placeholder has no value from the source the contract names.
         :raises DependencyError: the provider call failed (``AuthenticationError``,
@@ -144,7 +251,9 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         raw = self._raw_fields(input, fields)
         with self._telemetry_run(self.provider.label) as run:
             try:
-                values = validate_inputs(raw, self.contract.input_schema)
+                validated = validate_inputs(raw, self.contract.input_schema)
+                # Attached inputs are files, never prompt text; only the other inputs render.
+                values = text_inputs(validated, attached={a.input for a in self._attachments})
                 text = values.get(self._text_field, "") if self._text_field else ""
                 run.text_length = utf16_length(text)
                 run.grade = values.get("grade_level", "")
@@ -154,7 +263,11 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                     extra={**context, "grade_level": run.grade, "text_length": run.text_length},
                 )
 
-                messages = self._render_messages(values, raw)
+                messages = self._render_messages(values, validated)
+                attachments = await self._load_attachments(validated)
+                # Passed only when there are some, so a text-only provider is never handed a
+                # parameter it may not declare.
+                extra: dict[str, Any] = {"attachments": attachments} if attachments else {}
                 dependency, model = provider_context(self.provider)
                 assert self._step.model is not None
                 response = await call_with_resampling(
@@ -162,6 +275,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                         messages,
                         self.output_model,
                         temperature=self.effective_temperature(self._step.temperature),
+                        **extra,
                     ),
                     max_retries=self.config.max_retries,
                     dependency=dependency,
@@ -215,20 +329,40 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
 
     # --- pieces of the flow ------------------------------------------------------------
 
+    async def _load_attachments(
+        self, values: Mapping[str, InputValue]
+    ) -> tuple[ImageAttachment, ...]:
+        """Every attached file, read in array order after validation and before any paid call.
+
+        Read once per evaluation, not per resample. The reads are blocking file I/O, so they
+        run off the event loop.
+        """
+        loaded: list[ImageAttachment] = []
+        for attached in self._attachments:
+            paths = values[attached.input]  # required, and validated as an array of strings
+            for index, path in enumerate(paths):
+                assert isinstance(path, str)  # attachments_of refuses any other item type
+                loaded.append(
+                    await asyncio.to_thread(
+                        load_image, f"{attached.input}[{index}]", path, attached.bounds
+                    )
+                )
+        return tuple(loaded)
+
     def _prompt_inputs(
-        self, values: Mapping[str, str], raw: Mapping[str, Any] | None = None
+        self, values: Mapping[str, str], validated: Mapping[str, InputValue] | None = None
     ) -> dict[str, str]:
         """Every placeholder the step declares, resolved from the source the contract names.
 
-        ``raw`` is the caller's input before validation turned lists into JSON. A length
-        computation counts that list, and a ``SourcePassage`` field is rendered to
-        markdown, both before a placeholder reads the field.
+        ``validated`` keeps each array as its items. A length computation counts those
+        items, and a ``SourcePassage`` field is rendered to markdown, both before a
+        placeholder reads the field.
         """
         rendered = dict(values)
-        if raw is not None:
+        if validated is not None:
             for field in source_passage_fields(self.contract.input_schema):
-                passages = raw.get(field)
-                if isinstance(passages, list):
+                passages = validated.get(field)
+                if isinstance(passages, tuple):
                     rendered[field] = render_source_passages(passages)
 
         computed: dict[str, str] = {}
@@ -238,7 +372,9 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             assert entry.python is not None and entry.output is not None
             if entry.python.library == "builtins" and entry.python.function == "len":
                 # Count the list, not the markdown it is about to become.
-                counted = raw.get(entry.input) if raw is not None and entry.input else None
+                counted = (
+                    validated.get(entry.input) if validated is not None and entry.input else None
+                )
                 computed[entry.output] = format_number(
                     run_preprocessing_step(counted, entry.python)
                 )
@@ -270,10 +406,10 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         return inputs
 
     def _render_messages(
-        self, values: Mapping[str, str], raw: Mapping[str, Any] | None = None
+        self, values: Mapping[str, str], validated: Mapping[str, InputValue] | None = None
     ) -> list[Message]:
         assert self._step.prompt is not None
-        inputs = self._prompt_inputs(values, raw)
+        inputs = self._prompt_inputs(values, validated)
         placeholders = list(self._step.prompt.placeholders)
         return [
             Message(
@@ -286,4 +422,4 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         ]
 
 
-__all__ = ["SingleStepEvaluator", "step_for"]
+__all__ = ["AttachedInput", "SingleStepEvaluator", "attachments_of", "step_for"]

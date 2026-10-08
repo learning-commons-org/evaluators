@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import base64
 import time
 from collections.abc import Sequence
 
 from learning_commons_evaluators.errors import ConfigurationError, LLMOutputProcessingError
-from learning_commons_evaluators.providers.base import Message, Provider, ProviderConfig
+from learning_commons_evaluators.providers.base import (
+    ImageAttachment,
+    Message,
+    Provider,
+    ProviderConfig,
+)
 
 
 def require_config(config: ProviderConfig, expected: Provider) -> tuple[str, str]:
@@ -45,6 +51,23 @@ def split_system(messages: Sequence[Message]) -> tuple[str | None, list[Message]
             continue
         rest.append(message)
     return system, rest
+
+
+def last_user_turn(messages: Sequence[Message]) -> int:
+    """The index of the final user turn, which is where every adapter places attachments.
+
+    Attachments go ahead of that turn's text, matching the TypeScript SDK; turns before it
+    pass through unchanged.
+    """
+    for index in range(len(messages) - 1, -1, -1):
+        if messages[index]["role"] == "user":
+            return index
+    raise ValueError("Attachments need a user message to be attached to.")
+
+
+def base64_data(attachment: ImageAttachment) -> str:
+    """The attachment's bytes as base64 text, the inline form every vendor's JSON API takes."""
+    return base64.b64encode(attachment.data).decode("ascii")
 
 
 def elapsed_ms(start: float) -> int:

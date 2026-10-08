@@ -9,12 +9,25 @@ import { InputValidationError } from '../errors.js';
  * something narrower, which §4.1 forbids.
  */
 
+/** A declared string input, or the items of a declared array input. */
+interface DeclaredStringSpec {
+  type?: string;
+  minLength?: number;
+  maxLength?: number;
+  enum?: string[];
+}
+
+/** A declared array input. Only arrays of strings: the only arrays contracts declare are file paths. */
+interface DeclaredStringArraySpec {
+  minItems?: number;
+  maxItems?: number;
+  /** Its items. `x-image` bounds, if any, are read by the image loader. */
+  items?: DeclaredStringSpec & Record<string, unknown>;
+}
+
 /** The shape of an `input_schema.json`, as much of it as validation reads. */
 export interface DeclaredInputSchema {
-  properties: Record<
-    string,
-    { type?: string; minLength?: number; maxLength?: number; enum?: string[] }
-  >;
+  properties: Record<string, DeclaredStringSpec & DeclaredStringArraySpec>;
   required?: string[];
 }
 
@@ -36,7 +49,8 @@ export type InputsOf<S extends { properties: object }> = Record<keyof S['propert
  * this SDK and in any other reading the same schema.
  *
  * @throws {InputValidationError} On an unknown key, a missing field, a whitespace-only
- * or out-of-bounds string, or a value outside a declared `enum`.
+ * or out-of-bounds string, a value outside a declared `enum`, or an array input that is
+ * not an array of strings or has a count outside `minItems`/`maxItems`.
  */
 export function validateInputs(
   inputs: Record<string, unknown>,
@@ -77,6 +91,11 @@ export function validateInputs(
       continue;
     }
 
+    if (spec.type === 'array') {
+      validateArrayField(field, value, spec);
+      continue;
+    }
+
     if (spec.type === 'string' && typeof value !== 'string') {
       throw new InputValidationError(`${field} must be a string.`);
     }
@@ -87,11 +106,36 @@ export function validateInputs(
   }
 }
 
-function validateStringField(
+function validateArrayField(
   field: string,
-  value: string,
-  spec: { minLength?: number; maxLength?: number; enum?: string[] },
+  value: unknown,
+  spec: DeclaredStringArraySpec,
 ): void {
+  if (!Array.isArray(value)) {
+    throw new InputValidationError(`${field} must be an array.`);
+  }
+  const count = (n: number) => `${n} item${n === 1 ? '' : 's'}`;
+  if (spec.minItems !== undefined && value.length < spec.minItems) {
+    throw new InputValidationError(`${field} needs at least ${count(spec.minItems)}; received ${value.length}.`);
+  }
+  if (spec.maxItems !== undefined && value.length > spec.maxItems) {
+    throw new InputValidationError(`${field} accepts at most ${count(spec.maxItems)}; received ${value.length}.`);
+  }
+  const items = spec.items;
+  if (items?.type !== 'string') {
+    // A contract fault, not a caller's: the only arrays contracts declare are file paths.
+    throw new Error(`${field} is declared as an array of ${String(items?.type)}; only arrays of strings are supported.`);
+  }
+  value.forEach((item, i) => {
+    const where = `${field}[${i}]`;
+    if (typeof item !== 'string') {
+      throw new InputValidationError(`${where} must be a string.`);
+    }
+    validateStringField(where, item, items);
+  });
+}
+
+function validateStringField(field: string, value: string, spec: DeclaredStringSpec): void {
   if (spec.enum) {
     if (!spec.enum.includes(value)) {
       throw new InputValidationError(
