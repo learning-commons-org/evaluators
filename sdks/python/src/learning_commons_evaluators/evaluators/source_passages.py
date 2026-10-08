@@ -35,6 +35,8 @@ def _block(number: int, passage: Mapping[str, Any]) -> str:
         heading = f"### Source {number}: {title} — by {author}"
     elif title:
         heading = f"### Source {number}: {title}"
+    elif author:
+        heading = f"### Source {number} — by {author}"
     else:
         heading = f"### Source {number}"
     return f"{heading}\n\n{passage.get('text', '')}"
