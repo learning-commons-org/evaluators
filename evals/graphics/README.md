@@ -1,5 +1,6 @@
 # Graphics
 
-Evaluates the graphics in generated instructional content.
+Measures whether generated graphics are correct for the content they accompany.
 
 - [Graphics Complexity](./ela/graphics-complexity/)
+- [Graphics Accuracy](./math/graphics-accuracy/)
