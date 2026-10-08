@@ -9,26 +9,30 @@ import { InputValidationError } from '../errors.js';
  * something narrower, which §4.1 forbids.
  */
 
-/** A declared string input, or the items of a declared array input. */
-interface DeclaredStringSpec {
+/** One schema node, as much of it as validation reads. `$ref` points at a `$defs` entry. */
+export interface DeclaredFieldSchema {
   type?: string;
   minLength?: number;
   maxLength?: number;
-  enum?: string[];
-}
-
-/** A declared array input. Only arrays of strings: the only arrays contracts declare are file paths. */
-interface DeclaredStringArraySpec {
+  minimum?: number;
+  maximum?: number;
   minItems?: number;
   maxItems?: number;
-  /** Its items. `x-image` bounds, if any, are read by the image loader. */
-  items?: DeclaredStringSpec & Record<string, unknown>;
+  enum?: string[];
+  $ref?: string;
+  additionalProperties?: boolean;
+  required?: string[];
+  properties?: Record<string, DeclaredFieldSchema>;
+  items?: DeclaredFieldSchema;
+  /** An attached item's bounds, read by the image loader rather than by validation. */
+  'x-image'?: unknown;
 }
 
 /** The shape of an `input_schema.json`, as much of it as validation reads. */
 export interface DeclaredInputSchema {
-  properties: Record<string, DeclaredStringSpec & DeclaredStringArraySpec>;
+  properties: Record<string, DeclaredFieldSchema>;
   required?: string[];
+  $defs?: Record<string, DeclaredFieldSchema>;
 }
 
 /**
@@ -49,8 +53,9 @@ export type InputsOf<S extends { properties: object }> = Record<keyof S['propert
  * this SDK and in any other reading the same schema.
  *
  * @throws {InputValidationError} On an unknown key, a missing field, a whitespace-only
- * or out-of-bounds string, a value outside a declared `enum`, or an array input that is
- * not an array of strings or has a count outside `minItems`/`maxItems`.
+ * or out-of-bounds string, a non-integer or out-of-bounds integer, a value outside a
+ * declared `enum`, or an array input with a count outside `minItems`/`maxItems` or an
+ * item that fails its own declaration.
  */
 export function validateInputs(
   inputs: Record<string, unknown>,
@@ -92,12 +97,17 @@ export function validateInputs(
     }
 
     if (spec.type === 'array') {
-      validateArrayField(field, value, spec);
+      validateArrayField(field, value, spec, schema.$defs ?? {});
       continue;
     }
 
     if (spec.type === 'string' && typeof value !== 'string') {
       throw new InputValidationError(`${field} must be a string.`);
+    }
+
+    if (spec.type === 'integer') {
+      validateIntegerField(field, value, spec);
+      continue;
     }
 
     if (typeof value === 'string') {
@@ -106,10 +116,41 @@ export function validateInputs(
   }
 }
 
+function resolveField(
+  spec: DeclaredFieldSchema,
+  defs: Record<string, DeclaredFieldSchema>,
+): DeclaredFieldSchema {
+  if (!spec.$ref) return spec;
+  const key = spec.$ref.replace('#/$defs/', '');
+  const def = defs[key];
+  if (!def) {
+    throw new InputValidationError(`Cannot resolve $ref "${spec.$ref}".`);
+  }
+  return def;
+}
+
+function validateIntegerField(field: string, value: unknown, spec: DeclaredFieldSchema): void {
+  // Booleans, floats, numeric strings, and values past the safe-integer range are
+  // not integers here. Past that range the value is not exact, and String(value)
+  // can render exponential notation instead of the decimal digits the prompt binds.
+  if (typeof value !== 'number' || !Number.isSafeInteger(value)) {
+    throw new InputValidationError(`${field} must be an integer.`);
+  }
+
+  if (spec.minimum !== undefined && value < spec.minimum) {
+    throw new InputValidationError(`${field} must be at least ${spec.minimum}.`);
+  }
+
+  if (spec.maximum !== undefined && value > spec.maximum) {
+    throw new InputValidationError(`${field} must be at most ${spec.maximum}.`);
+  }
+}
+
 function validateArrayField(
   field: string,
   value: unknown,
-  spec: DeclaredStringArraySpec,
+  spec: DeclaredFieldSchema,
+  defs: Record<string, DeclaredFieldSchema>,
 ): void {
   if (!Array.isArray(value)) {
     throw new InputValidationError(`${field} must be an array.`);
@@ -121,13 +162,19 @@ function validateArrayField(
   if (spec.maxItems !== undefined && value.length > spec.maxItems) {
     throw new InputValidationError(`${field} accepts at most ${count(spec.maxItems)}; received ${value.length}.`);
   }
-  const items = spec.items;
-  if (items?.type !== 'string') {
-    // A contract fault, not a caller's: the only arrays contracts declare are file paths.
-    throw new Error(`${field} is declared as an array of ${String(items?.type)}; only arrays of strings are supported.`);
+  const items = spec.items ? resolveField(spec.items, defs) : undefined;
+  if (items?.type !== 'string' && items?.type !== 'object') {
+    // A contract fault, not a caller's: the eval-schemas check admits only these two.
+    throw new Error(
+      `${field} is declared as an array of ${String(items?.type)}; only arrays of strings or objects are supported.`,
+    );
   }
   value.forEach((item, i) => {
     const where = `${field}[${i}]`;
+    if (items.type === 'object') {
+      validateObjectField(where, item, items);
+      return;
+    }
     if (typeof item !== 'string') {
       throw new InputValidationError(`${where} must be a string.`);
     }
@@ -135,7 +182,45 @@ function validateArrayField(
   });
 }
 
-function validateStringField(field: string, value: string, spec: DeclaredStringSpec): void {
+function validateObjectField(path: string, value: unknown, spec: DeclaredFieldSchema): void {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new InputValidationError(`${path} must be an object.`);
+  }
+  const record = value as Record<string, unknown>;
+  const properties = spec.properties ?? {};
+  const declared = Object.keys(properties);
+  if (spec.additionalProperties === false) {
+    for (const key of Object.keys(record)) {
+      if (!declared.includes(key)) {
+        throw new InputValidationError(
+          `Unknown input "${path}.${key}". This object accepts: ${declared.join(', ')}.`,
+        );
+      }
+    }
+  }
+  const required = spec.required ?? [];
+  for (const prop of [...required, ...declared.filter((name) => !required.includes(name))]) {
+    const propSpec = properties[prop];
+    const propValue = record[prop];
+    const propPath = `${path}.${prop}`;
+    if (propSpec.type !== 'string') {
+      // A contract fault, as above: object fields are strings.
+      throw new Error(`${propPath} is declared as ${String(propSpec.type)}; only string fields are supported.`);
+    }
+    if (propValue === undefined || propValue === null) {
+      if (required.includes(prop)) {
+        throw new InputValidationError(`${propPath} is required.`);
+      }
+      continue;
+    }
+    if (typeof propValue !== 'string') {
+      throw new InputValidationError(`${propPath} must be a string.`);
+    }
+    validateStringField(propPath, propValue, propSpec);
+  }
+}
+
+function validateStringField(field: string, value: string, spec: DeclaredFieldSchema): void {
   if (spec.enum) {
     if (!spec.enum.includes(value)) {
       throw new InputValidationError(

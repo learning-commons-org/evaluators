@@ -10,6 +10,7 @@ import {
   generateSchemaFile,
   discoverContracts,
   generatedContracts,
+  renderInputDeclarations,
   GENERATED_MARKER,
 } from '../../../scripts/generate-schema.js';
 
@@ -198,6 +199,36 @@ describe('generateSchemaFile', () => {
   });
 });
 
+// --- input declarations ---
+
+describe('renderInputDeclarations', () => {
+  it('throws when a $defs key is not a PascalCase identifier', () => {
+    expect(() =>
+      renderInputDeclarations(
+        {
+          $defs: { 'source-passage': { type: 'object', properties: {} } },
+          properties: {},
+          required: [],
+        },
+        'Example',
+      ),
+    ).toThrow('source-passage');
+  });
+
+  it.each(['ExampleInput', 'ExampleResult'])('throws when a $defs key collides with %s', (name) => {
+    expect(() =>
+      renderInputDeclarations(
+        {
+          $defs: { [name]: { type: 'object', properties: {} } },
+          properties: {},
+          required: [],
+        },
+        'Example',
+      ),
+    ).toThrow(name);
+  });
+});
+
 // --- main() CLI behavior ---
 
 describe('main() CLI', () => {
@@ -277,6 +308,55 @@ describe('generateSchemaFile against real contracts', () => {
     );
 
     expect(content).toContain('export const PurposeClarityOutputSchema');
+  });
+
+  it('types Critical Thinking passages as a named object array', () => {
+    const { content } = generateSchemaFile(
+      contract('durable-skills/ela-writing/critical-thinking'),
+    );
+
+    expect(content).toContain('export interface SourcePassage {');
+    expect(content).toContain('"title"?: string | null;');
+    expect(content).toContain('"author"?: string | null;');
+    expect(content).toContain('"text": string;');
+    expect(content).toContain('"source_passages": SourcePassage[];');
+    expect(content).toContain('"assignment_text": string;');
+    expect(content).toContain('"essay_text": string;');
+  });
+
+  it('names an input $def and types an array of it', () => {
+    const code = renderInputDeclarations(
+      {
+        type: 'object',
+        required: ['note', 'passages'],
+        properties: {
+          note: { type: 'string' },
+          passages: {
+            type: 'array',
+            items: { $ref: '#/$defs/SourcePassage' },
+          },
+        },
+        $defs: {
+          SourcePassage: {
+            type: 'object',
+            required: ['text'],
+            properties: {
+              title: { type: 'string', description: 'Optional heading.' },
+              author: { type: 'string' },
+              text: { type: 'string' },
+            },
+          },
+        },
+      },
+      'Widget',
+    );
+
+    expect(code).toContain('export interface SourcePassage {');
+    expect(code).toContain('"title"?: string | null;');
+    expect(code).toContain('"author"?: string | null;');
+    expect(code).toContain('"text": string;');
+    expect(code).toContain('"passages": SourcePassage[];');
+    expect(code).toContain('"note": string;');
   });
 });
 
