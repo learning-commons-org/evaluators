@@ -1,0 +1,134 @@
+[
+  {
+    "id": "question_answer_true",
+    "description": "Question + expected answer, image correct. Three baskets hold 4, 5 and 3 apples; the count sums to 12 and matches.",
+    "input": {
+      "image_paths": ["images/apples-in-baskets.png"],
+      "claim": "Question: \"How many apples are in the three baskets altogether?\" The answer is 12."
+    },
+    "expected": {
+      "is_correct": true,
+      "basis": "supported"
+    }
+  },
+  {
+    "id": "question_answer_false",
+    "description": "Same image, the expected answer off by one. The count completes and disagrees, so the verdict is a contradiction.",
+    "input": {
+      "image_paths": ["images/apples-in-baskets.png"],
+      "claim": "Question: \"How many apples are in the three baskets altogether?\" The answer is 11."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "contradicted"
+    }
+  },
+  {
+    "id": "descriptive_claim_true",
+    "description": "Descriptive claim, no question. Bar chart with value labels: Apple 8, Banana 5, Grape 7, Orange 4.",
+    "input": {
+      "image_paths": ["images/favorite-fruit-bar-chart.png"],
+      "claim": "More students chose Apple than Grape."
+    },
+    "expected": {
+      "is_correct": true,
+      "basis": "supported"
+    }
+  },
+  {
+    "id": "descriptive_claim_false",
+    "description": "Descriptive claim the chart contradicts: Banana (5) is below Grape (7).",
+    "input": {
+      "image_paths": ["images/favorite-fruit-bar-chart.png"],
+      "claim": "More students chose Banana than Grape."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "contradicted"
+    }
+  },
+  {
+    "id": "geometry_true",
+    "description": "Rectangle labelled 9 cm by 4 cm; the area is 36 square centimeters.",
+    "input": {
+      "image_paths": ["images/labelled-rectangle.png"],
+      "claim": "Question: \"What is the area of the rectangle in square centimeters?\" The answer is 36."
+    },
+    "expected": {
+      "is_correct": true,
+      "basis": "supported"
+    }
+  },
+  {
+    "id": "geometry_false",
+    "description": "Same rectangle, the area stated as the perimeter. The perimeter is 26 cm, not 36.",
+    "input": {
+      "image_paths": ["images/labelled-rectangle.png"],
+      "claim": "Question: \"What is the perimeter of the rectangle in centimeters?\" The answer is 36."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "contradicted"
+    }
+  },
+  {
+    "id": "pie_chart_claim_true",
+    "description": "Pie chart labelled Walk 40%, Bus 30%, Car 20%, Bike 10%. Walking (40%) is twice car travel (20%).",
+    "input": {
+      "image_paths": ["images/travel-to-school-pie-chart.png"],
+      "claim": "Twice as many students walk to school as travel by car."
+    },
+    "expected": {
+      "is_correct": true,
+      "basis": "supported"
+    }
+  },
+  {
+    "id": "image_missing_element",
+    "description": "The specification is right but the figure omits what it needs: only the 9 cm side is labelled, so the area cannot be derived from the image. A correct evaluator flags the missing label as a defect.",
+    "input": {
+      "image_paths": ["images/rectangle-one-side-labelled.png"],
+      "claim": "Question: \"What is the area of the rectangle in square centimeters?\" The answer is 36."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "defective"
+    }
+  },
+  {
+    "id": "defect_claim_intact_pie",
+    "description": "Pie chart whose printed percentages sum to 110%: Juice is labelled 25% but drawn as about 15% of the circle. The claim compares Water (35%) and Milk (30%), which are drawn and labelled consistently, so it still holds; the image itself is defective.",
+    "input": {
+      "image_paths": ["images/favorite-drink-pie-chart-110.png"],
+      "claim": "More students chose Water than Milk."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "defective"
+    }
+  },
+  {
+    "id": "defect_claim_intact_bar",
+    "description": "Bar chart with value labels where Thursday is labelled 6 but drawn reaching 9. The claim compares Tuesday (7) and Monday (4), whose bars match their labels, so it still holds; the image itself is defective.",
+    "input": {
+      "image_paths": ["images/books-read-bar-chart-mismatch.png"],
+      "claim": "More books were read on Tuesday than on Monday."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "defective"
+    }
+  },
+  {
+    "id": "claim_not_shown",
+    "description": "Descriptive claim about something the bar chart does not show at all (when the votes were collected). The image is not defective and does not contradict the claim; it cannot confirm it, so the verdict is unverified.",
+    "input": {
+      "image_paths": ["images/favorite-fruit-bar-chart.png"],
+      "claim": "These votes were collected in March."
+    },
+    "expected": {
+      "is_correct": false,
+      "basis": "unverified"
+    }
+  }
+]
