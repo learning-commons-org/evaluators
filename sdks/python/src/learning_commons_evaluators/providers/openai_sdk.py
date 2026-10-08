@@ -4,12 +4,17 @@ Structured output uses the Responses API's ``parse`` with a pydantic model as
 ``text_format``: the SDK sends the model's JSON schema in strict mode and validates the
 completion against it, so a payload the schema rejects surfaces as a typed failure rather
 than a coerced object.
+
+Each call builds its own client and closes it before returning; see
+:class:`~learning_commons_evaluators.providers.base.LLMProvider` for why.
 """
 
 from __future__ import annotations
 
 import time
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
+from contextlib import asynccontextmanager
+from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel
@@ -43,11 +48,24 @@ class OpenAIProvider:
         model, api_key = require_config(config, Provider.OPENAI)
         self._model = model
         self.label = provider_label(Provider.OPENAI, model)
+        #: A client the caller handed in, used for every call and never closed: its owner
+        #: decides its lifetime.
+        self._client = client
+        self._new_client: Callable[[], AsyncOpenAI] | None = None
         if client is None:
             from openai import AsyncOpenAI
 
-            client = AsyncOpenAI(api_key=api_key, max_retries=config.max_retries)
-        self._client = client
+            self._new_client = partial(AsyncOpenAI, api_key=api_key, max_retries=config.max_retries)
+
+    @asynccontextmanager
+    async def _session(self) -> AsyncIterator[AsyncOpenAI]:
+        """The client for one call: the injected one, or a new one closed on the way out."""
+        if self._new_client is None:
+            assert self._client is not None
+            yield self._client
+            return
+        async with self._new_client() as client:
+            yield client
 
     def _request(
         self,
@@ -85,9 +103,10 @@ class OpenAIProvider:
         max_tokens: int | None = None,
     ) -> LLMResponse[T]:
         start = time.perf_counter()
-        response = await self._client.responses.parse(
-            text_format=schema, **self._request(messages, temperature, max_tokens)
-        )
+        async with self._session() as client:
+            response = await client.responses.parse(
+                text_format=schema, **self._request(messages, temperature, max_tokens)
+            )
         parsed = response.output_parsed
         if parsed is None:
             # A refusal or an incomplete completion leaves nothing to parse; the SDK reports
@@ -110,9 +129,10 @@ class OpenAIProvider:
         max_tokens: int | None = None,
     ) -> TextGenerationResponse:
         start = time.perf_counter()
-        response = await self._client.responses.create(
-            **self._request(messages, temperature, max_tokens)
-        )
+        async with self._session() as client:
+            response = await client.responses.create(
+                **self._request(messages, temperature, max_tokens)
+            )
         return TextGenerationResponse(
             text=response.output_text,
             usage=self._usage(response),

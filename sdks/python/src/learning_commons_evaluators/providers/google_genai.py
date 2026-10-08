@@ -7,12 +7,17 @@ enums, and the registry's feedback contracts score with ``enum: [0, 1]``. The co
 validated here with the same pydantic model, so a payload the schema rejects surfaces as a
 pydantic ``ValidationError`` (classified as ``LLMOutputProcessingError`` by
 ``wrap_provider_error``) rather than as a silently coerced object.
+
+Each call builds its own client and closes it before returning; see
+:class:`~learning_commons_evaluators.providers.base.LLMProvider` for why.
 """
 
 from __future__ import annotations
 
 import time
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
+from contextlib import asynccontextmanager
+from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel
@@ -49,18 +54,38 @@ class GoogleProvider:
         model, api_key = require_config(config, Provider.GOOGLE)
         self._model = model
         self.label = provider_label(Provider.GOOGLE, model)
+        #: A client the caller handed in, used for every call and never closed: its owner
+        #: decides its lifetime.
+        self._client = client
+        self._new_client: Callable[[], Client] | None = None
         if client is None:
             from google.genai import Client, types
 
             # ``attempts`` counts the original request, so ``max_retries`` retries is one
             # more; 1 disables retrying, matching the other SDKs' ``max_retries=0``.
-            client = Client(
+            self._new_client = partial(
+                Client,
                 api_key=api_key,
                 http_options=types.HttpOptions(
                     retry_options=types.HttpRetryOptions(attempts=config.max_retries + 1)
                 ),
             )
-        self._client = client
+
+    @asynccontextmanager
+    async def _session(self) -> AsyncIterator[Client]:
+        """The client for one call: the injected one, or a new one closed on the way out."""
+        if self._new_client is None:
+            assert self._client is not None
+            yield self._client
+            return
+        client = self._new_client()
+        try:
+            yield client
+        finally:
+            # A client holds a pool per transport, and closing the async one leaves the
+            # sync one open, so both are closed.
+            await client.aio.aclose()
+            client.close()
 
     def _request(
         self,
@@ -111,9 +136,10 @@ class GoogleProvider:
         max_tokens: int | None = None,
     ) -> LLMResponse[T]:
         start = time.perf_counter()
-        response = await self._client.aio.models.generate_content(
-            **self._request(messages, temperature, max_tokens, schema)
-        )
+        async with self._session() as client:
+            response = await client.aio.models.generate_content(
+                **self._request(messages, temperature, max_tokens, schema)
+            )
         # The SDK only populates ``parsed`` for its own ``response_schema`` path; with a raw
         # JSON schema the text is the payload, and the model validates it.
         parsed = response.parsed
@@ -141,9 +167,10 @@ class GoogleProvider:
         max_tokens: int | None = None,
     ) -> TextGenerationResponse:
         start = time.perf_counter()
-        response = await self._client.aio.models.generate_content(
-            **self._request(messages, temperature, max_tokens, None)
-        )
+        async with self._session() as client:
+            response = await client.aio.models.generate_content(
+                **self._request(messages, temperature, max_tokens, None)
+            )
         return TextGenerationResponse(
             text=response.text or "",
             usage=self._usage(response),

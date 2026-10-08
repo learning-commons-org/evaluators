@@ -42,7 +42,8 @@ dependencies = [
     # classifier and the tests that build the SDKs' exceptions.
     "openai>=2.47.0,<4",
     "anthropic>=1.0.0,<2",
-    "google-genai>=1.30.0,<3",
+    # 1.39.0 is the first to let a client be closed (Client.close, AsyncClient.aclose).
+    "google-genai>=1.39.0,<3",
     "httpx>=0.27.0,<1",
     # Knowledge Graph client (D9). The OpenAPI-generated transport under
     # dependencies/_generated/ is built on httpx and attrs, so both are unconditional —

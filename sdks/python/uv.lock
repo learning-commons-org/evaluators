@@ -4,8 +4,8 @@ requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.15'",
     "python_full_version == '3.14.*' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform == 'emscripten'",
     "python_full_version == '3.14.*' and sys_platform != 'emscripten'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform == 'emscripten'",
     "(python_full_version < '3.14' and sys_platform != 'emscripten') or (python_full_version < '3.12' and sys_platform == 'emscripten')",
 ]
 
@@ -886,7 +886,7 @@ wheels = [
 
 [[package]]
 name = "learning-commons-evaluators"
-version = "0.2.1"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
@@ -913,7 +913,7 @@ dev = [
 requires-dist = [
     { name = "anthropic", specifier = ">=1.0.0,<2" },
     { name = "attrs", specifier = ">=23.2.0" },
-    { name = "google-genai", specifier = ">=1.30.0,<3" },
+    { name = "google-genai", specifier = ">=1.39.0,<3" },
     { name = "httpx", specifier = ">=0.27.0,<1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.14.0" },
     { name = "openai", specifier = ">=2.47.0,<4" },
