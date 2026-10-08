@@ -7,6 +7,7 @@ applies no defaults of its own.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from typing import Any
 
@@ -46,6 +47,7 @@ def validate_inputs(inputs: Any, schema: Mapping[str, Any]) -> dict[str, str]:
 
     required = list(schema.get("required", []))
     order = [*required, *(f for f in declared if f not in required)]
+    defs = schema.get("$defs", {})
 
     values: dict[str, str] = {}
     for field in order:
@@ -55,11 +57,24 @@ def validate_inputs(inputs: Any, schema: Mapping[str, Any]) -> dict[str, str]:
             if field in required:
                 raise InputValidationError(f"{field} is required.")
             continue
-        values[field] = _validate_field(field, value, spec)
+        values[field] = _validate_field(field, value, spec, defs)
     return values
 
 
-def _validate_field(field: str, value: Any, spec: Mapping[str, Any]) -> str:
+def _resolve(spec: Mapping[str, Any], defs: Mapping[str, Any]) -> Mapping[str, Any]:
+    ref = spec.get("$ref")
+    if not isinstance(ref, str):
+        return spec
+    key = ref.removeprefix("#/$defs/")
+    node = defs.get(key)
+    if not isinstance(node, Mapping):
+        raise InputValidationError(f'Cannot resolve $ref "{ref}".')
+    return node
+
+
+def _validate_field(
+    field: str, value: Any, spec: Mapping[str, Any], defs: Mapping[str, Any]
+) -> str:
     kind = spec.get("type")
     if kind == "string":
         if isinstance(value, bool) or not isinstance(value, (str, int)):
@@ -79,7 +94,60 @@ def _validate_field(field: str, value: Any, spec: Mapping[str, Any]) -> str:
         if maximum is not None and value > maximum:
             raise InputValidationError(f"{field} must be at most {maximum}.")
         return str(value)
+    if kind == "array":
+        return _validate_array(field, value, spec, defs)
     return str(value)
+
+
+def _validate_array(
+    field: str, value: Any, spec: Mapping[str, Any], defs: Mapping[str, Any]
+) -> str:
+    if not isinstance(value, list):
+        raise InputValidationError(f"{field} must be an array.")
+    minimum = spec.get("minItems")
+    if isinstance(minimum, int) and len(value) < minimum:
+        noun = "item" if minimum == 1 else "items"
+        raise InputValidationError(f"{field} must contain at least {minimum} {noun}.")
+    items = spec.get("items")
+    if isinstance(items, Mapping):
+        item_spec = _resolve(items, defs)
+        for index, item in enumerate(value):
+            _validate_item(f"{field}[{index}]", item, item_spec)
+    # Compact JSON matches the TypeScript binder, and it is never a Python repr.
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def _validate_item(path: str, value: Any, spec: Mapping[str, Any]) -> None:
+    if spec.get("type") == "string":
+        if not isinstance(value, str):
+            raise InputValidationError(f"{path} must be a string.")
+        _validate_string(path, value, spec)
+        return
+    if spec.get("type") != "object":
+        return
+    if not isinstance(value, Mapping):
+        raise InputValidationError(f"{path} must be an object.")
+    properties: Mapping[str, Mapping[str, Any]] = spec.get("properties", {})
+    declared = list(properties)
+    if spec.get("additionalProperties") is False:
+        for key in value:
+            if key not in declared:
+                raise InputValidationError(
+                    f'Unknown input "{path}.{key}". This object accepts: {", ".join(declared)}.'
+                )
+    required = list(spec.get("required", []))
+    for prop in [*required, *(name for name in declared if name not in required)]:
+        prop_value = value.get(prop)
+        prop_path = f"{path}.{prop}"
+        if prop_value is None:
+            if prop in required:
+                raise InputValidationError(f"{prop_path} is required.")
+            continue
+        prop_spec = properties[prop]
+        if prop_spec.get("type") == "string":
+            if not isinstance(prop_value, str):
+                raise InputValidationError(f"{prop_path} must be a string.")
+            _validate_string(prop_path, prop_value, prop_spec)
 
 
 def _validate_string(field: str, value: str, spec: Mapping[str, Any]) -> None:
