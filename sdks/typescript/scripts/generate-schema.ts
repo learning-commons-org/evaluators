@@ -97,18 +97,28 @@ export function toPascalCase(str: string): string {
  * Render one declared input as a TypeScript property.
  *
  * A declared `enum` becomes a literal union, which is the point: the contract's accepted
- * values become a compile error instead of a run-time one. An `integer` becomes `number`.
- * Anything else is `string`. Bounds (`minLength`, `minimum`, and the rest) are not
- * expressible in the type system and stay with `validateInputs`, which is the
- * authoritative check either way.
+ * values become a compile error instead of a run-time one. An `integer` becomes `number`. An
+ * array of strings — an attached input's file paths — is `string[]`. Anything else is `string`.
+ * Bounds are not expressible in the type system, so they are enforced at runtime: `minLength`,
+ * `maxLength`, `minimum`, `maximum`, `minItems` and `maxItems` by `validateInputs`, and each
+ * file's `x-image` bounds by the image loader.
  */
 function renderInputProperty(name: string, spec: JsonObject): string {
   const enumValues = spec['enum'];
-  const type = Array.isArray(enumValues) && enumValues.length > 0
-    ? enumValues.map((v) => JSON.stringify(v)).join(' | ')
-    : spec['type'] === 'integer'
-      ? 'number'
-      : 'string';
+  const items = spec['items'] as JsonObject | undefined;
+  let type: string;
+  if (Array.isArray(enumValues) && enumValues.length > 0) {
+    type = enumValues.map((v) => JSON.stringify(v)).join(' | ');
+  } else if (spec['type'] === 'array') {
+    if (items?.['type'] !== 'string') {
+      throw new Error(`Input "${name}" is an array of ${String(items?.['type'])}; only arrays of strings are rendered.`);
+    }
+    type = 'string[]';
+  } else if (spec['type'] === 'integer') {
+    type = 'number';
+  } else {
+    type = 'string';
+  }
 
   const description = typeof spec['description'] === 'string' ? spec['description'] : undefined;
   const doc = description ? `  /** ${description} */\n` : '';

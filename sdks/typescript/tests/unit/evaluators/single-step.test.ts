@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { z } from 'zod';
-import { defineSingleStepEvaluator, requireStep } from '../../../src/evaluators/single-step.js';
+import { attachmentsOf, defineSingleStepEvaluator, requireStep } from '../../../src/evaluators/single-step.js';
 import { Provider } from '../../../src/evaluators/base.js';
 import {
   EvaluatorError,
@@ -476,5 +478,137 @@ describe('requireStep', () => {
     expect(() => requireStep(steps, 'third', 'Thing Evaluator')).toThrow(
       'Step "third" not found in Thing Evaluator config.json',
     );
+  });
+});
+
+// --- attachments ---
+
+const X_IMAGE = {
+  formats: ['image/png', 'image/jpeg', 'image/webp'],
+  detect: 'signature',
+  min_bytes: 64,
+  max_bytes: 5242880,
+  min_edge: 16,
+  max_edge: 2560,
+};
+
+const IMAGE_INPUT_SCHEMA = {
+  properties: {
+    figures: { type: 'array', minItems: 1, maxItems: 3, items: { type: 'string', minLength: 1, 'x-image': X_IMAGE } },
+    text: { type: 'string', minLength: 1 },
+  },
+  required: ['figures', 'text'],
+};
+
+const imageStep = (attachments: unknown) => ({
+  id: 'evaluate_thing',
+  model: { provider: 'google', name: 'gemini-3-flash-preview' },
+  prompt: { placeholders: { text: {} } },
+  attachments,
+});
+
+describe('attachmentsOf refuses a declaration it cannot honour', () => {
+  const withBounds = (xImage: unknown) => ({
+    properties: { figures: { type: 'array', minItems: 1, maxItems: 3, items: { type: 'string', 'x-image': xImage } } },
+    required: ['figures'],
+  });
+  const declare = (attachments: unknown, schema: unknown) =>
+    () => attachmentsOf(imageStep(attachments) as never, schema as never, 'Thing Evaluator');
+
+  it('accepts a complete declaration', () => {
+    expect(declare([{ input: 'figures', kind: 'image' }], withBounds(X_IMAGE))()).toEqual([
+      { input: 'figures', bounds: X_IMAGE },
+    ]);
+  });
+
+  it('refuses a kind other than image', () => {
+    expect(declare([{ input: 'figures', kind: 'document' }], withBounds(X_IMAGE))).toThrow(/kind "document" is not supported/);
+  });
+
+  it('refuses an attached input with no x-image on its items', () => {
+    expect(declare([{ input: 'figures', kind: 'image' }], withBounds(undefined))).toThrow(/need an `x-image` block/);
+  });
+
+  it('refuses a bound that is missing or misspelled, which would otherwise pass silently', () => {
+    const noMinEdge: Record<string, unknown> = { ...X_IMAGE };
+    delete noMinEdge.min_edge;
+    expect(declare([{ input: 'figures', kind: 'image' }], withBounds(noMinEdge))).toThrow(/`x-image.min_edge` must be a number/);
+    expect(declare([{ input: 'figures', kind: 'image' }], withBounds({ ...X_IMAGE, detect: 'extension' }))).toThrow(/must be "signature"/);
+  });
+
+  it('refuses an unsupported or empty format list and inverted bounds', () => {
+    const one = [{ input: 'figures', kind: 'image' }];
+    expect(declare(one, withBounds({ ...X_IMAGE, formats: ['png'] }))).toThrow(/`x-image.formats` must be/);
+    expect(declare(one, withBounds({ ...X_IMAGE, formats: [] }))).toThrow(/`x-image.formats` must be/);
+    expect(declare(one, withBounds({ ...X_IMAGE, min_edge: 3000 }))).toThrow(/min_edge` exceeds `max_edge/);
+    expect(declare(one, withBounds({ ...X_IMAGE, min_bytes: 9e9 }))).toThrow(/min_bytes` exceeds `max_bytes/);
+  });
+
+  it('refuses an attached input that could be omitted: not an array, not required, or minItems below 1', () => {
+    const one = [{ input: 'figures', kind: 'image' }];
+    const schema = (patch: (s: ReturnType<typeof withBounds>) => void) => {
+      const s = withBounds(X_IMAGE);
+      patch(s);
+      return s;
+    };
+    expect(declare(one, schema((s) => { (s.properties.figures as { type: string }).type = 'string'; }))).toThrow(/must be an array input/);
+    expect(declare(one, schema((s) => { s.required = []; }))).toThrow(/must be listed in `required`/);
+    expect(declare(one, schema((s) => { s.properties.figures.minItems = 0; }))).toThrow(/`minItems` of at least 1/);
+  });
+
+  it('refuses an unbounded or inverted item count, and items that are not file paths', () => {
+    const one = [{ input: 'figures', kind: 'image' }];
+    const schema = (patch: (figures: Record<string, unknown>) => void) => {
+      const s = withBounds(X_IMAGE);
+      patch(s.properties.figures as Record<string, unknown>);
+      return s;
+    };
+    expect(declare(one, schema((f) => { delete f.maxItems; }))).toThrow(/`maxItems` of at least `minItems`/);
+    expect(declare(one, schema((f) => { f.minItems = 2; f.maxItems = 1; }))).toThrow(/`maxItems` of at least `minItems`/);
+    expect(declare(one, schema((f) => { (f.items as Record<string, unknown>).type = 'number'; }))).toThrow(/items must be strings/);
+  });
+
+  it('fails when the evaluator is defined, not when it is first called', () => {
+    expect(() =>
+      defineSingleStepEvaluator({
+        contract: contract({ steps: [imageStep([{ input: 'figures', kind: 'image' }])] }) as never,
+        inputSchema: { properties: { figures: { type: 'array', minItems: 1, maxItems: 3, items: { type: 'string' } } }, required: ['figures'] } as never,
+        outputSchema: OUTPUT_SCHEMA,
+        systemPrompt: 'system',
+        userPrompt: 'user',
+      }),
+    ).toThrow(/need an `x-image` block/);
+  });
+});
+
+describe('defineSingleStepEvaluator attaches several images in array order', () => {
+  const dir = join(process.cwd(), 'tests/fixtures/images');
+
+  /** Real images in three formats, so each attachment is distinct and the order is observable. */
+  const fixture = (name: string) => {
+    const path = join(dir, name);
+    return { path, bytes: new Uint8Array(readFileSync(path)) };
+  };
+
+  it('loads every path, in order, and keeps them out of the prompt text', async () => {
+    const E = defineSingleStepEvaluator<{ figures: string[]; text: string }, Output>({
+      contract: contract({ steps: [imageStep([{ input: 'figures', kind: 'image' }])] }) as never,
+      inputSchema: IMAGE_INPUT_SCHEMA as never,
+      outputSchema: OUTPUT_SCHEMA,
+      systemPrompt: 'system',
+      userPrompt: 'user: {text}',
+    });
+    const provider = { ...fakeProvider(), supportsAttachments: true };
+    const evaluator = new E({ llmProvider: provider, telemetry: false });
+
+    const a = fixture('512x256.png');
+    const b = fixture('512x256.jpg');
+    const c = fixture('512x256.webp');
+    await evaluator.evaluate({ figures: [a.path, b.path, c.path], text: 'Three figures.' });
+
+    const call = vi.mocked(provider.generateStructured).mock.calls[0][0];
+    expect(call.attachments?.map((p) => p.data)).toEqual([a.bytes, b.bytes, c.bytes]);
+    expect(call.messages[1].content).toBe('user: Three figures.');
+    expect(call.messages[1].content).not.toContain(dir);
   });
 });

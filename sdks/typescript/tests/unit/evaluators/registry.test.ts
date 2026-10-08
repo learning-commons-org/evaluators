@@ -38,8 +38,11 @@ const FORMER_IDS = EXPORTED.flatMap(({ name, cls }) =>
 );
 
 describe('the fixtures these tests are built from', () => {
-  it('finds all sixteen evaluators on the barrel', () => {
-    expect(EXPORTED).toHaveLength(16);
+  it('finds evaluators on the barrel, so the cases below cannot pass vacuously', () => {
+    // Not a pinned count. The barrel's membership is checked by name elsewhere: against the
+    // generated schema modules in declarations.test.ts and against the README in docs.test.ts,
+    // so an evaluator dropped from the barrel fails there and says which.
+    expect(EXPORTED.length).toBeGreaterThan(0);
   });
 
   it('finds historical ids, so the rename cases are not vacuous', () => {
