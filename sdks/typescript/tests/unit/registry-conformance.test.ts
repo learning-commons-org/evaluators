@@ -347,8 +347,7 @@ const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknow
   [CriticalThinkingEvaluator.metadata.id]: (E, text) =>
     construct(E).evaluate({
       assignment_text: 'Using the sources, argue whether your town should limit cars downtown.',
-      sources: '### Source 1: A passage.\n\n### Source 2: Another passage.',
-      source_count: 2,
+      source_passages: CRITICAL_THINKING_PASSAGES,
       essay_text: text,
     }),
 };
@@ -360,6 +359,9 @@ const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknow
  * skips these. The minimum-length check does not: validation runs before any LLM call.
  */
 const MULTI_STEP = new Set<string>([SENTENCE_ID, VocabularyComplexityEvaluator.metadata.id]);
+
+/** The passages the Critical Thinking invoke passes, so a length check can expect this count. */
+const CRITICAL_THINKING_PASSAGES = [{ text: 'A passage.' }, { text: 'Another passage.' }];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function construct(E: EvaluatorClass): any {
@@ -891,7 +893,12 @@ describe('every declared preprocessing value reaches the prompt', () => {
       .flatMap((step) => {
         const impl = step.implementation?.typescript;
         if (!impl) return [];
-        const value = String(runPreprocessingStep(TEXT, impl));
+        // A length computation counts the caller's list. Running it on the essay text
+        // would be a character count, which is not what the prompt binds.
+        const value =
+          impl.library === 'builtins' && impl.function === 'length'
+            ? String(CRITICAL_THINKING_PASSAGES.length)
+            : String(runPreprocessingStep(TEXT, impl));
         return prompts.includes(value) ? [] : [step];
       })
       .map((step) => step.id);

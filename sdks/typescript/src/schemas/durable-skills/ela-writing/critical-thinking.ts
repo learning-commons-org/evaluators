@@ -6,13 +6,17 @@
 import { z } from 'zod';
 
 /** What this evaluator accepts, from its input schema. */
+export interface SourcePassage {
+  "title"?: string;
+  "author"?: string;
+  "text": string;
+}
+
 export type CriticalThinkingInput = {
   /** The writing assignment / prompt given to the student. */
   "assignment_text": string;
-  /** The source passage(s) the student was given, as text. */
-  "sources": string;
-  /** How many distinct source passages the prompt provided. Indicator 2.1 (synthesizing sources) is rated only when this is greater than 1; when it is 1, Indicator 2.1 is omitted from the output. */
-  "source_count": number;
+  /** Source passages in the order the student received them. Position is the source number: the first item is Source 1, the second is Source 2, and so on. The SDK does not sort or renumber this list. When a passage has no title or author, that number is a valid way for the student to name it. */
+  "source_passages": SourcePassage[];
   /** The student's essay, verbatim (may contain spelling/grammar errors). */
   "essay_text": string;
 };

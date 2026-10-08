@@ -14,7 +14,26 @@
   "input_schema": {
     "$ref": "input_schema.json"
   },
-  "preprocessing": [],
+  "preprocessing": [
+    {
+      "id": "count_source_passages",
+      "type": "computation",
+      "kind": "length",
+      "description": "How many source passages the caller passed. Counted from the list before it is rendered as markdown, and bound into the prompt as {source_count}.",
+      "input": "source_passages",
+      "output": "source_count",
+      "implementation": {
+        "python": {
+          "library": "builtins",
+          "function": "len"
+        },
+        "typescript": {
+          "library": "builtins",
+          "function": "length"
+        }
+      }
+    }
+  ],
   "steps": [
     {
       "id": "evaluate_critical_thinking",
@@ -36,7 +55,7 @@
         "placeholders": {
           "source_count": {
             "required": true,
-            "source": "input"
+            "source": "preprocessing.source_count"
           },
           "assignment_text": {
             "required": true,
@@ -44,7 +63,7 @@
           },
           "sources": {
             "required": true,
-            "source": "input"
+            "source": "input.source_passages"
           },
           "essay_text": {
             "required": true,

@@ -13,14 +13,21 @@ from pydantic import BaseModel, ConfigDict, Field
 EVALUATOR_ID = "durable_skills.ela_writing.critical_thinking"
 
 
+class SourcePassage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(default=None, min_length=1)
+    author: str | None = Field(default=None, min_length=1)
+    text: str = Field(min_length=1)
+
+
 class CriticalThinkingInput(BaseModel):
     """Inputs to the Critical Thinking Evaluator, named as its input_schema.json declares them."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     assignment_text: str = Field(description="The writing assignment / prompt given to the student.")
-    sources: str = Field(description="The source passage(s) the student was given, as text.")
-    source_count: int = Field(description="How many distinct source passages the prompt provided. Indicator 2.1 (synthesizing sources) is rated only when this is greater than 1; when it is 1, Indicator 2.1 is omitted from the output.")
+    source_passages: list[SourcePassage] = Field(description="Source passages in the order the student received them. Position is the source number: the first item is Source 1, the second is Source 2, and so on. The SDK does not sort or renumber this list. When a passage has no title or author, that number is a valid way for the student to name it.")
     essay_text: str = Field(description="The student's essay, verbatim (may contain spelling/grammar errors).")
 
 

@@ -32,7 +32,7 @@ interface Declared {
   typeName: string;
   /** Property name -> the TypeScript type text the generator emitted. */
   properties: Record<string, string>;
-  contract: Record<string, { type?: string; enum?: string[] }>;
+  contract: Record<string, { type?: string; enum?: string[]; items?: { $ref?: string } }>;
 }
 
 /** The generated schema modules, which now carry each evaluator's input type. */
@@ -60,7 +60,7 @@ const DECLARED: Declared[] = generatedModules(join(SRC, 'schemas')).flatMap((fil
 
   const relative = sourceMatch[1].replace(/^(\.\.\/)+/, '').replace(/^evals\//, '');
   const contract = JSON.parse(readFileSync(join(EVALS, relative), 'utf-8')) as {
-    properties: Record<string, { type?: string; enum?: string[] }>;
+    properties: Record<string, { type?: string; enum?: string[]; items?: { $ref?: string } }>;
   };
 
   return [{ file, typeName: typeMatch[1], properties, contract: contract.properties }];
@@ -87,7 +87,9 @@ describe('input types match the contracts they name', () => {
         ? spec.enum.map((v) => JSON.stringify(v)).join(' | ')
         : spec.type === 'integer'
           ? 'number'
-          : 'string';
+          : spec.type === 'array' && spec.items?.$ref === '#/$defs/SourcePassage'
+            ? 'SourcePassage[]'
+            : 'string';
 
       expect(properties[name], `${typeName}.${name}`).toBe(expected);
     }

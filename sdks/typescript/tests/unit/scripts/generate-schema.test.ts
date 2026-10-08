@@ -281,16 +281,33 @@ describe('generateSchemaFile against real contracts', () => {
   });
 
   it('types an integer input as number and leaves strings as strings', () => {
-    // Critical Thinking is the first contract with a non-string input. The module is
-    // not committed here; this only checks what the generator would write.
+    const code = renderInputDeclarations(
+      {
+        type: 'object',
+        required: ['text', 'source_count'],
+        properties: {
+          text: { type: 'string' },
+          source_count: { type: 'integer' },
+        },
+      },
+      'Widget',
+    );
+
+    expect(code).toContain('"text": string;');
+    expect(code).toContain('"source_count": number;');
+  });
+
+  it('types Critical Thinking source passages as SourcePassage[]', () => {
     const { content } = generateSchemaFile(
       contract('durable-skills/ela-writing/critical-thinking'),
     );
 
-    expect(content).toContain('"source_count": number;');
+    expect(content).toContain('export interface SourcePassage {');
+    expect(content).toContain('"source_passages": SourcePassage[];');
     expect(content).toContain('"assignment_text": string;');
-    expect(content).toContain('"sources": string;');
     expect(content).toContain('"essay_text": string;');
+    expect(content).not.toContain('"source_count"');
+    expect(content).not.toContain('"sources": string;');
   });
 
   it('names an input $def and types an array of it', () => {

@@ -201,52 +201,132 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
     expect(messages[1].content).toBe('sources: 2');
   });
 
-  it('fills {sources} from input.source_passages as JSON', async () => {
+  it('fills {sources} from input.source_passages and counts the list', async () => {
     const provider = fakeProvider();
-    const passages = [
-      { title: 'A title', text: 'A passage.' },
-      { text: 'Another passage.' },
-    ];
+    const first = { title: 'A Car-Free Downtown', text: 'Air quality improved.' };
+    const second = {
+      title: 'The Cost of Going Car-Free',
+      author: 'City staff',
+      text: 'Deliveries can be harmed.',
+    };
+    const third = { text: 'Shops reported fewer customers.' };
+    const schema = {
+      properties: {
+        source_passages: {
+          type: 'array',
+          minItems: 1,
+          items: { $ref: '#/$defs/SourcePassage' },
+        },
+      },
+      required: ['source_passages'],
+      $defs: {
+        SourcePassage: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['text'],
+          properties: {
+            title: { type: 'string', minLength: 1 },
+            author: { type: 'string', minLength: 1 },
+            text: { type: 'string', minLength: 1 },
+          },
+        },
+      },
+    };
     const E = defineSingleStepEvaluator<{ source_passages: Record<string, unknown>[] }, Output>({
+      contract: contract({
+        preprocessing: [
+          {
+            id: 'count_source_passages',
+            input: 'source_passages',
+            output: 'source_count',
+            implementation: { typescript: { library: 'builtins', function: 'length' } },
+          },
+        ],
+        steps: [
+          {
+            id: 'evaluate_thing',
+            model: { provider: 'google', name: 'm' },
+            prompt: {
+              placeholders: {
+                sources: { source: 'input.source_passages' },
+                source_count: { source: 'preprocessing.source_count' },
+              },
+            },
+          },
+        ],
+      }) as never,
+      inputSchema: schema,
+      outputSchema: OUTPUT_SCHEMA,
+      systemPrompt: 'system',
+      userPrompt: 'count: {source_count}\n{sources}',
+    });
+
+    const evaluate = (passages: Record<string, unknown>[]) =>
+      new E({ llmProvider: provider, telemetry: false }).evaluate({ source_passages: passages });
+
+    await evaluate([first, second, third]);
+    const rendered = vi.mocked(provider.generateStructured).mock.calls[0][0].messages[1].content;
+    expect(rendered).toBe(
+      [
+        'count: 3',
+        '### Source 1: A Car-Free Downtown',
+        '',
+        'Air quality improved.',
+        '',
+        '### Source 2: The Cost of Going Car-Free — by City staff',
+        '',
+        'Deliveries can be harmed.',
+        '',
+        '### Source 3',
+        '',
+        'Shops reported fewer customers.',
+      ].join('\n'),
+    );
+
+    await evaluate([second, first]);
+    const swapped = vi.mocked(provider.generateStructured).mock.calls[1][0].messages[1].content;
+    expect(swapped).toContain('count: 2');
+    expect(swapped).toContain('### Source 1: The Cost of Going Car-Free — by City staff');
+    expect(swapped).toContain('### Source 2: A Car-Free Downtown');
+    expect(swapped.indexOf('Source 1')).toBeLessThan(swapped.indexOf('Source 2'));
+  });
+
+  it('binds an array that is not a source passage as JSON', async () => {
+    const provider = fakeProvider();
+    const notes = [{ text: 'A note.' }];
+    const E = defineSingleStepEvaluator<{ notes: Record<string, unknown>[] }, Output>({
       contract: contract({
         steps: [
           {
             id: 'evaluate_thing',
             model: { provider: 'google', name: 'm' },
-            prompt: { placeholders: { sources: { source: 'input.source_passages' } } },
+            prompt: { placeholders: { notes: { source: 'input.notes' } } },
           },
         ],
       }) as never,
       inputSchema: {
         properties: {
-          source_passages: {
-            type: 'array',
-            minItems: 1,
-            items: { $ref: '#/$defs/SourcePassage' },
-          },
+          notes: { type: 'array', minItems: 1, items: { $ref: '#/$defs/Note' } },
         },
-        required: ['source_passages'],
+        required: ['notes'],
         $defs: {
-          SourcePassage: {
+          Note: {
             type: 'object',
             additionalProperties: false,
             required: ['text'],
-            properties: {
-              title: { type: 'string', minLength: 1 },
-              text: { type: 'string', minLength: 1 },
-            },
+            properties: { text: { type: 'string', minLength: 1 } },
           },
         },
       },
       outputSchema: OUTPUT_SCHEMA,
       systemPrompt: 'system',
-      userPrompt: '{sources}',
+      userPrompt: '{notes}',
     });
 
-    await new E({ llmProvider: provider, telemetry: false }).evaluate({ source_passages: passages });
+    await new E({ llmProvider: provider, telemetry: false }).evaluate({ notes });
 
     const messages = vi.mocked(provider.generateStructured).mock.calls[0][0].messages;
-    expect(messages[1].content).toBe(JSON.stringify(passages));
+    expect(messages[1].content).toBe(JSON.stringify(notes));
     expect(messages[1].content).not.toContain('[object Object]');
   });
 

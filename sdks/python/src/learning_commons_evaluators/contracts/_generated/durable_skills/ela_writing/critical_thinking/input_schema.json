@@ -5,8 +5,7 @@
   "type": "object",
   "required": [
     "assignment_text",
-    "sources",
-    "source_count",
+    "source_passages",
     "essay_text"
   ],
   "additionalProperties": false,
@@ -16,20 +15,41 @@
       "minLength": 1,
       "description": "The writing assignment / prompt given to the student."
     },
-    "sources": {
-      "type": "string",
-      "minLength": 1,
-      "description": "The source passage(s) the student was given, as text."
-    },
-    "source_count": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "How many distinct source passages the prompt provided. Indicator 2.1 (synthesizing sources) is rated only when this is greater than 1; when it is 1, Indicator 2.1 is omitted from the output."
+    "source_passages": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Source passages in the order the student received them. Position is the source number: the first item is Source 1, the second is Source 2, and so on. The SDK does not sort or renumber this list. When a passage has no title or author, that number is a valid way for the student to name it.",
+      "items": {
+        "$ref": "#/$defs/SourcePassage"
+      }
     },
     "essay_text": {
       "type": "string",
       "minLength": 1,
       "description": "The student's essay, verbatim (may contain spelling/grammar errors)."
+    }
+  },
+  "$defs": {
+    "SourcePassage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   }
 }

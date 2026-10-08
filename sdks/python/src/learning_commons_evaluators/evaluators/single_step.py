@@ -25,6 +25,10 @@ from learning_commons_evaluators.contracts.loader import Contract, Preprocessing
 from learning_commons_evaluators.errors import ConfigurationError
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.inputs import primary_text_field, validate_inputs
+from learning_commons_evaluators.evaluators.source_passages import (
+    render_source_passages,
+    source_passage_fields,
+)
 from learning_commons_evaluators.features.preprocessing import (
     check_implementation,
     format_number,
@@ -150,7 +154,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                     extra={**context, "grade_level": run.grade, "text_length": run.text_length},
                 )
 
-                messages = self._render_messages(values)
+                messages = self._render_messages(values, raw)
                 dependency, model = provider_context(self.provider)
                 assert self._step.model is not None
                 response = await call_with_resampling(
@@ -211,13 +215,34 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
 
     # --- pieces of the flow ------------------------------------------------------------
 
-    def _prompt_inputs(self, values: Mapping[str, str]) -> dict[str, str]:
-        """Every placeholder the step declares, resolved from the source the contract names."""
+    def _prompt_inputs(
+        self, values: Mapping[str, str], raw: Mapping[str, Any] | None = None
+    ) -> dict[str, str]:
+        """Every placeholder the step declares, resolved from the source the contract names.
+
+        ``raw`` is the caller's input before validation turned lists into JSON. A length
+        computation counts that list, and a ``SourcePassage`` field is rendered to
+        markdown, both before a placeholder reads the field.
+        """
+        rendered = dict(values)
+        if raw is not None:
+            for field in source_passage_fields(self.contract.input_schema):
+                passages = raw.get(field)
+                if isinstance(passages, list):
+                    rendered[field] = render_source_passages(passages)
+
         computed: dict[str, str] = {}
         for entry in self._preprocessing:
             if entry.condition is not None and not entry.condition.holds(dict(values)):
                 continue
             assert entry.python is not None and entry.output is not None
+            if entry.python.library == "builtins" and entry.python.function == "len":
+                # Count the list, not the markdown it is about to become.
+                counted = raw.get(entry.input) if raw is not None and entry.input else None
+                computed[entry.output] = format_number(
+                    run_preprocessing_step(counted, entry.python)
+                )
+                continue
             source = values.get(entry.input or "", "")
             computed[entry.output] = format_number(run_preprocessing_step(source, entry.python))
 
@@ -226,9 +251,9 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         for name, placeholder in self._step.prompt.placeholders.items():
             kind, _, rest = placeholder.source.partition(".")
             if placeholder.source == "input":
-                value = values.get(name)
+                value = rendered.get(name)
             elif kind == "input":
-                value = values.get(rest)
+                value = rendered.get(rest)
             else:  # preprocessing.<output>
                 value = computed.get(rest)
             if value is None:
@@ -244,9 +269,11 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             inputs[name] = value
         return inputs
 
-    def _render_messages(self, values: Mapping[str, str]) -> list[Message]:
+    def _render_messages(
+        self, values: Mapping[str, str], raw: Mapping[str, Any] | None = None
+    ) -> list[Message]:
         assert self._step.prompt is not None
-        inputs = self._prompt_inputs(values)
+        inputs = self._prompt_inputs(values, raw)
         placeholders = list(self._step.prompt.placeholders)
         return [
             Message(
