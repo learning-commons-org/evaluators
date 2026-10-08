@@ -16,9 +16,9 @@ EVALUATOR_ID = "durable_skills.ela_writing.critical_thinking"
 class SourcePassage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    title: str | None = Field(default=None, min_length=1)
-    author: str | None = Field(default=None, min_length=1)
-    text: str = Field(min_length=1)
+    title: str | None = None
+    author: str | None = None
+    text: str
 
 
 class CriticalThinkingInput(BaseModel):
