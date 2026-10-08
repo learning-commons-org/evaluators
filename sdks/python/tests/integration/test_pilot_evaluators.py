@@ -27,6 +27,7 @@ ATTEMPTS = 3
 
 COMPLEXITY_ORDER = ["slightly_complex", "moderately_complex", "very_complex", "exceedingly_complex"]
 GRADE_BAND_ORDER = list(GradeBand.__args__)  # type: ignore[attr-defined]
+CRITICAL_THINKING_ORDER = ["not_evident", "exploring", "analyzing", "integrating", "extending"]
 
 #: Every evaluator whose contract declares an ``outcome``, paired with each of its fixture
 #: cases. The declaration is what this module judges against, so an evaluator without one
@@ -63,7 +64,7 @@ def _expected_model(contract: Contract, inputs: dict[str, Any]) -> str:
 def _adjacent(actual: str | None, expected: str) -> bool:
     if actual is None:
         return False
-    for scale in (COMPLEXITY_ORDER, GRADE_BAND_ORDER):
+    for scale in (COMPLEXITY_ORDER, GRADE_BAND_ORDER, CRITICAL_THINKING_ORDER):
         if actual in scale and expected in scale:
             return abs(scale.index(actual) - scale.index(expected)) <= 1
     return False
