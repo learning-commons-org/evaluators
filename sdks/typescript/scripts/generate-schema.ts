@@ -97,8 +97,10 @@ export function toPascalCase(str: string): string {
  * The TypeScript type for one schema node.
  *
  * A `$ref` to an object `$def` uses that key as the type name (`SourcePassage`). An array
- * is that item type plus `[]`. A declared `enum` becomes a literal union. An `integer`
- * becomes `number`. Anything else is `string`. Bounds stay with `validateInputs`.
+ * is that item type plus `[]`, so an attached input's file paths are `string[]`. A declared
+ * `enum` becomes a literal union. An `integer` becomes `number`. Anything else is `string`.
+ * Bounds are not expressible in the type system, so they are enforced at runtime: by
+ * `validateInputs`, and each file's `x-image` bounds by the image loader.
  */
 function inputTsType(spec: JsonObject, defs: Record<string, JsonObject>): string {
   const ref = spec['$ref'];

@@ -258,7 +258,55 @@ describe('validateInputs — arrays of objects', () => {
 
   it('rejects an empty array when minItems is 1', () => {
     expect(() => validateInputs({ passages: [] }, schema)).toThrow(
-      'passages must contain at least 1 item.',
+      'passages needs at least 1 item; received 0.',
+    );
+  });
+
+  it('rejects more items than maxItems', () => {
+    const bounded: DeclaredInputSchema = {
+      ...schema,
+      properties: { passages: { ...schema.properties.passages, maxItems: 1 } },
+    };
+    expect(() =>
+      validateInputs({ passages: [{ text: 'One.' }, { text: 'Two.' }] }, bounded),
+    ).toThrow('passages accepts at most 1 item; received 2.');
+  });
+
+  it('rejects an item that is not an object', () => {
+    expect(() => validateInputs({ passages: ['A passage.'] }, schema)).toThrow(
+      'passages[0] must be an object.',
+    );
+  });
+
+  it('treats a null optional field as absent', () => {
+    expect(() =>
+      validateInputs({ passages: [{ title: null, text: 'A passage.' }] }, schema),
+    ).not.toThrow();
+  });
+
+  it('refuses an object field that is not a string as a contract fault', () => {
+    const numeric: DeclaredInputSchema = {
+      ...schema,
+      $defs: {
+        SourcePassage: {
+          type: 'object',
+          required: ['text'],
+          properties: { text: { type: 'integer' } },
+        },
+      },
+    };
+    expect(() => validateInputs({ passages: [{ text: 1 }] }, numeric)).toThrow(
+      'passages[0].text is declared as integer; only string fields are supported.',
+    );
+  });
+
+  it('refuses an array of anything but strings or objects as a contract fault', () => {
+    const numbers: DeclaredInputSchema = {
+      properties: { counts: { type: 'array', items: { type: 'integer' } } },
+      required: ['counts'],
+    };
+    expect(() => validateInputs({ counts: [1] }, numbers)).toThrow(
+      'counts is declared as an array of integer; only arrays of strings or objects are supported.',
     );
   });
 

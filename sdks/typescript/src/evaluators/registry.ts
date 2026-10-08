@@ -1,5 +1,6 @@
 import type { BaseEvaluatorConfig, EvaluatorMetadata } from './base.js';
 import type { EvaluationResult } from '../schemas/outputs.js';
+import type { EvaluatorInputValue } from './single-step.js';
 
 import { VocabularyComplexityEvaluator } from './text-complexity/ela-reading/vocabulary-complexity.js';
 import { SentenceStructureEvaluator } from './text-complexity/ela-reading/sentence-structure.js';
@@ -17,6 +18,7 @@ import { StudentResponseSpecificityEvaluator } from './feedback/ela-writing/stud
 import { ToneAppropriatenessEvaluator } from './feedback/ela-writing/tone-appropriateness.js';
 import { WithholdingAnswersEvaluator } from './feedback/ela-writing/withholding-answers.js';
 import { MathStandardsAlignmentEvaluator } from './academic-standards-alignment/mathematics/math-standards-alignment.js';
+import { GraphicsAccuracyEvaluator } from './graphics/math/graphics-accuracy.js';
 
 /**
  * An evaluator class as the registry holds it: constructible, and carrying its own metadata.
@@ -32,7 +34,7 @@ import { MathStandardsAlignmentEvaluator } from './academic-standards-alignment/
  */
 export interface RegisteredEvaluator {
   new (config: BaseEvaluatorConfig): {
-    evaluate(input: Record<string, string>): Promise<EvaluationResult<unknown>>;
+    evaluate(input: Record<string, EvaluatorInputValue>): Promise<EvaluationResult<unknown>>;
   };
   readonly metadata: EvaluatorMetadata;
 }
@@ -49,6 +51,7 @@ export interface RegisteredEvaluator {
  * shallow: it protects the list, not each class's own `metadata`.
  */
 const EVALUATORS: readonly RegisteredEvaluator[] = Object.freeze([
+  GraphicsAccuracyEvaluator,
   MathStandardsAlignmentEvaluator,
   RevisionAccuracyEvaluator,
   RevisionActionabilityEvaluator,
