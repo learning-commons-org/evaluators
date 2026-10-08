@@ -211,7 +211,8 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
       author: 'City staff',
       text: 'Deliveries can be harmed.',
     };
-    const third = { text: 'Shops reported fewer customers.' };
+    const byAuthor = { author: 'A parent', text: 'Our street got quieter.' };
+    const untitled = { text: 'Shops reported fewer customers.' };
     const schema = {
       properties: {
         source_passages: {
@@ -266,30 +267,27 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
     const evaluate = (passages: Record<string, unknown>[]) =>
       new E({ llmProvider: provider, telemetry: false }).evaluate({ source_passages: passages });
 
-    await evaluate([first, second, third]);
+    // Title and author, title only, author only, neither: the same four passages and the
+    // same expected text as the Python test, which is the cross-SDK guarantee.
+    await evaluate([second, first, byAuthor, untitled]);
     const rendered = vi.mocked(provider.generateStructured).mock.calls[0][0].messages[1].content;
     expect(rendered).toBe(
-      [
-        'count: 3',
-        '### Source 1: A Car-Free Downtown',
-        '',
-        'Air quality improved.',
-        '',
-        '### Source 2: The Cost of Going Car-Free — by City staff',
-        '',
-        'Deliveries can be harmed.',
-        '',
-        '### Source 3',
-        '',
+      'count: 4\n' +
+        '### Source 1: The Cost of Going Car-Free — by City staff\n\n' +
+        'Deliveries can be harmed.\n\n' +
+        '### Source 2: A Car-Free Downtown\n\n' +
+        'Air quality improved.\n\n' +
+        '### Source 3 — by A parent\n\n' +
+        'Our street got quieter.\n\n' +
+        '### Source 4\n\n' +
         'Shops reported fewer customers.',
-      ].join('\n'),
     );
 
-    await evaluate([second, first]);
+    await evaluate([first, second]);
     const swapped = vi.mocked(provider.generateStructured).mock.calls[1][0].messages[1].content;
     expect(swapped).toContain('count: 2');
-    expect(swapped).toContain('### Source 1: The Cost of Going Car-Free — by City staff');
-    expect(swapped).toContain('### Source 2: A Car-Free Downtown');
+    expect(swapped).toContain('### Source 1: A Car-Free Downtown');
+    expect(swapped).toContain('### Source 2: The Cost of Going Car-Free — by City staff');
     expect(swapped.indexOf('Source 1')).toBeLessThan(swapped.indexOf('Source 2'));
   });
 

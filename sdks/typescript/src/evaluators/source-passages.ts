@@ -34,5 +34,6 @@ function heading(number: number, passage: SourcePassageInput): string {
   const author = passage.author;
   if (title && author) return `### Source ${number}: ${title} — by ${author}`;
   if (title) return `### Source ${number}: ${title}`;
+  if (author) return `### Source ${number} — by ${author}`;
   return `### Source ${number}`;
 }
