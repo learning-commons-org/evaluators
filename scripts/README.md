@@ -16,6 +16,7 @@ python3 scripts/check.py          # check everything (what CI runs)
 python3 scripts/check.py --fix    # auto-fix what's safe, report the rest
 python3 scripts/check.py --list   # list available checks
 python3 scripts/check.py strip-notebooks   # run a single check
+python3 -m unittest discover -s scripts/tests   # test the checks themselves
 ```
 
 **Run `python3 scripts/check.py --fix` before you commit.** It catches issues
@@ -37,7 +38,7 @@ fails the PR (it never auto-fixes) — so fixing locally saves a round-trip.
 |-------|--------------|
 | `strip-notebooks` | Clears outputs, execution counts, and cell metadata from `.ipynb` files |
 | `eval-config` | Validates each evaluator `config.json` against the shared schema (`evals/_schemas/config.schema.json`, referenced by the config's own `$schema`), plus cross-file rules: referenced files exist, prompt `sha256` matches, placeholders ⇄ template `{vars}` are in sync, system prompts carry no placeholders, no obsolete `format_instructions` survive, and `stable_id`/`id`/`id_history` values are never reused across evaluators |
-| `eval-schemas` | Meta-validates each `input_schema.json` / `output_schema.json` is a well-formed JSON Schema document |
+| `eval-schemas` | Meta-validates each `input_schema.json` / `output_schema.json` is a well-formed JSON Schema document, and limits each input schema to the shapes both SDKs support: top-level strings, integers, and arrays of strings or of a `$defs` object with string fields |
 | `eval-fixtures` | Validates `fixtures.json` against the shared `evals/_schemas/fixtures.schema.json`, and binds each case's `input`/`expected` to that evaluator's own input/output schema |
 | `eval-notebook` | Where an evaluator ships an example notebook, confirms it loads the config + prompt files from disk rather than hardcoding them |
 | `eval-requirements` | Cross-checks `evals/requirements.txt` against imports actually used in `evals/`, in both directions: something imported with no matching entry (a missing dependency), and something listed but never imported (a stale one) |
