@@ -95,6 +95,54 @@ def test_integer_fields() -> None:
         validate_inputs({**GOOD, "count": 0}, SCHEMA)
 
 
+PASSAGE_SCHEMA = {
+    "properties": {
+        "source_passages": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"$ref": "#/$defs/SourcePassage"},
+        }
+    },
+    "required": ["source_passages"],
+    "$defs": {
+        "SourcePassage": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["text"],
+            "properties": {
+                "title": {"type": "string", "minLength": 1},
+                "author": {"type": "string", "minLength": 1},
+                "text": {"type": "string", "minLength": 1},
+            },
+        }
+    },
+}
+
+
+def test_array_of_objects_binds_as_json() -> None:
+    passages = [{"text": "A passage."}, {"title": "A title", "text": "Another."}]
+    bound = validate_inputs({"source_passages": passages}, PASSAGE_SCHEMA)["source_passages"]
+    assert bound == '[{"text":"A passage."},{"title":"A title","text":"Another."}]'
+    assert bound != str(passages)
+
+
+def test_array_rejects_shape_mistakes() -> None:
+    with pytest.raises(InputValidationError, match="source_passages must be an array."):
+        validate_inputs({"source_passages": "A passage."}, PASSAGE_SCHEMA)
+    with pytest.raises(InputValidationError, match="source_passages must contain at least 1 item."):
+        validate_inputs({"source_passages": []}, PASSAGE_SCHEMA)
+    with pytest.raises(InputValidationError, match=r"source_passages\[0\].text is required."):
+        validate_inputs({"source_passages": [{"title": "Only a title"}]}, PASSAGE_SCHEMA)
+    with pytest.raises(InputValidationError, match="title cannot be empty"):
+        validate_inputs(
+            {"source_passages": [{"title": "  ", "text": "A passage."}]}, PASSAGE_SCHEMA
+        )
+    with pytest.raises(InputValidationError, match=r'Unknown input "source_passages\[0\].note"'):
+        validate_inputs(
+            {"source_passages": [{"text": "A passage.", "note": "nope"}]}, PASSAGE_SCHEMA
+        )
+
+
 def test_primary_text_field_is_the_first_non_enum_string() -> None:
     assert primary_text_field(SCHEMA) == "text"
     assert (
