@@ -212,6 +212,64 @@ class TestEmitter:
         assert instance.source_passages[0].title is None
         assert instance.source_passages[0].text == "A passage."
 
+    def test_input_defs_stay_separate_and_omit_constraints(self, tmp_path: Path) -> None:
+        # A shared `$defs` key must not make the input `$ref` resolve to the output type.
+        # Classes emitted for the input schema also omit bounds; validate_inputs owns those.
+        config_path = _write_contract(
+            tmp_path / "split-defs",
+            evaluator_id="widgets.gadgets.widget",
+            input_schema={
+                "type": "object",
+                "required": ["source_passages"],
+                "additionalProperties": False,
+                "properties": {
+                    "source_passages": {
+                        "type": "array",
+                        "items": {"$ref": "#/$defs/SourcePassage"},
+                    },
+                },
+                "$defs": {
+                    "SourcePassage": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["text"],
+                        "properties": {
+                            "text": {"type": "string", "minLength": 1},
+                        },
+                    },
+                },
+            },
+            output_schema={
+                "type": "object",
+                "required": ["passage"],
+                "additionalProperties": False,
+                "properties": {"passage": {"$ref": "#/$defs/SourcePassage"}},
+                "$defs": {
+                    "SourcePassage": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["quote"],
+                        "properties": {"quote": {"type": "string", "minLength": 1}},
+                    },
+                },
+            },
+        )
+        config = json.loads(config_path.read_text())
+        module = _exec_module(generator.emit_schema_module(config, config_path.parent))
+
+        caller = module["SourcePassage"]
+        returned = module["SourcePassage2"]
+        assert set(caller.model_fields) == {"text"}
+        assert set(returned.model_fields) == {"quote"}
+        assert get_args(module["WidgetInput"].model_fields["source_passages"].annotation) == (
+            caller,
+        )
+        assert module["WidgetOutput"].model_fields["passage"].annotation is returned
+        # minLength stays off the input class, and on the output class.
+        caller(text="")
+        with pytest.raises(ValidationError):
+            returned(quote="")
+
     def test_input_model_is_frozen_and_forbids_extras(self, module: dict[str, Any]) -> None:
         with pytest.raises(ValidationError):
             module["WidgetInput"](

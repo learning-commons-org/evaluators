@@ -114,7 +114,17 @@ def _validate_array(
         for index, item in enumerate(value):
             _validate_item(f"{field}[{index}]", item, item_spec)
     # Compact JSON matches the TypeScript binder, and it is never a Python repr.
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    # An optional property left out or set to None is absent, not JSON null.
+    return json.dumps(_without_nulls(value), ensure_ascii=False, separators=(",", ":"))
+
+
+def _without_nulls(value: Any) -> Any:
+    """Drop object keys whose value is None, and do the same inside nested lists."""
+    if isinstance(value, list):
+        return [_without_nulls(item) for item in value]
+    if isinstance(value, Mapping):
+        return {key: _without_nulls(item) for key, item in value.items() if item is not None}
+    return value
 
 
 def _validate_item(path: str, value: Any, spec: Mapping[str, Any]) -> None:

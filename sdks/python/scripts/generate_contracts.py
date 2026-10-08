@@ -163,17 +163,19 @@ class _Emitter:
         self.names.add(candidate)
         return candidate
 
-    def def_type(self, key: str) -> str:
+    def def_type(self, key: str, *, constraints: bool) -> str:
         """The type expression for ``#/$defs/<key>``, emitting it on first use."""
         if key not in self.def_types:
             node = self.defs.get(key)
             if node is None:
                 raise ValueError(f'Cannot resolve $ref "#/$defs/{key}": not found in $defs')
             if node.get("type") == "object" and "properties" in node:
-                self.def_types[key] = self.emit_class(self.unique(key), node)
+                self.def_types[key] = self.emit_class(
+                    self.unique(key), node, constraints=constraints
+                )
             else:
                 alias = self.unique(key)
-                expr = self.type_expr(node, alias)
+                expr = self.type_expr(node, alias, constraints=constraints)
                 doc = node.get("description")
                 lines = [f"# {doc}"] if isinstance(doc, str) else []
                 lines.append(f"{alias} = {expr}")
@@ -181,13 +183,13 @@ class _Emitter:
                 self.def_types[key] = alias
         return self.def_types[key]
 
-    def type_expr(self, node: dict[str, Any], name_hint: str) -> str:
+    def type_expr(self, node: dict[str, Any], name_hint: str, *, constraints: bool = True) -> str:
         """A Python type for one schema node, emitting any class it needs."""
         ref = node.get("$ref")
         if isinstance(ref, str):
             if not ref.startswith("#/$defs/"):
                 raise ValueError(f"Unsupported $ref {ref!r}: only #/$defs/<key> is supported")
-            return self.def_type(ref[len("#/$defs/") :])
+            return self.def_type(ref[len("#/$defs/") :], constraints=constraints)
 
         declared = node.get("type")
         nullable = False
@@ -213,10 +215,10 @@ class _Emitter:
             items = node.get("items")
             if not isinstance(items, dict):
                 raise ValueError(f"Array at {name_hint} declares no items schema")
-            expr = f"list[{self.type_expr(items, name_hint + 'Item')}]"
+            expr = f"list[{self.type_expr(items, name_hint + 'Item', constraints=constraints)}]"
         elif declared == "object":
             if "properties" in node:
-                expr = self.emit_class(self.unique(name_hint), node)
+                expr = self.emit_class(self.unique(name_hint), node, constraints=constraints)
             else:
                 self.uses_any = True
                 expr = "dict[str, Any]"
@@ -237,7 +239,7 @@ class _Emitter:
         attr, alias = _identifier(prop)
         # Inline objects are named after their property (``Indicators``, ``LearningComponentsItem``);
         # ``unique`` disambiguates the rare collision with a ``$defs`` key.
-        expr = self.type_expr(node, to_pascal_case(prop))
+        expr = self.type_expr(node, to_pascal_case(prop), constraints=constraints)
         kwargs: list[str] = []
         if alias is not None:
             kwargs.append(f"alias={_quote(alias)}")
@@ -362,11 +364,9 @@ def emit_schema_module(config: dict[str, Any], config_dir: Path) -> str:
     input_schema = json.loads((config_dir / input_ref).read_text(encoding="utf-8"))
     output_schema = json.loads((config_dir / output_ref).read_text(encoding="utf-8"))
 
-    # Input `$defs` name caller types such as SourcePassage. Output `$defs` win on a
-    # shared key, because the structured result is what the model returns.
-    defs = dict(input_schema.get("$defs", {}))
-    defs.update(output_schema.get("$defs", {}))
-    emitter = _Emitter(defs=defs)
+    # Input and output `$defs` are separate maps. A shared key must not make an input
+    # `$ref` resolve to the output type, or the reverse.
+    emitter = _Emitter(defs=dict(input_schema.get("$defs", {})))
 
     # --- Input: placeholder names as kwargs; bounds and enums are enforced by the
     # evaluator from the schema (SDK spec §4), so the model carries only the shape. Grade
@@ -398,6 +398,11 @@ def emit_schema_module(config: dict[str, Any], config_dir: Path) -> str:
         constraints=False,
         type_overrides=overrides,
     )
+
+    # Output refs resolve only against the output schema. Clearing the cache keeps a
+    # shared key from reusing the class emitted for the input schema.
+    emitter.defs = dict(output_schema.get("$defs", {}))
+    emitter.def_types = {}
 
     # --- Output: the full structured payload, strict, with descriptions kept for the
     # structured-output request. The root description describes the contract, not a field
