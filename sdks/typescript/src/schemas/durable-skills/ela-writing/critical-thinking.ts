@@ -7,8 +7,8 @@ import { z } from 'zod';
 
 /** What this evaluator accepts, from its input schema. */
 export interface SourcePassage {
-  "title"?: string;
-  "author"?: string;
+  "title"?: string | null;
+  "author"?: string | null;
   "text": string;
 }
 
