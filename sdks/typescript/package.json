@@ -107,6 +107,7 @@
   "dependencies": {
     "compromise": "^14.13.0",
     "csv-parse": "^7.0.0",
+    "image-size": "^2.0.4",
     "openapi-fetch": "^0.17.0",
     "p-limit": "^7.3.0",
     "prompts": "^2.4.2",
