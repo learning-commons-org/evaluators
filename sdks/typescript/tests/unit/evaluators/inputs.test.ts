@@ -212,3 +212,71 @@ describe('validateInputs — integers', () => {
     );
   });
 });
+
+describe('validateInputs — arrays of objects', () => {
+  const schema: DeclaredInputSchema = {
+    properties: {
+      passages: {
+        type: 'array',
+        minItems: 1,
+        items: { $ref: '#/$defs/SourcePassage' },
+      },
+    },
+    required: ['passages'],
+    $defs: {
+      SourcePassage: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['text'],
+        properties: {
+          title: { type: 'string', minLength: 1 },
+          author: { type: 'string', minLength: 1 },
+          text: { type: 'string', minLength: 1 },
+        },
+      },
+    },
+  };
+
+  it('accepts an item with only the required text', () => {
+    expect(() => validateInputs({ passages: [{ text: 'A passage.' }] }, schema)).not.toThrow();
+  });
+
+  it('accepts optional title and author when they are present', () => {
+    expect(() =>
+      validateInputs(
+        { passages: [{ title: 'A title', author: 'An author', text: 'A passage.' }] },
+        schema,
+      ),
+    ).not.toThrow();
+  });
+
+  it('rejects a non-array', () => {
+    expect(() => validateInputs({ passages: 'A passage.' }, schema)).toThrow(
+      'passages must be an array.',
+    );
+  });
+
+  it('rejects an empty array when minItems is 1', () => {
+    expect(() => validateInputs({ passages: [] }, schema)).toThrow(
+      'passages must contain at least 1 item.',
+    );
+  });
+
+  it('rejects an item missing required text', () => {
+    expect(() => validateInputs({ passages: [{ title: 'Only a title' }] }, schema)).toThrow(
+      'passages[0].text is required.',
+    );
+  });
+
+  it('rejects a blank optional title', () => {
+    expect(() => validateInputs({ passages: [{ title: '  ', text: 'A passage.' }] }, schema)).toThrow(
+      /title cannot be empty/,
+    );
+  });
+
+  it('rejects an unknown property on an item', () => {
+    expect(() =>
+      validateInputs({ passages: [{ text: 'A passage.', note: 'nope' }] }, schema),
+    ).toThrow('Unknown input "passages[0].note"');
+  });
+});
