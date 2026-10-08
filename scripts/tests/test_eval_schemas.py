@@ -27,10 +27,15 @@ SUPPORTED = {
     "title": "EvaluatorInput",
     "description": "Inputs.",
     "type": "object",
-    "required": ["text", "grade_level", "count", "image_paths", "source_passages"],
+    "required": ["text", "grade_level", "count", "image_paths"],
     "additionalProperties": False,
     "properties": {
-        "text": {"type": "string", "minLength": 1, "maxLength": 10, "description": "Text."},
+        "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10,
+            "description": "Text.",
+        },
         "grade_level": {"type": "string", "enum": ["3", "4"]},
         "count": {"type": "integer", "minimum": 1, "maximum": 4},
         "image_paths": {
@@ -38,11 +43,6 @@ SUPPORTED = {
             "minItems": 1,
             "maxItems": 2,
             "items": {"type": "string", "minLength": 1, "x-image": X_IMAGE},
-        },
-        "source_passages": {
-            "type": "array",
-            "minItems": 1,
-            "items": {"$ref": "#/$defs/SourcePassage"},
         },
     },
     "$defs": {
@@ -88,7 +88,8 @@ class RejectedShapes(unittest.TestCase):
 
     def test_a_root_that_is_not_an_object(self) -> None:
         self.assertEqual(
-            input_shape_problems(True), ["(root): an input schema must be an object schema"]
+            input_shape_problems(True),
+            ["(root): an input schema must be an object schema"],
         )
         doc = copy.deepcopy(SUPPORTED)
         doc["type"] = "array"
@@ -97,13 +98,16 @@ class RejectedShapes(unittest.TestCase):
     def test_an_unsupported_root_keyword(self) -> None:
         doc = copy.deepcopy(SUPPORTED)
         doc["patternProperties"] = {}
-        self.assert_rejected(doc, "(root): patternProperties is not supported in an input schema")
+        self.assert_rejected(
+            doc, "(root): patternProperties is not supported in an input schema"
+        )
 
     def test_unsupported_top_level_types(self) -> None:
         for kind in ("number", "boolean", "null", "object"):
             with self.subTest(kind=kind):
                 self.assert_rejected(
-                    with_property("x", {"type": kind}), f"properties/x: type {kind!r} is not supported"
+                    with_property("x", {"type": kind}),
+                    f"properties/x: type {kind!r} is not supported",
                 )
 
     def test_a_union_or_missing_type(self) -> None:
@@ -123,7 +127,10 @@ class RejectedShapes(unittest.TestCase):
             ({"type": "string", "const": "a"}, "const"),
             ({"type": "string", "default": "a"}, "default"),
             ({"type": "integer", "enum": [1, 2]}, "enum"),
-            ({"type": "array", "items": {"type": "string"}, "uniqueItems": True}, "uniqueItems"),
+            (
+                {"type": "array", "items": {"type": "string"}, "uniqueItems": True},
+                "uniqueItems",
+            ),
         ]
         for spec, keyword in cases:
             with self.subTest(keyword=keyword):
@@ -154,22 +161,57 @@ class RejectedShapes(unittest.TestCase):
 
     def test_an_enum_on_string_items(self) -> None:
         self.assert_rejected(
-            with_property("x", {"type": "array", "items": {"type": "string", "enum": ["a"]}}),
+            with_property(
+                "x", {"type": "array", "items": {"type": "string", "enum": ["a"]}}
+            ),
             "properties/x/items: enum is not supported in an input schema",
         )
 
-    def test_a_ref_that_names_no_def(self) -> None:
-        self.assert_rejected(
-            with_property("x", {"type": "array", "items": {"$ref": "#/$defs/Missing"}}),
-            "properties/x/items: $ref '#/$defs/Missing' must name an entry in $defs",
-        )
-
-    def test_a_keyword_beside_a_ref(self) -> None:
+    def test_a_ref_array_is_not_supported_on_this_branch(self) -> None:
         self.assert_rejected(
             with_property(
-                "x", {"type": "array", "items": {"$ref": "#/$defs/SourcePassage", "minLength": 1}}
+                "x", {"type": "array", "items": {"$ref": "#/$defs/SourcePassage"}}
             ),
-            "properties/x/items: minLength is not supported beside $ref",
+            "properties/x/items: $ref items are not supported",
+        )
+
+    def test_an_optional_top_level_property(self) -> None:
+        doc = copy.deepcopy(SUPPORTED)
+        doc["required"].remove("count")
+        self.assert_rejected(doc, "properties/count: must be listed in required")
+
+    def test_a_required_entry_that_is_not_a_property(self) -> None:
+        doc = copy.deepcopy(SUPPORTED)
+        doc["required"].append("missing")
+        self.assert_rejected(doc, "(root): required entry 'missing' is not a property")
+
+    def test_a_def_required_entry_that_is_not_a_property(self) -> None:
+        doc = copy.deepcopy(SUPPORTED)
+        doc["$defs"]["SourcePassage"]["required"].append("missing")
+        self.assert_rejected(
+            doc, "$defs/SourcePassage: required entry 'missing' is not a property"
+        )
+
+    def test_additional_properties_must_be_false(self) -> None:
+        for where, edit in (
+            ("(root)", lambda doc: doc.pop("additionalProperties")),
+            (
+                "$defs/SourcePassage",
+                lambda doc: doc["$defs"]["SourcePassage"].pop("additionalProperties"),
+            ),
+        ):
+            with self.subTest(where=where):
+                doc = copy.deepcopy(SUPPORTED)
+                edit(doc)
+                self.assert_rejected(
+                    doc, f"{where}: additionalProperties must be false"
+                )
+
+    def test_a_def_name_that_is_not_pascal_case(self) -> None:
+        doc = copy.deepcopy(SUPPORTED)
+        doc["$defs"]["source-passage"] = doc["$defs"].pop("SourcePassage")
+        self.assert_rejected(
+            doc, "$defs/source-passage: definition names must be PascalCase identifiers"
         )
 
     def test_a_def_that_is_not_an_object(self) -> None:
@@ -181,7 +223,8 @@ class RejectedShapes(unittest.TestCase):
         doc = copy.deepcopy(SUPPORTED)
         doc["$defs"]["SourcePassage"]["minProperties"] = 1
         self.assert_rejected(
-            doc, "$defs/SourcePassage: minProperties is not supported in an input schema"
+            doc,
+            "$defs/SourcePassage: minProperties is not supported in an input schema",
         )
 
     def test_unsupported_object_field_types(self) -> None:
