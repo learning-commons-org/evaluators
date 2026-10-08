@@ -116,7 +116,7 @@ export interface BaseTestCase {
    * feedback family takes `student_text` and `feedback_text`. Passed verbatim, so the
    * schema rejects a wrong key rather than the harness silently sending `text`.
    */
-  inputs?: Record<string, string>;
+  inputs?: Record<string, unknown>;
   expected: string; // Expected output value (checked on each attempt)
   acceptable?: string[]; // Acceptable adjacent values (checked if no expected match after all retries)
 }
@@ -134,7 +134,7 @@ export interface TestableEvaluator {
  * The object a case is evaluated with: `inputs` verbatim when given, otherwise the
  * `text` (+ `grade_level`) shape the text-taking evaluators declare.
  */
-function evaluatorInputs(testCase: BaseTestCase): Record<string, string> {
+function evaluatorInputs(testCase: BaseTestCase): Record<string, unknown> {
   if (testCase.inputs) return testCase.inputs;
 
   // Not defaulted to '': an empty string is a valid input, so a case missing both fields
