@@ -3,8 +3,10 @@
 Rates a grade 8-10 argumentative essay across five indicators plus an overall
 rating, on a five-level scale from ``not_evident`` to ``extending``.
 
-One model call on Anthropic. The caller passes the assignment, the source
-passages as one string, how many passages that string contains, and the essay.
+One model call on Anthropic. The caller passes the assignment, the essay, and
+``source_passages``: a list in the order the student received them, each with
+``text`` and an optional ``title`` and ``author``. The SDK counts the list for
+the prompt, so the caller passes no source count.
 """
 
 from learning_commons_evaluators.contracts import load_contract
