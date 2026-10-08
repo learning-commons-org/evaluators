@@ -84,14 +84,15 @@ def input_shape_problems(doc: object) -> list[str]:
 
     - a top-level `string`, with `enum`, `minLength`, or `maxLength`;
     - a top-level `integer`, with `minimum` or `maximum`;
-    - a top-level `array` of strings, with `minItems` and `maxItems`, and item
-      `minLength`, `maxLength`, or `x-image`.
+    - a top-level `array` of strings, or of a `$ref` to a `$defs` object, with
+      `minItems` and `maxItems`. String items may set `minLength`, `maxLength`, or
+      `x-image`.
 
     A property may be omitted from `required`; both SDKs treat that as optional.
     The root and each `$defs` object set `additionalProperties` to false, and every
     `required` entry names a property.
     A `$defs` name is a PascalCase identifier. Its fields are strings with `minLength`
-    or `maxLength`. An array of those objects is not allowed on this branch.
+    or `maxLength`.
 
     `title` and `description` are allowed anywhere. `x-image` is not walked into; the
     x-image rule validates it.
@@ -177,12 +178,23 @@ def _required_problems(where: str, properties: dict, required: object) -> list[s
     ]
 
 
-def _item_problems(where: str, items: object, _defs: dict) -> list[str]:
+def _item_problems(where: str, items: object, defs: dict) -> list[str]:
     if not isinstance(items, dict):
         return [f"{where}: an array input must declare its items"]
     if "$ref" in items:
-        # Object arrays are a later branch, once both SDKs validate and render them.
-        return [f"{where}: $ref items are not supported"]
+        ref = items["$ref"]
+        key = ref.removeprefix("#/$defs/") if isinstance(ref, str) else None
+        extra = [
+            f"{where}: {k} is not supported beside $ref" for k in items if k != "$ref"
+        ]
+        if not (
+            isinstance(ref, str)
+            and ref.startswith("#/$defs/")
+            and isinstance(defs, dict)
+            and key in defs
+        ):
+            return [*extra, f"{where}: $ref {ref!r} must name an entry in $defs"]
+        return extra
     kind = items.get("type")
     if kind != "string":
         return [f"{where}: {kind} items are not supported"]
