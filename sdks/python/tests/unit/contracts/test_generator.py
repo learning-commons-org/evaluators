@@ -205,12 +205,40 @@ class TestEmitter:
         assert passage.model_fields["text"].is_required() is True
         assert passage.model_fields["title"].is_required() is False
         assert passage.model_fields["author"].is_required() is False
-        assert get_args(module["WidgetInput"].model_fields["source_passages"].annotation) == (
-            passage,
-        )
+        assert module["WidgetInput"].model_fields["source_passages"].annotation == list[passage]
         instance = module["WidgetInput"](source_passages=[{"text": "A passage."}])
         assert instance.source_passages[0].title is None
         assert instance.source_passages[0].text == "A passage."
+
+    def test_a_def_name_that_collides_with_a_generated_class_fails(self, tmp_path: Path) -> None:
+        output_schema = {
+            "type": "object",
+            "required": ["ok"],
+            "additionalProperties": False,
+            "properties": {"ok": {"type": "string"}},
+        }
+        for key in ("WidgetInput", "WidgetOutput"):
+            config_path = _write_contract(
+                tmp_path / key,
+                evaluator_id="widgets.gadgets.widget",
+                input_schema={
+                    "type": "object",
+                    "required": ["items"],
+                    "properties": {"items": {"type": "array", "items": {"$ref": f"#/$defs/{key}"}}},
+                    "$defs": {
+                        key: {
+                            "type": "object",
+                            "properties": {"text": {"type": "string"}},
+                            "required": ["text"],
+                        }
+                    },
+                },
+                output_schema=output_schema,
+            )
+            with pytest.raises(ValueError, match="collides with a generated declaration"):
+                generator.emit_schema_module(
+                    json.loads(config_path.read_text()), config_path.parent
+                )
 
     def test_input_defs_stay_separate_and_omit_constraints(self, tmp_path: Path) -> None:
         # A shared `$defs` key must not make the input `$ref` resolve to the output type.
