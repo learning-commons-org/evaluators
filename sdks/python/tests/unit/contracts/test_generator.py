@@ -8,7 +8,7 @@ import sys
 import uuid
 from pathlib import Path
 from types import ModuleType
-from typing import Any, get_args
+from typing import Any, get_args, get_origin
 
 import pytest
 from pydantic import BaseModel, ValidationError
@@ -205,7 +205,9 @@ class TestEmitter:
         assert passage.model_fields["text"].is_required() is True
         assert passage.model_fields["title"].is_required() is False
         assert passage.model_fields["author"].is_required() is False
-        assert module["WidgetInput"].model_fields["source_passages"].annotation == list[passage]
+        annotation = module["WidgetInput"].model_fields["source_passages"].annotation
+        assert get_origin(annotation) is list
+        assert get_args(annotation) == (passage,)
         instance = module["WidgetInput"](source_passages=[{"text": "A passage."}])
         assert instance.source_passages[0].title is None
         assert instance.source_passages[0].text == "A passage."
