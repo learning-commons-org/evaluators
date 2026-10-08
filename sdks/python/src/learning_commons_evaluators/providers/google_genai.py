@@ -83,9 +83,11 @@ class GoogleProvider:
             yield client
         finally:
             # A client holds a pool per transport, and closing the async one leaves the
-            # sync one open, so both are closed.
-            await client.aio.aclose()
-            client.close()
+            # sync one open, so both are closed, the sync one even if the async one fails.
+            try:
+                await client.aio.aclose()
+            finally:
+                client.close()
 
     def _request(
         self,
