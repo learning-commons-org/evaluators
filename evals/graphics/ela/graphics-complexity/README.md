@@ -1,6 +1,6 @@
-# [Graphics Complexity](https://docs.learningcommons.org/evaluators/student-facing-text-evaluators/graphics-complexity)
+# Graphics Complexity
 
-Evaluates how demanding a text's graphics are for readers at the target grade.
+Evaluates how demanding a text's graphics are for readers at the target grade. Early access; docs page pending.
 
 - Schemas: [input](./input_schema.json), [output](./output_schema.json)
 - [Python notebook](./example_notebook.ipynb)
