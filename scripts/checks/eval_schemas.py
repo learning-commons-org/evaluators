@@ -16,9 +16,9 @@ every block is validated against `_schemas/x-image.schema.json`, since meta-vali
 accepts any value for an extension keyword. For the same reason, `x-model-only` is checked
 to be `true` and to sit only on a top-level property of an output schema.
 
-An input schema may declare only the shapes both SDKs validate, type, and bind the same
-way. Anything else would be accepted by one SDK and mishandled by the other, or by both,
-without any test noticing; see `input_shape_problems` for the list.
+An input schema may declare only the shapes the SDKs on this branch validate, type, and
+bind the same way. Anything else would be accepted by one SDK and mishandled by the other,
+or by both, without any test noticing; see `input_shape_problems` for the list.
 """
 
 from __future__ import annotations
@@ -30,7 +30,14 @@ import re
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
-from .base import Check, Result, Violation, evaluator_configs, load_json, shared_schema_path
+from .base import (
+    Check,
+    Result,
+    Violation,
+    evaluator_configs,
+    load_json,
+    shared_schema_path,
+)
 
 # Digits are allowed mid-name: `tier_2_words` is a real key.
 SNAKE_CASE = re.compile(r"[a-z][a-z0-9]*(_[a-z0-9]+)*")
@@ -50,7 +57,15 @@ _NAMED_SUBSCHEMAS = frozenset(
 
 
 _ANNOTATIONS = frozenset({"title", "description"})
-_ROOT = _ANNOTATIONS | {"$schema", "$id", "$defs", "type", "properties", "required", "additionalProperties"}
+_ROOT = _ANNOTATIONS | {
+    "$schema",
+    "$id",
+    "$defs",
+    "type",
+    "properties",
+    "required",
+    "additionalProperties",
+}
 _TOP_LEVEL = {
     "string": _ANNOTATIONS | {"type", "enum", "minLength", "maxLength"},
     "integer": _ANNOTATIONS | {"type", "minimum", "maximum"},
@@ -59,19 +74,23 @@ _TOP_LEVEL = {
 _STRING_ITEM = _ANNOTATIONS | {"type", "minLength", "maxLength", "x-image"}
 _DEF_OBJECT = _ANNOTATIONS | {"type", "properties", "required", "additionalProperties"}
 _DEF_FIELD = _ANNOTATIONS | {"type", "minLength", "maxLength"}
+_DEF_NAME = re.compile(r"^[A-Z][A-Za-z0-9]*$")
 
 
 def input_shape_problems(doc: object) -> list[str]:
-    """Every place an input schema steps outside the shapes the SDKs support.
+    """Every place an input schema steps outside the shapes this branch's SDKs support.
 
-    The supported shapes are the ones contracts use:
+    The supported shapes are the ones contracts on this branch use:
 
     - a top-level `string`, with `enum`, `minLength`, or `maxLength`;
     - a top-level `integer`, with `minimum` or `maximum`;
-    - a top-level `array` with `items`, `minItems`, and `maxItems`, whose items are a
-      `string` (with `minLength`, `maxLength`, or `x-image`) or a `$ref` to a `$defs` object;
-    - a `$defs` object with `properties`, `required`, and `additionalProperties`, whose
-      fields are strings with `minLength` or `maxLength`.
+    - a top-level `array` of strings, with `minItems` and `maxItems`, and item
+      `minLength`, `maxLength`, or `x-image`.
+
+    Every top-level property is listed in `required`. The root and each `$defs` object
+    set `additionalProperties` to false, and every `required` entry names a property.
+    A `$defs` name is a PascalCase identifier. Its fields are strings with `minLength`
+    or `maxLength`. An array of those objects is not allowed on this branch.
 
     `title` and `description` are allowed anywhere. `x-image` is not walked into; the
     x-image rule validates it.
@@ -83,51 +102,94 @@ def input_shape_problems(doc: object) -> list[str]:
     def unsupported(where: str, node: dict, allowed: frozenset[str] | set[str]) -> None:
         for keyword in node:
             if keyword not in allowed:
-                problems.append(f"{where}: {keyword} is not supported in an input schema")
+                problems.append(
+                    f"{where}: {keyword} is not supported in an input schema"
+                )
 
     unsupported("(root)", doc, _ROOT)
     if doc.get("type") != "object":
         problems.append("(root): an input schema must have type object")
+    if doc.get("additionalProperties") is not False:
+        problems.append("(root): additionalProperties must be false")
+    properties = doc.get("properties", {})
+    if isinstance(properties, dict):
+        problems.extend(
+            _required_problems("(root)", properties, doc.get("required", []))
+        )
 
     defs = doc.get("$defs", {})
-    for name, spec in doc.get("properties", {}).items():
+    for name, spec in properties.items() if isinstance(properties, dict) else []:
         where = f"properties/{name}"
         kind = spec.get("type") if isinstance(spec, dict) else None
         if not isinstance(kind, str) or kind not in _TOP_LEVEL:
             problems.append(f"{where}: type {kind!r} is not supported")
             continue
         unsupported(where, spec, _TOP_LEVEL[kind])
-        if kind == "string" and not all(isinstance(v, str) for v in spec.get("enum", [])):
+        if name not in _required_names(doc.get("required", [])):
+            problems.append(f"{where}: must be listed in required")
+        if kind == "string" and not all(
+            isinstance(v, str) for v in spec.get("enum", [])
+        ):
             problems.append(f"{where}: enum values must be strings")
         if kind == "array":
             problems.extend(_item_problems(f"{where}/items", spec.get("items"), defs))
 
-    for name, spec in defs.items():
-        where = f"$defs/{name}"
-        if not isinstance(spec, dict) or spec.get("type") != "object":
-            problems.append(f"{where}: only object definitions are supported")
-            continue
-        unsupported(where, spec, _DEF_OBJECT)
-        for field, field_spec in spec.get("properties", {}).items():
-            here = f"{where}/properties/{field}"
-            if not isinstance(field_spec, dict) or field_spec.get("type") != "string":
-                kind = field_spec.get("type") if isinstance(field_spec, dict) else None
-                problems.append(f"{here}: {kind} fields are not supported")
+    if isinstance(defs, dict):
+        for name, spec in defs.items():
+            where = f"$defs/{name}"
+            if not isinstance(name, str) or not _DEF_NAME.fullmatch(name):
+                problems.append(
+                    f"{where}: definition names must be PascalCase identifiers"
+                )
+            if not isinstance(spec, dict) or spec.get("type") != "object":
+                problems.append(f"{where}: only object definitions are supported")
                 continue
-            unsupported(here, field_spec, _DEF_FIELD)
+            unsupported(where, spec, _DEF_OBJECT)
+            if spec.get("additionalProperties") is not False:
+                problems.append(f"{where}: additionalProperties must be false")
+            def_properties = spec.get("properties", {})
+            if isinstance(def_properties, dict):
+                problems.extend(
+                    _required_problems(where, def_properties, spec.get("required", []))
+                )
+            for field, field_spec in spec.get("properties", {}).items():
+                here = f"{where}/properties/{field}"
+                if (
+                    not isinstance(field_spec, dict)
+                    or field_spec.get("type") != "string"
+                ):
+                    kind = (
+                        field_spec.get("type") if isinstance(field_spec, dict) else None
+                    )
+                    problems.append(f"{here}: {kind} fields are not supported")
+                    continue
+                unsupported(here, field_spec, _DEF_FIELD)
     return problems
 
 
-def _item_problems(where: str, items: object, defs: dict) -> list[str]:
+def _required_names(required: object) -> set[str]:
+    if not isinstance(required, list):
+        return set()
+    return {entry for entry in required if isinstance(entry, str)}
+
+
+def _required_problems(where: str, properties: dict, required: object) -> list[str]:
+    """`required` names that are not properties. Top-level callers also demand the reverse."""
+    if not isinstance(required, list):
+        return [f"{where}: required must list property names"]
+    return [
+        f"{where}: required entry {entry!r} is not a property"
+        for entry in required
+        if entry not in properties
+    ]
+
+
+def _item_problems(where: str, items: object, _defs: dict) -> list[str]:
     if not isinstance(items, dict):
         return [f"{where}: an array input must declare its items"]
     if "$ref" in items:
-        ref = items["$ref"]
-        key = ref.removeprefix("#/$defs/") if isinstance(ref, str) else None
-        extra = [f"{where}: {k} is not supported beside $ref" for k in items if k != "$ref"]
-        if not (isinstance(ref, str) and ref.startswith("#/$defs/") and key in defs):
-            return [*extra, f"{where}: $ref {ref!r} must name an entry in $defs"]
-        return extra
+        # Object arrays are a later branch, once both SDKs validate and render them.
+        return [f"{where}: $ref items are not supported"]
     kind = items.get("type")
     if kind != "string":
         return [f"{where}: {kind} items are not supported"]
@@ -140,7 +202,9 @@ def _item_problems(where: str, items: object, defs: dict) -> list[str]:
 
 class EvalSchemas(Check):
     name = "eval-schemas"
-    description = "Meta-validate each evaluator's input_schema.json / output_schema.json"
+    description = (
+        "Meta-validate each evaluator's input_schema.json / output_schema.json"
+    )
 
     def run(self, fix: bool) -> Result:
         result = Result(self.name)
@@ -157,7 +221,9 @@ class EvalSchemas(Check):
                 self._check_schema_file(config.get(key, {}), key, base, result)
         return result
 
-    def _check_schema_file(self, ref: dict, key: str, base: str, result: Result) -> None:
+    def _check_schema_file(
+        self, ref: dict, key: str, base: str, result: Result
+    ) -> None:
         if not (isinstance(ref, dict) and "$ref" in ref):
             return
         rel = ref["$ref"]
@@ -172,13 +238,17 @@ class EvalSchemas(Check):
         try:
             Draft202012Validator.check_schema(doc)
         except SchemaError as e:
-            result.violations.append(Violation(path, f"not a valid JSON Schema: {e.message}"))
+            result.violations.append(
+                Violation(path, f"not a valid JSON Schema: {e.message}")
+            )
             return
         self._check_key_casing(doc, path, result)
         self._check_x_image(doc, path, result)
         self._check_model_only(doc, key, path, result)
         if key == "input_schema":
-            result.violations.extend(Violation(path, m) for m in input_shape_problems(doc))
+            result.violations.extend(
+                Violation(path, m) for m in input_shape_problems(doc)
+            )
 
     def _check_model_only(self, doc: dict, key: str, path: str, result: Result) -> None:
         """`x-model-only` is `true` on a required top-level output_schema property, and nowhere else.
@@ -196,7 +266,9 @@ class EvalSchemas(Check):
         top_paths = {f"properties/{name}": name for name in top}
         for where, value in self._keyword_blocks(doc, "", "x-model-only"):
             if where not in top_paths:
-                message = "x-model-only belongs only on a top-level output_schema property"
+                message = (
+                    "x-model-only belongs only on a top-level output_schema property"
+                )
             elif value is not True:
                 message = f"x-model-only must be true, got {value!r}"
             elif top_paths[where] not in required:
@@ -215,15 +287,21 @@ class EvalSchemas(Check):
         checked as strictly as a top-level one.
         """
         for name, block in self._keyword_blocks(doc, "", "x-image"):
-            for err in sorted(self._x_image_validator.iter_errors(block), key=lambda e: list(e.path)):
+            for err in sorted(
+                self._x_image_validator.iter_errors(block), key=lambda e: list(e.path)
+            ):
                 loc = "/".join(str(p) for p in err.path) or "(root)"
-                result.violations.append(Violation(path, f"{name}.x-image: {loc}: {err.message}"))
+                result.violations.append(
+                    Violation(path, f"{name}.x-image: {loc}: {err.message}")
+                )
             if isinstance(block, dict):
                 for lo, hi in (("min_bytes", "max_bytes"), ("min_edge", "max_edge")):
                     a, b = block.get(lo), block.get(hi)
                     if type(a) is int and type(b) is int and a > b:
                         result.violations.append(
-                            Violation(path, f"{name}.x-image: {lo} ({a}) exceeds {hi} ({b})")
+                            Violation(
+                                path, f"{name}.x-image: {lo} ({a}) exceeds {hi} ({b})"
+                            )
                         )
 
     def _keyword_blocks(self, node: object, where: str, keyword: str):
@@ -251,7 +329,10 @@ class EvalSchemas(Check):
         for name in sorted(self._property_names(doc)):
             if not SNAKE_CASE.fullmatch(name):
                 result.violations.append(
-                    Violation(path, f"property {name!r} is not snake_case: use {_to_snake(name)!r}")
+                    Violation(
+                        path,
+                        f"property {name!r} is not snake_case: use {_to_snake(name)!r}",
+                    )
                 )
 
     def _property_names(self, node: object) -> set[str]:

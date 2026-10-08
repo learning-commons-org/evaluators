@@ -137,7 +137,22 @@ function renderInputProperty(
   const description = typeof spec['description'] === 'string' ? spec['description'] : undefined;
   const doc = description ? `  /** ${description} */\n` : '';
   const marker = optional ? '?' : '';
-  return `${doc}  ${JSON.stringify(name)}${marker}: ${inputTsType(spec, defs)};`;
+  // The validator accepts an explicit null for an optional field and treats it as
+  // absent. The type has to say so, or a caller cannot pass the value the runtime allows.
+  const type = optional ? `${inputTsType(spec, defs)} | null` : inputTsType(spec, defs);
+  return `${doc}  ${JSON.stringify(name)}${marker}: ${type};`;
+}
+
+const DEF_NAME = /^[A-Z][A-Za-z0-9]*$/;
+
+/** A `$defs` key is emitted as an interface name, so it has to be one, and not one we emit. */
+function assertDefName(name: string, className: string): void {
+  if (!DEF_NAME.test(name)) {
+    throw new Error(`$defs key "${name}" is not a PascalCase identifier`);
+  }
+  if (name === `${className}Input` || name === `${className}Result`) {
+    throw new Error(`$defs key "${name}" collides with a generated declaration`);
+  }
 }
 
 /**
@@ -163,6 +178,7 @@ export function renderInputDeclarations(schema: JsonObject, className: string): 
   const interfaces = Object.entries(defs)
     .filter(([, def]) => def['type'] === 'object')
     .map(([name, def]) => {
+      assertDefName(name, className);
       const defRequired = new Set((def['required'] ?? []) as string[]);
       const defProps = (def['properties'] ?? {}) as Record<string, JsonObject>;
       const body = Object.entries(defProps)
@@ -264,16 +280,12 @@ export function discoverContracts(): string[] {
 /**
  * The contracts whose committed module is generated. Modules still hand-written are
  * skipped: the generator's output for them differs wholesale, so including them would
- * report drift that no one can act on without converting them first.
+ * report drift that no one can act on without converting them first. A contract the
+ * generator cannot render is not one of those: that exception fails the check.
  */
 export function generatedContracts(): string[] {
   return discoverContracts().filter((configPath) => {
-    let outPath: string;
-    try {
-      ({ outPath } = generateSchemaFile(configPath));
-    } catch {
-      return false;
-    }
+    const { outPath } = generateSchemaFile(configPath);
     return existsSync(outPath) && readFileSync(outPath, 'utf-8').startsWith(GENERATED_MARKER);
   });
 }
