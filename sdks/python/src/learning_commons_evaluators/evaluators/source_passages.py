@@ -7,7 +7,7 @@ student can cite it that way.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 
@@ -23,7 +23,7 @@ def source_passage_fields(schema: Mapping[str, Any]) -> list[str]:
     return names
 
 
-def render_source_passages(passages: list[Any]) -> str:
+def render_source_passages(passages: Sequence[Any]) -> str:
     """The heading style the fixtures already use, one block per passage."""
     return "\n\n".join(_block(index, passage) for index, passage in enumerate(passages, start=1))
 

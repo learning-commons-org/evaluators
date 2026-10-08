@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import pytest
 from pydantic import BaseModel
 
+from learning_commons_evaluators.contracts import Contract
 from learning_commons_evaluators.dependencies.knowledge_graph import (
     AcademicStandard,
     KnowledgeGraphClient,
@@ -23,6 +25,7 @@ from learning_commons_evaluators.evaluators.academic_standards_alignment.mathema
     LCEvaluation,
 )
 from learning_commons_evaluators.providers import (
+    ImageAttachment,
     LLMResponse,
     Message,
     ProviderConfig,
@@ -49,6 +52,9 @@ class FakeProvider:
     prose: str = "prose"
     #: Shared with every fake from the same factory, so the run's order survives.
     log: list[dict[str, Any]] = field(default_factory=list)
+    #: Stands in for the built-in adapters, which all attach images; without it an image
+    #: evaluator refuses the fake at construction.
+    supports_attachments: bool = True
 
     def _record(self, call: dict[str, Any]) -> None:
         self.calls.append(call)
@@ -65,8 +71,16 @@ class FakeProvider:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        attachments: Sequence[ImageAttachment] = (),
     ) -> LLMResponse[Any]:
-        self._record({"messages": list(messages), "schema": schema, "temperature": temperature})
+        self._record(
+            {
+                "messages": list(messages),
+                "schema": schema,
+                "temperature": temperature,
+                "attachments": tuple(attachments),
+            }
+        )
         if self.failures:
             raise self.failures.pop(0)
         return LLMResponse(
@@ -169,6 +183,21 @@ def sample_for(schema: type[BaseModel]) -> BaseModel:
         )
     json_schema = schema.model_json_schema()
     return schema.model_validate(sample(json_schema, json_schema.get("$defs", {})))
+
+
+def resolve_attached_paths(
+    contract: Contract, directory: Path, inputs: Mapping[str, Any]
+) -> dict[str, Any]:
+    """A fixture's inputs with the file paths of attached inputs resolved against ``directory``.
+
+    Fixtures name their images relative to the contract's own directory; a caller passes
+    paths relative to the working directory, so the tests resolve them the way a caller would.
+    """
+    attached = {a.input for step in contract.steps for a in step.attachments}
+    return {
+        name: [str(directory / path) for path in value] if name in attached else value
+        for name, value in inputs.items()
+    }
 
 
 @pytest.fixture

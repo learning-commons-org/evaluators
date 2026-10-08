@@ -19,11 +19,13 @@ from pydantic import BaseModel
 
 from learning_commons_evaluators.providers._common import (
     elapsed_ms,
+    last_user_turn,
     no_structured_output,
     require_config,
     split_system,
 )
 from learning_commons_evaluators.providers.base import (
+    ImageAttachment,
     LLMResponse,
     Message,
     Provider,
@@ -44,6 +46,8 @@ _ROLES = {"user": "user", "assistant": "model"}
 
 class GoogleProvider:
     """``LLMProvider`` for Google Gemini models."""
+
+    supports_attachments = True
 
     def __init__(self, config: ProviderConfig, *, client: Client | None = None) -> None:
         model, api_key = require_config(config, Provider.GOOGLE)
@@ -68,6 +72,7 @@ class GoogleProvider:
         temperature: float | None,
         max_tokens: int | None,
         schema: type[BaseModel] | None,
+        attachments: Sequence[ImageAttachment] = (),
     ) -> dict[str, Any]:
         from google.genai import types
 
@@ -83,14 +88,26 @@ class GoogleProvider:
         if schema is not None:
             config["response_mime_type"] = "application/json"
             config["response_json_schema"] = schema.model_json_schema()
+        contents = [
+            types.Content(role=_ROLES[m["role"]], parts=[types.Part.from_text(text=m["content"])])
+            for m in rest
+        ]
+        if attachments:
+            # Each image is an inline-data part: the bytes plus their media type.
+            index = last_user_turn(rest)
+            contents[index] = types.Content(
+                role="user",
+                parts=[
+                    *(
+                        types.Part.from_bytes(data=a.data, mime_type=a.media_type)
+                        for a in attachments
+                    ),
+                    types.Part.from_text(text=rest[index]["content"]),
+                ],
+            )
         return {
             "model": self._model,
-            "contents": [
-                types.Content(
-                    role=_ROLES[m["role"]], parts=[types.Part.from_text(text=m["content"])]
-                )
-                for m in rest
-            ],
+            "contents": contents,
             "config": types.GenerateContentConfig(**config),
         }
 
@@ -109,10 +126,11 @@ class GoogleProvider:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        attachments: Sequence[ImageAttachment] = (),
     ) -> LLMResponse[T]:
         start = time.perf_counter()
         response = await self._client.aio.models.generate_content(
-            **self._request(messages, temperature, max_tokens, schema)
+            **self._request(messages, temperature, max_tokens, schema, attachments)
         )
         # The SDK only populates ``parsed`` for its own ``response_schema`` path; with a raw
         # JSON schema the text is the payload, and the model validates it.

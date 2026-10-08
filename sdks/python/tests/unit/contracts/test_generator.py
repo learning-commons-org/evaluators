@@ -314,6 +314,39 @@ class TestEmitter:
         assert schema["additionalProperties"] is False
         assert schema["$defs"]["ItemsItem"]["additionalProperties"] is False
 
+    def _emit_input(self, tmp_path: Path, properties: dict[str, Any]) -> str:
+        config_path = _write_contract(
+            tmp_path / "a" / "b" / "c",
+            evaluator_id="a.b.c",
+            input_schema={"type": "object", "required": list(properties), "properties": properties},
+            output_schema={"type": "object", "properties": {}},
+        )
+        return generator.emit_schema_module(json.loads(config_path.read_text()), config_path.parent)
+
+    def test_an_array_of_strings_is_a_list_of_str_with_no_count_bounds(
+        self, tmp_path: Path
+    ) -> None:
+        # An attached input's paths. The count is the evaluator's to enforce with canonical
+        # messages, and each file's ``x-image`` bounds the image loader's.
+        source = self._emit_input(
+            tmp_path,
+            {
+                "image_paths": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": {"type": "string"},
+                }
+            },
+        )
+        model = _exec_module(source)["CInput"]
+        assert model.model_fields["image_paths"].annotation == list[str]
+        assert model(image_paths=["a.png", "b.png"]).image_paths == ["a.png", "b.png"]
+
+    def test_an_array_of_anything_else_fails_loudly(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="array of integer; only arrays of strings"):
+            self._emit_input(tmp_path, {"counts": {"type": "array", "items": {"type": "integer"}}})
+
     def test_unsupported_ref_fails_loudly(self, tmp_path: Path) -> None:
         output = {"type": "object", "properties": {"x": {"$ref": "other.json#/Thing"}}}
         config_path = _write_contract(

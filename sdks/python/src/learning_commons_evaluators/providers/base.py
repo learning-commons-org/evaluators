@@ -39,6 +39,25 @@ class Message(TypedDict):
     content: str
 
 
+#: Image formats every supported vendor accepts natively.
+ImageMediaType = Literal["image/png", "image/jpeg", "image/webp"]
+
+
+@dataclass(frozen=True)
+class ImageAttachment:
+    """An image the model is asked to read alongside the prompt text.
+
+    Passed to :meth:`LLMProvider.generate_structured` as ``attachments`` rather than inside a
+    message, so that text-only providers, including caller-supplied ones, keep their
+    ``content: str`` contract unchanged. A provider that can attach images says so with a
+    ``supports_attachments = True`` attribute; one that does not is refused before any call
+    rather than silently sent text alone.
+    """
+
+    data: bytes
+    media_type: ImageMediaType
+
+
 @dataclass(frozen=True)
 class TokenUsage:
     """Token counts for one model call."""
@@ -73,6 +92,14 @@ class LLMProvider(Protocol):
 
     ``temperature`` is sent only when given: ``None`` omits the parameter, for models that
     reject an explicit value (the contract schema's ``generation.temperature: null``).
+
+    Attaching images is an opt-in capability outside this signature, so a text-only
+    implementation conforms unchanged. A provider that has it sets
+    ``supports_attachments = True`` and accepts an ``attachments`` keyword on
+    :meth:`generate_structured`: a sequence of :class:`ImageAttachment`, placed on the final
+    user turn ahead of its text. The attribute is optional and absent means no; an evaluator
+    that attaches images refuses such a provider at construction, and passes
+    ``attachments`` only to one that declares it, and only when there are some.
     """
 
     @property
@@ -146,6 +173,8 @@ def provider_context(provider: LLMProvider) -> tuple[DependencyId, str]:
 
 
 __all__ = [
+    "ImageAttachment",
+    "ImageMediaType",
     "LLMProvider",
     "LLMResponse",
     "Message",
