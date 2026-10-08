@@ -262,6 +262,91 @@ class TestReadsBehaviourFromTheContract:
             "content": f"user: The cat sat on the mat. at 4 with {fk}",
         }
 
+    async def test_renders_source_passages_in_list_order_and_counts_them(
+        self, providers: ProviderFactory
+    ) -> None:
+        first = {"title": "A Car-Free Downtown", "text": "Air quality improved."}
+        second = {
+            "title": "The Cost of Going Car-Free",
+            "author": "City staff",
+            "text": "Deliveries can be harmed.",
+        }
+        third = {"text": "Shops reported fewer customers."}
+        evaluator = define(
+            input_schema={
+                "type": "object",
+                "required": ["source_passages"],
+                "additionalProperties": False,
+                "properties": {
+                    "source_passages": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {"$ref": "#/$defs/SourcePassage"},
+                    }
+                },
+                "$defs": {
+                    "SourcePassage": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["text"],
+                        "properties": {
+                            "title": {"type": "string", "minLength": 1},
+                            "author": {"type": "string", "minLength": 1},
+                            "text": {"type": "string", "minLength": 1},
+                        },
+                    }
+                },
+            },
+            preprocessing=[
+                {
+                    "id": "count_source_passages",
+                    "type": "computation",
+                    "kind": "length",
+                    "input": "source_passages",
+                    "output": "source_count",
+                    "implementation": {"python": {"library": "builtins", "function": "len"}},
+                }
+            ],
+            steps=[
+                {
+                    "id": "evaluate_thing",
+                    "type": "llm",
+                    "model": {"provider": "google", "name": "m"},
+                    "prompt": {
+                        "messages": [{"role": "user", "source_path": "user.txt"}],
+                        "placeholders": {
+                            "sources": {"required": True, "source": "input.source_passages"},
+                            "source_count": {
+                                "required": True,
+                                "source": "preprocessing.source_count",
+                            },
+                        },
+                    },
+                    "parser": {"kind": "structured_output"},
+                }
+            ],
+            documents={"user.txt": "count: {source_count}\n{sources}"},
+        )
+
+        await evaluator(google_api_key="k").evaluate(source_passages=[first, second, third])
+        rendered = providers.last.calls[0]["messages"][0]["content"]
+        assert rendered == (
+            "count: 3\n"
+            "### Source 1: A Car-Free Downtown\n\n"
+            "Air quality improved.\n\n"
+            "### Source 2: The Cost of Going Car-Free — by City staff\n\n"
+            "Deliveries can be harmed.\n\n"
+            "### Source 3\n\n"
+            "Shops reported fewer customers."
+        )
+
+        await evaluator(google_api_key="k").evaluate(source_passages=[second, first])
+        swapped = providers.last.calls[0]["messages"][0]["content"]
+        assert "count: 2\n" in swapped
+        assert swapped.index("### Source 1: The Cost of Going Car-Free — by City staff") < (
+            swapped.index("### Source 2: A Car-Free Downtown")
+        )
+
     async def test_a_conditional_preprocessing_entry_only_runs_when_its_condition_holds(
         self, providers: ProviderFactory
     ) -> None:
