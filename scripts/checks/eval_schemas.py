@@ -15,6 +15,10 @@ The `items` of an attached array input carry an `x-image` block bounding each im
 every block is validated against `_schemas/x-image.schema.json`, since meta-validation
 accepts any value for an extension keyword. For the same reason, `x-model-only` is checked
 to be `true` and to sit only on a top-level property of an output schema.
+
+An input schema may declare only the shapes both SDKs validate, type, and bind the same
+way. Anything else would be accepted by one SDK and mishandled by the other, or by both,
+without any test noticing; see `input_shape_problems` for the list.
 """
 
 from __future__ import annotations
@@ -43,6 +47,95 @@ _INSTANCE_KEYWORDS = frozenset({"const", "default", "enum", "examples"})
 _NAMED_SUBSCHEMAS = frozenset(
     {"properties", "patternProperties", "dependentSchemas", "$defs", "definitions"}
 )
+
+
+_ANNOTATIONS = frozenset({"title", "description"})
+_ROOT = _ANNOTATIONS | {"$schema", "$id", "$defs", "type", "properties", "required", "additionalProperties"}
+_TOP_LEVEL = {
+    "string": _ANNOTATIONS | {"type", "enum", "minLength", "maxLength"},
+    "integer": _ANNOTATIONS | {"type", "minimum", "maximum"},
+    "array": _ANNOTATIONS | {"type", "items", "minItems", "maxItems"},
+}
+_STRING_ITEM = _ANNOTATIONS | {"type", "minLength", "maxLength", "x-image"}
+_DEF_OBJECT = _ANNOTATIONS | {"type", "properties", "required", "additionalProperties"}
+_DEF_FIELD = _ANNOTATIONS | {"type", "minLength", "maxLength"}
+
+
+def input_shape_problems(doc: object) -> list[str]:
+    """Every place an input schema steps outside the shapes the SDKs support.
+
+    The supported shapes are the ones contracts use:
+
+    - a top-level `string`, with `enum`, `minLength`, or `maxLength`;
+    - a top-level `integer`, with `minimum` or `maximum`;
+    - a top-level `array` with `items`, `minItems`, and `maxItems`, whose items are a
+      `string` (with `minLength`, `maxLength`, or `x-image`) or a `$ref` to a `$defs` object;
+    - a `$defs` object with `properties`, `required`, and `additionalProperties`, whose
+      fields are strings with `minLength` or `maxLength`.
+
+    `title` and `description` are allowed anywhere. `x-image` is not walked into; the
+    x-image rule validates it.
+    """
+    if not isinstance(doc, dict):
+        return ["(root): an input schema must be an object schema"]
+    problems: list[str] = []
+
+    def unsupported(where: str, node: dict, allowed: frozenset[str] | set[str]) -> None:
+        for keyword in node:
+            if keyword not in allowed:
+                problems.append(f"{where}: {keyword} is not supported in an input schema")
+
+    unsupported("(root)", doc, _ROOT)
+    if doc.get("type") != "object":
+        problems.append("(root): an input schema must have type object")
+
+    defs = doc.get("$defs", {})
+    for name, spec in doc.get("properties", {}).items():
+        where = f"properties/{name}"
+        kind = spec.get("type") if isinstance(spec, dict) else None
+        if not isinstance(kind, str) or kind not in _TOP_LEVEL:
+            problems.append(f"{where}: type {kind!r} is not supported")
+            continue
+        unsupported(where, spec, _TOP_LEVEL[kind])
+        if kind == "string" and not all(isinstance(v, str) for v in spec.get("enum", [])):
+            problems.append(f"{where}: enum values must be strings")
+        if kind == "array":
+            problems.extend(_item_problems(f"{where}/items", spec.get("items"), defs))
+
+    for name, spec in defs.items():
+        where = f"$defs/{name}"
+        if not isinstance(spec, dict) or spec.get("type") != "object":
+            problems.append(f"{where}: only object definitions are supported")
+            continue
+        unsupported(where, spec, _DEF_OBJECT)
+        for field, field_spec in spec.get("properties", {}).items():
+            here = f"{where}/properties/{field}"
+            if not isinstance(field_spec, dict) or field_spec.get("type") != "string":
+                kind = field_spec.get("type") if isinstance(field_spec, dict) else None
+                problems.append(f"{here}: {kind} fields are not supported")
+                continue
+            unsupported(here, field_spec, _DEF_FIELD)
+    return problems
+
+
+def _item_problems(where: str, items: object, defs: dict) -> list[str]:
+    if not isinstance(items, dict):
+        return [f"{where}: an array input must declare its items"]
+    if "$ref" in items:
+        ref = items["$ref"]
+        key = ref.removeprefix("#/$defs/") if isinstance(ref, str) else None
+        extra = [f"{where}: {k} is not supported beside $ref" for k in items if k != "$ref"]
+        if not (isinstance(ref, str) and ref.startswith("#/$defs/") and key in defs):
+            return [*extra, f"{where}: $ref {ref!r} must name an entry in $defs"]
+        return extra
+    kind = items.get("type")
+    if kind != "string":
+        return [f"{where}: {kind} items are not supported"]
+    return [
+        f"{where}: {keyword} is not supported in an input schema"
+        for keyword in items
+        if keyword not in _STRING_ITEM
+    ]
 
 
 class EvalSchemas(Check):
@@ -84,6 +177,8 @@ class EvalSchemas(Check):
         self._check_key_casing(doc, path, result)
         self._check_x_image(doc, path, result)
         self._check_model_only(doc, key, path, result)
+        if key == "input_schema":
+            result.violations.extend(Violation(path, m) for m in input_shape_problems(doc))
 
     def _check_model_only(self, doc: dict, key: str, path: str, result: Result) -> None:
         """`x-model-only` is `true` on a required top-level output_schema property, and nowhere else.
