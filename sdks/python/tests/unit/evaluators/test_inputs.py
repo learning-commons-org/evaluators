@@ -143,6 +143,54 @@ def test_array_rejects_shape_mistakes() -> None:
         )
 
 
+def test_optional_none_is_omitted_from_json() -> None:
+    bound = validate_inputs({"source_passages": [{"text": "A", "title": None}]}, PASSAGE_SCHEMA)[
+        "source_passages"
+    ]
+    assert bound == '[{"text":"A"}]'
+
+
+def test_string_items_are_checked_and_inline_schemas_need_no_ref() -> None:
+    strings = {
+        "properties": {"tags": {"type": "array", "items": {"type": "string", "minLength": 1}}},
+        "required": ["tags"],
+    }
+    assert validate_inputs({"tags": ["a"]}, strings)["tags"] == '["a"]'
+    with pytest.raises(InputValidationError, match=r"tags\[0\] must be a string."):
+        validate_inputs({"tags": [1]}, strings)
+    with pytest.raises(InputValidationError, match=r"tags\[0\] cannot be empty"):
+        validate_inputs({"tags": ["  "]}, strings)
+
+
+def test_an_unresolved_ref_is_an_input_error() -> None:
+    missing = {
+        "properties": {
+            "source_passages": {"type": "array", "items": {"$ref": "#/$defs/Missing"}},
+        },
+        "required": ["source_passages"],
+        "$defs": {},
+    }
+    with pytest.raises(InputValidationError, match='Cannot resolve \\$ref "#/\\$defs/Missing"'):
+        validate_inputs({"source_passages": [{}]}, missing)
+
+
+def test_non_object_items_bind_as_json() -> None:
+    numbers = {
+        "properties": {"counts": {"type": "array", "minItems": 2, "items": {"type": "integer"}}},
+        "required": ["counts"],
+    }
+    assert validate_inputs({"counts": [1, 2]}, numbers)["counts"] == "[1,2]"
+    with pytest.raises(InputValidationError, match="counts must contain at least 2 items."):
+        validate_inputs({"counts": [1]}, numbers)
+
+
+def test_object_items_must_be_objects_and_string_fields_must_be_strings() -> None:
+    with pytest.raises(InputValidationError, match=r"source_passages\[0\] must be an object."):
+        validate_inputs({"source_passages": ["A passage."]}, PASSAGE_SCHEMA)
+    with pytest.raises(InputValidationError, match=r"source_passages\[0\].title must be a string."):
+        validate_inputs({"source_passages": [{"text": "A", "title": 1}]}, PASSAGE_SCHEMA)
+
+
 def test_primary_text_field_is_the_first_non_enum_string() -> None:
     assert primary_text_field(SCHEMA) == "text"
     assert (
