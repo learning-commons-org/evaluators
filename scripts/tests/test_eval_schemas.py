@@ -27,7 +27,7 @@ SUPPORTED = {
     "title": "EvaluatorInput",
     "description": "Inputs.",
     "type": "object",
-    "required": ["text", "grade_level", "count", "image_paths"],
+    "required": ["text", "grade_level", "count", "image_paths", "source_passages"],
     "additionalProperties": False,
     "properties": {
         "text": {
@@ -43,6 +43,11 @@ SUPPORTED = {
             "minItems": 1,
             "maxItems": 2,
             "items": {"type": "string", "minLength": 1, "x-image": X_IMAGE},
+        },
+        "source_passages": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"$ref": "#/$defs/SourcePassage"},
         },
     },
     "$defs": {
@@ -167,12 +172,22 @@ class RejectedShapes(unittest.TestCase):
             "properties/x/items: enum is not supported in an input schema",
         )
 
-    def test_a_ref_array_is_not_supported_on_this_branch(self) -> None:
+    def test_a_ref_that_names_no_def(self) -> None:
+        self.assert_rejected(
+            with_property("x", {"type": "array", "items": {"$ref": "#/$defs/Missing"}}),
+            "properties/x/items: $ref '#/$defs/Missing' must name an entry in $defs",
+        )
+
+    def test_a_keyword_beside_a_ref(self) -> None:
         self.assert_rejected(
             with_property(
-                "x", {"type": "array", "items": {"$ref": "#/$defs/SourcePassage"}}
+                "x",
+                {
+                    "type": "array",
+                    "items": {"$ref": "#/$defs/SourcePassage", "minLength": 1},
+                },
             ),
-            "properties/x/items: $ref items are not supported",
+            "properties/x/items: minLength is not supported beside $ref",
         )
 
     def test_an_optional_top_level_property(self) -> None:
