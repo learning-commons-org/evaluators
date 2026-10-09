@@ -220,10 +220,15 @@ async with KnowledgeGraphClient(api_key) as kg:
     components = await kg.get_learning_components(matches[0].case_identifier_uuid)
 ```
 
+A client is tied to the event loop it first ran on, so use it within one `asyncio.run` (as
+above), or create one per `asyncio.run`. Reusing it from a later `asyncio.run` fails with
+`RuntimeError: Event loop is closed`.
+
 `search_standards` takes an optional `jurisdiction` (default `Multi-State`) and
 `academic_subject`; more than one match means the code is reused across frameworks and you
-choose. Evaluators that own a client close it from their own `aclose()` / `close()`, which every
-evaluator accepts and which does nothing for the ones that own nothing.
+choose. Evaluators open and close the clients they need for each evaluation, so one evaluator
+can be reused across `evaluate_sync` calls. `aclose()` / `close()` are still accepted on every
+evaluator and do nothing.
 
 ### Math Standards Alignment
 
