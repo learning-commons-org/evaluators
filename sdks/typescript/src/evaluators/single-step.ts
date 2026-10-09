@@ -80,7 +80,7 @@ export function attachmentsOf(
     };
     if (kind !== 'image') refuse(`kind "${kind}" is not supported; this SDK sends only images.`);
     if (position !== 'before_text') {
-      refuse(`position "${position}" is not supported; this SDK places attachments only ahead of the text.`);
+      refuse(`position "${position}" is not supported; this SDK places attachments only before the text.`);
     }
     const spec = inputSchema.properties[input];
     // Optional or non-array, a request could omit the images and be sent without them.
@@ -281,7 +281,7 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
         }
 
         // Attached files are read here, in array order, after validation and before any
-        // paid call; the provider places them on the user turn ahead of the text.
+        // paid call; the provider places them on the user turn before the text.
         const attachments: ImageAttachment[] = [];
         for (const { input: name, bounds } of ATTACHMENTS) {
           const paths = all[name] as string[];
