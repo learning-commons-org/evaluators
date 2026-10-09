@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@learning-commons/evaluators)](https://www.npmjs.com/package/@learning-commons/evaluators)
 
-TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction) — seventeen LLM-backed evaluators for the complexity of text students read, the quality of feedback they receive, the alignment of math items to standards, and the critical thinking in student writing.
+TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction) — eighteen LLM-backed evaluators for the complexity of text students read, the quality of feedback they receive, the alignment of math items to standards, and the critical thinking in student writing.
 
 Requires Node 20.19+ or 22.12+ (`^20.19.0 || >=22.12.0`) — the CommonJS build needs
 `require(esm)`, which Node 21.x and 22.0-22.11 lack.
@@ -130,7 +130,7 @@ console.log(result.scaffolding_needed); // what that band would need
 console.log(metadata.model); // "google:gemini-3.6-flash"
 ```
 
-Every evaluator resolves to the same three-part envelope, so generic code works across all seventeen:
+Every evaluator resolves to the same three-part envelope, so generic code works across all eighteen:
 
 ```typescript
 {
@@ -335,7 +335,7 @@ getEvaluator("conventionality")?.name; // "Meaning Directness Evaluator"
 ```
 
 Both return metadata — `id`, `stableId`, `idHistory`, `name`, `description`, `supportedGrades`, `defaultProviders`, `requiredCredentials`, and `outcome` where the evaluator declares a single verdict. `requiredCredentials` lists only **non-LLM** services — it is `["learning_commons_api_key"]` for
-math standards alignment and `[]` for the other sixteen, so it is not the answer to "which keys
+math standards alignment and `[]` for the other seventeen, so it is not the answer to "which keys
 does this need". Provider keys follow `defaultProviders`: `["google"]` means supply
 `googleApiKey`. To _run_ an evaluator, import it by name: the metadata does not tell you which named inputs it takes, and each evaluator's are different.
 
