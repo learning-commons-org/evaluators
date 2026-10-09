@@ -63,7 +63,7 @@
                 {
                     "type": "toml",
                     "path": "uv.lock",
-                    "jsonpath": "$.package[?(@.name=='learning-commons-evaluators')].version"
+                    "jsonpath": "$.package[?(@.name.value=='learning-commons-evaluators')].version"
                 }
             ]
         },
