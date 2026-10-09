@@ -6,6 +6,7 @@ structured-output mechanism, and a caller may inject any object satisfying the p
 """
 
 from learning_commons_evaluators.providers.base import (
+    AttachmentPosition,
     ImageAttachment,
     ImageMediaType,
     LLMProvider,
@@ -22,6 +23,7 @@ from learning_commons_evaluators.providers.factory import create_provider
 from learning_commons_evaluators.providers.retry import call_with_resampling
 
 __all__ = [
+    "AttachmentPosition",
     "ImageAttachment",
     "ImageMediaType",
     "LLMProvider",

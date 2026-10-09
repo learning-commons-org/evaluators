@@ -566,13 +566,22 @@ class TestAttachmentsOfRefusesADeclarationItCannotHonour:
                 [{"input": "figures", "kind": "document", "position": "before_text"}],
             )
 
-    def test_refuses_a_position_other_than_before_text(self) -> None:
+    @pytest.mark.parametrize("position", ["before_text", "after_text"])
+    def test_reads_where_the_files_go(self, position: str) -> None:
+        [attached] = self.declare(
+            IMAGE_INPUT_SCHEMA, [{"input": "figures", "kind": "image", "position": position}]
+        )
+        assert attached.position == position
+
+    def test_refuses_a_position_it_cannot_place(self) -> None:
         with pytest.raises(
-            ValueError, match='attaches "figures": position "after_text" is not supported'
+            ValueError,
+            match='attaches "figures": position "inline" is not supported; '
+            "expected before_text or after_text",
         ):
             self.declare(
                 IMAGE_INPUT_SCHEMA,
-                [{"input": "figures", "kind": "image", "position": "after_text"}],
+                [{"input": "figures", "kind": "image", "position": "inline"}],
             )
 
     def test_refuses_an_attached_input_the_schema_does_not_declare(self) -> None:
@@ -652,6 +661,20 @@ class TestAttachesImages:
         for message in call["messages"]:
             assert str(tmp_path) not in message["content"]
 
+    @pytest.mark.parametrize("position", ["before_text", "after_text"])
+    async def test_hands_the_provider_each_image_with_the_position_the_contract_declares(
+        self, providers: ProviderFactory, tmp_path: Path, position: str
+    ) -> None:
+        png(tmp_path / "a.png", 100, 50)
+        png(tmp_path / "b.png", 60, 90)
+        evaluator = define_images(
+            attachments=[{"input": "figures", "kind": "image", "position": position}]
+        )(google_api_key="k")
+        await evaluator.evaluate(
+            figures=[str(tmp_path / "a.png"), str(tmp_path / "b.png")], text="Two."
+        )
+        assert [part.position for part in providers.calls[0]["attachments"]] == [position] * 2
+
     async def test_accepts_the_input_model(
         self, providers: ProviderFactory, tmp_path: Path
     ) -> None:
@@ -670,9 +693,9 @@ class TestAttachesImages:
         reads: list[str] = []
         real = image_source.load_image
 
-        def counting(field: str, path: str, bounds: ImageBounds) -> Any:
+        def counting(field: str, path: str, bounds: ImageBounds, **kwargs: Any) -> Any:
             reads.append(field)
-            return real(field, path, bounds)
+            return real(field, path, bounds, **kwargs)
 
         with patch("learning_commons_evaluators.evaluators.single_step.load_image", counting):
             await define_images()(google_api_key="k", max_retries=2).evaluate(
@@ -745,3 +768,115 @@ class TestAttachesImages:
         with patch("learning_commons_evaluators.evaluators.base.create_provider", TextOnly):
             evaluation = await define()(google_api_key="k").evaluate(**INPUT)
         assert evaluation.result.verdict == "clear"
+
+
+# --- x-model-only output fields ------------------------------------------------------
+
+
+class ThingResponse(BaseModel):
+    verdict: str
+    reasoning: str
+    working: str
+
+
+def model_only_contract() -> Contract:
+    """``working`` is asked of the model and kept from the caller."""
+    schema = contract().output_schema
+    schema["required"].append("working")
+    schema["properties"]["working"] = {"type": "string", "x-model-only": True}
+    return contract(output_schema=schema)
+
+
+def _with_working(schema: type[BaseModel]) -> BaseModel:
+    return schema.model_validate({"verdict": "clear", "reasoning": "because", "working": "w"})
+
+
+class TestModelOnlyFields:
+    @pytest.fixture
+    def providers(self) -> Any:
+        factory = ProviderFactory(payload=_with_working)
+        with patch("learning_commons_evaluators.evaluators.base.create_provider", factory):
+            yield factory
+
+    def define(
+        self,
+        response: type[BaseModel] | None = ThingResponse,
+        output: type[BaseModel] = ThingOutput,
+        declared: Contract | None = None,
+    ) -> type[SingleStepEvaluator[ThingInput, Any]]:
+        class ThingEvaluator(SingleStepEvaluator[ThingInput, Any]):
+            contract = declared or model_only_contract()
+            input_model = ThingInput
+            output_model = output
+            response_model = response
+
+        return ThingEvaluator
+
+    async def test_asks_the_model_for_them_and_returns_without_them(
+        self, providers: ProviderFactory
+    ) -> None:
+        evaluator = self.define()(google_api_key="k")
+        result = await evaluator.evaluate(**INPUT)
+        assert providers.calls[0]["schema"] is ThingResponse
+        assert isinstance(result.result, ThingOutput)
+        assert result.result.model_dump() == {"verdict": "clear", "reasoning": "because"}
+        assert read_outcome(result, evaluator.metadata.outcome).score == "clear"
+
+    def test_refuses_a_class_that_would_return_them(self) -> None:
+        with pytest.raises(
+            ValueError, match="marks working x-model-only; declare a response_model"
+        ):
+            self.define(response=None)
+        with pytest.raises(ValueError, match="output_model ThingResponse must hold exactly"):
+            self.define(output=ThingResponse)
+
+    def test_refuses_a_response_model_that_does_not_ask_for_every_property(self) -> None:
+        with pytest.raises(ValueError, match="response_model ThingOutput must hold every"):
+            self.define(response=ThingOutput)
+
+    def test_refuses_a_response_model_when_nothing_is_marked(self) -> None:
+        with pytest.raises(ValueError, match="marks no property x-model-only"):
+            self.define(declared=contract())
+
+
+# --- the prepare-inputs hook ----------------------------------------------------------
+
+
+class TestPrepareInputs:
+    def define(self, prepare: Any) -> type[SingleStepEvaluator[ThingInput, ThingOutput]]:
+        class ThingEvaluator(SingleStepEvaluator[ThingInput, ThingOutput]):
+            contract = globals()["contract"]()
+            input_model = ThingInput
+            output_model = ThingOutput
+
+            def _prepare_inputs(self, values: dict[str, Any]) -> dict[str, Any]:
+                return dict(prepare(values))
+
+        return ThingEvaluator
+
+    async def test_sees_validated_inputs_and_what_it_returns_is_rendered(
+        self, providers: ProviderFactory
+    ) -> None:
+        seen: list[dict[str, Any]] = []
+
+        def shout(values: dict[str, Any]) -> dict[str, Any]:
+            seen.append(values)
+            return {**values, "text": values["text"].upper()}
+
+        await self.define(shout)(google_api_key="k").evaluate(text=INPUT["text"], grade_level=4)
+        # Validated first: the int grade is already its token.
+        assert seen == [{"text": INPUT["text"], "grade_level": "4"}]
+        assert providers.calls[0]["messages"][1]["content"].startswith(
+            f"user: {INPUT['text'].upper()} at 4"
+        )
+
+    async def test_a_rejection_is_raised_before_any_call_and_logged(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        def refuse(values: dict[str, Any]) -> dict[str, Any]:
+            raise InputValidationError("not like that")
+
+        with pytest.raises(InputValidationError, match="not like that"):
+            await self.define(refuse)(google_api_key="k").evaluate(**INPUT)
+        assert providers.calls == []
+        assert "Thing evaluation failed" in caplog.text

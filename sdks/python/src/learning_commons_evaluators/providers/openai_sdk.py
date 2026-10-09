@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from pydantic import BaseModel
 
 from learning_commons_evaluators.providers._common import (
+    around_text,
     base64_data,
     elapsed_ms,
     last_user_turn,
@@ -88,17 +89,15 @@ class OpenAIProvider:
             # the API's own default, written out because the SDK's type requires it; the
             # TypeScript SDK sends none and so gets the same.
             index = last_user_turn(rest)
-            turns[index]["content"] = [
-                *(
-                    {
-                        "type": "input_image",
-                        "image_url": f"data:{a.media_type};base64,{base64_data(a)}",
-                        "detail": "auto",
-                    }
-                    for a in attachments
-                ),
+            turns[index]["content"] = around_text(
                 {"type": "input_text", "text": rest[index]["content"]},
-            ]
+                attachments,
+                lambda a: {
+                    "type": "input_image",
+                    "image_url": f"data:{a.media_type};base64,{base64_data(a)}",
+                    "detail": "auto",
+                },
+            )
         return {
             "model": self._model,
             "input": turns,
