@@ -132,7 +132,7 @@ def load_image(
     path: str,
     bounds: ImageBounds,
     *,
-    position: AttachmentPosition = "before_text",
+    position: AttachmentPosition,
 ) -> ImageAttachment:
     """Read the image at ``path`` and return it as an attachment, enforcing every bound the
     contract declares for it.
@@ -143,7 +143,7 @@ def load_image(
     :param path: a local file path, absolute or relative to the working directory
     :param bounds: the contract's ``x-image`` block for this input
     :param position: where the image goes relative to the user turn's text, as the contract's
-        attachment declares it
+        attachment declares it; required, so no caller can place an image by default
     :raises InputValidationError: if the file cannot be read, is not an accepted format with
         a readable header by its bytes, or falls outside the declared size or edge bounds
     """
