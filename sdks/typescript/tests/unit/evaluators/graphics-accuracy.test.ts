@@ -110,6 +110,13 @@ describe('composeGraphicsAccuracyClaim', () => {
     const expected = documented![1].replace('<question>', QUESTION).replace('<answer>', '12');
     expect(composeGraphicsAccuracyClaim(QUESTION, '12')).toBe(expected);
   });
+
+  it('refuses a blank question or answer, which would otherwise be judged as a wrong image', () => {
+    expect(() => composeGraphicsAccuracyClaim(QUESTION, '')).toThrow(InputValidationError);
+    expect(() => composeGraphicsAccuracyClaim(QUESTION, '  ')).toThrow(/the answer is blank/);
+    expect(() => composeGraphicsAccuracyClaim('', '12')).toThrow(/the question is blank/);
+    expect(() => composeGraphicsAccuracyClaim(' \n ', ' ')).toThrow(/the question is blank/);
+  });
 });
 
 describe('GraphicsAccuracyEvaluator - LLM call contract', () => {

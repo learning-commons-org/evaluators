@@ -1,5 +1,12 @@
-"""Derived prompt inputs (SDK spec §10.4), computed as the contract's ``preprocessing`` declares."""
+"""Derived prompt inputs (SDK spec §10.4), computed as the contract's ``preprocessing`` declares,
+and the image inputs a contract attaches, read and bounded as its ``x-image`` declares."""
 
+from learning_commons_evaluators.features.image_source import (
+    ImageBounds,
+    ImageInfo,
+    inspect_image,
+    load_image,
+)
 from learning_commons_evaluators.features.preprocessing import (
     check_implementation,
     format_number,
@@ -19,12 +26,16 @@ from learning_commons_evaluators.features.sentence_features import (
 
 __all__ = [
     "FEATURE_COLS",
+    "ImageBounds",
+    "ImageInfo",
     "ReadabilityCounts",
     "add_engineered_features",
     "check_implementation",
     "compute_ground_truth_counts",
     "features_to_json",
     "format_number",
+    "inspect_image",
+    "load_image",
     "readability_counts",
     "round_half_up",
     "run_preprocessing_step",

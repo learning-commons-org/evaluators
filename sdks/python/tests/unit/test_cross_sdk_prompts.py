@@ -33,7 +33,7 @@ from learning_commons_evaluators.evaluators.academic_standards_alignment.mathema
     MathStandardsAlignmentEvaluator,
 )
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
-from learning_commons_evaluators.evaluators.inputs import validate_inputs
+from learning_commons_evaluators.evaluators.inputs import text_inputs, validate_inputs
 from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator
 from learning_commons_evaluators.evaluators.registry import EVALUATORS
 from learning_commons_evaluators.evaluators.single_step import SingleStepEvaluator, step_for
@@ -165,7 +165,8 @@ def test_python_renders_what_typescript_renders(
     evaluator: type[BaseEvaluator], case: dict[str, Any]
 ) -> None:
     contract = evaluator.contract
-    values = validate_inputs(case["input"], contract.input_schema)
+    # Attached inputs are files, never prompt text, in either SDK.
+    values = text_inputs(validate_inputs(case["input"], contract.input_schema))
     plan = plan_for(evaluator, values)
     assert plan, "every fixture runs at least one step"
 
@@ -229,7 +230,7 @@ def test_library_computations_bind_a_number_rounded_as_declared() -> None:
     checked = 0
     for evaluator, case in PAIRS:
         contract = evaluator.contract
-        values = validate_inputs(case["input"], contract.input_schema)
+        values = text_inputs(validate_inputs(case["input"], contract.input_schema))
         for entry in contract.preprocessing:
             if entry.kind in IN_CODE_KINDS or entry.python is None:
                 continue

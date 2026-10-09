@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from pydantic import BaseModel
 
 from learning_commons_evaluators import (
@@ -68,3 +69,47 @@ def test_a_scalar_payload_has_no_verdict() -> None:
     assert (
         read_outcome(_evaluation("text"), DeclaredOutcome(score="s", reasoning="r")).score is None
     )
+
+
+#: Each value beside what JavaScript's ``String()`` returns for it, taken from Node: the
+#: same verdict must read the same in a report whichever SDK produced it.
+JAVASCRIPT_STRINGS: list[tuple[object, str]] = [
+    (True, "true"),
+    (False, "false"),
+    (7, "7"),
+    (-7, "-7"),
+    (7.0, "7"),
+    (0.5, "0.5"),
+    # A decimal point inside the digits: whole part and fraction both written out.
+    (7.5, "7.5"),
+    (-7.5, "-7.5"),
+    (123.456, "123.456"),
+    (0.1 + 0.2, "0.30000000000000004"),
+    (-0.0, "0"),
+    # Plain notation runs from 1e-6 up to, but not including, 1e21.
+    (1e-6, "0.000001"),
+    (1.5e-6, "0.0000015"),
+    (1e-7, "1e-7"),
+    (1.5e-7, "1.5e-7"),
+    (1e20, "100000000000000000000"),
+    (9.999999999999999e20, "999999999999999900000"),
+    (1e21, "1e+21"),
+    (1.2345e25, "1.2345e+25"),
+    (5e-324, "5e-324"),
+    (1.7976931348623157e308, "1.7976931348623157e+308"),
+    (float("nan"), "NaN"),
+    (float("inf"), "Infinity"),
+    (float("-inf"), "-Infinity"),
+    # An int is read as the double JavaScript would parse from the same JSON.
+    (2**53 + 1, "9007199254740992"),
+    (10**22, "1e+22"),
+    (10**400, "Infinity"),
+    (-(10**400), "-Infinity"),
+]
+
+
+@pytest.mark.parametrize(("value", "token"), JAVASCRIPT_STRINGS, ids=repr)
+def test_a_scalar_score_is_rendered_as_typescript_renders_it(value: object, token: str) -> None:
+    declared = DeclaredOutcome(score="score", reasoning="reasoning")
+    outcome = read_outcome(_evaluation({"score": value, "reasoning": "r"}), declared)
+    assert outcome.score == token
