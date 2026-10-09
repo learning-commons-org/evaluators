@@ -10,6 +10,7 @@ import {
   generateSchemaFile,
   discoverContracts,
   generatedContracts,
+  renderInputDeclarations,
   GENERATED_MARKER,
 } from '../../../scripts/generate-schema.js';
 
@@ -198,6 +199,54 @@ describe('generateSchemaFile', () => {
   });
 });
 
+// --- input declarations ---
+
+describe('renderInputDeclarations', () => {
+  it('throws when a $defs key is not a PascalCase identifier', () => {
+    expect(() =>
+      renderInputDeclarations(
+        {
+          $defs: { 'source-passage': { type: 'object', properties: {} } },
+          properties: {},
+          required: [],
+        },
+        'Example',
+      ),
+    ).toThrow('source-passage');
+  });
+
+  it('types a top-level property omitted from required as optional', () => {
+    // Graphics Complexity ships figure_labels this way. A missing or null value is absent.
+    const code = renderInputDeclarations(
+      {
+        type: 'object',
+        required: ['text'],
+        properties: {
+          text: { type: 'string' },
+          figure_labels: { type: 'string', description: 'Optional labels.' },
+        },
+      },
+      'Example',
+    );
+
+    expect(code).toContain('"text": string;');
+    expect(code).toContain('"figure_labels"?: string | null;');
+  });
+
+  it.each(['ExampleInput', 'ExampleResult'])('throws when a $defs key collides with %s', (name) => {
+    expect(() =>
+      renderInputDeclarations(
+        {
+          $defs: { [name]: { type: 'object', properties: {} } },
+          properties: {},
+          required: [],
+        },
+        'Example',
+      ),
+    ).toThrow(name);
+  });
+});
+
 // --- main() CLI behavior ---
 
 describe('main() CLI', () => {
@@ -290,6 +339,41 @@ describe('generateSchemaFile against real contracts', () => {
     expect(content).toContain('"assignment_text": string;');
     expect(content).toContain('"sources": string;');
     expect(content).toContain('"essay_text": string;');
+  });
+
+  it('names an input $def and types an array of it', () => {
+    const code = renderInputDeclarations(
+      {
+        type: 'object',
+        required: ['note', 'passages'],
+        properties: {
+          note: { type: 'string' },
+          passages: {
+            type: 'array',
+            items: { $ref: '#/$defs/SourcePassage' },
+          },
+        },
+        $defs: {
+          SourcePassage: {
+            type: 'object',
+            required: ['text'],
+            properties: {
+              title: { type: 'string', description: 'Optional heading.' },
+              author: { type: 'string' },
+              text: { type: 'string' },
+            },
+          },
+        },
+      },
+      'Widget',
+    );
+
+    expect(code).toContain('export interface SourcePassage {');
+    expect(code).toContain('"title"?: string | null;');
+    expect(code).toContain('"author"?: string | null;');
+    expect(code).toContain('"text": string;');
+    expect(code).toContain('"passages": SourcePassage[];');
+    expect(code).toContain('"note": string;');
   });
 });
 

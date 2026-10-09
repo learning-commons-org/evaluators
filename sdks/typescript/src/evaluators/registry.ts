@@ -1,5 +1,6 @@
 import type { BaseEvaluatorConfig, EvaluatorMetadata } from './base.js';
 import type { EvaluationResult } from '../schemas/outputs.js';
+import type { EvaluatorInputValue } from './single-step.js';
 
 import { VocabularyComplexityEvaluator } from './text-complexity/ela-reading/vocabulary-complexity.js';
 import { SentenceStructureEvaluator } from './text-complexity/ela-reading/sentence-structure.js';
@@ -33,7 +34,7 @@ import { GraphicsAccuracyEvaluator } from './graphics/math/graphics-accuracy.js'
  */
 export interface RegisteredEvaluator {
   new (config: BaseEvaluatorConfig): {
-    evaluate(input: Record<string, string | string[]>): Promise<EvaluationResult<unknown>>;
+    evaluate(input: Record<string, EvaluatorInputValue>): Promise<EvaluationResult<unknown>>;
   };
   readonly metadata: EvaluatorMetadata;
 }

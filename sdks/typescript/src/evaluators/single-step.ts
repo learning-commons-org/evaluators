@@ -33,7 +33,7 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
     id: string;
     model: { provider: string; name: string };
     generation?: { temperature?: number | null };
-    prompt: { placeholders: Record<string, unknown> };
+    prompt: { placeholders: Record<string, { source?: string } | undefined> };
     required_credentials?: string[];
     optional?: boolean;
     /** Inputs whose files are attached to the user turn as content parts; see `config.schema.json`. */
@@ -175,7 +175,39 @@ function vendorOf(step: { model: { provider: string } }, name: string): Provider
  * }) {}
  * ```
  */
-export function defineSingleStepEvaluator<TInput extends Record<string, string | number | string[]>, TResult>(
+/** One item of an array input: a string, such as an attached file's path, or an object. */
+export type EvaluatorInputItem = string | object;
+
+/**
+ * A caller-supplied value. Arrays stay structured until the prompt binder serializes them.
+ * `null` is an absent optional, the same as leaving the key out. `undefined` is the same
+ * absence on an optional generated property.
+ */
+export type EvaluatorInputValue = string | number | null | readonly EvaluatorInputItem[];
+
+/** The caller field a placeholder reads. Anything other than an input source is filled later. */
+function inputField(name: string, source: string | undefined): string | undefined {
+  if (source === undefined || source === 'input') return name;
+  if (source.startsWith('input.')) return source.slice('input.'.length);
+  return undefined;
+}
+
+/**
+ * Prompt text for one value. Objects and arrays are JSON so the prompt never sees a language
+ * repr. A `null` key is dropped, as an absent optional is, so the text matches Python's.
+ */
+function promptText(value: Exclude<EvaluatorInputValue, null>): string {
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  return JSON.stringify(value, (_key, v: unknown) => {
+    if (v === null || typeof v !== 'object' || Array.isArray(v)) return v;
+    return Object.fromEntries(Object.entries(v).filter(([, field]) => field !== null));
+  });
+}
+
+export function defineSingleStepEvaluator<
+  TInput extends Record<string, EvaluatorInputValue | undefined>,
+  TResult,
+>(
   definition: SingleStepDefinition<TResult>,
 ): SingleStepEvaluatorClass<TInput, TResult> {
   const { contract, inputSchema, outputSchema, systemPrompt, userPrompt } = definition;
@@ -255,11 +287,11 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
         // Inside the try so a validation failure is telemetered as an error event,
         // and before the inputs are read so a non-object is reported as one.
         validateInputs(input, inputSchema);
-        const all = input as Record<string, string | number | string[]>;
+        const all = input as Record<string, EvaluatorInputValue>;
         // Attached inputs are files, never prompt text; only the other inputs render.
         const fields = Object.fromEntries(
           Object.entries(all).filter(([name]) => !ATTACHED_FIELDS.has(name)),
-        ) as Record<string, string | number>;
+        );
         const rawText = TEXT_FIELD ? fields[TEXT_FIELD] : '';
         text = typeof rawText === 'string' ? rawText : '';
         gradeLevel = typeof fields.grade_level === 'string' ? fields.grade_level : '';
@@ -271,12 +303,19 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
           textLength: text.length,
         });
 
-        // Each declared preprocessing step becomes a prompt input under its own id, so
-        // adding one to a contract needs no code here. Integers are bound as decimal
-        // text, the same spelling Python's validator returns.
+        // Placeholders are filled from the source the contract names. `input` reads the
+        // field of the same name; `input.<field>` reads a caller field under a different
+        // name. Integers bind as decimal text. An array or object binds as JSON, never
+        // as `String(object)`, which would be "[object Object]".
         const promptInputs: Record<string, string> = {};
-        for (const [key, value] of Object.entries(fields)) {
-          promptInputs[key] = String(value);
+        for (const [name, placeholder] of Object.entries(STEP.prompt.placeholders)) {
+          if (!placeholder) continue;
+          const field = inputField(name, placeholder.source);
+          if (field === undefined) continue;
+          const value = fields[field];
+          // A missing key and an explicit null are both absent. Binding null would put the
+          // letters "null" in the prompt; Python omits the field instead.
+          if (value !== undefined && value !== null) promptInputs[name] = promptText(value);
         }
         for (const step of PREPROCESSING) {
           promptInputs[step.id] = String(runPreprocessingStep(text, step.implementation.typescript));
