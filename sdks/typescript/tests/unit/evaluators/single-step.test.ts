@@ -483,7 +483,7 @@ describe('attachmentsOf refuses a declaration it cannot honour', () => {
     () => attachmentsOf(imageStep(attachments) as never, schema as never, 'Thing Evaluator');
 
   it('accepts a complete declaration', () => {
-    expect(declare([{ input: 'figures', kind: 'image' }], withBounds(X_IMAGE))()).toEqual([
+    expect(declare([{ input: 'figures', kind: 'image', position: 'before_text' }], withBounds(X_IMAGE))()).toEqual([
       { input: 'figures', bounds: X_IMAGE },
     ]);
   });
@@ -492,19 +492,26 @@ describe('attachmentsOf refuses a declaration it cannot honour', () => {
     expect(declare([{ input: 'figures', kind: 'document' }], withBounds(X_IMAGE))).toThrow(/kind "document" is not supported/);
   });
 
+  it('refuses a position it cannot place, and a declaration with none', () => {
+    expect(declare([{ input: 'figures', kind: 'image', position: 'after_text' }], withBounds(X_IMAGE))).toThrow(
+      /position "after_text" is not supported/,
+    );
+    expect(declare([{ input: 'figures', kind: 'image' }], withBounds(X_IMAGE))).toThrow(/position "undefined" is not supported/);
+  });
+
   it('refuses an attached input with no x-image on its items', () => {
-    expect(declare([{ input: 'figures', kind: 'image' }], withBounds(undefined))).toThrow(/need an `x-image` block/);
+    expect(declare([{ input: 'figures', kind: 'image', position: 'before_text' }], withBounds(undefined))).toThrow(/need an `x-image` block/);
   });
 
   it('refuses a bound that is missing or misspelled, which would otherwise pass silently', () => {
     const noMinEdge: Record<string, unknown> = { ...X_IMAGE };
     delete noMinEdge.min_edge;
-    expect(declare([{ input: 'figures', kind: 'image' }], withBounds(noMinEdge))).toThrow(/`x-image.min_edge` must be a number/);
-    expect(declare([{ input: 'figures', kind: 'image' }], withBounds({ ...X_IMAGE, detect: 'extension' }))).toThrow(/must be "signature"/);
+    expect(declare([{ input: 'figures', kind: 'image', position: 'before_text' }], withBounds(noMinEdge))).toThrow(/`x-image.min_edge` must be a number/);
+    expect(declare([{ input: 'figures', kind: 'image', position: 'before_text' }], withBounds({ ...X_IMAGE, detect: 'extension' }))).toThrow(/must be "signature"/);
   });
 
   it('refuses an unsupported or empty format list and inverted bounds', () => {
-    const one = [{ input: 'figures', kind: 'image' }];
+    const one = [{ input: 'figures', kind: 'image', position: 'before_text' }];
     expect(declare(one, withBounds({ ...X_IMAGE, formats: ['png'] }))).toThrow(/`x-image.formats` must be/);
     expect(declare(one, withBounds({ ...X_IMAGE, formats: [] }))).toThrow(/`x-image.formats` must be/);
     expect(declare(one, withBounds({ ...X_IMAGE, min_edge: 3000 }))).toThrow(/min_edge` exceeds `max_edge/);
@@ -512,7 +519,7 @@ describe('attachmentsOf refuses a declaration it cannot honour', () => {
   });
 
   it('refuses an attached input that could be omitted: not an array, not required, or minItems below 1', () => {
-    const one = [{ input: 'figures', kind: 'image' }];
+    const one = [{ input: 'figures', kind: 'image', position: 'before_text' }];
     const schema = (patch: (s: ReturnType<typeof withBounds>) => void) => {
       const s = withBounds(X_IMAGE);
       patch(s);
@@ -524,7 +531,7 @@ describe('attachmentsOf refuses a declaration it cannot honour', () => {
   });
 
   it('refuses an unbounded or inverted item count, and items that are not file paths', () => {
-    const one = [{ input: 'figures', kind: 'image' }];
+    const one = [{ input: 'figures', kind: 'image', position: 'before_text' }];
     const schema = (patch: (figures: Record<string, unknown>) => void) => {
       const s = withBounds(X_IMAGE);
       patch(s.properties.figures as Record<string, unknown>);
@@ -538,7 +545,7 @@ describe('attachmentsOf refuses a declaration it cannot honour', () => {
   it('fails when the evaluator is defined, not when it is first called', () => {
     expect(() =>
       defineSingleStepEvaluator({
-        contract: contract({ steps: [imageStep([{ input: 'figures', kind: 'image' }])] }) as never,
+        contract: contract({ steps: [imageStep([{ input: 'figures', kind: 'image', position: 'before_text' }])] }) as never,
         inputSchema: { properties: { figures: { type: 'array', minItems: 1, maxItems: 3, items: { type: 'string' } } }, required: ['figures'] } as never,
         outputSchema: OUTPUT_SCHEMA,
         systemPrompt: 'system',
@@ -559,7 +566,7 @@ describe('defineSingleStepEvaluator attaches several images in array order', () 
 
   it('loads every path, in order, and keeps them out of the prompt text', async () => {
     const E = defineSingleStepEvaluator<{ figures: string[]; text: string }, Output>({
-      contract: contract({ steps: [imageStep([{ input: 'figures', kind: 'image' }])] }) as never,
+      contract: contract({ steps: [imageStep([{ input: 'figures', kind: 'image', position: 'before_text' }])] }) as never,
       inputSchema: IMAGE_INPUT_SCHEMA as never,
       outputSchema: OUTPUT_SCHEMA,
       systemPrompt: 'system',
