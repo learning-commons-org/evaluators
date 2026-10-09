@@ -310,6 +310,13 @@ describe('validateInputs — arrays of objects', () => {
     );
   });
 
+  it('rejects a required field that exists only on the prototype', () => {
+    const inherited = Object.create({ text: 'A passage.' }) as { text?: string };
+    expect(() => validateInputs({ passages: [inherited] }, schema)).toThrow(
+      'passages[0].text is required.',
+    );
+  });
+
   it('rejects an item missing required text', () => {
     expect(() => validateInputs({ passages: [{ title: 'Only a title' }] }, schema)).toThrow(
       'passages[0].text is required.',

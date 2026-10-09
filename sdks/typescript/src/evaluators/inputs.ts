@@ -201,7 +201,9 @@ function validateObjectField(path: string, value: unknown, spec: DeclaredFieldSc
   const required = spec.required ?? [];
   for (const prop of [...required, ...declared.filter((name) => !required.includes(name))]) {
     const propSpec = properties[prop];
-    const propValue = record[prop];
+    // JSON.stringify only emits own properties, so a value inherited from the prototype
+    // would validate and then disappear from the prompt. Treat it as absent.
+    const propValue = Object.hasOwn(record, prop) ? record[prop] : undefined;
     const propPath = `${path}.${prop}`;
     if (propSpec.type !== 'string') {
       // A contract fault, as above: object fields are strings.
