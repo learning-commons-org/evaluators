@@ -158,22 +158,15 @@ function assertDefName(name: string, className: string): void {
 /**
  * Named object types declared in an input schema's `$defs`, then the input type itself.
  *
- * The `$defs` key is the interface name. Properties absent from that object's `required`
- * are optional. Top-level inputs stay required: an optional caller field is still a
- * generator error, because no shipped contract has one.
+ * The `$defs` key is the interface name. A property absent from `required` — on the
+ * root or on a definition — is optional. The validator treats a missing or null
+ * value there as absent.
  */
 export function renderInputDeclarations(schema: JsonObject, className: string): string {
   const defs = (schema['$defs'] ?? {}) as Record<string, JsonObject>;
   const properties = (schema['properties'] ?? {}) as Record<string, JsonObject>;
   const required = new Set((schema['required'] ?? []) as string[]);
   const names = Object.keys(properties);
-  const missing = names.filter((n) => !required.has(n));
-  if (missing.length > 0) {
-    throw new Error(
-      `input schema declares optional inputs (${missing.join(', ')}), which ` +
-        'this generator does not render yet — add optional-property support before shipping it.',
-    );
-  }
 
   const interfaces = Object.entries(defs)
     .filter(([, def]) => def['type'] === 'object')
@@ -188,7 +181,7 @@ export function renderInputDeclarations(schema: JsonObject, className: string): 
     });
 
   const body = names
-    .map((name) => renderInputProperty(name, properties[name], defs, false))
+    .map((name) => renderInputProperty(name, properties[name], defs, !required.has(name)))
     .join('\n');
   const input = `export type ${className}Input = {\n${body}\n};`;
   return [...interfaces, input].join('\n\n');
