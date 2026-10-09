@@ -4,12 +4,17 @@ Structured output uses ``messages.parse`` with a pydantic model as ``output_form
 SDK sends the schema as the message's JSON output format and validates the completion
 against it. Anthropic requires ``max_tokens``; a request that names none gets
 :data:`DEFAULT_MAX_TOKENS`, the same ceiling the TypeScript SDK's Anthropic adapter applies.
+
+Each call builds its own client and closes it before returning; see
+:class:`~learning_commons_evaluators.providers.base.LLMProvider` for why.
 """
 
 from __future__ import annotations
 
 import time
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
+from contextlib import asynccontextmanager
+from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel
@@ -51,11 +56,26 @@ class AnthropicProvider:
         model, api_key = require_config(config, Provider.ANTHROPIC)
         self._model = model
         self.label = provider_label(Provider.ANTHROPIC, model)
+        #: A client the caller handed in, used for every call and never closed: its owner
+        #: decides its lifetime.
+        self._client = client
+        self._new_client: Callable[[], AsyncAnthropic] | None = None
         if client is None:
             from anthropic import AsyncAnthropic
 
-            client = AsyncAnthropic(api_key=api_key, max_retries=config.max_retries)
-        self._client = client
+            self._new_client = partial(
+                AsyncAnthropic, api_key=api_key, max_retries=config.max_retries
+            )
+
+    @asynccontextmanager
+    async def _session(self) -> AsyncIterator[AsyncAnthropic]:
+        """The client for one call: the injected one, or a new one closed on the way out."""
+        if self._new_client is None:
+            assert self._client is not None
+            yield self._client
+            return
+        async with self._new_client() as client:
+            yield client
 
     def _request(
         self,
@@ -116,9 +136,11 @@ class AnthropicProvider:
         attachments: Sequence[ImageAttachment] = (),
     ) -> LLMResponse[T]:
         start = time.perf_counter()
-        message = await self._client.messages.parse(
-            output_format=schema, **self._request(messages, temperature, max_tokens, attachments)
-        )
+        async with self._session() as client:
+            message = await client.messages.parse(
+                output_format=schema,
+                **self._request(messages, temperature, max_tokens, attachments),
+            )
         parsed = message.parsed_output
         if parsed is None:
             # Truncation (``max_tokens``) and refusals both end without a parseable block;
@@ -139,9 +161,10 @@ class AnthropicProvider:
         max_tokens: int | None = None,
     ) -> TextGenerationResponse:
         start = time.perf_counter()
-        message = await self._client.messages.create(
-            **self._request(messages, temperature, max_tokens)
-        )
+        async with self._session() as client:
+            message = await client.messages.create(
+                **self._request(messages, temperature, max_tokens)
+            )
         text = "".join(
             getattr(block, "text", "") for block in message.content if block.type == "text"
         )

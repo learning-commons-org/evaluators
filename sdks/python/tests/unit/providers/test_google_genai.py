@@ -118,6 +118,7 @@ def test_max_retries_becomes_total_attempts_on_the_real_client() -> None:
         type=Provider.GOOGLE, model="gemini-3.6-flash", api_key="k", max_retries=2
     )
     adapter = GoogleProvider(config)
-    retry_options = adapter._client._api_client._http_options.retry_options
+    assert adapter._new_client is not None
+    retry_options = adapter._new_client()._api_client._http_options.retry_options
     assert retry_options is not None
     assert retry_options.attempts == 3

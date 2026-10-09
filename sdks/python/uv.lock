@@ -914,7 +914,7 @@ dev = [
 requires-dist = [
     { name = "anthropic", specifier = ">=1.0.0,<2" },
     { name = "attrs", specifier = ">=23.2.0" },
-    { name = "google-genai", specifier = ">=1.30.0,<3" },
+    { name = "google-genai", specifier = ">=1.39.0,<3" },
     { name = "httpx", specifier = ">=0.27.0,<1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.14.0" },
     { name = "openai", specifier = ">=2.47.0,<4" },
