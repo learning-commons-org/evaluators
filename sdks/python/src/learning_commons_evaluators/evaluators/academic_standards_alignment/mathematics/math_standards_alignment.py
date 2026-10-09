@@ -52,7 +52,7 @@ from learning_commons_evaluators.dependencies.knowledge_graph import (
 )
 from learning_commons_evaluators.errors import InputValidationError, LLMOutputProcessingError
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
-from learning_commons_evaluators.evaluators.inputs import validate_inputs
+from learning_commons_evaluators.evaluators.inputs import text_inputs, validate_inputs
 from learning_commons_evaluators.evaluators.single_step import step_for
 from learning_commons_evaluators.prompts.render import render_prompt
 from learning_commons_evaluators.providers import (
@@ -533,7 +533,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                     raise InputValidationError(
                         f"{name} is not an input of this method; pass it to {method} instead."
                     )
-        return validate_inputs(raw, schema)
+        return text_inputs(validate_inputs(raw, schema))
 
     async def _statement_code(
         self, uuid: str, context: _Context, knowledge_graph: KnowledgeGraphClient

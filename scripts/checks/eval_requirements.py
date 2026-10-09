@@ -47,6 +47,7 @@ IMPORT_NAME = {
     "python-dotenv": "dotenv",
     "langchain-google-genai": "langchain_google_genai",
     "langchain-openai": "langchain_openai",
+    "Pillow": "PIL",
 }
 
 # Imports that resolve without their own requirements.txt entry because a

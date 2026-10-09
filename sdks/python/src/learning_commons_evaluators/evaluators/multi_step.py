@@ -44,7 +44,11 @@ from pydantic import BaseModel
 from learning_commons_evaluators.contracts.loader import Contract, Preprocessing, Step
 from learning_commons_evaluators.errors import ConfigurationError
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
-from learning_commons_evaluators.evaluators.inputs import primary_text_field, validate_inputs
+from learning_commons_evaluators.evaluators.inputs import (
+    primary_text_field,
+    text_inputs,
+    validate_inputs,
+)
 from learning_commons_evaluators.features.preprocessing import (
     check_implementation,
     format_number,
@@ -190,7 +194,7 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         # call, so a failure before any of them — a rejected input — still reports a model.
         with self._telemetry_run(self._providers[self._steps[0].id].label) as run:
             try:
-                values = validate_inputs(raw, self.contract.input_schema)
+                values = text_inputs(validate_inputs(raw, self.contract.input_schema))
                 text = values.get(self._text_field, "") if self._text_field else ""
                 run.text_length = utf16_length(text)
                 run.grade = values.get("grade_level", "")
@@ -492,6 +496,14 @@ def _check_steps(cls: type[MultiStepEvaluator[Any, Any]], contract: Contract) ->
             raise ValueError(
                 f'Step "{step.id}" in {name} config.json is optional, which no evaluator '
                 "supports yet."
+            )
+        if step.attachments:
+            # This base sends text only, so an image the contract attaches would be dropped
+            # and the step would judge the prompt alone.
+            raise ValueError(
+                f'Step "{step.id}" in {name} config.json attaches '
+                f"{', '.join(a.input for a in step.attachments)}; MultiStepEvaluator sends "
+                "text only. Use the single-step base."
             )
         if step.id not in cls.step_models:
             raise ValueError(

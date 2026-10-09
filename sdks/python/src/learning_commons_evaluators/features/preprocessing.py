@@ -99,8 +99,10 @@ def run_preprocessing_step(text: str, implementation: Implementation) -> float:
 def format_number(value: float) -> str:
     """A computed value as it reaches the prompt.
 
-    Rendered the way JavaScript's ``String(number)`` renders it — ``7`` rather than
-    ``7.0`` for an integral value — so the two SDKs bind the same text.
+    Agrees with JavaScript's ``String(number)`` over the values a contract computes —
+    ``7`` rather than ``7.0`` for an integral value — so the two SDKs bind the same text.
+    It is not a general port: beyond plain notation (below ``1e-6`` or from ``1e21``) and
+    for non-finite values the two diverge, which a rounded readability score never reaches.
     """
     if float(value).is_integer():
         return str(int(value))
