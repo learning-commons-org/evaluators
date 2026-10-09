@@ -13,6 +13,7 @@ import {
 } from './base.js';
 import { declaredCredentials, type CredentialDeclaringConfig } from './credentials.js';
 import { validateInputs, primaryTextField, type DeclaredInputSchema } from './inputs.js';
+import { isSourcePassageField, renderSourcePassages, type SourcePassageInput } from './source-passages.js';
 import { createPromptRenderers } from '../prompts/create-prompts.js';
 
 /**
@@ -23,7 +24,8 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
   evaluator: {
     id: string;
     stable_id: string;
-    id_history: string[];
+    /** Omitted when the evaluator has never been renamed. Python defaults this to []. */
+    id_history?: string[];
     name: string;
     description: string;
     /** Required of every contract, so a config.json omitting it fails to compile here. */
@@ -41,6 +43,8 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
   }>;
   preprocessing?: Array<{
     id: string;
+    input?: string;
+    output?: string;
     implementation: { typescript: { library: string; function: string; post_transform?: { type: string; precision?: number } } };
     required_credentials?: string[];
   }>;
@@ -204,6 +208,25 @@ function promptText(value: Exclude<EvaluatorInputValue, null>): string {
   });
 }
 
+/** Prompt text for one caller field. A `SourcePassage` list becomes the heading markdown. */
+function promptValue(
+  field: string,
+  value: Exclude<EvaluatorInputValue, null>,
+  schema: DeclaredInputSchema,
+): string {
+  if (isSourcePassageField(schema, field) && Array.isArray(value)) {
+    return renderSourcePassages(value as readonly SourcePassageInput[]);
+  }
+  return promptText(value);
+}
+
+function listLength(value: EvaluatorInputValue | undefined): string {
+  if (!Array.isArray(value)) {
+    throw new Error('A length computation requires an array.');
+  }
+  return String(value.length);
+}
+
 export function defineSingleStepEvaluator<
   TInput extends Record<string, EvaluatorInputValue | undefined>,
   TResult,
@@ -237,7 +260,7 @@ export function defineSingleStepEvaluator<
   const METADATA = {
     id: contract.evaluator.id,
     stableId: contract.evaluator.stable_id,
-    idHistory: contract.evaluator.id_history,
+    idHistory: contract.evaluator.id_history ?? [],
     name: contract.evaluator.name,
     description: contract.evaluator.description,
     outcome: contract.outcome,
@@ -303,22 +326,42 @@ export function defineSingleStepEvaluator<
           textLength: text.length,
         });
 
+        // Count a list before rendering it. The length of the markdown would be a
+        // character count, and `{source_count}` is the number of passages.
+        const computed: Record<string, string> = {};
+        for (const step of PREPROCESSING) {
+          const impl = step.implementation.typescript;
+          const value =
+            impl.library === 'builtins' && impl.function === 'length'
+              ? listLength(fields[step.input ?? ''])
+              : String(runPreprocessingStep(text, impl));
+          computed[step.output ?? step.id] = value;
+        }
+
         // Placeholders are filled from the source the contract names. `input` reads the
         // field of the same name; `input.<field>` reads a caller field under a different
-        // name. Integers bind as decimal text. An array or object binds as JSON, never
-        // as `String(object)`, which would be "[object Object]".
+        // name. A `SourcePassage` list is rendered as the markdown the prompt already
+        // uses. Other arrays bind as JSON, never as `String(object)`.
         const promptInputs: Record<string, string> = {};
         for (const [name, placeholder] of Object.entries(STEP.prompt.placeholders)) {
           if (!placeholder) continue;
-          const field = inputField(name, placeholder.source);
+          const source = placeholder.source;
+          if (source?.startsWith('preprocessing.')) {
+            const value = computed[source.slice('preprocessing.'.length)];
+            if (value !== undefined) promptInputs[name] = value;
+            continue;
+          }
+          const field = inputField(name, source);
           if (field === undefined) continue;
           const value = fields[field];
           // A missing key and an explicit null are both absent. Binding null would put the
           // letters "null" in the prompt; Python omits the field instead.
-          if (value !== undefined && value !== null) promptInputs[name] = promptText(value);
+          if (value !== undefined && value !== null) {
+            promptInputs[name] = promptValue(field, value, inputSchema);
+          }
         }
         for (const step of PREPROCESSING) {
-          promptInputs[step.id] = String(runPreprocessingStep(text, step.implementation.typescript));
+          promptInputs[step.id] = computed[step.output ?? step.id];
         }
 
         // Attached files are read here, in array order, after validation and before any

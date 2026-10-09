@@ -22,6 +22,7 @@ import { StrengthAcknowledgmentEvaluator } from '../../src/evaluators/feedback/e
 import { StudentResponseSpecificityEvaluator } from '../../src/evaluators/feedback/ela-writing/student-response-specificity.js';
 import { ToneAppropriatenessEvaluator } from '../../src/evaluators/feedback/ela-writing/tone-appropriateness.js';
 import { WithholdingAnswersEvaluator } from '../../src/evaluators/feedback/ela-writing/withholding-answers.js';
+import { CriticalThinkingEvaluator } from '../../src/evaluators/durable-skills/ela-writing/critical-thinking.js';
 import { RevisionAccuracyOutputSchema } from '../../src/schemas/feedback/ela-writing/revision-accuracy.js';
 import { RevisionActionabilityOutputSchema } from '../../src/schemas/feedback/ela-writing/revision-actionability.js';
 import { RevisionManageabilityOutputSchema } from '../../src/schemas/feedback/ela-writing/revision-manageability.js';
@@ -29,6 +30,7 @@ import { StrengthAcknowledgmentOutputSchema } from '../../src/schemas/feedback/e
 import { StudentResponseSpecificityOutputSchema } from '../../src/schemas/feedback/ela-writing/student-response-specificity.js';
 import { ToneAppropriatenessOutputSchema } from '../../src/schemas/feedback/ela-writing/tone-appropriateness.js';
 import { WithholdingAnswersOutputSchema } from '../../src/schemas/feedback/ela-writing/withholding-answers.js';
+import { CriticalThinkingOutputSchema } from '../../src/schemas/durable-skills/ela-writing/critical-thinking.js';
 import { GraphicsAccuracyEvaluator } from '../../src/evaluators/graphics/math/graphics-accuracy.js';
 import { GraphicsAccuracyOutputSchema } from '../../src/schemas/graphics/math/graphics-accuracy.js';
 import { QTC_FAMILY } from '../../src/batch/families/qtc.js';
@@ -229,6 +231,7 @@ const SDK_OUTPUT_SCHEMAS: Record<string, { shape: Record<string, unknown> }> = {
   [StudentResponseSpecificityEvaluator.metadata.id]: StudentResponseSpecificityOutputSchema,
   [ToneAppropriatenessEvaluator.metadata.id]: ToneAppropriatenessOutputSchema,
   [WithholdingAnswersEvaluator.metadata.id]: WithholdingAnswersOutputSchema,
+  [CriticalThinkingEvaluator.metadata.id]: CriticalThinkingOutputSchema,
   [BackgroundKnowledgeDemandsEvaluator.metadata.id]: BackgroundKnowledgeDemandsOutputSchema,
   [GradeLevelAppropriatenessEvaluator.metadata.id]: GradeLevelAppropriatenessOutputSchema,
   [MeaningDirectnessEvaluator.metadata.id]: MeaningDirectnessOutputSchema,
@@ -252,7 +255,7 @@ interface Contract {
     evaluator: {
       id: string;
       stable_id: string;
-      id_history: string[];
+      id_history?: string[];
       name: string;
       description: string;
       supported_grades: string[];
@@ -355,6 +358,12 @@ const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknow
     construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
   [WithholdingAnswersEvaluator.metadata.id]: (E, text) =>
     construct(E).evaluate({ student_text: text, feedback_text: FEEDBACK_TEXT }),
+  [CriticalThinkingEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({
+      assignment_text: 'Using the sources, argue whether your town should limit cars downtown.',
+      source_passages: CRITICAL_THINKING_PASSAGES,
+      essay_text: text,
+    }),
 };
 
 /**
@@ -364,6 +373,9 @@ const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknow
  * skips these. The minimum-length check does not: validation runs before any LLM call.
  */
 const MULTI_STEP = new Set<string>([SENTENCE_ID, VocabularyComplexityEvaluator.metadata.id]);
+
+/** The passages the Critical Thinking invoke passes, so a length check can expect this count. */
+const CRITICAL_THINKING_PASSAGES = [{ text: 'A passage.' }, { text: 'Another passage.' }];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function construct(E: EvaluatorClass): any {
@@ -455,7 +467,7 @@ describe('identity matches the contract', () => {
 
     expect(E.metadata.id).toBe(config.evaluator.id);
     expect(E.metadata.stableId).toBe(config.evaluator.stable_id);
-    expect(E.metadata.idHistory).toEqual(config.evaluator.id_history);
+    expect(E.metadata.idHistory).toEqual(config.evaluator.id_history ?? []);
     expect(E.metadata.name).toBe(config.evaluator.name);
     expect(E.metadata.description).toBe(config.evaluator.description);
   });
@@ -895,7 +907,12 @@ describe('every declared preprocessing value reaches the prompt', () => {
       .flatMap((step) => {
         const impl = step.implementation?.typescript;
         if (!impl) return [];
-        const value = String(runPreprocessingStep(TEXT, impl));
+        // A length computation counts the caller's list. Running it on the essay text
+        // would be a character count, which is not what the prompt binds.
+        const value =
+          impl.library === 'builtins' && impl.function === 'length'
+            ? String(CRITICAL_THINKING_PASSAGES.length)
+            : String(runPreprocessingStep(TEXT, impl));
         return prompts.includes(value) ? [] : [step];
       })
       .map((step) => step.id);

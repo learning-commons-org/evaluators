@@ -115,11 +115,16 @@ export { WithholdingAnswersOutputSchema } from './schemas/feedback/ela-writing/w
 export type { GraphicsAccuracyResult } from './schemas/graphics/math/graphics-accuracy.js';
 export { GraphicsAccuracyOutputSchema } from './schemas/graphics/math/graphics-accuracy.js';
 
+// Durable Skills exports
+export type { CriticalThinkingResult } from './schemas/durable-skills/ela-writing/critical-thinking.js';
+export { CriticalThinkingOutputSchema } from './schemas/durable-skills/ela-writing/critical-thinking.js';
+
 export {
   VocabularyComplexityEvaluator,
   evaluateVocabularyComplexity,
   type BackgroundKnowledgeDemandsInput,
   type GradeLevelAppropriatenessInput,
+  type CriticalThinkingInput,
   type MathStandardsAlignmentInput,
   type MeaningDirectnessInput,
   type OrganizationalStructureInput,
@@ -162,6 +167,8 @@ export {
   evaluateToneAppropriateness,
   WithholdingAnswersEvaluator,
   evaluateWithholdingAnswers,
+  CriticalThinkingEvaluator,
+  evaluateCriticalThinking,
   MathStandardsAlignmentEvaluator,
   evaluateMathStandardsAlignment,
   GraphicsAccuracyEvaluator,

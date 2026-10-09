@@ -1,0 +1,27 @@
+// GENERATED — do not edit directly.
+// Source: ../../evals/durable-skills/ela-writing/critical-thinking/output_schema.json
+//         ../../evals/durable-skills/ela-writing/critical-thinking/input_schema.json
+// Regenerate: npm run generate:schemas
+
+import { z } from 'zod';
+
+/** What this evaluator accepts, from its input schema. */
+export interface SourcePassage {
+  "title"?: string | null;
+  "author"?: string | null;
+  "text": string;
+}
+
+export type CriticalThinkingInput = {
+  /** The writing assignment / prompt given to the student. */
+  "assignment_text": string;
+  /** Source passages in the order the student received them. Position is the source number: the first item is Source 1, the second is Source 2, and so on. The SDK does not sort or renumber this list. When a passage has no title or author, that number is a valid way for the student to name it. */
+  "source_passages": SourcePassage[];
+  /** The student's essay, verbatim (may contain spelling/grammar errors). */
+  "essay_text": string;
+};
+
+// prettier-ignore
+export const CriticalThinkingOutputSchema = z.object({ "indicators": z.object({ "synthesizing_sources": z.object({ "evidence": z.array(z.object({ "quote": z.string().describe("A verbatim substring of the essay text, including any original spelling/grammar errors."), "comment": z.string().describe("Why this excerpt matters for this indicator.") }).strict()).describe("Verbatim quote/comment pairs supporting the rating. At least one for any indicator rated above not_evident; may be empty for not_evident."), "reasoning": z.string().describe("2–5 sentences explaining the rating against the rubric cells and decision rules. Produced before the rating."), "rating": z.enum(["not_evident","exploring","analyzing","integrating","extending"]).describe("Ordered rating level, lowest to highest.") }).strict().optional(), "evidence_strength": z.object({ "evidence": z.array(z.object({ "quote": z.string().describe("A verbatim substring of the essay text, including any original spelling/grammar errors."), "comment": z.string().describe("Why this excerpt matters for this indicator.") }).strict()).describe("Verbatim quote/comment pairs supporting the rating. At least one for any indicator rated above not_evident; may be empty for not_evident."), "reasoning": z.string().describe("2–5 sentences explaining the rating against the rubric cells and decision rules. Produced before the rating."), "rating": z.enum(["not_evident","exploring","analyzing","integrating","extending"]).describe("Ordered rating level, lowest to highest.") }).strict(), "counterarguments": z.object({ "evidence": z.array(z.object({ "quote": z.string().describe("A verbatim substring of the essay text, including any original spelling/grammar errors."), "comment": z.string().describe("Why this excerpt matters for this indicator.") }).strict()).describe("Verbatim quote/comment pairs supporting the rating. At least one for any indicator rated above not_evident; may be empty for not_evident."), "reasoning": z.string().describe("2–5 sentences explaining the rating against the rubric cells and decision rules. Produced before the rating."), "rating": z.enum(["not_evident","exploring","analyzing","integrating","extending"]).describe("Ordered rating level, lowest to highest.") }).strict(), "facts_over_opinions": z.object({ "evidence": z.array(z.object({ "quote": z.string().describe("A verbatim substring of the essay text, including any original spelling/grammar errors."), "comment": z.string().describe("Why this excerpt matters for this indicator.") }).strict()).describe("Verbatim quote/comment pairs supporting the rating. At least one for any indicator rated above not_evident; may be empty for not_evident."), "reasoning": z.string().describe("2–5 sentences explaining the rating against the rubric cells and decision rules. Produced before the rating."), "rating": z.enum(["not_evident","exploring","analyzing","integrating","extending"]).describe("Ordered rating level, lowest to highest.") }).strict(), "drawing_conclusions": z.object({ "evidence": z.array(z.object({ "quote": z.string().describe("A verbatim substring of the essay text, including any original spelling/grammar errors."), "comment": z.string().describe("Why this excerpt matters for this indicator.") }).strict()).describe("Verbatim quote/comment pairs supporting the rating. At least one for any indicator rated above not_evident; may be empty for not_evident."), "reasoning": z.string().describe("2–5 sentences explaining the rating against the rubric cells and decision rules. Produced before the rating."), "rating": z.enum(["not_evident","exploring","analyzing","integrating","extending"]).describe("Ordered rating level, lowest to highest.") }).strict() }).strict().describe("One property per rated indicator, keyed by indicator id: synthesizing_sources = 2.1, evidence_strength = 2.2, counterarguments = 3.1, facts_over_opinions = 3.2, drawing_conclusions = 4.1. The last four are always rated. synthesizing_sources is rated only when source_count > 1; when source_count is 1 it is omitted entirely."), "reasoning": z.string().describe("How the median was formed over the indicator ratings, and any tie handling."), "critical_thinking_score": z.enum(["not_evident","exploring","analyzing","integrating","extending"]).describe("The headline Critical Thinking rating, formed last as the median of the indicator ratings.") }).strict();
+
+export type CriticalThinkingResult = z.infer<typeof CriticalThinkingOutputSchema>;
