@@ -248,8 +248,8 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         with self._telemetry_run(self.provider.label) as run:
             try:
                 validated = validate_inputs(raw, self.contract.input_schema)
-                # Attached inputs are files, never prompt text; only the string inputs render.
-                values = text_inputs(validated)
+                # Attached inputs are files, never prompt text; only the other inputs render.
+                values = text_inputs(validated, attached={a.input for a in self._attachments})
                 text = values.get(self._text_field, "") if self._text_field else ""
                 run.text_length = utf16_length(text)
                 run.grade = values.get("grade_level", "")
@@ -335,8 +335,9 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         """
         loaded: list[ImageAttachment] = []
         for attached in self._attachments:
-            paths = values[attached.input]  # required, and validated as an array
+            paths = values[attached.input]  # required, and validated as an array of strings
             for index, path in enumerate(paths):
+                assert isinstance(path, str)  # attachments_of refuses any other item type
                 loaded.append(
                     await asyncio.to_thread(
                         load_image, f"{attached.input}[{index}]", path, attached.bounds

@@ -102,7 +102,7 @@ export function toPascalCase(str: string): string {
  * type system, so they are enforced at runtime: `minLength`, `maxLength`, `minItems` and
  * `maxItems` by `validateInputs`, and each file's `x-image` bounds by the image loader.
  */
-function renderInputProperty(name: string, spec: JsonObject): string {
+function renderInputProperty(name: string, spec: JsonObject, optional: boolean): string {
   const enumValues = spec['enum'];
   const items = spec['items'] as JsonObject | undefined;
   let type: string;
@@ -119,8 +119,12 @@ function renderInputProperty(name: string, spec: JsonObject): string {
 
   const description = typeof spec['description'] === 'string' ? spec['description'] : undefined;
   const doc = description ? `  /** ${description} */\n` : '';
+  const marker = optional ? '?' : '';
+  // The validator accepts an explicit null for an optional field and treats it as
+  // absent. The type has to say so, or a caller cannot pass the value the runtime allows.
+  const rendered = optional ? `${type} | null` : type;
 
-  return `${doc}  ${JSON.stringify(name)}: ${type};`;
+  return `${doc}  ${JSON.stringify(name)}${marker}: ${rendered};`;
 }
 
 /** The input type for a contract, or `undefined` when it declares no input schema. */
@@ -138,18 +142,12 @@ function renderInputType(
   const names = Object.keys(properties);
   if (names.length === 0) return undefined;
 
-  // Every declared input is required in every contract today; if that changes, an absent
-  // entry in `required` should render as optional rather than silently stay mandatory.
+  // A property left out of `required` is optional. Graphics Complexity ships
+  // `figure_labels` this way; a missing or null value is absent at runtime.
   const required = new Set((schema['required'] ?? []) as string[]);
-  const missing = names.filter((n) => !required.has(n));
-  if (missing.length > 0) {
-    throw new Error(
-      `${config.input_schema.$ref} declares optional inputs (${missing.join(', ')}), which ` +
-        'this generator does not render yet — add optional-property support before shipping it.',
-    );
-  }
-
-  const body = names.map((name) => renderInputProperty(name, properties[name])).join('\n');
+  const body = names
+    .map((name) => renderInputProperty(name, properties[name], !required.has(name)))
+    .join('\n');
 
   return {
     code: `export type ${className}Input = {\n${body}\n};`,
