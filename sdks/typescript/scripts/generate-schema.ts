@@ -97,10 +97,11 @@ export function toPascalCase(str: string): string {
  * Render one declared input as a TypeScript property.
  *
  * A declared `enum` becomes a literal union, which is the point: the contract's accepted
- * values become a compile error instead of a run-time one. An array of strings — an attached
- * input's file paths — is `string[]`. Anything else is `string`. Bounds are not expressible in the
- * type system, so they are enforced at runtime: `minLength`, `maxLength`, `minItems` and
- * `maxItems` by `validateInputs`, and each file's `x-image` bounds by the image loader.
+ * values become a compile error instead of a run-time one. An `integer` becomes `number`. An
+ * array of strings — an attached input's file paths — is `string[]`. Anything else is `string`.
+ * Bounds are not expressible in the type system, so they are enforced at runtime: `minLength`,
+ * `maxLength`, `minimum`, `maximum`, `minItems` and `maxItems` by `validateInputs`, and each
+ * file's `x-image` bounds by the image loader.
  */
 function renderInputProperty(name: string, spec: JsonObject): string {
   const enumValues = spec['enum'];
@@ -113,6 +114,8 @@ function renderInputProperty(name: string, spec: JsonObject): string {
       throw new Error(`Input "${name}" is an array of ${String(items?.['type'])}; only arrays of strings are rendered.`);
     }
     type = 'string[]';
+  } else if (spec['type'] === 'integer') {
+    type = 'number';
   } else {
     type = 'string';
   }

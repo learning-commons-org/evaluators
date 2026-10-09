@@ -175,7 +175,7 @@ function vendorOf(step: { model: { provider: string } }, name: string): Provider
  * }) {}
  * ```
  */
-export function defineSingleStepEvaluator<TInput extends Record<string, string | string[]>, TResult>(
+export function defineSingleStepEvaluator<TInput extends Record<string, string | number | string[]>, TResult>(
   definition: SingleStepDefinition<TResult>,
 ): SingleStepEvaluatorClass<TInput, TResult> {
   const { contract, inputSchema, outputSchema, systemPrompt, userPrompt } = definition;
@@ -255,13 +255,14 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
         // Inside the try so a validation failure is telemetered as an error event,
         // and before the inputs are read so a non-object is reported as one.
         validateInputs(input, inputSchema);
-        const all = input as Record<string, string | string[]>;
-        // Attached inputs are files, never prompt text; only the string inputs render.
+        const all = input as Record<string, string | number | string[]>;
+        // Attached inputs are files, never prompt text; only the other inputs render.
         const fields = Object.fromEntries(
           Object.entries(all).filter(([name]) => !ATTACHED_FIELDS.has(name)),
-        ) as Record<string, string>;
-        text = TEXT_FIELD ? fields[TEXT_FIELD] : '';
-        gradeLevel = fields.grade_level ?? '';
+        ) as Record<string, string | number>;
+        const rawText = TEXT_FIELD ? fields[TEXT_FIELD] : '';
+        text = typeof rawText === 'string' ? rawText : '';
+        gradeLevel = typeof fields.grade_level === 'string' ? fields.grade_level : '';
 
         this.logger.info(`Starting ${LABEL} evaluation`, {
           evaluator: METADATA.id,
@@ -271,8 +272,12 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
         });
 
         // Each declared preprocessing step becomes a prompt input under its own id, so
-        // adding one to a contract needs no code here.
-        const promptInputs: Record<string, string> = { ...fields };
+        // adding one to a contract needs no code here. Integers are bound as decimal
+        // text, the same spelling Python's validator returns.
+        const promptInputs: Record<string, string> = {};
+        for (const [key, value] of Object.entries(fields)) {
+          promptInputs[key] = String(value);
+        }
         for (const step of PREPROCESSING) {
           promptInputs[step.id] = String(runPreprocessingStep(text, step.implementation.typescript));
         }
