@@ -1,0 +1,3 @@
+Specification: "{claim}"
+
+Check whether the image correctly shows what this specification states, and report.
