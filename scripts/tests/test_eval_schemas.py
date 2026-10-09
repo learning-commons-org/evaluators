@@ -81,6 +81,13 @@ class SupportedShapes(unittest.TestCase):
         doc["properties"]["image_paths"]["items"]["x-image"] = {"anything": True}
         self.assertEqual(input_shape_problems(doc), [])
 
+    def test_an_optional_top_level_property(self) -> None:
+        # Graphics Complexity ships `figure_labels` outside `required`. Both SDKs skip
+        # a missing field that the schema does not require.
+        doc = copy.deepcopy(SUPPORTED)
+        doc["required"].remove("count")
+        self.assertEqual(input_shape_problems(doc), [])
+
 
 class RejectedShapes(unittest.TestCase):
     def assert_rejected(self, doc: dict, message: str) -> None:
@@ -174,11 +181,6 @@ class RejectedShapes(unittest.TestCase):
             ),
             "properties/x/items: $ref items are not supported",
         )
-
-    def test_an_optional_top_level_property(self) -> None:
-        doc = copy.deepcopy(SUPPORTED)
-        doc["required"].remove("count")
-        self.assert_rejected(doc, "properties/count: must be listed in required")
 
     def test_a_required_entry_that_is_not_a_property(self) -> None:
         doc = copy.deepcopy(SUPPORTED)
