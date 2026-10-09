@@ -482,7 +482,7 @@ IMAGE_INPUT_SCHEMA: dict[str, Any] = {
     },
 }
 
-ATTACH_FIGURES = [{"input": "figures", "kind": "image"}]
+ATTACH_FIGURES = [{"input": "figures", "kind": "image", "position": "before_text"}]
 
 
 def image_contract(
@@ -561,11 +561,25 @@ class TestAttachmentsOfRefusesADeclarationItCannotHonour:
         with pytest.raises(
             ValueError, match='attaches "figures": kind "document" is not supported'
         ):
-            self.declare(IMAGE_INPUT_SCHEMA, [{"input": "figures", "kind": "document"}])
+            self.declare(
+                IMAGE_INPUT_SCHEMA,
+                [{"input": "figures", "kind": "document", "position": "before_text"}],
+            )
+
+    def test_refuses_a_position_other_than_before_text(self) -> None:
+        with pytest.raises(
+            ValueError, match='attaches "figures": position "after_text" is not supported'
+        ):
+            self.declare(
+                IMAGE_INPUT_SCHEMA,
+                [{"input": "figures", "kind": "image", "position": "after_text"}],
+            )
 
     def test_refuses_an_attached_input_the_schema_does_not_declare(self) -> None:
         with pytest.raises(ValueError, match='attaches "image": it must be an array input'):
-            self.declare(IMAGE_INPUT_SCHEMA, [{"input": "image", "kind": "image"}])
+            self.declare(
+                IMAGE_INPUT_SCHEMA, [{"input": "image", "kind": "image", "position": "before_text"}]
+            )
 
     def test_refuses_an_attached_input_that_could_be_omitted(self) -> None:
         with pytest.raises(ValueError, match="must be an array input"):

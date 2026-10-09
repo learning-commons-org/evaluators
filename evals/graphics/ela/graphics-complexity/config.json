@@ -97,7 +97,7 @@
         "kind": "structured_output"
       },
       "attachments": [
-        { "input": "image_paths", "kind": "image" }
+        { "input": "image_paths", "kind": "image", "position": "after_text" }
       ]
     }
   ],
