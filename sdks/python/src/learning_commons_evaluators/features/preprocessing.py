@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
+from typing import Any
 
 from learning_commons_evaluators.contracts.loader import Implementation, PostTransform
 
@@ -26,9 +27,23 @@ def _textstat(function: str, text: str) -> float:
     return float(_textstat_function(function)(text))
 
 
-#: library -> (resolve the named function, or raise NotImplementedError; call it on text)
-_LIBRARY_ADAPTERS: dict[str, tuple[Callable[[str], object], Callable[[str, str], float]]] = {
+def _builtins_function(function: str) -> Callable[..., int]:
+    if function != "len":
+        raise NotImplementedError(f'Function "{function}" not found in builtins.')
+    return len
+
+
+def _builtins(function: str, value: Any) -> float:
+    """The length of a list. A string here would be a character count, which is not the count."""
+    if not isinstance(value, (list, tuple)):
+        raise TypeError(f"builtins.{function} counts a list, not {type(value).__name__}.")
+    return float(_builtins_function(function)(value))
+
+
+#: library -> (resolve the named function, or raise NotImplementedError; call it)
+_LIBRARY_ADAPTERS: dict[str, tuple[Callable[[str], object], Callable[..., float]]] = {
     "textstat": (_textstat_function, _textstat),
+    "builtins": (_builtins_function, _builtins),
 }
 
 
@@ -80,7 +95,7 @@ def check_implementation(implementation: Implementation) -> None:
         )
 
 
-def run_preprocessing_step(text: str, implementation: Implementation) -> float:
+def run_preprocessing_step(value: Any, implementation: Implementation) -> float:
     """Run a single library computation and its declared post-transform.
 
     :raises NotImplementedError: for a library, function or transform this SDK does not
@@ -88,7 +103,7 @@ def run_preprocessing_step(text: str, implementation: Implementation) -> float:
         so this never fires during an evaluation).
     """
     check_implementation(implementation)
-    result = _LIBRARY_ADAPTERS[implementation.library][1](implementation.function, text)
+    result = _LIBRARY_ADAPTERS[implementation.library][1](implementation.function, value)
     if implementation.post_transform is not None:
         result = _POST_TRANSFORMS[implementation.post_transform.type](
             result, implementation.post_transform

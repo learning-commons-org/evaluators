@@ -10,6 +10,9 @@ from learning_commons_evaluators.evaluators.academic_standards_alignment.mathema
     MathStandardsAlignmentResult,
 )
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
+from learning_commons_evaluators.evaluators.durable_skills.ela_writing.critical_thinking import (
+    CriticalThinkingEvaluator,
+)
 from learning_commons_evaluators.evaluators.feedback.ela_writing.revision_accuracy import (
     RevisionAccuracyEvaluator,
 )
@@ -72,6 +75,7 @@ __all__ = [
     "EVALUATORS",
     "BackgroundKnowledgeDemandsEvaluator",
     "BaseEvaluator",
+    "CriticalThinkingEvaluator",
     "GradeLevelAppropriatenessEvaluator",
     "GraphicsAccuracyEvaluator",
     "LearningComponentResult",

@@ -155,3 +155,183 @@ describe('primaryTextField', () => {
     expect(primaryTextField({ properties: { n: { type: 'integer' } } })).toBeUndefined();
   });
 });
+
+describe('validateInputs — integers', () => {
+  const schema: DeclaredInputSchema = {
+    properties: {
+      text: { type: 'string', minLength: 1 },
+      count: { type: 'integer', minimum: 1, maximum: 4 },
+    },
+    required: ['text', 'count'],
+  };
+  const good = { text: 'an essay', count: 3 };
+
+  it('accepts an integer inside the declared bounds', () => {
+    expect(() => validateInputs(good, schema)).not.toThrow();
+  });
+
+  it('accepts the bounds themselves', () => {
+    expect(() => validateInputs({ ...good, count: 1 }, schema)).not.toThrow();
+    expect(() => validateInputs({ ...good, count: 4 }, schema)).not.toThrow();
+  });
+
+  it.each([
+    ['a numeric string', '3'],
+    ['a boolean', true],
+    ['a float', 1.5],
+  ])('rejects %s', (_label, count) => {
+    expect(() => validateInputs({ ...good, count }, schema)).toThrow('count must be an integer.');
+  });
+
+  it('rejects an integer JavaScript cannot represent exactly', () => {
+    const unbounded: DeclaredInputSchema = {
+      properties: {
+        text: { type: 'string', minLength: 1 },
+        count: { type: 'integer', minimum: 1 },
+      },
+      required: ['text', 'count'],
+    };
+    // 1e21 passes Number.isInteger, but String(1e21) is "1e+21", not decimal digits.
+    expect(() => validateInputs({ text: 'an essay', count: 1e21 }, unbounded)).toThrow(
+      'count must be an integer.',
+    );
+    expect(() =>
+      validateInputs({ text: 'an essay', count: Number.MAX_SAFE_INTEGER }, unbounded),
+    ).not.toThrow();
+  });
+
+  it('rejects an integer under the declared minimum', () => {
+    expect(() => validateInputs({ ...good, count: 0 }, schema)).toThrow(
+      'count must be at least 1.',
+    );
+  });
+
+  it('rejects an integer over the declared maximum', () => {
+    expect(() => validateInputs({ ...good, count: 5 }, schema)).toThrow(
+      'count must be at most 4.',
+    );
+  });
+});
+
+describe('validateInputs — arrays of objects', () => {
+  const schema: DeclaredInputSchema = {
+    properties: {
+      passages: {
+        type: 'array',
+        minItems: 1,
+        items: { $ref: '#/$defs/SourcePassage' },
+      },
+    },
+    required: ['passages'],
+    $defs: {
+      SourcePassage: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['text'],
+        properties: {
+          title: { type: 'string', minLength: 1 },
+          author: { type: 'string', minLength: 1 },
+          text: { type: 'string', minLength: 1 },
+        },
+      },
+    },
+  };
+
+  it('accepts an item with only the required text', () => {
+    expect(() => validateInputs({ passages: [{ text: 'A passage.' }] }, schema)).not.toThrow();
+  });
+
+  it('accepts optional title and author when they are present', () => {
+    expect(() =>
+      validateInputs(
+        { passages: [{ title: 'A title', author: 'An author', text: 'A passage.' }] },
+        schema,
+      ),
+    ).not.toThrow();
+  });
+
+  it('rejects a non-array', () => {
+    expect(() => validateInputs({ passages: 'A passage.' }, schema)).toThrow(
+      'passages must be an array.',
+    );
+  });
+
+  it('rejects an empty array when minItems is 1', () => {
+    expect(() => validateInputs({ passages: [] }, schema)).toThrow(
+      'passages needs at least 1 item; received 0.',
+    );
+  });
+
+  it('rejects more items than maxItems', () => {
+    const bounded: DeclaredInputSchema = {
+      ...schema,
+      properties: { passages: { ...schema.properties.passages, maxItems: 1 } },
+    };
+    expect(() =>
+      validateInputs({ passages: [{ text: 'One.' }, { text: 'Two.' }] }, bounded),
+    ).toThrow('passages accepts at most 1 item; received 2.');
+  });
+
+  it('rejects an item that is not an object', () => {
+    expect(() => validateInputs({ passages: ['A passage.'] }, schema)).toThrow(
+      'passages[0] must be an object.',
+    );
+  });
+
+  it('treats a null optional field as absent', () => {
+    expect(() =>
+      validateInputs({ passages: [{ title: null, text: 'A passage.' }] }, schema),
+    ).not.toThrow();
+  });
+
+  it('refuses an object field that is not a string as a contract fault', () => {
+    const numeric: DeclaredInputSchema = {
+      ...schema,
+      $defs: {
+        SourcePassage: {
+          type: 'object',
+          required: ['text'],
+          properties: { text: { type: 'integer' } },
+        },
+      },
+    };
+    expect(() => validateInputs({ passages: [{ text: 1 }] }, numeric)).toThrow(
+      'passages[0].text is declared as integer; only string fields are supported.',
+    );
+  });
+
+  it('refuses an array of anything but strings or objects as a contract fault', () => {
+    const numbers: DeclaredInputSchema = {
+      properties: { counts: { type: 'array', items: { type: 'integer' } } },
+      required: ['counts'],
+    };
+    expect(() => validateInputs({ counts: [1] }, numbers)).toThrow(
+      'counts is declared as an array of integer; only arrays of strings or objects are supported.',
+    );
+  });
+
+  it('rejects a required field that exists only on the prototype', () => {
+    const inherited = Object.create({ text: 'A passage.' }) as { text?: string };
+    expect(() => validateInputs({ passages: [inherited] }, schema)).toThrow(
+      'passages[0].text is required.',
+    );
+  });
+
+  it('rejects an item missing required text', () => {
+    expect(() => validateInputs({ passages: [{ title: 'Only a title' }] }, schema)).toThrow(
+      'passages[0].text is required.',
+    );
+  });
+
+  it('rejects a blank optional title', () => {
+    expect(() => validateInputs({ passages: [{ title: '  ', text: 'A passage.' }] }, schema)).toThrow(
+      /title cannot be empty/,
+    );
+  });
+
+  it('rejects an unknown property on an item', () => {
+    expect(() =>
+      validateInputs({ passages: [{ text: 'A passage.', note: 'nope' }] }, schema),
+    ).toThrow('Unknown input "passages[0].note"');
+  });
+});

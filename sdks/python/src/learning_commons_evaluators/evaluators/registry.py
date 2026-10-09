@@ -8,6 +8,9 @@ from learning_commons_evaluators.evaluators.academic_standards_alignment.mathema
     MathStandardsAlignmentEvaluator,
 )
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
+from learning_commons_evaluators.evaluators.durable_skills.ela_writing.critical_thinking import (
+    CriticalThinkingEvaluator,
+)
 from learning_commons_evaluators.evaluators.feedback.ela_writing.revision_accuracy import (
     RevisionAccuracyEvaluator,
 )
@@ -62,6 +65,7 @@ from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
 #: conformance suite compares this against the public barrel and the ``evals/`` registry.
 EVALUATORS: tuple[type[BaseEvaluator], ...] = (
     MathStandardsAlignmentEvaluator,
+    CriticalThinkingEvaluator,
     RevisionAccuracyEvaluator,
     RevisionActionabilityEvaluator,
     RevisionManageabilityEvaluator,
