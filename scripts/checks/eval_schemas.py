@@ -88,8 +88,9 @@ def input_shape_problems(doc: object) -> list[str]:
       `minItems` and `maxItems`. String items may set `minLength`, `maxLength`, or
       `x-image`.
 
-    Every top-level property is listed in `required`. The root and each `$defs` object
-    set `additionalProperties` to false, and every `required` entry names a property.
+    A property may be omitted from `required`; both SDKs treat that as optional.
+    The root and each `$defs` object set `additionalProperties` to false, and every
+    `required` entry names a property.
     A `$defs` name is a PascalCase identifier. Its fields are strings with `minLength`
     or `maxLength`.
 
@@ -126,8 +127,6 @@ def input_shape_problems(doc: object) -> list[str]:
             problems.append(f"{where}: type {kind!r} is not supported")
             continue
         unsupported(where, spec, _TOP_LEVEL[kind])
-        if name not in _required_names(doc.get("required", [])):
-            problems.append(f"{where}: must be listed in required")
         if kind == "string" and not all(
             isinstance(v, str) for v in spec.get("enum", [])
         ):
@@ -168,14 +167,8 @@ def input_shape_problems(doc: object) -> list[str]:
     return problems
 
 
-def _required_names(required: object) -> set[str]:
-    if not isinstance(required, list):
-        return set()
-    return {entry for entry in required if isinstance(entry, str)}
-
-
 def _required_problems(where: str, properties: dict, required: object) -> list[str]:
-    """`required` names that are not properties. Top-level callers also demand the reverse."""
+    """`required` names that are not properties."""
     if not isinstance(required, list):
         return [f"{where}: required must list property names"]
     return [

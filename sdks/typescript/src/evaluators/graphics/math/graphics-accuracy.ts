@@ -1,6 +1,7 @@
 import { GraphicsAccuracyOutputSchema, type GraphicsAccuracyResult } from '../../../schemas/graphics/math/graphics-accuracy.js';
 import type { EvaluationResult } from '../../../schemas/index.js';
 import type { BaseEvaluatorConfig } from '../../base.js';
+import { InputValidationError } from '../../../errors.js';
 import { defineSingleStepEvaluator } from '../../single-step.js';
 import SYSTEM_PROMPT from '../../../../../../evals/graphics/math/graphics-accuracy/system.txt';
 import USER_PROMPT_TEMPLATE from '../../../../../../evals/graphics/math/graphics-accuracy/user.txt';
@@ -53,7 +54,14 @@ export async function evaluateGraphicsAccuracy(
  * Byte-for-byte the text the evaluator was measured with, so a caller who has a problem and
  * its answer key gets the measured behaviour rather than a paraphrase of it. Surrounding
  * whitespace is trimmed from both parts; nothing else is changed.
+ *
+ * @throws {InputValidationError} If the question or answer is blank: the composed claim would
+ * still be non-empty, so the evaluator would judge the image against a claim with a part missing
  */
 export function composeGraphicsAccuracyClaim(question: string, answer: string): string {
-  return `Question: "${question.trim()}" The answer is ${answer.trim()}.`;
+  const q = question.trim();
+  const a = answer.trim();
+  if (!q) throw new InputValidationError('composeGraphicsAccuracyClaim: the question is blank; a claim needs both.');
+  if (!a) throw new InputValidationError('composeGraphicsAccuracyClaim: the answer is blank; a claim needs both.');
+  return `Question: "${q}" The answer is ${a}.`;
 }
