@@ -16,7 +16,7 @@ import openai
 import pytest
 import textstat
 from PIL import Image
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from learning_commons_evaluators import (
     AuthenticationError,
@@ -821,6 +821,27 @@ class TestModelOnlyFields:
         assert isinstance(result.result, ThingOutput)
         assert result.result.model_dump() == {"verdict": "clear", "reasoning": "because"}
         assert read_outcome(result, evaluator.metadata.outcome).score == "clear"
+
+    async def test_matches_the_fields_by_wire_name_not_attribute_name(
+        self, providers: ProviderFactory
+    ) -> None:
+        # Both pass the class check, which compares wire names, so the copy must use them too.
+        class AliasedResponse(BaseModel):
+            response_verdict: str = Field(alias="verdict")
+            reasoning: str
+            working: str
+
+        class AliasedOutput(BaseModel):
+            output_verdict: str = Field(alias="verdict")
+            reasoning: str
+
+        evaluator = self.define(response=AliasedResponse, output=AliasedOutput)(google_api_key="k")
+        result = await evaluator.evaluate(**INPUT)
+        assert isinstance(result.result, AliasedOutput)
+        assert result.result.model_dump(by_alias=True) == {
+            "verdict": "clear",
+            "reasoning": "because",
+        }
 
     def test_refuses_a_class_that_would_return_them(self) -> None:
         with pytest.raises(

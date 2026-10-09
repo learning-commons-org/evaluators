@@ -395,14 +395,16 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         return values
 
     def _returned(self, data: BaseModel) -> BaseModel:
-        """The model's response as the caller receives it: without its ``x-model-only`` fields."""
+        """The model's response as the caller receives it: without its ``x-model-only`` fields.
+
+        Selected by wire name, as ``_check_response_model`` compares the two models, so the
+        models need not share attribute names or nested classes.
+        """
         if self.response_model is None:
             return data
+        dumped = data.model_dump(by_alias=True)
         return self.output_model.model_validate(
-            {
-                info.alias or name: getattr(data, name)
-                for name, info in self.output_model.model_fields.items()
-            }
+            {name: dumped[name] for name in _wire_names(self.output_model)}
         )
 
     async def _load_attachments(
