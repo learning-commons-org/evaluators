@@ -112,6 +112,8 @@ class Attachment(_ContractModel):
 
     input: str
     kind: str
+    #: ``before_text`` or ``after_text``: where the files go relative to the user turn's text.
+    position: str
 
 
 class Step(_ContractModel):

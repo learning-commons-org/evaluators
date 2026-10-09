@@ -37,7 +37,7 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
     required_credentials?: string[];
     optional?: boolean;
     /** Inputs whose files are attached to the user turn as content parts; see `config.schema.json`. */
-    attachments?: ReadonlyArray<{ input: string; kind: string }>;
+    attachments?: ReadonlyArray<{ input: string; kind: string; position: string }>;
   }>;
   preprocessing?: Array<{
     id: string;
@@ -73,12 +73,15 @@ export function attachmentsOf(
   inputSchema: DeclaredInputSchema,
   evaluatorName: string,
 ): Array<{ input: string; bounds: ImageBounds }> {
-  return (step.attachments ?? []).map(({ input, kind }) => {
+  return (step.attachments ?? []).map(({ input, kind, position }) => {
     // Annotated on the binding, not the arrow, so a call narrows like a `throw`.
     const refuse: (why: string) => never = (why) => {
       throw new Error(`${evaluatorName} config.json attaches "${input}": ${why}`);
     };
     if (kind !== 'image') refuse(`kind "${kind}" is not supported; this SDK sends only images.`);
+    if (position !== 'before_text') {
+      refuse(`position "${position}" is not supported; this SDK places attachments only before the text.`);
+    }
     const spec = inputSchema.properties[input];
     // Optional or non-array, a request could omit the images and be sent without them.
     if (spec?.type !== 'array') refuse('it must be an array input.');
@@ -278,7 +281,7 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
         }
 
         // Attached files are read here, in array order, after validation and before any
-        // paid call; the provider places them on the user turn ahead of the text.
+        // paid call; the provider places them on the user turn before the text.
         const attachments: ImageAttachment[] = [];
         for (const { input: name, bounds } of ATTACHMENTS) {
           const paths = all[name] as string[];

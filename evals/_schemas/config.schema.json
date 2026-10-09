@@ -217,14 +217,18 @@
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["input", "kind"],
+              "required": ["input", "kind", "position"],
               "properties": {
                 "input": {
                   "type": "string",
                   "minLength": 1,
                   "description": "Name of a required `input_schema` property that is an array of local image file paths, bounded by `minItems`/`maxItems`; each item is attached, in array order. Not a placeholder: the input is never interpolated into prompt text."
                 },
-                "kind": { "enum": ["image"] }
+                "kind": { "enum": ["image"] },
+                "position": {
+                  "enum": ["before_text", "after_text"],
+                  "description": "Where the files go in the final user message: ahead of its rendered text, or after it. Part of the measured setup, so an SDK must place them as declared or refuse the contract."
+                }
               }
             },
             "description": "Non-text content parts the step attaches to its final user message. Declared so a contract-driven runner in any SDK knows which input holds files to read and send rather than text to interpolate -- without this a runner would silently send the prompt alone. The count is bounded on the input array; each file is bounded by `x-image` on its `items`."

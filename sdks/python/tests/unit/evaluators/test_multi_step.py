@@ -272,7 +272,9 @@ class TestRefusesAContractItCannotRun:
         # This base sends text only; running the step would judge its prompt without the
         # image the contract says it reads.
         raw = contract().model_dump(by_alias=True)
-        raw["steps"][0]["attachments"] = [{"input": "text", "kind": "image"}]
+        raw["steps"][0]["attachments"] = [
+            {"input": "text", "kind": "image", "position": "before_text"}
+        ]
         with pytest.raises(ValueError, match='Step "notes".*attaches text.*sends text only'):
             define(steps=raw["steps"])
 
