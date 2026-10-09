@@ -31,6 +31,8 @@ import { ToneAppropriatenessOutputSchema } from '../../src/schemas/feedback/ela-
 import { WithholdingAnswersOutputSchema } from '../../src/schemas/feedback/ela-writing/withholding-answers.js';
 import { GraphicsAccuracyEvaluator } from '../../src/evaluators/graphics/math/graphics-accuracy.js';
 import { GraphicsAccuracyOutputSchema } from '../../src/schemas/graphics/math/graphics-accuracy.js';
+import { GraphicsComplexityEvaluator } from '../../src/evaluators/graphics/ela/graphics-complexity.js';
+import { GraphicsComplexityResponseSchema } from '../../src/schemas/graphics/ela/graphics-complexity.js';
 import { QTC_FAMILY } from '../../src/batch/families/qtc.js';
 import { InputValidationError } from '../../src/errors.js';
 import { readOutcome } from '../../src/schemas/outcome.js';
@@ -221,6 +223,8 @@ const FIXTURE_VALUE_GAPS = new Set<string>([
  * schema to compare.
  */
 const SDK_OUTPUT_SCHEMAS: Record<string, { shape: Record<string, unknown> }> = {
+  // The response schema, not the output schema: the model fills in the x-model-only fields too.
+  [GraphicsComplexityEvaluator.metadata.id]: GraphicsComplexityResponseSchema,
   [GraphicsAccuracyEvaluator.metadata.id]: GraphicsAccuracyOutputSchema,
   [RevisionAccuracyEvaluator.metadata.id]: RevisionAccuracyOutputSchema,
   [RevisionActionabilityEvaluator.metadata.id]: RevisionActionabilityOutputSchema,
@@ -332,6 +336,8 @@ const FIXTURE_IMAGE = join(
 const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknown>> = {
   [GraphicsAccuracyEvaluator.metadata.id]: (E, text) =>
     construct(E).evaluate({ image_paths: [FIXTURE_IMAGE], claim: text }),
+  [GraphicsComplexityEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ text, grade_level: '5', image_paths: [FIXTURE_IMAGE] }),
   [GLA_ID]: (E, text) => construct(E).evaluate({ text }),
   [BKD_ID]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
   [MD_ID]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),

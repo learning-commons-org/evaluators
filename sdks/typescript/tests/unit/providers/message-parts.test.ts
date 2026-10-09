@@ -3,8 +3,8 @@ import { z } from 'zod';
 
 /**
  * A request may carry image attachments. These tests pin how the provider hands them to the
- * AI SDK: text-only requests unchanged; attachments placed on the final user turn ahead of
- * its text as `{ type: 'file', data, mediaType }` parts (the SDK's `image` part is
+ * AI SDK: text-only requests unchanged; attachments placed on the final user turn before or
+ * after its text, as each one's `position` says, as `{ type: 'file', data, mediaType }` parts (the SDK's `image` part is
  * deprecated); earlier turns untouched.
  */
 
@@ -40,7 +40,7 @@ describe('VercelAIProvider with attachments', () => {
         { role: 'user', content: 'Claim: five ladybirds.' },
       ],
       schema: SCHEMA,
-      attachments: [{ type: 'image', data: PNG, mediaType: 'image/png' }],
+      attachments: [{ type: 'image', data: PNG, mediaType: 'image/png', position: 'before_text' }],
     });
     const call = generateText.mock.calls[0][0];
     expect(call.system).toBe('You are a reviewer.');
@@ -55,6 +55,27 @@ describe('VercelAIProvider with attachments', () => {
     ]);
   });
 
+  it('places each attachment before or after the text as its position says, keeping array order', async () => {
+    const JPEG = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]);
+    const WEBP = Uint8Array.from([0x52, 0x49, 0x46, 0x46]);
+    const p = await provider();
+    await p.generateStructured({
+      messages: [{ role: 'user', content: 'Passage.' }],
+      schema: SCHEMA,
+      attachments: [
+        { type: 'image', data: PNG, mediaType: 'image/png', position: 'after_text' },
+        { type: 'image', data: JPEG, mediaType: 'image/jpeg', position: 'before_text' },
+        { type: 'image', data: WEBP, mediaType: 'image/webp', position: 'after_text' },
+      ],
+    });
+    expect(generateText.mock.calls[0][0].messages[0].content).toEqual([
+      { type: 'file', data: JPEG, mediaType: 'image/jpeg' },
+      { type: 'text', text: 'Passage.' },
+      { type: 'file', data: PNG, mediaType: 'image/png' },
+      { type: 'file', data: WEBP, mediaType: 'image/webp' },
+    ]);
+  });
+
   it('leaves earlier turns alone when attaching to the last user turn', async () => {
     const p = await provider();
     await p.generateStructured({
@@ -64,7 +85,7 @@ describe('VercelAIProvider with attachments', () => {
         { role: 'user', content: 'second' },
       ],
       schema: SCHEMA,
-      attachments: [{ type: 'image', data: PNG, mediaType: 'image/png' }],
+      attachments: [{ type: 'image', data: PNG, mediaType: 'image/png', position: 'before_text' }],
     });
     const { messages } = generateText.mock.calls[0][0];
     expect(messages[0]).toEqual({ role: 'user', content: 'first' });
@@ -83,7 +104,7 @@ describe('VercelAIProvider with attachments', () => {
   it('refuses attachments when there is no user turn to carry them', async () => {
     const p = await provider();
     await expect(
-      p.generateStructured({ messages: [{ role: 'system', content: 'sys' }], schema: SCHEMA, attachments: [{ type: 'image', data: PNG, mediaType: 'image/png' }] }),
+      p.generateStructured({ messages: [{ role: 'system', content: 'sys' }], schema: SCHEMA, attachments: [{ type: 'image', data: PNG, mediaType: 'image/png', position: 'before_text' }] }),
     ).rejects.toThrow(/need a user message/);
   });
 });

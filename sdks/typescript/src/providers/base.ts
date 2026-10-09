@@ -11,6 +11,9 @@ export interface Message {
 /** Image formats every supported vendor accepts natively. */
 export type ImageMediaType = 'image/png' | 'image/jpeg' | 'image/webp';
 
+/** Where an attachment goes on the final user turn, relative to its text; the contract declares it. */
+export type AttachmentPosition = 'before_text' | 'after_text';
+
 /**
  * An image the model is asked to read alongside the prompt text.
  *
@@ -23,6 +26,7 @@ export interface ImageAttachment {
   type: 'image';
   data: Uint8Array;
   mediaType: ImageMediaType;
+  position: AttachmentPosition;
 }
 
 /**
@@ -34,7 +38,7 @@ export interface LLMRequest<T> {
   /** `null` sends no temperature at all, for models that reject an explicit value. */
   temperature?: number | null;
   maxTokens?: number;
-  /** Images to place on the final user turn, ahead of its text. */
+  /** Images for the final user turn, in array order, each before or after its text as its `position` says. */
   attachments?: readonly ImageAttachment[];
 }
 

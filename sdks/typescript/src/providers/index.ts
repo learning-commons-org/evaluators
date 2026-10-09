@@ -6,6 +6,7 @@ export type {
   Message,
   ImageAttachment,
   ImageMediaType,
+  AttachmentPosition,
   ProviderConfig,
 } from './base.js';
 

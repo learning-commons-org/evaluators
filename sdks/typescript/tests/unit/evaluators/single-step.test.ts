@@ -484,7 +484,7 @@ describe('attachmentsOf refuses a declaration it cannot honour', () => {
 
   it('accepts a complete declaration', () => {
     expect(declare([{ input: 'figures', kind: 'image', position: 'before_text' }], withBounds(X_IMAGE))()).toEqual([
-      { input: 'figures', bounds: X_IMAGE },
+      { input: 'figures', position: 'before_text', bounds: X_IMAGE },
     ]);
   });
 
@@ -493,8 +493,8 @@ describe('attachmentsOf refuses a declaration it cannot honour', () => {
   });
 
   it('refuses a position it cannot place, and a declaration with none', () => {
-    expect(declare([{ input: 'figures', kind: 'image', position: 'after_text' }], withBounds(X_IMAGE))).toThrow(
-      /position "after_text" is not supported/,
+    expect(declare([{ input: 'figures', kind: 'image', position: 'inline' }], withBounds(X_IMAGE))).toThrow(
+      /position "inline" is not supported; expected before_text or after_text/,
     );
     expect(declare([{ input: 'figures', kind: 'image' }], withBounds(X_IMAGE))).toThrow(/position "undefined" is not supported/);
   });
@@ -584,5 +584,89 @@ describe('defineSingleStepEvaluator attaches several images in array order', () 
     expect(call.attachments?.map((p) => p.data)).toEqual([a.bytes, b.bytes, c.bytes]);
     expect(call.messages[1].content).toBe('user: Three figures.');
     expect(call.messages[1].content).not.toContain(dir);
+  });
+});
+
+describe('defineSingleStepEvaluator with model-only fields', () => {
+  const RESPONSE_SCHEMA = OUTPUT_SCHEMA.extend({ working: z.string() });
+  const defineWithResponse = (outputSchema: z.ZodType<Output> = OUTPUT_SCHEMA) =>
+    defineSingleStepEvaluator<{ text: string; grade_level: string }, Output>({
+      contract: contract() as never,
+      inputSchema: INPUT_SCHEMA as never,
+      outputSchema,
+      responseSchema: RESPONSE_SCHEMA,
+      systemPrompt: 'system',
+      userPrompt: 'user: {text}',
+    });
+
+  it('asks the model for the response schema and returns only the output fields', async () => {
+    const provider = fakeProvider();
+    vi.mocked(provider.generateStructured).mockResolvedValue({ ...RESPONSE, data: { ...RESPONSE.data, working: 'notes' } });
+    const result = await new (defineWithResponse())({ llmProvider: provider, telemetry: false }).evaluate(INPUT);
+
+    expect(vi.mocked(provider.generateStructured).mock.calls[0][0].schema).toBe(RESPONSE_SCHEMA);
+    expect(result.result).toEqual({ verdict: 'clear', reasoning: 'because' });
+  });
+
+  it('refuses a non-object output schema, which it could not strip the response to', () => {
+    expect(() => defineWithResponse(z.any() as never)).toThrow(/needs an object outputSchema/);
+  });
+});
+
+describe('defineSingleStepEvaluator with prepareInputs', () => {
+  type In = { text: string; grade_level: string };
+  const definePrepared = (prepareInputs: (i: In) => In) =>
+    defineSingleStepEvaluator<In, Output>({
+      contract: contract() as never,
+      inputSchema: INPUT_SCHEMA as never,
+      outputSchema: OUTPUT_SCHEMA,
+      prepareInputs,
+      systemPrompt: 'system',
+      userPrompt: 'user: {text}',
+    });
+
+  it('renders what it returns, and runs only on inputs that passed validation', async () => {
+    const provider = fakeProvider();
+    const prepare = vi.fn((i: In) => ({ ...i, text: i.text.toUpperCase() }));
+    const E = definePrepared(prepare);
+
+    await expect(new E({ llmProvider: provider, telemetry: false }).evaluate({ ...INPUT, grade_level: '9' })).rejects.toThrow(
+      InputValidationError,
+    );
+    expect(prepare).not.toHaveBeenCalled();
+
+    await new E({ llmProvider: provider, telemetry: false }).evaluate(INPUT);
+    expect(vi.mocked(provider.generateStructured).mock.calls[0][0].messages[1].content).toBe('user: THE CAT SAT ON THE MAT.');
+  });
+
+  it('reports what it throws as an evaluation failure, before any model call', async () => {
+    sent.mockClear();
+    const provider = fakeProvider();
+    const E = definePrepared(() => {
+      throw new InputValidationError('bad labels');
+    });
+
+    await expect(new E({ llmProvider: provider }).evaluate(INPUT)).rejects.toThrow('bad labels');
+    expect(provider.generateStructured).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(sent).toHaveBeenCalledWith(expect.objectContaining({ status: 'error' })));
+  });
+});
+
+describe('defineSingleStepEvaluator tags each image with its declared position', () => {
+  it.each(['before_text', 'after_text'] as const)('%s', async (position) => {
+    const E = defineSingleStepEvaluator<{ figures: string[]; text: string }, Output>({
+      contract: contract({ steps: [imageStep([{ input: 'figures', kind: 'image', position }])] }) as never,
+      inputSchema: IMAGE_INPUT_SCHEMA as never,
+      outputSchema: OUTPUT_SCHEMA,
+      systemPrompt: 'system',
+      userPrompt: 'user: {text}',
+    });
+    const provider = { ...fakeProvider(), supportsAttachments: true };
+    await new E({ llmProvider: provider, telemetry: false }).evaluate({
+      figures: [join(process.cwd(), 'tests/fixtures/images/512x256.png')],
+      text: 'One figure.',
+    });
+
+    expect(vi.mocked(provider.generateStructured).mock.calls[0][0].attachments?.map((a) => a.position)).toEqual([position]);
   });
 });

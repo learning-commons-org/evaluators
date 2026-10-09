@@ -230,11 +230,15 @@ Feedback quality — judges a teacher comment on a student's writing. Each takes
 | `ToneAppropriatenessEvaluator`        | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/tone-appropriateness)         |
 | `WithholdingAnswersEvaluator`         | 6–12   | OpenAI           | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/withholding-answers)          |
 
-Graphics — checks an image against the claim made about it. Takes `{ image_paths, claim }`: `image_paths` holds local image file paths (one, for this evaluator), each bounded by its contract's format, size and edge limits before any model call. Returns `is_correct` with `reasoning`, any `defects` in the image itself, and a `basis` saying whether a false verdict was `contradicted`, `unverified` or `defective`. For a question with its expected answer, build the claim with `composeGraphicsAccuracyClaim(question, answer)`, which produces the exact text the evaluator was measured with.
+Graphics — judges images: the graphics in a passage, or a math graphic against a claim. Each image path is local, and each file is checked against its contract's format, size and edge limits before any model call.
 
-| Evaluator                   | Grades | Default provider | Docs                       |
-| --------------------------- | ------ | ---------------- | -------------------------- |
-| `GraphicsAccuracyEvaluator` | K–12   | Google           | Early access; docs pending |
+- `GraphicsComplexityEvaluator` takes `{ text, grade_level, image_paths, figure_labels? }`: up to five images, one per graphic in the passage, with optional comma-separated labels in the same order (default `Image 1, Image 2, …`). Returns `complexity_score`, `reasoning` and `details`, like the text complexity evaluators.
+- `GraphicsAccuracyEvaluator` takes `{ image_paths, claim }` with a single image. Returns `is_correct` with `reasoning`, any `defects` in the image itself, and a `basis` saying whether a false verdict was `contradicted`, `unverified` or `defective`. For a question with its expected answer, build the claim with `composeGraphicsAccuracyClaim(question, answer)`, which produces the exact text the evaluator was measured with.
+
+| Evaluator                     | Grades | Default provider | Docs                       |
+| ----------------------------- | ------ | ---------------- | -------------------------- |
+| `GraphicsComplexityEvaluator` | 3–12   | Google           | Docs pending               |
+| `GraphicsAccuracyEvaluator`   | K–12   | Google           | Early access; docs pending |
 
 Standards alignment — checks a math item against a standard, component by component.
 
