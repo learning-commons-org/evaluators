@@ -203,6 +203,45 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
     expect(messages[1].content).toBe('sources: 2');
   });
 
+  it('omits an optional top-level null instead of binding the word null', async () => {
+    const provider = fakeProvider();
+    // The shape the generator emits for a property left out of `required`: a type alias,
+    // not an interface, which is what `export type ExampleInput = { ... }` is.
+    type ExampleInput = {
+      text: string;
+      figure_labels?: string | null;
+    };
+    const E = defineSingleStepEvaluator<ExampleInput, Output>({
+      contract: contract({
+        steps: [
+          {
+            id: 'evaluate_thing',
+            model: { provider: 'google', name: 'm' },
+            prompt: { placeholders: { text: {}, figure_labels: {} } },
+          },
+        ],
+      }) as never,
+      inputSchema: {
+        properties: {
+          text: { type: 'string', minLength: 1 },
+          figure_labels: { type: 'string', minLength: 1 },
+        },
+        required: ['text'],
+      },
+      outputSchema: OUTPUT_SCHEMA,
+      systemPrompt: 'system',
+      userPrompt: '{text}|{figure_labels}',
+    });
+
+    await new E({ llmProvider: provider, telemetry: false }).evaluate({
+      text: 'A passage.',
+      figure_labels: null,
+    });
+
+    const messages = vi.mocked(provider.generateStructured).mock.calls[0][0].messages;
+    expect(messages[1].content).toBe('A passage.|{figure_labels}');
+  });
+
   it('fills {sources} from input.source_passages and counts the list', async () => {
     const provider = fakeProvider();
     const first = { title: 'A Car-Free Downtown', text: 'Air quality improved.' };

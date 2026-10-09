@@ -182,8 +182,12 @@ function vendorOf(step: { model: { provider: string } }, name: string): Provider
 /** One item of an array input: a string, such as an attached file's path, or an object. */
 export type EvaluatorInputItem = string | object;
 
-/** A caller-supplied value. Arrays stay structured until the prompt binder serializes them. */
-export type EvaluatorInputValue = string | number | readonly EvaluatorInputItem[];
+/**
+ * A caller-supplied value. Arrays stay structured until the prompt binder serializes them.
+ * `null` is an absent optional, the same as leaving the key out. `undefined` is the same
+ * absence on an optional generated property.
+ */
+export type EvaluatorInputValue = string | number | null | readonly EvaluatorInputItem[];
 
 /** The caller field a placeholder reads. Anything other than an input source is filled later. */
 function inputField(name: string, source: string | undefined): string | undefined {
@@ -196,7 +200,7 @@ function inputField(name: string, source: string | undefined): string | undefine
  * Prompt text for one value. Objects and arrays are JSON so the prompt never sees a language
  * repr. A `null` key is dropped, as an absent optional is, so the text matches Python's.
  */
-function promptText(value: EvaluatorInputValue): string {
+function promptText(value: Exclude<EvaluatorInputValue, null>): string {
   if (typeof value === 'string' || typeof value === 'number') return String(value);
   return JSON.stringify(value, (_key, v: unknown) => {
     if (v === null || typeof v !== 'object' || Array.isArray(v)) return v;
@@ -205,7 +209,11 @@ function promptText(value: EvaluatorInputValue): string {
 }
 
 /** Prompt text for one caller field. A `SourcePassage` list becomes the heading markdown. */
-function promptValue(field: string, value: EvaluatorInputValue, schema: DeclaredInputSchema): string {
+function promptValue(
+  field: string,
+  value: Exclude<EvaluatorInputValue, null>,
+  schema: DeclaredInputSchema,
+): string {
   if (isSourcePassageField(schema, field) && Array.isArray(value)) {
     return renderSourcePassages(value as readonly SourcePassageInput[]);
   }
@@ -220,7 +228,7 @@ function listLength(value: EvaluatorInputValue | undefined): string {
 }
 
 export function defineSingleStepEvaluator<
-  TInput extends Record<string, EvaluatorInputValue>,
+  TInput extends Record<string, EvaluatorInputValue | undefined>,
   TResult,
 >(
   definition: SingleStepDefinition<TResult>,
@@ -346,7 +354,11 @@ export function defineSingleStepEvaluator<
           const field = inputField(name, source);
           if (field === undefined) continue;
           const value = fields[field];
-          if (value !== undefined) promptInputs[name] = promptValue(field, value, inputSchema);
+          // A missing key and an explicit null are both absent. Binding null would put the
+          // letters "null" in the prompt; Python omits the field instead.
+          if (value !== undefined && value !== null) {
+            promptInputs[name] = promptValue(field, value, inputSchema);
+          }
         }
         for (const step of PREPROCESSING) {
           promptInputs[step.id] = computed[step.output ?? step.id];
