@@ -14,8 +14,8 @@ from typing import Any
 from learning_commons_evaluators.errors import InputValidationError
 
 #: One item of an array input: a string, such as an attached file's path, or an object
-#: whose declared fields are strings.
-InputItem = str | Mapping[str, str]
+#: whose declared fields are strings. An optional field may be ``None``, which is absent.
+InputItem = str | Mapping[str, str | None]
 
 #: A validated input: the string the prompt binds, or for an array input its items, in
 #: order. An array is either attached, as file paths, or bound into the prompt as text.

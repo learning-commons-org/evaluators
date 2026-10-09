@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -190,6 +190,40 @@ describe('generateSchemaFile', () => {
     writeFileSync(path, JSON.stringify(config), 'utf-8');
 
     expect(() => generateSchemaFile(path)).toThrow(missing);
+  });
+
+  it('types a top-level property omitted from required as optional', () => {
+    // Graphics Complexity ships figure_labels this way. A missing or null value is absent.
+    const dir = mkdtempSync(join(tmpdir(), 'optional-input-'));
+    const outputSchema = resolve(
+      __dirname,
+      '../../../../../evals/text-complexity/ela-reading/purpose-clarity/output_schema.json',
+    );
+    writeFileSync(
+      join(dir, 'input_schema.json'),
+      JSON.stringify({
+        type: 'object',
+        properties: {
+          text: { type: 'string' },
+          figure_labels: { type: 'string', description: 'Optional labels.' },
+        },
+        required: ['text'],
+      }),
+    );
+    writeFileSync(
+      join(dir, 'config.json'),
+      JSON.stringify({
+        evaluator: { id: 'graphics.ela.widget' },
+        input_schema: { $ref: 'input_schema.json' },
+        output_schema: { $ref: relative(dir, outputSchema) },
+      }),
+    );
+
+    const { content } = generateSchemaFile(join(dir, 'config.json'));
+
+    expect(content).toContain('"text": string;');
+    expect(content).toContain('/** Optional labels. */');
+    expect(content).toContain('"figure_labels"?: string | null;');
   });
 
   it('output is deterministic across multiple calls', () => {
