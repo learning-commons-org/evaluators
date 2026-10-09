@@ -109,6 +109,19 @@ class TestComposeClaim:
         expected = documented[1].replace("<question>", QUESTION).replace("<answer>", "12")
         assert compose_graphics_accuracy_claim(QUESTION, "12") == expected
 
+    def test_refuses_a_blank_question_or_answer_which_would_be_judged_as_a_wrong_image(
+        self,
+    ) -> None:
+        # As the TypeScript helper does: the question is checked first, then the answer.
+        with pytest.raises(InputValidationError, match="the answer is blank"):
+            compose_graphics_accuracy_claim(QUESTION, "")
+        with pytest.raises(InputValidationError, match="the answer is blank"):
+            compose_graphics_accuracy_claim(QUESTION, "  ")
+        with pytest.raises(InputValidationError, match="the question is blank"):
+            compose_graphics_accuracy_claim("", "12")
+        with pytest.raises(InputValidationError, match="the question is blank"):
+            compose_graphics_accuracy_claim(" \n ", " ")
+
 
 class TestTheModelCall:
     async def test_sends_the_image_as_an_attachment_and_the_claim_as_the_user_text(

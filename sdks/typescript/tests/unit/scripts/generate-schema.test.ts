@@ -215,6 +215,24 @@ describe('renderInputDeclarations', () => {
     ).toThrow('source-passage');
   });
 
+  it('types a top-level property omitted from required as optional', () => {
+    // Graphics Complexity ships figure_labels this way. A missing or null value is absent.
+    const code = renderInputDeclarations(
+      {
+        type: 'object',
+        required: ['text'],
+        properties: {
+          text: { type: 'string' },
+          figure_labels: { type: 'string', description: 'Optional labels.' },
+        },
+      },
+      'Example',
+    );
+
+    expect(code).toContain('"text": string;');
+    expect(code).toContain('"figure_labels"?: string | null;');
+  });
+
   it.each(['ExampleInput', 'ExampleResult'])('throws when a $defs key collides with %s', (name) => {
     expect(() =>
       renderInputDeclarations(
