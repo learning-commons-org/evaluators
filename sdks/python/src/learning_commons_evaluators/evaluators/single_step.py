@@ -104,7 +104,7 @@ def attachments_of(
         if entry.position != "before_text":
             refuse(
                 f'position "{entry.position}" is not supported; '
-                "this SDK places attachments only ahead of the text."
+                "this SDK places attachments only before the text."
             )
         spec = properties.get(entry.input)
         # Optional or non-array, a request could omit the images and be sent without them.
