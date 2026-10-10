@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@learning-commons/evaluators)](https://www.npmjs.com/package/@learning-commons/evaluators)
 
-TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction) — sixteen LLM-backed evaluators for the complexity of text students read, the quality of feedback they receive, and the alignment of math items to standards.
+TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction) — LLM-backed evaluators for the complexity of text students read and of its graphics, the quality of feedback they receive, the alignment of math items to standards, and the accuracy of math graphics.
 
 Requires Node 20.19+ or 22.12+ (`^20.19.0 || >=22.12.0`) — the CommonJS build needs
 `require(esm)`, which Node 21.x and 22.0-22.11 lack.
@@ -235,10 +235,10 @@ Graphics — judges images: the graphics in a passage, or a math graphic against
 - `GraphicsComplexityEvaluator` takes `{ text, grade_level, image_paths, figure_labels? }`: up to five images, one per graphic in the passage, with optional comma-separated labels in the same order (default `Image 1, Image 2, …`). Returns `complexity_score`, `reasoning` and `details`, like the text complexity evaluators.
 - `GraphicsAccuracyEvaluator` takes `{ image_paths, claim }` with a single image. Returns `is_correct` with `reasoning`, any `defects` in the image itself, and a `basis` saying whether a false verdict was `contradicted`, `unverified` or `defective`. For a question with its expected answer, build the claim with `composeGraphicsAccuracyClaim(question, answer)`, which produces the exact text the evaluator was measured with.
 
-| Evaluator                     | Grades | Default provider | Docs                       |
-| ----------------------------- | ------ | ---------------- | -------------------------- |
-| `GraphicsComplexityEvaluator` | 3–12   | Google           | Docs pending               |
-| `GraphicsAccuracyEvaluator`   | K–12   | Google           | Early access; docs pending |
+| Evaluator                     | Grades | Default provider | Docs                                                                                                    |
+| ----------------------------- | ------ | ---------------- | ------------------------------------------------------------------------------------------------------- |
+| `GraphicsComplexityEvaluator` | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/graphics-evaluators/graphics-complexity)             |
+| `GraphicsAccuracyEvaluator`   | K–12   | Google           | Early access; [Link](https://docs.learningcommons.org/evaluators/graphics-evaluators/graphics-accuracy) |
 
 Standards alignment — checks a math item against a standard, component by component.
 
