@@ -5,6 +5,16 @@ All notable changes to the evaluator prompt files will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.9.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.8.0...evals-prompts-v1.9.0) (2026-10-10)
+
+
+### Features
+
+* **evals:** add Graphics Accuracy evaluator contract under graphics/math ([#321](https://github.com/learning-commons-org/evaluators/issues/321)) ([527c1c5](https://github.com/learning-commons-org/evaluators/commit/527c1c5eb9c140cf30ad0a44e528abf3f74a9983))
+* **evals:** add graphics complexity evaluator ([#293](https://github.com/learning-commons-org/evaluators/issues/293)) ([11c87bb](https://github.com/learning-commons-org/evaluators/commit/11c87bb1991c588b7a11cc6c69a0963a5c4eab28))
+* **evals:** declare where attached images go relative to the prompt text ([#365](https://github.com/learning-commons-org/evaluators/issues/365)) ([59d2396](https://github.com/learning-commons-org/evaluators/commit/59d2396e7c92f8dcc1a2ebe8445f252c21c4d674))
+* **evals:** mark output properties the model produces but SDKs do not return ([#337](https://github.com/learning-commons-org/evaluators/issues/337)) ([06dadde](https://github.com/learning-commons-org/evaluators/commit/06daddeb4cfa5bc9c4f06ddd8616fc8f5a544318))
+
 ## [1.8.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.7.0...evals-prompts-v1.8.0) (2026-10-02)
 
 
