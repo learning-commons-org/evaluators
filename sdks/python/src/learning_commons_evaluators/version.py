@@ -5,6 +5,6 @@ try:
 
     __version__ = version("learning-commons-evaluators")
 except Exception:
-    __version__ = "1.0.0"
+    __version__ = "1.1.0"
 
 __description__ = "Python SDK for Learning Commons educational evaluators"
