@@ -473,6 +473,13 @@ def _check_steps(cls: type[MultiStepEvaluator[Any, Any]], contract: Contract) ->
             f"{name} config.json declares {len(contract.steps)} step(s); MultiStepEvaluator "
             "runs more than one. Use the single-step base."
         )
+    if contract.model_only_fields:
+        # This base returns the terminal step's output whole, so a marked field would reach
+        # the caller; config.schema.json says to strip it or refuse the contract.
+        raise ValueError(
+            f"{name} output schema marks {', '.join(contract.model_only_fields)} "
+            "x-model-only, which MultiStepEvaluator does not strip."
+        )
 
     # A step id is the key the run stores a provider and an output under, so two steps
     # sharing one would alias: the second's output would overwrite the first's, and the

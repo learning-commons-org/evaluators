@@ -1,0 +1,118 @@
+{
+  "$schema": "../../../_schemas/config.schema.json",
+  "evaluator": {
+    "id": "graphics.ela.graphics_complexity",
+    "stable_id": "cdd884fe-fec7-4f6e-8ad2-37119c262f9d",
+    "id_history": [],
+    "name": "Graphics Complexity Evaluator",
+    "description": "Evaluates the Graphics Complexity dimension of qualitative text complexity for grades 3-12 reading assessment, producing a 4-level rubric rating with structured pedagogical detail. Multimodal: takes the passage text plus one image per graphic in scope, and rates how demanding those graphics are for the target grade and how much work it takes to read them together with the written text.",
+    "supported_grades": [
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "input_schema": { "$ref": "input_schema.json" },
+  "preprocessing": [
+    {
+      "id": "fk_score",
+      "type": "computation",
+      "kind": "flesch_kincaid_grade",
+      "description": "Compute the Flesch-Kincaid Grade Level for the input text and bind it to {fk_score} in the prompt.",
+      "input": "text",
+      "output": "fk_score",
+      "implementation": {
+        "python": {
+          "library": "textstat",
+          "function": "flesch_kincaid_grade",
+          "post_transform": {
+            "type": "round",
+            "precision": 2
+          }
+        },
+        "typescript": {
+          "library": "text-readability",
+          "function": "fleschKincaidGrade",
+          "post_transform": {
+            "type": "round",
+            "precision": 2
+          }
+        }
+      }
+    }
+  ],
+  "steps": [
+    {
+      "id": "evaluate_graphics_complexity",
+      "type": "llm",
+      "description": "Single multimodal LLM call that produces the EvaluatorOutput JSON: the rendered user text followed by one attached image per graphic, in `image_paths` order, so the Nth image matches the Nth label in {figure_labels} (see `attachments`). The model rates each graphic on its own and checks whether any must be read against each other; the excerpt's complexity_score is the highest of those ratings. Those per-graphic working fields condition the score and are not part of the returned output.",
+      "prompt": {
+        "messages": [
+          {
+            "role": "system",
+            "source_path": "system.txt",
+            "sha256": "609f8f8122e07e00d7f7b0b7d7b0eaed10b8536677e211f33e575535fdd6406f"
+          },
+          {
+            "role": "user",
+            "source_path": "user.txt",
+            "sha256": "32126c963b4f97dfb205bda1ec5caf74136fb204aea67884f7b4e08584474e09"
+          }
+        ],
+        "placeholders": {
+          "text": {
+            "required": true,
+            "source": "input"
+          },
+          "grade_level": {
+            "required": true,
+            "source": "input"
+          },
+          "fk_score": {
+            "required": true,
+            "source": "preprocessing.fk_score"
+          },
+          "figure_labels": {
+            "required": false,
+            "source": "input"
+          }
+        }
+      },
+      "model": {
+        "provider": "google",
+        "name": "gemini-3-flash-preview",
+        "alias": "graphics-complexity-evaluator-default"
+      },
+      "generation": {
+        "temperature": 1
+      },
+      "parser": {
+        "kind": "structured_output"
+      },
+      "attachments": [
+        { "input": "image_paths", "kind": "image", "position": "after_text" }
+      ]
+    }
+  ],
+  "output_schema": {
+    "$ref": "output_schema.json"
+  },
+  "outcome": {
+    "score": "complexity_score",
+    "reasoning": "reasoning"
+  },
+  "fixtures": {
+    "path": "fixtures.json",
+    "tolerance": {
+      "allow_adjacent_levels": true,
+      "notes": "If allow_adjacent_levels is true, predictions within one rubric step of the expected label count as a pass. Slightly Complex < Moderately Complex < Very Complex < Exceedingly Complex; more_context_needed has no adjacency."
+    }
+  }
+}
