@@ -2,6 +2,15 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
+## [1.2.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v1.1.1...sdks-typescript-v1.2.0) (2026-10-10)
+
+
+### Features
+
+* **evals:** declare where attached images go relative to the prompt text ([#365](https://github.com/learning-commons-org/evaluators/issues/365)) ([59d2396](https://github.com/learning-commons-org/evaluators/commit/59d2396e7c92f8dcc1a2ebe8445f252c21c4d674))
+* **sdk:** GraphicsAccuracyEvaluator — first image-taking evaluator on the contract ([#323](https://github.com/learning-commons-org/evaluators/issues/323)) ([709107f](https://github.com/learning-commons-org/evaluators/commit/709107fe2c9e669f3da4dc76c781f53615bb8434))
+* **sdk:** GraphicsComplexityEvaluator, with images after the text and model-only fields stripped ([#367](https://github.com/learning-commons-org/evaluators/issues/367)) ([b1795b8](https://github.com/learning-commons-org/evaluators/commit/b1795b814aefa52956fceadca26c837516ffb6a9))
+
 ## [1.1.1](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v1.1.0...sdks-typescript-v1.1.1) (2026-09-18)
 
 
