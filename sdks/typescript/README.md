@@ -235,10 +235,10 @@ Graphics — judges images: the graphics in a passage, or a math graphic against
 - `GraphicsComplexityEvaluator` takes `{ text, grade_level, image_paths, figure_labels? }`: up to five images, one per graphic in the passage, with optional comma-separated labels in the same order (default `Image 1, Image 2, …`). Returns `complexity_score`, `reasoning` and `details`, like the text complexity evaluators.
 - `GraphicsAccuracyEvaluator` takes `{ image_paths, claim }` with a single image. Returns `is_correct` with `reasoning`, any `defects` in the image itself, and a `basis` saying whether a false verdict was `contradicted`, `unverified` or `defective`. For a question with its expected answer, build the claim with `composeGraphicsAccuracyClaim(question, answer)`, which produces the exact text the evaluator was measured with.
 
-| Evaluator                     | Grades | Default provider | Docs                                                                                                    |
-| ----------------------------- | ------ | ---------------- | ------------------------------------------------------------------------------------------------------- |
-| `GraphicsComplexityEvaluator` | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/graphics-evaluators/graphics-complexity)             |
-| `GraphicsAccuracyEvaluator`   | K–12   | Google           | Early access; [Link](https://docs.learningcommons.org/evaluators/graphics-evaluators/graphics-accuracy) |
+| Evaluator                     | Grades | Default provider | Docs                                                                                        |
+| ----------------------------- | ------ | ---------------- | ------------------------------------------------------------------------------------------- |
+| `GraphicsComplexityEvaluator` | 3–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/graphics-evaluators/graphics-complexity) |
+| `GraphicsAccuracyEvaluator`   | K–12   | Google           | [Link](https://docs.learningcommons.org/evaluators/graphics-evaluators/graphics-accuracy)   |
 
 Standards alignment — checks a math item against a standard, component by component.
 
