@@ -278,6 +278,30 @@ describe('generateSchemaFile against real contracts', () => {
 
     expect(content).toContain('export const PurposeClarityOutputSchema');
   });
+
+  it('types an input absent from required as optional, and only that one', () => {
+    const { content } = generateSchemaFile(contract('graphics/ela/graphics-complexity'));
+
+    expect(content).toContain('"figure_labels"?: string;');
+    expect(content).toContain('"text": string;');
+    expect(content).toContain('"image_paths": string[];');
+  });
+
+  it('sends x-model-only fields to the model and omits them from what the caller receives', async () => {
+    const { GraphicsComplexityResponseSchema, GraphicsComplexityOutputSchema } = await import(
+      '../../../src/schemas/graphics/ela/graphics-complexity.js'
+    );
+    const modelOnly = ['graphics', 'joint_reading', 'aggregation_rule'];
+
+    expect(Object.keys(GraphicsComplexityResponseSchema.shape)).toEqual(expect.arrayContaining(modelOnly));
+    expect(Object.keys(GraphicsComplexityOutputSchema.shape).sort()).toEqual(['complexity_score', 'details', 'reasoning']);
+  });
+
+  it('emits a single OutputSchema when nothing is x-model-only', () => {
+    const { content } = generateSchemaFile(contract('graphics/math/graphics-accuracy'));
+
+    expect(content).not.toContain('ResponseSchema');
+  });
 });
 
 // --- discovery ---

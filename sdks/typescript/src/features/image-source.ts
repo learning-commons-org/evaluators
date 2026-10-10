@@ -74,7 +74,11 @@ const size = (bytes: number) => `${bytes.toLocaleString('en-US')} bytes (${(byte
  * @throws {InputValidationError} if the file cannot be read, is not an accepted format with a
  * readable header by its bytes, or falls outside the declared size or edge bounds
  */
-export async function loadImage(field: string, path: string, bounds: ImageBounds): Promise<ImageAttachment> {
+export async function loadImage(
+  field: string,
+  path: string,
+  bounds: ImageBounds,
+): Promise<Omit<ImageAttachment, 'position'>> {
   let data: Uint8Array;
   let file: FileHandle | undefined;
   try {

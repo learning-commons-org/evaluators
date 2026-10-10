@@ -31,6 +31,8 @@ import { ToneAppropriatenessOutputSchema } from '../../src/schemas/feedback/ela-
 import { WithholdingAnswersOutputSchema } from '../../src/schemas/feedback/ela-writing/withholding-answers.js';
 import { GraphicsAccuracyEvaluator } from '../../src/evaluators/graphics/math/graphics-accuracy.js';
 import { GraphicsAccuracyOutputSchema } from '../../src/schemas/graphics/math/graphics-accuracy.js';
+import { GraphicsComplexityEvaluator } from '../../src/evaluators/graphics/ela/graphics-complexity.js';
+import { GraphicsComplexityResponseSchema } from '../../src/schemas/graphics/ela/graphics-complexity.js';
 import { QTC_FAMILY } from '../../src/batch/families/qtc.js';
 import { InputValidationError } from '../../src/errors.js';
 import { readOutcome } from '../../src/schemas/outcome.js';
@@ -65,8 +67,12 @@ import {
 /** Records every (provider, model) an evaluator asks for at construction. */
 const constructed: Array<{ type: string; model: string }> = [];
 
-/** Records the generation settings of every LLM call an evaluator makes. */
-const llmCalls: Array<{ temperature?: number; messages?: Array<{ role: string; content: string }> }> = [];
+/** Records the generation settings and schema of every LLM call an evaluator makes. */
+const llmCalls: Array<{
+  temperature?: number;
+  messages?: Array<{ role: string; content: string }>;
+  schema?: { shape?: Record<string, unknown> };
+}> = [];
 
 vi.mock('../../src/providers/index.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
@@ -79,10 +85,12 @@ vi.mock('../../src/providers/index.js', async (importOriginal) => {
         // Stands in for the real provider, which attaches images; without this the image
         // evaluator refuses the mock at construction and its checks never run.
         supportsAttachments: true,
-        generateStructured: vi.fn(async (request: { temperature?: number; messages?: Array<{ role: string; content: string }> }) => {
-          llmCalls.push({ temperature: request.temperature, messages: request.messages });
+        generateStructured: vi.fn(async (request: (typeof llmCalls)[number]) => {
+          llmCalls.push({ temperature: request.temperature, messages: request.messages, schema: request.schema });
           return {
-            data: {},
+            // One stub per field the model was asked for, so what an evaluator returns
+            // shows which of them it keeps.
+            data: Object.fromEntries(Object.keys(request.schema?.shape ?? {}).map((field) => [field, `stub ${field}`])),
             model: config.model,
             usage: { inputTokens: 1, outputTokens: 1 },
             latencyMs: 1,
@@ -221,6 +229,8 @@ const FIXTURE_VALUE_GAPS = new Set<string>([
  * schema to compare.
  */
 const SDK_OUTPUT_SCHEMAS: Record<string, { shape: Record<string, unknown> }> = {
+  // The response schema, not the output schema: the model fills in the x-model-only fields too.
+  [GraphicsComplexityEvaluator.metadata.id]: GraphicsComplexityResponseSchema,
   [GraphicsAccuracyEvaluator.metadata.id]: GraphicsAccuracyOutputSchema,
   [RevisionAccuracyEvaluator.metadata.id]: RevisionAccuracyOutputSchema,
   [RevisionActionabilityEvaluator.metadata.id]: RevisionActionabilityOutputSchema,
@@ -332,6 +342,8 @@ const FIXTURE_IMAGE = join(
 const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknown>> = {
   [GraphicsAccuracyEvaluator.metadata.id]: (E, text) =>
     construct(E).evaluate({ image_paths: [FIXTURE_IMAGE], claim: text }),
+  [GraphicsComplexityEvaluator.metadata.id]: (E, text) =>
+    construct(E).evaluate({ text, grade_level: '5', image_paths: [FIXTURE_IMAGE] }),
   [GLA_ID]: (E, text) => construct(E).evaluate({ text }),
   [BKD_ID]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
   [MD_ID]: (E, text) => construct(E).evaluate({ text, grade_level: '5' }),
@@ -931,6 +943,29 @@ describe('the temperature sent matches the contract', () => {
       config.steps[0].generation?.temperature,
       `${E.metadata.name} temperature`,
     );
+  });
+});
+
+describe('the model is asked for every output field, and the caller gets the unmarked ones', () => {
+  // An `x-model-only` field must be filled in by the model and stripped by the SDK. An
+  // evaluator that sent its caller-facing schema instead would never ask for the working
+  // fields its score is built from, and the result would look no different.
+  beforeEach(() => {
+    llmCalls.length = 0;
+  });
+
+  it.each(singleStepCases)('$name', async ({ E }) => {
+    const properties = contractFor(E.metadata.id).outputSchema.properties as Record<
+      string,
+      { 'x-model-only'?: boolean }
+    >;
+    const declared = Object.keys(properties).sort();
+    const returned = declared.filter((field) => properties[field]['x-model-only'] !== true);
+
+    const { result } = (await INVOKE[E.metadata.id](E, 'A sentence long enough to pass validation.')) as EvaluationResult;
+
+    expect(Object.keys(llmCalls[0].schema?.shape ?? {}).sort(), `${E.metadata.name} asked the model for`).toEqual(declared);
+    expect(Object.keys(result as object).sort(), `${E.metadata.name} returned`).toEqual(returned);
   });
 });
 

@@ -43,10 +43,11 @@ import type {
 } from './base.js';
 
 /**
- * Place attachments on the final user turn, ahead of its text, as the AI SDK's content
- * parts. Each image travels as a `file` part — bytes plus media type, the one inline form
- * every vendor adapter accepts (the SDK's older `image` part is deprecated). Turns before
- * the last user turn, and all text-only requests, pass through unchanged.
+ * Place attachments on the final user turn, before or after its text as each one's
+ * `position` says, in array order, as the AI SDK's content parts. Each image travels as a
+ * `file` part — bytes plus media type, the one inline form every vendor adapter accepts
+ * (the SDK's older `image` part is deprecated). Turns before the last user turn, and all
+ * text-only requests, pass through unchanged.
  */
 function withAttachments(messages: Message[], attachments: readonly ImageAttachment[] | undefined) {
   if (!attachments?.length) return messages;
@@ -54,14 +55,15 @@ function withAttachments(messages: Message[], attachments: readonly ImageAttachm
   if (last === -1) {
     throw new Error('Attachments need a user message to be attached to.');
   }
+  const parts = (position: ImageAttachment['position']) =>
+    attachments
+      .filter((a) => a.position === position)
+      .map((a) => ({ type: 'file' as const, data: a.data, mediaType: a.mediaType }));
   return messages.map((m, i) =>
     i === last
       ? {
           role: 'user' as const,
-          content: [
-            ...attachments.map((a) => ({ type: 'file' as const, data: a.data, mediaType: a.mediaType })),
-            { type: 'text' as const, text: m.content },
-          ],
+          content: [...parts('before_text'), { type: 'text' as const, text: m.content }, ...parts('after_text')],
         }
       : m,
   );

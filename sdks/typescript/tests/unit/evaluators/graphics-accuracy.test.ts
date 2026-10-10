@@ -144,7 +144,7 @@ describe('GraphicsAccuracyEvaluator - LLM call contract', () => {
     expect(call.messages[1].content).not.toContain('{claim}');
     // The path is an input, not prompt text; it must never reach the model.
     expect(call.messages[1].content).not.toContain(APPLES);
-    expect(call.attachments).toEqual([{ type: 'image', data: APPLES_BYTES, mediaType: 'image/png' }]);
+    expect(call.attachments).toEqual([{ type: 'image', data: APPLES_BYTES, mediaType: 'image/png', position: 'before_text' }]);
   });
 
   it('sends the system prompt verbatim from the contract', async () => {

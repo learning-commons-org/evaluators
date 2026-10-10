@@ -90,19 +90,16 @@ export function toPascalCase(str: string): string {
 }
 
 /**
- * Generates the content of a Zod schema TypeScript file from a config.json path.
- * Returns slug, output path, and file content.
- */
-/**
  * Render one declared input as a TypeScript property.
  *
  * A declared `enum` becomes a literal union, which is the point: the contract's accepted
  * values become a compile error instead of a run-time one. An array of strings — an attached
  * input's file paths — is `string[]`. Anything else is `string`. Bounds are not expressible in the
  * type system, so they are enforced at runtime: `minLength`, `maxLength`, `minItems` and
- * `maxItems` by `validateInputs`, and each file's `x-image` bounds by the image loader.
+ * `maxItems` by `validateInputs`, and each file's `x-image` bounds by the image loader. An
+ * input absent from `required` is optional.
  */
-function renderInputProperty(name: string, spec: JsonObject): string {
+function renderInputProperty(name: string, spec: JsonObject, optional: boolean): string {
   const enumValues = spec['enum'];
   const items = spec['items'] as JsonObject | undefined;
   let type: string;
@@ -120,7 +117,7 @@ function renderInputProperty(name: string, spec: JsonObject): string {
   const description = typeof spec['description'] === 'string' ? spec['description'] : undefined;
   const doc = description ? `  /** ${description} */\n` : '';
 
-  return `${doc}  ${JSON.stringify(name)}: ${type};`;
+  return `${doc}  ${JSON.stringify(name)}${optional ? '?' : ''}: ${type};`;
 }
 
 /** The input type for a contract, or `undefined` when it declares no input schema. */
@@ -138,18 +135,8 @@ function renderInputType(
   const names = Object.keys(properties);
   if (names.length === 0) return undefined;
 
-  // Every declared input is required in every contract today; if that changes, an absent
-  // entry in `required` should render as optional rather than silently stay mandatory.
   const required = new Set((schema['required'] ?? []) as string[]);
-  const missing = names.filter((n) => !required.has(n));
-  if (missing.length > 0) {
-    throw new Error(
-      `${config.input_schema.$ref} declares optional inputs (${missing.join(', ')}), which ` +
-        'this generator does not render yet — add optional-property support before shipping it.',
-    );
-  }
-
-  const body = names.map((name) => renderInputProperty(name, properties[name])).join('\n');
+  const body = names.map((name) => renderInputProperty(name, properties[name], !required.has(name))).join('\n');
 
   return {
     code: `export type ${className}Input = {\n${body}\n};`,
@@ -157,6 +144,21 @@ function renderInputType(
   };
 }
 
+/**
+ * The top-level output properties marked `x-model-only`.
+ *
+ * The model must still fill them in, so they stay in the schema it is sent; the caller's
+ * schema omits them. `config.schema.json` states the rule.
+ */
+function modelOnlyFields(schema: JsonObject): string[] {
+  const properties = (schema['properties'] ?? {}) as Record<string, JsonObject>;
+  return Object.keys(properties).filter((name) => properties[name]['x-model-only'] === true);
+}
+
+/**
+ * Generates the content of a Zod schema TypeScript file from a config.json path.
+ * Returns slug, output path, and file content.
+ */
 export function generateSchemaFile(configPath: string): GeneratedSchema {
   const absConfigPath = resolve(configPath);
   const configDir = dirname(absConfigPath);
@@ -183,6 +185,7 @@ export function generateSchemaFile(configPath: string): GeneratedSchema {
   // several are notes to maintainers. Per-field descriptions are kept.
   delete resolved['description'];
 
+  const modelOnly = modelOnlyFields(resolved);
   const zodCode = parseSchema(resolved);
 
   const relSchemaPath = relative(SDK_ROOT, schemaPath);
@@ -197,8 +200,16 @@ export function generateSchemaFile(configPath: string): GeneratedSchema {
     `import { z } from 'zod';`,
     ``,
     ...(input ? [`/** What this evaluator accepts, from its input schema. */`, input.code, ``] : []),
-    `// prettier-ignore`,
-    `export const ${className}OutputSchema = ${zodCode};`,
+    ...(modelOnly.length
+      ? [
+          `/** What the model is asked for: the output plus the working fields its contract marks \`x-model-only\`. */`,
+          `// prettier-ignore`,
+          `export const ${className}ResponseSchema = ${zodCode};`,
+          ``,
+          `/** What the caller receives: the response without its \`x-model-only\` fields. */`,
+          `export const ${className}OutputSchema = ${className}ResponseSchema.omit({ ${modelOnly.map((n) => `${JSON.stringify(n)}: true`).join(', ')} });`,
+        ]
+      : [`// prettier-ignore`, `export const ${className}OutputSchema = ${zodCode};`]),
     ``,
     `export type ${className}Result = z.infer<typeof ${className}OutputSchema>;`,
     ``,
