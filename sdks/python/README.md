@@ -2,7 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/learning-commons-evaluators)](https://pypi.org/project/learning-commons-evaluators/)
 
-Python SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction),  which measure the quality of AI-generated educational content by assessing specific dimensions of text and identifying areas for improvement.
+Python SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction), which measure the quality of AI-generated educational content by assessing specific dimensions of text and identifying areas for improvement.
 
 Every evaluator is built from its shared contract under [`evals/`](../../evals) (prompts, models, schemas) - and every one returns the same result envelope, so generic code works across all of them.
 
@@ -193,8 +193,6 @@ Pass an `EvaluatorConfig` or its fields as keyword arguments:
 | `model_override` | none | `ModelOverride(provider, model)`: run every LLM step on this model instead. Logged once as a warning; evaluators are validated against their default models only. |
 | `max_retries` | `2` | Retries on retryable errors; total attempts are `1 + max_retries`. |
 | `telemetry` | `True` | `True` / `False`, or `TelemetryOptions(enabled, learning_commons_api_key)`. |
-
-Old evaluator ids still resolve: `get_evaluator("grade-level-appropriateness")` finds the evaluator now registered as `text_complexity.ela_reading.grade_level_appropriateness`.
 
 ### Telemetry
 
