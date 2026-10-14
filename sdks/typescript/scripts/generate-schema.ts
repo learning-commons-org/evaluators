@@ -90,10 +90,6 @@ export function toPascalCase(str: string): string {
 }
 
 /**
- * Generates the content of a Zod schema TypeScript file from a config.json path.
- * Returns slug, output path, and file content.
- */
-/**
  * The TypeScript type for one schema node.
  *
  * A `$ref` to an object `$def` uses that key as the type name (`SourcePassage`). An array
@@ -205,6 +201,21 @@ function renderInputType(
   };
 }
 
+/**
+ * The top-level output properties marked `x-model-only`.
+ *
+ * The model must still fill them in, so they stay in the schema it is sent; the caller's
+ * schema omits them. `config.schema.json` states the rule.
+ */
+function modelOnlyFields(schema: JsonObject): string[] {
+  const properties = (schema['properties'] ?? {}) as Record<string, JsonObject>;
+  return Object.keys(properties).filter((name) => properties[name]['x-model-only'] === true);
+}
+
+/**
+ * Generates the content of a Zod schema TypeScript file from a config.json path.
+ * Returns slug, output path, and file content.
+ */
 export function generateSchemaFile(configPath: string): GeneratedSchema {
   const absConfigPath = resolve(configPath);
   const configDir = dirname(absConfigPath);
@@ -231,6 +242,7 @@ export function generateSchemaFile(configPath: string): GeneratedSchema {
   // several are notes to maintainers. Per-field descriptions are kept.
   delete resolved['description'];
 
+  const modelOnly = modelOnlyFields(resolved);
   const zodCode = parseSchema(resolved);
 
   const relSchemaPath = relative(SDK_ROOT, schemaPath);
@@ -245,8 +257,16 @@ export function generateSchemaFile(configPath: string): GeneratedSchema {
     `import { z } from 'zod';`,
     ``,
     ...(input ? [`/** What this evaluator accepts, from its input schema. */`, input.code, ``] : []),
-    `// prettier-ignore`,
-    `export const ${className}OutputSchema = ${zodCode};`,
+    ...(modelOnly.length
+      ? [
+          `/** What the model is asked for: the output plus the working fields its contract marks \`x-model-only\`. */`,
+          `// prettier-ignore`,
+          `export const ${className}ResponseSchema = ${zodCode};`,
+          ``,
+          `/** What the caller receives: the response without its \`x-model-only\` fields. */`,
+          `export const ${className}OutputSchema = ${className}ResponseSchema.omit({ ${modelOnly.map((n) => `${JSON.stringify(n)}: true`).join(', ')} });`,
+        ]
+      : [`// prettier-ignore`, `export const ${className}OutputSchema = ${zodCode};`]),
     ``,
     `export type ${className}Result = z.infer<typeof ${className}OutputSchema>;`,
     ``,

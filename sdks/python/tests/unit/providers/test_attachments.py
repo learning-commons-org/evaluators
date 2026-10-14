@@ -1,4 +1,4 @@
-"""Where each adapter puts image attachments: on the final user turn, ahead of its text.
+"""Where each adapter puts image attachments: on the final user turn, before or after its text.
 
 The three vendors spell an inline image three ways — an OpenAI ``input_image`` data URL, an
 Anthropic base64 ``image`` block, a Gemini inline-data part — and every one of them must
@@ -9,16 +9,26 @@ and every text-only request, exactly as it was.
 from __future__ import annotations
 
 import base64
+from dataclasses import replace
 from typing import Any
 
 import pytest
 
 from learning_commons_evaluators.providers import ImageAttachment, Message
-from learning_commons_evaluators.providers._common import last_user_turn
+from learning_commons_evaluators.providers._common import around_text, last_user_turn
 from tests.unit.providers import test_anthropic_sdk, test_google_genai, test_openai_sdk
 
-PNG = ImageAttachment(data=b"\x89PNG first image bytes", media_type="image/png")
-JPEG = ImageAttachment(data=b"\xff\xd8\xff second image bytes", media_type="image/jpeg")
+PNG = ImageAttachment(
+    data=b"\x89PNG first image bytes", media_type="image/png", position="before_text"
+)
+JPEG = ImageAttachment(
+    data=b"\xff\xd8\xff second image bytes", media_type="image/jpeg", position="before_text"
+)
+WEBP = ImageAttachment(
+    data=b"RIFF third image bytes", media_type="image/webp", position="after_text"
+)
+#: Out of position order, so a test sees array order kept within each side of the text.
+MIXED = [replace(PNG, position="after_text"), JPEG, WEBP]
 
 CONVERSATION: list[Message] = [
     {"role": "system", "content": "You are a reviewer."},
@@ -38,6 +48,16 @@ def test_the_last_user_turn_is_found_behind_a_trailing_assistant_turn() -> None:
     # Every adapter places images through this index, so a conversation ending on an
     # assistant turn must still put them on the user turn before it, not on the reply.
     assert last_user_turn([*CONVERSATION[1:], {"role": "assistant", "content": "prefill"}]) == 2
+
+
+def test_each_image_goes_before_or_after_the_text_as_its_position_says_in_array_order() -> None:
+    # The one rule every adapter places through, as the TypeScript provider orders its parts.
+    assert around_text("text", MIXED, lambda a: a.media_type) == [
+        "image/jpeg",
+        "text",
+        "image/png",
+        "image/webp",
+    ]
 
 
 class TestOpenAI:
@@ -76,6 +96,21 @@ class TestOpenAI:
                     {"type": "input_text", "text": "second"},
                 ],
             },
+        ]
+
+    async def test_places_each_image_before_or_after_the_text_as_its_position_says(self) -> None:
+        kwargs = await self.run(CONVERSATION, attachments=MIXED)
+        assert [part["type"] for part in kwargs["input"][-1]["content"]] == [
+            "input_image",
+            "input_text",
+            "input_image",
+            "input_image",
+        ]
+        assert [part.get("image_url", "")[:16] for part in kwargs["input"][-1]["content"]] == [
+            "data:image/jpeg;",
+            "",
+            "data:image/png;b",
+            "data:image/webp;",
         ]
 
     async def test_sends_a_text_only_request_exactly_as_before(self) -> None:
@@ -121,6 +156,16 @@ class TestAnthropic:
             },
         ]
 
+    async def test_places_each_image_before_or_after_the_text_as_its_position_says(self) -> None:
+        kwargs = await self.run(CONVERSATION, attachments=MIXED)
+        content = kwargs["messages"][-1]["content"]
+        assert [part.get("source", {}).get("media_type", part["type"]) for part in content] == [
+            "image/jpeg",
+            "text",
+            "image/png",
+            "image/webp",
+        ]
+
     async def test_sends_a_text_only_request_exactly_as_before(self) -> None:
         kwargs = await self.run(CONVERSATION)
         assert kwargs["messages"][-1] == {"role": "user", "content": "second"}
@@ -156,6 +201,16 @@ class TestGoogle:
         ]
         assert text.text == "second"
         assert len(last.parts) == 3
+
+    async def test_places_each_image_before_or_after_the_text_as_its_position_says(self) -> None:
+        kwargs = await self.run(CONVERSATION, attachments=MIXED)
+        parts = kwargs["contents"][-1].parts
+        assert [p.inline_data.mime_type if p.inline_data else p.text for p in parts] == [
+            "image/jpeg",
+            "second",
+            "image/png",
+            "image/webp",
+        ]
 
     async def test_sends_a_text_only_request_exactly_as_before(self) -> None:
         kwargs = await self.run(CONVERSATION)

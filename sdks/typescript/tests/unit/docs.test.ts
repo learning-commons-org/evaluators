@@ -7,7 +7,7 @@ import * as sdk from '../../src/index.js';
  * The README and MIGRATION guide, checked against the SDK they describe.
  *
  * The README shipped `result.result.grade` — a field no schema has ever declared — as the
- * first code anyone runs, and listed 8 of the 16 evaluators. Prose goes stale silently, so
+ * first code anyone runs, and left half the evaluators out. Prose goes stale silently, so
  * the claims that can be mechanically checked are checked here.
  */
 

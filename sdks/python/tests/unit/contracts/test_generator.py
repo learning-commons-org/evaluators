@@ -251,6 +251,67 @@ class TestEmitter:
         with pytest.raises(ValueError, match="Unsupported \\$ref"):
             generator.emit_schema_module(json.loads(config_path.read_text()), config_path.parent)
 
+    def _emit_output(self, tmp_path: Path, output_schema: dict[str, Any]) -> dict[str, Any]:
+        config_path = _write_contract(
+            tmp_path / "a" / "b" / "c",
+            evaluator_id="a.b.c",
+            input_schema={"type": "object", "properties": {}},
+            output_schema=output_schema,
+        )
+        source = generator.emit_schema_module(
+            json.loads(config_path.read_text()), config_path.parent
+        )
+        return _exec_module(source)
+
+    def test_model_only_fields_are_in_the_response_and_left_out_of_the_output(
+        self, tmp_path: Path
+    ) -> None:
+        # Nothing requires marked properties to come last, so one sits between two kept
+        # ones; and an inline object both classes keep is emitted once and shared.
+        module = self._emit_output(
+            tmp_path,
+            {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["score", "working", "notes"],
+                "properties": {
+                    "score": {"type": "integer"},
+                    "working": {"type": "string", "x-model-only": True},
+                    "notes": {"type": "object", "properties": {"n": {"type": "string"}}},
+                },
+            },
+        )
+        response, output = module["CResponse"], module["COutput"]
+        assert list(response.model_fields) == ["score", "working", "notes"]
+        assert list(output.model_fields) == ["score", "notes"]
+        assert output.model_json_schema()["required"] == ["score", "notes"]
+        assert response.model_fields["notes"].annotation is output.model_fields["notes"].annotation
+        assert module["__all__"] == ["CInput", "COutput", "CResponse"]
+
+    def test_a_contract_with_nothing_marked_emits_no_response(self, tmp_path: Path) -> None:
+        module = self._emit_output(
+            tmp_path, {"type": "object", "properties": {"score": {"type": "integer"}}}
+        )
+        assert "CResponse" not in module
+        assert module["__all__"] == ["CInput", "COutput"]
+
+    def test_a_nullable_enum_is_its_values_or_none(self, tmp_path: Path) -> None:
+        module = self._emit_output(
+            tmp_path,
+            {
+                "type": "object",
+                "required": ["level"],
+                "properties": {
+                    "level": {"type": ["string", "null"], "enum": ["low", "high", None]}
+                },
+            },
+        )
+        output = module["COutput"]
+        assert output(level=None).level is None
+        assert output(level="low").level == "low"
+        with pytest.raises(ValidationError):
+            output(level="medium")
+
 
 class TestBundling:
     def test_discovers_every_bundled_contract(self) -> None:

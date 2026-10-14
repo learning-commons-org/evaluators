@@ -11,7 +11,9 @@ every contract the package bundles this script:
    unnoticed.
 2. Writes ``src/learning_commons_evaluators/schemas/<family>/<subject>/<evaluator>.py`` with
    a pydantic ``<Class>Input`` model built from ``input_schema.json`` and a ``<Class>Output``
-   model built from ``output_schema.json``.
+   model built from ``output_schema.json``. When the output schema marks properties
+   ``x-model-only``, ``<Class>Response`` is what the model is asked for and ``<Class>Output``
+   is it without the marked properties, which is what the caller receives.
 
 The bundled directory is package data read by ``contracts.loader``; the schema modules are
 regular source that the evaluators import. Both are committed, so an installed package
@@ -150,6 +152,9 @@ class _Emitter:
     names: set[str] = field(default_factory=set)
     #: ``$defs`` key -> emitted type expression, filled as each is first referenced.
     def_types: dict[str, str] = field(default_factory=dict)
+    #: ``id()`` of an inline object node -> its class, so a property shared by two emitted
+    #: classes (a response and its output) yields one nested class, not two.
+    inline_types: dict[int, str] = field(default_factory=dict)
     uses_literal: bool = False
     uses_field: bool = False
     uses_config: bool = False
@@ -200,7 +205,8 @@ class _Emitter:
 
         if "enum" in node:
             self.uses_literal = True
-            expr = _literal(list(node["enum"]))
+            # A nullable enum lists ``null`` among its values; the ``| None`` below says it.
+            expr = _literal([v for v in node["enum"] if not (nullable and v is None)])
         elif declared == "string":
             expr = "str"
         elif declared == "integer":
@@ -216,7 +222,9 @@ class _Emitter:
             expr = f"list[{self.type_expr(items, name_hint + 'Item')}]"
         elif declared == "object":
             if "properties" in node:
-                expr = self.emit_class(self.unique(name_hint), node)
+                if id(node) not in self.inline_types:
+                    self.inline_types[id(node)] = self.emit_class(self.unique(name_hint), node)
+                expr = self.inline_types[id(node)]
             else:
                 self.uses_any = True
                 expr = "dict[str, Any]"
@@ -407,13 +415,36 @@ def emit_schema_module(config: dict[str, Any], config_dir: Path) -> str:
 
     # --- Output: the full structured payload, strict, with descriptions kept for the
     # structured-output request. The root description describes the contract, not a field
-    # the model fills in, so it is replaced.
+    # the model fills in, so it is replaced. Properties marked ``x-model-only`` are asked
+    # of the model, in ``<Class>Response``, and left out of what the caller receives.
+    properties: dict[str, Any] = output_schema.get("properties", {})
+    model_only = [p for p, spec in properties.items() if spec.get("x-model-only") is True]
+    exported = [input_name]
+    if model_only:
+        response_name = emitter.unique(f"{class_base}Response")
+        emitter.emit_class(
+            response_name,
+            output_schema,
+            docstring=(
+                f"What the {name} asks the model for: its output plus the working fields "
+                "output_schema.json marks ``x-model-only``."
+            ),
+        )
+        exported.append(response_name)
     output_name = emitter.unique(f"{class_base}Output")
     emitter.emit_class(
         output_name,
-        output_schema,
-        docstring=f"Output of the {name}, per its output_schema.json.",
+        {
+            **output_schema,
+            "properties": {p: s for p, s in properties.items() if p not in model_only},
+            "required": [r for r in output_schema.get("required", []) if r not in model_only],
+        },
+        docstring=(
+            f"Output of the {name}, per its output_schema.json"
+            + (", without the fields it marks ``x-model-only``." if model_only else ".")
+        ),
     )
+    exported.append(output_name)
 
     def rel(p: str) -> str:
         return _describe((config_dir / p).resolve())
@@ -430,7 +461,6 @@ def emit_schema_module(config: dict[str, Any], config_dir: Path) -> str:
         f"EVALUATOR_ID = {_quote(evaluator_id)}",
     ]
     body = [*constants, *emitter.blocks]
-    exported = [input_name, output_name]
     footer = ["__all__ = [", *(f"{_INDENT}{_quote(n)}," for n in sorted(exported)), "]"]
     return "\n\n\n".join(["\n".join(header), *body, "\n".join(footer)]) + "\n"
 

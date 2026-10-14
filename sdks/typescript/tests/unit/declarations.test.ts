@@ -33,7 +33,10 @@ interface Declared {
   typeName: string;
   /** Property name -> the TypeScript type text the generator emitted. */
   properties: Record<string, string>;
+  /** The properties the generator emitted as optional (`"name"?:`). */
+  optional: string[];
   contract: Record<string, { enum?: string[]; type?: string }>;
+  required: string[];
 }
 
 /** The generated schema modules, which now carry each evaluator's input type. */
@@ -54,17 +57,23 @@ const DECLARED: Declared[] = generatedModules(join(SRC, 'schemas')).flatMap((fil
   if (!typeMatch || !sourceMatch) return [];
 
   const properties: Record<string, string> = {};
+  const optional: string[] = [];
   for (const line of typeMatch[2].split('\n')) {
-    const prop = line.match(/^\s*"([^"]+)":\s*(.+);$/);
-    if (prop) properties[prop[1]] = prop[2].trim();
+    const prop = line.match(/^\s*"([^"]+)"(\?)?:\s*(.+);$/);
+    if (!prop) continue;
+    properties[prop[1]] = prop[3].trim();
+    if (prop[2]) optional.push(prop[1]);
   }
 
   const relative = sourceMatch[1].replace(/^(\.\.\/)+/, '').replace(/^evals\//, '');
   const contract = JSON.parse(readFileSync(join(EVALS, relative), 'utf-8')) as {
     properties: Record<string, { enum?: string[]; type?: string }>;
+    required?: string[];
   };
 
-  return [{ file, typeName: typeMatch[1], properties, contract: contract.properties }];
+  return [
+    { file, typeName: typeMatch[1], properties, optional, contract: contract.properties, required: contract.required ?? [] },
+  ];
 });
 
 type EvaluatorLike = { metadata: { id: string } };
@@ -91,6 +100,10 @@ describe('input types match the contracts they name', () => {
 
   it.each(DECLARED)('$typeName names the inputs its contract declares', ({ properties, contract }) => {
     expect(Object.keys(properties).sort()).toEqual(Object.keys(contract).sort());
+  });
+
+  it.each(DECLARED)('$typeName is optional exactly where its contract does not require', ({ optional, contract, required }) => {
+    expect(optional.sort()).toEqual(Object.keys(contract).filter((name) => !required.includes(name)).sort());
   });
 
   it.each(DECLARED)('$typeName carries the contract\'s enum values and array shape', ({ typeName, properties, contract }) => {

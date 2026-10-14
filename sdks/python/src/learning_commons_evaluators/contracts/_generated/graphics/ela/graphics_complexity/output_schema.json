@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "output_schema.json",
+  "title": "EvaluatorOutput",
+  "description": "Final evaluator output for the Graphics Complexity evaluator.",
+  "type": "object",
+  "required": [
+    "complexity_score",
+    "reasoning",
+    "details",
+    "graphics",
+    "joint_reading",
+    "aggregation_rule"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "complexity_score": {
+      "type": "string",
+      "enum": [
+        "slightly_complex",
+        "moderately_complex",
+        "very_complex",
+        "exceedingly_complex",
+        "more_context_needed"
+      ],
+      "description": "The Graphics Complexity level for the target grade, or `more_context_needed` when the excerpt gives no graphic to rate."
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "A high-level summary of why the text is at this graphics complexity level for the target grade."
+    },
+    "details": {
+      "$ref": "#/$defs/GraphicsComplexityDetails"
+    },
+    "graphics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/GraphicAssessment"
+      },
+      "description": "Exactly one entry per attached image, in the supplied order.",
+      "x-model-only": true
+    },
+    "joint_reading": {
+      "$ref": "#/$defs/JointReading",
+      "x-model-only": true
+    },
+    "aggregation_rule": {
+      "type": "string",
+      "enum": [
+        "highest_individual",
+        "joint_reading"
+      ],
+      "description": "Which rule produced complexity_score.",
+      "x-model-only": true
+    }
+  },
+  "$defs": {
+    "DetailedSummaryItem": {
+      "type": "object",
+      "required": [
+        "factor",
+        "description",
+        "effect_on_complexity_dimension"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "factor": {
+          "type": "string",
+          "description": "The specific text complexity factor identified."
+        },
+        "description": {
+          "type": "string",
+          "description": "How this factor manifests in the text."
+        },
+        "effect_on_complexity_dimension": {
+          "type": "string",
+          "description": "How this factor affects the reader's ability to understand the text's specific complexity dimension."
+        }
+      }
+    },
+    "ScaffoldingItem": {
+      "type": "object",
+      "required": [
+        "scaffolding_need",
+        "suggestion"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "scaffolding_need": {
+          "type": "string",
+          "description": "The complexity factor that requires scaffolding."
+        },
+        "suggestion": {
+          "type": "string",
+          "description": "A specific instructional strategy to support students with this factor."
+        }
+      }
+    },
+    "UseCaseItem": {
+      "type": "object",
+      "required": [
+        "opportunity",
+        "suggestion"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "opportunity": {
+          "type": "string",
+          "description": "An instructional opportunity related to the text."
+        },
+        "suggestion": {
+          "type": "string",
+          "description": "A specific way to leverage this text for that instructional purpose."
+        }
+      }
+    },
+    "GraphicsComplexityDetails": {
+      "type": "object",
+      "description": "Practical instructional details including scaffolding strategies and recommended use cases.",
+      "required": [
+        "detailed_summary",
+        "adjustment_and_scaffolding",
+        "recommended_use_cases"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "detailed_summary": {
+          "type": "array",
+          "description": "Individual graphics complexity factors with descriptions and their effects.",
+          "items": {
+            "$ref": "#/$defs/DetailedSummaryItem"
+          }
+        },
+        "adjustment_and_scaffolding": {
+          "type": "array",
+          "description": "Scaffolding strategies to make the text's graphics accessible at the target grade.",
+          "items": {
+            "$ref": "#/$defs/ScaffoldingItem"
+          }
+        },
+        "recommended_use_cases": {
+          "type": "array",
+          "description": "Additional instructional opportunities for using this text's graphics.",
+          "items": {
+            "$ref": "#/$defs/UseCaseItem"
+          }
+        }
+      }
+    },
+    "GraphicAssessment": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "The supplied figure label identifying this graphic."
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "decorative",
+            "supporting",
+            "extending",
+            "complicating"
+          ],
+          "description": "This graphic's relationship to the surrounding text."
+        },
+        "demand_notes": {
+          "type": "string",
+          "description": "What drives this graphic's demand: density, layering, interpretive elements, abstraction."
+        },
+        "complexity": {
+          "type": "string",
+          "enum": [
+            "slightly_complex",
+            "moderately_complex",
+            "very_complex",
+            "exceedingly_complex",
+            "more_context_needed"
+          ],
+          "description": "This graphic's own rating."
+        }
+      },
+      "required": [
+        "label",
+        "role",
+        "demand_notes",
+        "complexity"
+      ],
+      "additionalProperties": false
+    },
+    "JointReading": {
+      "type": "object",
+      "properties": {
+        "applies": {
+          "type": "boolean",
+          "description": "True only if the reader must hold two or more graphics together to use either. Several graphics on a page is not by itself a joint reading."
+        },
+        "which": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The labels read together (at least two) when applies is true; otherwise empty."
+        },
+        "complexity": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "slightly_complex",
+            "moderately_complex",
+            "very_complex",
+            "exceedingly_complex",
+            null
+          ],
+          "description": "The grouping rated as one thing. Null when applies is false."
+        },
+        "reasoning": {
+          "type": "string",
+          "description": "What the reader has to carry from one graphic to the other."
+        }
+      },
+      "required": [
+        "applies",
+        "which",
+        "complexity",
+        "reasoning"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

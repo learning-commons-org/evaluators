@@ -31,6 +31,9 @@ from learning_commons_evaluators.evaluators.feedback.ela_writing.tone_appropriat
 from learning_commons_evaluators.evaluators.feedback.ela_writing.withholding_answers import (
     WithholdingAnswersEvaluator,
 )
+from learning_commons_evaluators.evaluators.graphics.ela.graphics_complexity import (
+    GraphicsComplexityEvaluator,
+)
 from learning_commons_evaluators.evaluators.graphics.math.graphics_accuracy import (
     GraphicsAccuracyEvaluator,
     compose_graphics_accuracy_claim,
@@ -74,6 +77,7 @@ __all__ = [
     "BaseEvaluator",
     "GradeLevelAppropriatenessEvaluator",
     "GraphicsAccuracyEvaluator",
+    "GraphicsComplexityEvaluator",
     "LearningComponentResult",
     "MathStandardsAlignmentEvaluator",
     "MathStandardsAlignmentResult",

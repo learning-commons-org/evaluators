@@ -364,7 +364,7 @@ payload bare.
 + console.log(result.aligned_count);
 ```
 
-Every key is snake_case now, matching the other fifteen evaluators: `statement_code`,
+Every key is snake_case now, matching the other evaluators: `statement_code`,
 `learning_components`, `aligned_count`, `total_count`, and (on the bulk methods only)
 `coarse_filtered`. The one exception is the `error` object the bulk methods attach, whose
 `statusCode` and `retryable` stay camelCase because they mirror the error classes themselves.

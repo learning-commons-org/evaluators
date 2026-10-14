@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "input_schema.json",
+  "title": "EvaluatorInput",
+  "description": "Runtime inputs for the Graphics Complexity evaluator.",
+  "type": "object",
+  "required": [
+    "text",
+    "grade_level",
+    "image_paths"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000,
+      "description": "The passage to evaluate."
+    },
+    "grade_level": {
+      "type": "string",
+      "enum": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
+      "description": "Target student grade level."
+    },
+    "image_paths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Local path to one graphic (absolute, or relative to the working directory).",
+        "x-image": {
+          "formats": ["image/png", "image/jpeg", "image/webp"],
+          "detect": "signature",
+          "min_bytes": 64,
+          "max_bytes": 2621440,
+          "min_edge": 16,
+          "max_edge": 8000
+        }
+      },
+      "minItems": 1,
+      "maxItems": 5,
+      "description": "One local image path per graphic in scope, in the order they should be considered. Each file is checked against the `x-image` bounds before any model call; an image outside them is rejected, not resized."
+    },
+    "figure_labels": {
+      "type": "string",
+      "description": "Optional comma-separated labels matching the order of `image_paths` (e.g. 'Figure 1, Figure 2'). If omitted, graphics are auto-labeled 'Image 1', 'Image 2', etc."
+    }
+  }
+}

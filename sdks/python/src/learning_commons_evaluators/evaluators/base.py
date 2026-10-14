@@ -324,10 +324,10 @@ class BaseEvaluator(ABC):
     async def aclose(self) -> None:  # noqa: B027 — a no-op default, not a missing abstract
         """Release whatever this evaluator owns. A no-op unless the subclass owns something.
 
-        Most evaluators hold nothing that needs releasing: the provider adapters build
-        their clients per call and the vendor SDKs manage their own pools. The exception is
-        an evaluator that builds a dependency client of its own — the Knowledge Graph
-        client owns an HTTP connection pool — and those override this to close it.
+        No built-in evaluator holds anything between calls: the provider adapters build
+        a client per model call, and the one evaluator with a dependency client of its
+        own, the Knowledge Graph's, builds it per evaluation; each is closed before its
+        call returns.
 
         Defined on the base, rather than only where it is needed, so that closing an
         evaluator is one habit rather than a per-evaluator question, and so that an
@@ -336,9 +336,9 @@ class BaseEvaluator(ABC):
 
         A subclass holding something loop-bound should note that each :meth:`evaluate_sync`
         and :meth:`close` runs its own ``asyncio.run``, so the loop that created the
-        resource is already gone by the time the next call arrives. Building it per
-        evaluation avoids the question; holding one across sync calls relies on the
-        resource tolerating that.
+        resource is already gone by the time the next call arrives. Build it per
+        evaluation: a connection pool held across sync calls hands the next one a
+        connection whose loop is closed.
         """
 
     def close(self) -> None:

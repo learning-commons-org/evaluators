@@ -7,6 +7,7 @@ about the evaluator: the client's own behaviour against the wire is covered in
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Iterator
 from dataclasses import dataclass, field, replace
@@ -21,6 +22,12 @@ from learning_commons_evaluators import (
     LLMOutputProcessingError,
     StandardNotFoundError,
     read_outcome,
+)
+from learning_commons_evaluators.dependencies.knowledge_graph import (
+    AcademicStandard,
+    KnowledgeGraphClient,
+    LearningComponentSet,
+    StandardMatch,
 )
 from learning_commons_evaluators.errors import RateLimitError
 from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
@@ -51,6 +58,59 @@ def build(
         anthropic_api_key="test-key",
         knowledge_graph=knowledge_graph if knowledge_graph is not None else FakeKnowledgeGraph(),
         **overrides,
+    )
+
+
+class LoopBoundKnowledgeGraph(FakeKnowledgeGraph):
+    """A fake bound to the event loop it first runs on, as a real client's pool is.
+
+    Reading a UUID it does not hold is refused as the real service refuses one, so a test
+    can fail an evaluation inside the Knowledge Graph step.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.loop: asyncio.AbstractEventLoop | None = None
+
+    def _bind(self) -> None:
+        loop = asyncio.get_running_loop()
+        if self.loop is None:
+            self.loop = loop
+        elif self.loop is not loop:
+            raise RuntimeError("Event loop is closed")
+
+    async def get_academic_standard(self, case_identifier_uuid: str) -> AcademicStandard:
+        self._bind()
+        if case_identifier_uuid != STANDARD_UUID:
+            raise InputValidationError(f"No standard {case_identifier_uuid}.")
+        return await super().get_academic_standard(case_identifier_uuid)
+
+    async def get_learning_component_set(self, case_identifier_uuid: str) -> LearningComponentSet:
+        self._bind()
+        return await super().get_learning_component_set(case_identifier_uuid)
+
+    async def search_standards(self, *args: Any, **kwargs: Any) -> list[StandardMatch]:
+        self._bind()
+        return await super().search_standards(*args, **kwargs)
+
+
+@pytest.fixture
+def built() -> Iterator[list[LoopBoundKnowledgeGraph]]:
+    """Every Knowledge Graph client the evaluator builds from its config, in order."""
+    clients: list[LoopBoundKnowledgeGraph] = []
+
+    def from_config(_config: Any, **_overrides: Any) -> LoopBoundKnowledgeGraph:
+        clients.append(LoopBoundKnowledgeGraph())
+        return clients[-1]
+
+    with patch.object(KnowledgeGraphClient, "from_config", from_config):
+        yield clients
+
+
+def build_from_config() -> MathStandardsAlignmentEvaluator:
+    """An evaluator that builds its own Knowledge Graph client, as a caller's would."""
+    return MathStandardsAlignmentEvaluator(
+        anthropic_api_key="test-key", learning_commons_api_key="test-key"
     )
 
 
@@ -125,16 +185,75 @@ class TestConstruction:
         await build(injected).aclose()
         assert not injected.closed, "an injected client may outlive the evaluator"
 
-    async def test_it_closes_the_client_it_built(self) -> None:
-        # The one evaluator holding a connection pool, so the one whose close does work.
-        evaluator = MathStandardsAlignmentEvaluator(
-            anthropic_api_key="test-key", learning_commons_api_key="test-key"
-        )
-        pool = evaluator._knowledge_graph._client.get_async_httpx_client()
+    def test_it_opens_no_knowledge_graph_client_until_it_evaluates(
+        self, built: list[LoopBoundKnowledgeGraph]
+    ) -> None:
+        build_from_config()
+        assert built == []
 
-        await evaluator.aclose()
 
-        assert pool.is_closed
+class TestKnowledgeGraphLifecycle:
+    """A client built from the config lives for one evaluation and is always closed.
+
+    The fake is bound to the event loop it first runs on, as a real client's connection
+    pool is, so reusing one across ``evaluate_sync`` calls fails here as it does live.
+    """
+
+    async def test_each_evaluation_builds_its_own_client_and_closes_it(
+        self, providers: ProviderFactory, built: list[LoopBoundKnowledgeGraph]
+    ) -> None:
+        evaluator = build_from_config()
+        await evaluator.evaluate(question=QUESTION, case_identifier_uuid=STANDARD_UUID)
+        await evaluator.evaluate_by_code(question=QUESTION, statement_code=STATEMENT_CODE)
+        assert len(built) == 2
+        assert all(client.closed for client in built)
+
+    async def test_the_client_is_closed_before_the_model_is_asked(
+        self, script: Script, built: list[LoopBoundKnowledgeGraph]
+    ) -> None:
+        closed_when_asked: list[bool] = []
+
+        def answer(_schema: Any) -> BatchedLCEvaluation:
+            closed_when_asked.append(built[-1].closed)
+            return script.next_answer()
+
+        factory = ProviderFactory(payload=answer)
+        with patch("learning_commons_evaluators.evaluators.base.create_provider", factory):
+            await build_from_config().evaluate(
+                question=QUESTION, case_identifier_uuid=STANDARD_UUID
+            )
+        assert closed_when_asked == [True]
+
+    async def test_the_client_is_closed_when_the_knowledge_graph_fails(
+        self, providers: ProviderFactory, built: list[LoopBoundKnowledgeGraph]
+    ) -> None:
+        with pytest.raises(InputValidationError):
+            # A UUID this fake does not hold is read and refused by the fake itself.
+            await build_from_config().evaluate(question=QUESTION, case_identifier_uuid=OTHER_UUID)
+        (client,) = built
+        assert client.closed
+
+    def test_back_to_back_sync_evaluations_each_succeed(
+        self, providers: ProviderFactory, built: list[LoopBoundKnowledgeGraph]
+    ) -> None:
+        # Each ``evaluate_sync`` runs its own event loop. A client kept from the first
+        # would fail the second with "Event loop is closed".
+        evaluator = build_from_config()
+        for _ in range(3):
+            evaluator.evaluate_sync(question=QUESTION, case_identifier_uuid=STANDARD_UUID)
+        assert len(built) == 3
+        assert all(client.closed for client in built)
+
+    async def test_an_injected_client_is_used_for_every_evaluation_and_left_open(
+        self, providers: ProviderFactory, built: list[LoopBoundKnowledgeGraph]
+    ) -> None:
+        injected = FakeKnowledgeGraph()
+        evaluator = build(injected)
+        await evaluator.evaluate(question=QUESTION, case_identifier_uuid=STANDARD_UUID)
+        await evaluator.evaluate(question=QUESTION, case_identifier_uuid=STANDARD_UUID)
+        assert injected.requested.count(STANDARD_UUID) == 4  # standard + components, twice
+        assert not injected.closed
+        assert built == []
 
 
 class TestInputs:
