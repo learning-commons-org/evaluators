@@ -2,6 +2,20 @@
 
 All notable changes to the `learning-commons-evaluators` Python SDK will be documented in this file.
 
+## [1.1.0](https://github.com/learning-commons-org/evaluators/compare/sdks-python-v1.0.0...sdks-python-v1.1.0) (2026-10-10)
+
+
+### Features
+
+* **evals:** declare where attached images go relative to the prompt text ([#365](https://github.com/learning-commons-org/evaluators/issues/365)) ([59d2396](https://github.com/learning-commons-org/evaluators/commit/59d2396e7c92f8dcc1a2ebe8445f252c21c4d674))
+* **sdk:** GraphicsAccuracyEvaluator and image attachments in the Python SDK ([#348](https://github.com/learning-commons-org/evaluators/issues/348)) ([54075aa](https://github.com/learning-commons-org/evaluators/commit/54075aae10d89538a558b1d0023a24cfc59a8b97))
+* **sdk:** GraphicsComplexityEvaluator in the Python SDK, with images after the text and model-only fields stripped ([#368](https://github.com/learning-commons-org/evaluators/issues/368)) ([c97d886](https://github.com/learning-commons-org/evaluators/commit/c97d886d8305ffe288305d5fb4a3d57adfcb0ea9))
+
+
+### Bug Fixes
+
+* **sdk:** build and close an LLM client per provider call ([#357](https://github.com/learning-commons-org/evaluators/issues/357)) ([b92961e](https://github.com/learning-commons-org/evaluators/commit/b92961efddb97bcfb72c736b3614c4c510d8c04b))
+
 ## [1.0.0](https://github.com/learning-commons-org/evaluators/compare/sdks-python-v0.2.1...sdks-python-v1.0.0) (2026-09-29)
 
 

@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from pydantic import BaseModel
 
 from learning_commons_evaluators.providers._common import (
+    around_text,
     base64_data,
     elapsed_ms,
     last_user_turn,
@@ -91,20 +92,18 @@ class AnthropicProvider:
         if attachments:
             # Each image is an ``image`` block with a base64 source.
             index = last_user_turn(rest)
-            turns[index]["content"] = [
-                *(
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": a.media_type,
-                            "data": base64_data(a),
-                        },
-                    }
-                    for a in attachments
-                ),
+            turns[index]["content"] = around_text(
                 {"type": "text", "text": rest[index]["content"]},
-            ]
+                attachments,
+                lambda a: {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": a.media_type,
+                        "data": base64_data(a),
+                    },
+                },
+            )
         request: dict[str, Any] = {
             "model": self._model,
             "max_tokens": max_tokens if max_tokens is not None else DEFAULT_MAX_TOKENS,

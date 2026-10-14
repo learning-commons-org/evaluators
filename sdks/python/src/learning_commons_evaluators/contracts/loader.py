@@ -225,6 +225,20 @@ class Contract(_ContractModel):
             ) from None
 
     @property
+    def model_only_fields(self) -> tuple[str, ...]:
+        """The top-level output properties marked ``x-model-only``.
+
+        The model must still fill them in, so they stay in the schema it is sent; the caller's
+        result omits them. ``config.schema.json`` states the rule.
+        """
+        properties: dict[str, Any] = self.output_schema.get("properties", {})
+        return tuple(
+            name
+            for name, spec in properties.items()
+            if isinstance(spec, dict) and spec.get("x-model-only") is True
+        )
+
+    @property
     def required_credentials(self) -> list[str]:
         """The non-LLM credentials declared across every entry that can run.
 

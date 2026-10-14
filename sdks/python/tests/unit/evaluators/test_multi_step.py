@@ -278,6 +278,14 @@ class TestRefusesAContractItCannotRun:
         with pytest.raises(ValueError, match='Step "notes".*attaches text.*sends text only'):
             define(steps=raw["steps"])
 
+    def test_refuses_a_contract_with_model_only_output_fields(self) -> None:
+        # This base returns the terminal step's output whole, so a marked field would reach
+        # the caller; config.schema.json says to strip it or refuse the contract.
+        schema = contract().output_schema
+        schema["properties"]["working"] = {"type": "string", "x-model-only": True}
+        with pytest.raises(ValueError, match="marks working x-model-only.*does not strip"):
+            define(output_schema=schema)
+
     def test_refuses_a_placeholder_source_it_cannot_read(self) -> None:
         raw = contract().model_dump(by_alias=True)
         raw["steps"][1]["prompt"]["placeholders"]["notes"]["source"] = "elsewhere.notes"

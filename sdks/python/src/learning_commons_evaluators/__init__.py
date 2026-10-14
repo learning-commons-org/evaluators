@@ -52,6 +52,7 @@ from learning_commons_evaluators.evaluators import (
     BaseEvaluator,
     GradeLevelAppropriatenessEvaluator,
     GraphicsAccuracyEvaluator,
+    GraphicsComplexityEvaluator,
     LearningComponentResult,
     MathStandardsAlignmentEvaluator,
     MathStandardsAlignmentResult,
@@ -84,6 +85,7 @@ from learning_commons_evaluators.logger import (
     get_logger,
 )
 from learning_commons_evaluators.providers import (
+    AttachmentPosition,
     ImageAttachment,
     ImageMediaType,
     LLMProvider,
@@ -132,6 +134,10 @@ from learning_commons_evaluators.schemas.feedback.ela_writing.withholding_answer
     WithholdingAnswersInput,
     WithholdingAnswersOutput,
 )
+from learning_commons_evaluators.schemas.graphics.ela.graphics_complexity import (
+    GraphicsComplexityInput,
+    GraphicsComplexityOutput,
+)
 from learning_commons_evaluators.schemas.graphics.math.graphics_accuracy import (
     GraphicsAccuracyInput,
     GraphicsAccuracyOutput,
@@ -174,6 +180,7 @@ __all__ = [
     "__version__",
     "AcademicStandard",
     "AcademicSubject",
+    "AttachmentPosition",
     "AuthenticationError",
     "BackgroundKnowledgeDemandsEvaluator",
     "BackgroundKnowledgeDemandsInput",
@@ -195,6 +202,9 @@ __all__ = [
     "GraphicsAccuracyEvaluator",
     "GraphicsAccuracyInput",
     "GraphicsAccuracyOutput",
+    "GraphicsComplexityEvaluator",
+    "GraphicsComplexityInput",
+    "GraphicsComplexityOutput",
     "ImageAttachment",
     "ImageMediaType",
     "InputValidationError",

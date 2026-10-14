@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from pydantic import BaseModel
 
 from learning_commons_evaluators.providers._common import (
+    around_text,
     elapsed_ms,
     last_user_turn,
     no_structured_output,
@@ -124,13 +125,11 @@ class GoogleProvider:
             index = last_user_turn(rest)
             contents[index] = types.Content(
                 role="user",
-                parts=[
-                    *(
-                        types.Part.from_bytes(data=a.data, mime_type=a.media_type)
-                        for a in attachments
-                    ),
+                parts=around_text(
                     types.Part.from_text(text=rest[index]["content"]),
-                ],
+                    attachments,
+                    lambda a: types.Part.from_bytes(data=a.data, mime_type=a.media_type),
+                ),
             )
         return {
             "model": self._model,
