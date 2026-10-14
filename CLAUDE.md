@@ -6,10 +6,9 @@ Learning-science-backed LLM-as-a-judge evaluators, shipped three ways: prompt + 
 
 | Path                | What it is                                                        |
 | ------------------- | ----------------------------------------------------------------- |
-| `evals/`            | Evaluator definitions — prompts, schemas, fixtures, notebooks     |
+| `evals/`            | Evaluator definitions — the source both SDKs generate from        |
 | `sdks/typescript/`  | `@learning-commons/evaluators` npm package                        |
 | `sdks/python/`      | `learning-commons-evaluators` PyPI package                        |
-| `sdks/settings/`    | Per-evaluator TOML shared by both SDKs (source of truth)          |
 | `datasets/`         | Expert-annotated datasets behind the evaluators                   |
 | `demos/typescript/` | Vite + React + Express demo of the published TS SDK               |
 | `demos/python/`     | FastAPI + Jinja demo of the Python SDK                            |

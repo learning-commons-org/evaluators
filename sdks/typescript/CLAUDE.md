@@ -19,9 +19,9 @@ Integration tests need real API keys and are opt-in: `npm run test:integration` 
 
 ## Generated code
 
-- `src/schemas/**` — from `sdks/settings/`; `npm run generate:schemas`. CI runs `generate:schemas:check` and fails on drift.
+- `src/schemas/**` — from each evaluator's `config.json` and JSON schemas under `evals/`; `npm run generate:schemas`. CI runs `generate:schemas:check` and fails on drift.
 - `src/knowledge-graph/kg-api.d.ts` — from the published KG OpenAPI spec; `npm run generate:kg-types`.
 
-`sdks/settings/<evaluator>/settings.toml` is the source of truth shared with the Python SDK — change it there, then regenerate on both sides.
+`evals/` is the source of truth shared with the Python SDK — change a contract there, then regenerate on both sides (`make generate-contracts` in `sdks/python/`).
 
 `CHANGELOG.md` and the `package.json` version are release-please managed.

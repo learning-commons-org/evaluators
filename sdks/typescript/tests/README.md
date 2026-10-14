@@ -19,16 +19,34 @@ npm run test:unit           # Fast, no API keys needed
 ```
 
 ### Integration Tests
-Requires API keys in `.env`:
+Copy the template to `.env.test.local` (gitignored) and fill in the keys you need:
 ```bash
-OPENAI_API_KEY=sk-...
-GOOGLE_API_KEY=...
+cp .env.test.example .env.test.local
+chmod 600 .env.test.local
 ```
 
-Run tests:
+`vitest.config.ts` loads it through Vite's `loadEnv`, which reads `.env`, `.env.local`,
+`.env.test` and `.env.test.local`. Variables already set in your shell win over the files, so
+exporting the keys works too (e.g. in CI or a cloud session).
+
+| Key | Needed by |
+| --- | --- |
+| `GOOGLE_API_KEY` | Text complexity and graphics evaluators, README quickstart |
+| `OPENAI_API_KEY` | Feedback evaluators, sentence structure, vocabulary |
+| `ANTHROPIC_API_KEY` | Anthropic provider, math standards alignment |
+| `LEARNING_COMMONS_API_KEY` | Math standards alignment |
+
+`batch` and `model-override` need several provider keys. With `RUN_INTEGRATION_TESTS=true`, a
+test file whose key is missing **throws** rather than skipping, so with only some keys, run just
+the matching files:
+
 ```bash
-RUN_INTEGRATION_TESTS=true npm run test:integration
+npm run test:integration                                             # sets RUN_INTEGRATION_TESTS=true
+npm run test:integration -- tests/integration/tone-appropriateness   # one file (OpenAI only)
 ```
+
+`npm run test:ci` and `npm run test:integration:dist` use `vitest.ci.config.ts`, which does
+**not** load env files — export the keys in your shell for those.
 
 ### All Tests
 ```bash
@@ -96,12 +114,15 @@ console.log(logBuffer.join('\n'));  // Print once at end
 import { describe, it, expect, beforeAll } from 'vitest';
 import { MyEvaluator } from '../../src/evaluators/my-evaluator.js';
 import { runEvaluatorTest, type BaseTestCase } from '../utils/index.js';
-import { config } from 'dotenv';
 
-config();
-
-const SKIP_INTEGRATION = !process.env.RUN_INTEGRATION_TESTS && !process.env.MY_API_KEY;
-const describeIntegration = SKIP_INTEGRATION ? describe.skip : describe;
+// Keys come from .env.test.local via vitest.config.ts — no dotenv import needed.
+const RUN_INTEGRATION = process.env.RUN_INTEGRATION_TESTS === 'true';
+// A missing key when integration tests were explicitly requested is a misconfiguration,
+// not a reason to quietly pass.
+if (RUN_INTEGRATION && !process.env.MY_API_KEY) {
+  throw new Error('MY_API_KEY is required when RUN_INTEGRATION_TESTS=true');
+}
+const describeIntegration = RUN_INTEGRATION ? describe : describe.skip;
 const TEST_TIMEOUT_MS = 2 * 60 * 1000;  // 2 minutes
 
 const TEST_CASES: BaseTestCase[] = [
@@ -118,11 +139,6 @@ describeIntegration.concurrent('My Evaluator - Test Suite', () => {
   let evaluator: MyEvaluator;
 
   beforeAll(() => {
-    if (SKIP_INTEGRATION) {
-      console.log('⏭️  Skipping integration tests');
-      return;
-    }
-
     evaluator = new MyEvaluator({
       telemetry: { learningCommonsApiKey: process.env.LEARNING_COMMONS_API_KEY! },
       retry: false,  // We handle retries in test logic
@@ -163,8 +179,8 @@ const TEST_TIMEOUT_MS = 2 * 60 * 1000;
 // Max retry attempts
 const maxAttempts = 3;
 
-// Skip integration tests if no API keys
-const SKIP_INTEGRATION = !process.env.RUN_INTEGRATION_TESTS && !process.env.API_KEY;
+// Run only when requested; throw if requested without the key
+const RUN_INTEGRATION = process.env.RUN_INTEGRATION_TESTS === 'true';
 ```
 
 ## Test Utilities
@@ -209,8 +225,12 @@ npm run test:ci
 ## Troubleshooting
 
 **Tests skipped?**
-- Check API keys: `echo $OPENAI_API_KEY`
-- Set: `RUN_INTEGRATION_TESTS=true npm run test:integration`
+- Integration tests skip unless `RUN_INTEGRATION_TESTS=true`; `npm run test:integration` sets it
+
+**`<KEY> is required when RUN_INTEGRATION_TESTS=true`?**
+- Add the key to `.env.test.local` (or export it), or run only the files whose keys you have
+- Check it's set without printing it: `[ -n "$OPENAI_API_KEY" ] && echo set`
+- For `test:ci` / `test:integration:dist`, the key must be exported — env files aren't loaded
 
 **Tests timeout?**
 - Increase `TEST_TIMEOUT_MS = 3 * 60 * 1000` (3 minutes)
