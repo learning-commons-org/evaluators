@@ -25,9 +25,15 @@ interface DeclaredStringArraySpec {
   items?: DeclaredStringSpec & Record<string, unknown>;
 }
 
+/** A declared integer input. */
+interface DeclaredIntegerSpec {
+  minimum?: number;
+  maximum?: number;
+}
+
 /** The shape of an `input_schema.json`, as much of it as validation reads. */
 export interface DeclaredInputSchema {
-  properties: Record<string, DeclaredStringSpec & DeclaredStringArraySpec>;
+  properties: Record<string, DeclaredStringSpec & DeclaredStringArraySpec & DeclaredIntegerSpec>;
   required?: string[];
 }
 
@@ -49,8 +55,9 @@ export type InputsOf<S extends { properties: object }> = Record<keyof S['propert
  * this SDK and in any other reading the same schema.
  *
  * @throws {InputValidationError} On an unknown key, a missing field, a whitespace-only
- * or out-of-bounds string, a value outside a declared `enum`, or an array input that is
- * not an array of strings or has a count outside `minItems`/`maxItems`.
+ * or out-of-bounds string, a non-integer or out-of-bounds integer, a value outside a
+ * declared `enum`, or an array input that is not an array of strings or has a count
+ * outside `minItems`/`maxItems`.
  */
 export function validateInputs(
   inputs: Record<string, unknown>,
@@ -100,9 +107,31 @@ export function validateInputs(
       throw new InputValidationError(`${field} must be a string.`);
     }
 
+    if (spec.type === 'integer') {
+      validateIntegerField(field, value, spec);
+      continue;
+    }
+
     if (typeof value === 'string') {
       validateStringField(field, value, spec);
     }
+  }
+}
+
+function validateIntegerField(field: string, value: unknown, spec: DeclaredIntegerSpec): void {
+  // Booleans, floats, numeric strings, and values past the safe-integer range are
+  // not integers here. Past that range the value is not exact, and String(value)
+  // can render exponential notation instead of the decimal digits the prompt binds.
+  if (typeof value !== 'number' || !Number.isSafeInteger(value)) {
+    throw new InputValidationError(`${field} must be an integer.`);
+  }
+
+  if (spec.minimum !== undefined && value < spec.minimum) {
+    throw new InputValidationError(`${field} must be at least ${spec.minimum}.`);
+  }
+
+  if (spec.maximum !== undefined && value > spec.maximum) {
+    throw new InputValidationError(`${field} must be at most ${spec.maximum}.`);
   }
 }
 
