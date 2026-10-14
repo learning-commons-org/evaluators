@@ -53,6 +53,22 @@ def output_model(evaluator_id: str) -> type[BaseModel]:
     return model
 
 
+def response_model(evaluator_id: str) -> type[BaseModel]:
+    """What the model is asked for: ``<Class>Response`` when the contract marks
+    ``x-model-only`` fields, otherwise the output model itself."""
+    module = importlib.import_module(f"learning_commons_evaluators.schemas.{evaluator_id}")
+    name = f"{_pascal(evaluator_id.rsplit('.', 1)[-1])}Response"
+    model = getattr(module, name, None) or output_model(evaluator_id)
+    assert issubclass(model, BaseModel)
+    return model
+
+
+def returned(evaluator_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """``payload`` as a caller receives it, without the contract's ``x-model-only`` fields."""
+    model_only = load_contract(evaluator_id).model_only_fields
+    return {name: value for name, value in payload.items() if name not in model_only}
+
+
 def input_model(evaluator_id: str) -> type[BaseModel]:
     module = importlib.import_module(f"learning_commons_evaluators.schemas.{evaluator_id}")
     model = getattr(module, f"{_pascal(evaluator_id.rsplit('.', 1)[-1])}Input")
@@ -65,6 +81,9 @@ def sample(node: dict[str, Any], defs: dict[str, Any]) -> Any:
     if "$ref" in node:
         target = defs[node["$ref"].removeprefix("#/$defs/")]
         return sample({**target, **{k: v for k, v in node.items() if k != "$ref"}}, defs)
+    if "anyOf" in node:
+        branch = next(b for b in node["anyOf"] if b.get("type") != "null")
+        return sample({**branch, **{k: v for k, v in node.items() if k != "anyOf"}}, defs)
     if "enum" in node:
         return node["enum"][0]
     declared = node.get("type")
@@ -91,24 +110,50 @@ def sample(node: dict[str, Any], defs: dict[str, Any]) -> Any:
 
 @pytest.mark.parametrize("evaluator_id", list_contract_ids())
 class TestEveryContract:
-    def test_output_model_accepts_a_schema_conforming_payload(self, evaluator_id: str) -> None:
+    def test_response_model_accepts_a_schema_conforming_payload(self, evaluator_id: str) -> None:
         schema = load_contract(evaluator_id).output_schema
         payload = sample(schema, schema.get("$defs", {}))
-        parsed = output_model(evaluator_id).model_validate(payload)
+        parsed = response_model(evaluator_id).model_validate(payload)
         assert parsed.model_dump(exclude_none=True) == payload
 
-    def test_output_model_mirrors_the_schema_properties_and_required(
+    def test_output_model_accepts_the_payload_without_its_model_only_fields(
         self, evaluator_id: str
     ) -> None:
         schema = load_contract(evaluator_id).output_schema
-        emitted = output_model(evaluator_id).model_json_schema()
+        payload = returned(evaluator_id, sample(schema, schema.get("$defs", {})))
+        parsed = output_model(evaluator_id).model_validate(payload)
+        assert parsed.model_dump(exclude_none=True) == payload
+
+    def test_response_model_mirrors_the_schema_properties_and_required(
+        self, evaluator_id: str
+    ) -> None:
+        schema = load_contract(evaluator_id).output_schema
+        emitted = response_model(evaluator_id).model_json_schema()
         assert list(emitted["properties"]) == list(schema["properties"])
         assert sorted(emitted.get("required", [])) == sorted(schema.get("required", []))
         assert emitted.get("additionalProperties") is False
 
+    def test_output_model_mirrors_the_schema_without_its_model_only_fields(
+        self, evaluator_id: str
+    ) -> None:
+        # config.schema.json: callers receive the schema minus the marked properties, which
+        # are also dropped from its required.
+        contract = load_contract(evaluator_id)
+        schema = contract.output_schema
+        emitted = output_model(evaluator_id).model_json_schema()
+        kept = [p for p in schema["properties"] if p not in contract.model_only_fields]
+        assert list(emitted["properties"]) == kept
+        assert sorted(emitted.get("required", [])) == sorted(
+            r for r in schema.get("required", []) if r in kept
+        )
+        assert emitted.get("additionalProperties") is False
+
     def test_output_model_rejects_an_extra_property(self, evaluator_id: str) -> None:
         schema = load_contract(evaluator_id).output_schema
-        payload = {**sample(schema, schema.get("$defs", {})), "unexpected": 1}
+        payload = {
+            **returned(evaluator_id, sample(schema, schema.get("$defs", {}))),
+            "unexpected": 1,
+        }
         with pytest.raises(ValidationError):
             output_model(evaluator_id).model_validate(payload)
 

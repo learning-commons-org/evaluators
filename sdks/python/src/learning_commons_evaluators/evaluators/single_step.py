@@ -8,6 +8,10 @@ here. A concrete evaluator is a declaration::
         input_model = PurposeClarityInput
         output_model = PurposeClarityOutput
 
+A contract that marks output properties ``x-model-only`` also declares ``response_model``,
+the generated ``<Class>Response``: the model is asked for that, and the caller receives
+``output_model``, its fields without the marked ones.
+
 Everything that varies is read from the contract at class creation, so an evaluator
 cannot drift from what its contract declares, and a contract this class cannot run fails
 at import rather than on the first evaluation. This is the Python form of the TypeScript
@@ -40,6 +44,7 @@ from learning_commons_evaluators.features.preprocessing import (
 )
 from learning_commons_evaluators.prompts.render import render_prompt
 from learning_commons_evaluators.providers import (
+    AttachmentPosition,
     ImageAttachment,
     ImageMediaType,
     LLMProvider,
@@ -68,6 +73,9 @@ def step_for(contract: Contract) -> Step:
 #: Read off the ``ImageMediaType`` literal, so a format added there is accepted here too.
 _SUPPORTED_FORMATS: tuple[ImageMediaType, ...] = get_args(ImageMediaType)
 
+#: Read off the ``AttachmentPosition`` literal for the same reason.
+_SUPPORTED_POSITIONS: tuple[AttachmentPosition, ...] = get_args(AttachmentPosition)
+
 
 def _is_number(value: object) -> TypeGuard[int | float]:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
@@ -75,9 +83,10 @@ def _is_number(value: object) -> TypeGuard[int | float]:
 
 @dataclass(frozen=True)
 class AttachedInput:
-    """An input whose files the step attaches, paired with the ``x-image`` bounds on its items."""
+    """An input whose files the step attaches, where they go, and the ``x-image`` bounds on its items."""
 
     input: str
+    position: AttachmentPosition
     bounds: ImageBounds
 
 
@@ -101,10 +110,10 @@ def attachments_of(
 
         if entry.kind != "image":
             refuse(f'kind "{entry.kind}" is not supported; this SDK sends only images.')
-        if entry.position != "before_text":
+        if entry.position not in _SUPPORTED_POSITIONS:
             refuse(
                 f'position "{entry.position}" is not supported; '
-                "this SDK places attachments only before the text."
+                f"expected {' or '.join(_SUPPORTED_POSITIONS)}."
             )
         spec = properties.get(entry.input)
         # Optional or non-array, a request could omit the images and be sent without them.
@@ -150,8 +159,50 @@ def attachments_of(
             refuse("`x-image.min_bytes` exceeds `max_bytes`.")
         if bounds.min_edge > bounds.max_edge:
             refuse("`x-image.min_edge` exceeds `max_edge`.")
-        attached.append(AttachedInput(entry.input, bounds))
+        attached.append(
+            AttachedInput(entry.input, cast(AttachmentPosition, entry.position), bounds)
+        )
     return tuple(attached)
+
+
+def _wire_names(model: type[BaseModel]) -> list[str]:
+    """A model's fields as the JSON property names they stand for, in declared order."""
+    return [info.alias or name for name, info in model.model_fields.items()]
+
+
+def _check_response_model(cls: type[SingleStepEvaluator[Any, Any]]) -> None:
+    """Refuse a class that would return an ``x-model-only`` field or drop a returned one.
+
+    ``config.schema.json`` requires an SDK to strip every marked property or refuse the
+    contract, so a contract with marked fields needs a ``response_model`` holding every
+    output property and an ``output_model`` holding exactly the unmarked ones.
+    """
+    name = cls.contract.evaluator.name
+    declared = list(cls.contract.output_schema.get("properties", {}))
+    model_only = set(cls.contract.model_only_fields)
+    if not model_only:
+        if cls.response_model is not None:
+            raise ValueError(
+                f"{name} declares a response_model, but its output schema marks no property "
+                "x-model-only; there is nothing to strip."
+            )
+        return
+    if cls.response_model is None:
+        raise ValueError(
+            f"{name} output schema marks {', '.join(sorted(model_only))} x-model-only; declare "
+            "a response_model that asks the model for them, or they would be returned."
+        )
+    if _wire_names(cls.response_model) != declared:
+        raise ValueError(
+            f"{name} response_model {cls.response_model.__name__} must hold every output "
+            f"property, in order: {', '.join(declared)}."
+        )
+    returned = [p for p in declared if p not in model_only]
+    if _wire_names(cls.output_model) != returned:
+        raise ValueError(
+            f"{name} output_model {cls.output_model.__name__} must hold exactly the properties "
+            f"not marked x-model-only: {', '.join(returned)}."
+        )
 
 
 class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
@@ -160,6 +211,9 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
     #: The declarations a concrete class makes, alongside ``contract`` from the base.
     input_model: ClassVar[type[BaseModel]]
     output_model: ClassVar[type[BaseModel]]
+    #: What the model is asked for, when the contract marks output properties
+    #: ``x-model-only``: ``output_model``'s fields plus those, stripped before returning.
+    response_model: ClassVar[type[BaseModel] | None] = None
 
     # Resolved from the contract at class creation.
     _step: ClassVar[Step]
@@ -212,6 +266,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         cls._vendor = step.model.provider
         cls._preprocessing = tuple(contract.preprocessing)
         cls._attachments = attachments_of(step, contract.input_schema, name)
+        _check_response_model(cls)
         # An attached input is an array of paths, never the primary text: that is the
         # first declared *string* input, so the attached ones are passed over by type.
         cls._text_field = primary_text_field(contract.input_schema)
@@ -252,7 +307,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         raw = self._raw_fields(input, fields)
         with self._telemetry_run(self.provider.label) as run:
             try:
-                validated = validate_inputs(raw, self.contract.input_schema)
+                validated = self._prepare_inputs(validate_inputs(raw, self.contract.input_schema))
                 # Attached inputs are files, never prompt text; only the string inputs render.
                 values = text_inputs(validated)
                 text = values.get(self._text_field, "") if self._text_field else ""
@@ -274,7 +329,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                 response = await call_with_resampling(
                     lambda: self.provider.generate_structured(
                         messages,
-                        self.output_model,
+                        self.response_model or self.output_model,
                         temperature=self.effective_temperature(self._step.temperature),
                         **extra,
                     ),
@@ -284,11 +339,12 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                     logger=self.logger,
                 )
                 run.step(self._step.id, self.provider.label, response.latency_ms, response.usage)
+                data = self._returned(response.data)
 
                 elapsed_ms = run.elapsed_ms
                 result: EvaluationResult[Any] = EvaluationResult(
                     evaluator=self.metadata.id,
-                    result=response.data,
+                    result=data,
                     metadata=EvaluationMetadata(
                         model=self.provider.label,
                         processing_time_ms=elapsed_ms,
@@ -305,7 +361,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                     extra={
                         **context,
                         "grade_level": run.grade,
-                        "score": getattr(response.data, outcome.score, None) if outcome else None,
+                        "score": getattr(data, outcome.score, None) if outcome else None,
                         "processing_time_ms": elapsed_ms,
                     },
                 )
@@ -330,6 +386,27 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
 
     # --- pieces of the flow ------------------------------------------------------------
 
+    def _prepare_inputs(self, values: dict[str, InputValue]) -> dict[str, InputValue]:
+        """Fill in what the contract says an omitted optional input means. Identity here.
+
+        Runs after validation and before preprocessing, so an override sees well-formed
+        inputs, and anything it raises is logged and telemetered like any other failure.
+        """
+        return values
+
+    def _returned(self, data: BaseModel) -> BaseModel:
+        """The model's response as the caller receives it: without its ``x-model-only`` fields.
+
+        Selected by wire name, as ``_check_response_model`` compares the two models, so the
+        models need not share attribute names or nested classes.
+        """
+        if self.response_model is None:
+            return data
+        dumped = data.model_dump(by_alias=True)
+        return self.output_model.model_validate(
+            {name: dumped[name] for name in _wire_names(self.output_model)}
+        )
+
     async def _load_attachments(
         self, values: Mapping[str, InputValue]
     ) -> tuple[ImageAttachment, ...]:
@@ -344,7 +421,11 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             for index, path in enumerate(paths):
                 loaded.append(
                     await asyncio.to_thread(
-                        load_image, f"{attached.input}[{index}]", path, attached.bounds
+                        load_image,
+                        f"{attached.input}[{index}]",
+                        path,
+                        attached.bounds,
+                        position=attached.position,
                     )
                 )
         return tuple(loaded)

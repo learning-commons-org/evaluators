@@ -117,16 +117,23 @@ declares `neutral_professional_language`, `targets_work_not_student` and
 | `ToneAppropriatenessEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/tone-appropriateness) |
 | `WithholdingAnswersEvaluator` | 6–12 | OpenAI | [Link](https://docs.learningcommons.org/evaluators/feedback-evaluators/withholding-answers) |
 
-**Graphics** — checks an image against the claim made about it. Takes
-`{ image_paths, claim }`: `image_paths` is a list of local image file paths (one, for this
-evaluator), each bounded by its contract's format, size and edge limits before any model call,
-and read by the SDK in your process. A file outside those limits is rejected with
-`InputValidationError`, not resized. Returns `is_correct` with `reasoning`, any `defects` in
-the image itself, and a `basis` saying whether a false verdict was `contradicted`,
-`unverified` or `defective`. `read_outcome` reports the verdict as `"true"` or `"false"`, the
-same token the TypeScript SDK reports. For a question with its expected answer, build the
-claim with `compose_graphics_accuracy_claim(question, answer)`, which produces the exact text
-the evaluator was measured with.
+**Graphics** — judges images: the graphics in a passage, or a math graphic against a claim.
+Each image path is local and read by the SDK in your process, and each file is checked against
+its contract's format, size and edge limits before any model call. A file outside those limits
+is rejected with `InputValidationError`, not resized.
+
+- `GraphicsComplexityEvaluator` takes `text`, `grade_level`, `image_paths` and an optional
+  `figure_labels`: up to five images, one per graphic in the passage, with comma-separated
+  labels in the same order (default `Image 1, Image 2, …`). The images are sent after the
+  passage text. Returns `complexity_score`, `reasoning` and `details`, like the text complexity
+  evaluators.
+- `GraphicsAccuracyEvaluator` takes `image_paths` (a single image) and `claim`. Returns
+  `is_correct` with `reasoning`, any `defects` in the image itself, and a `basis` saying
+  whether a false verdict was `contradicted`, `unverified` or `defective`. `read_outcome`
+  reports the verdict as `"true"` or `"false"`, the same token the TypeScript SDK reports. For
+  a question with its expected answer, build the claim with
+  `compose_graphics_accuracy_claim(question, answer)`, which produces the exact text the
+  evaluator was measured with.
 
 ```python
 from learning_commons_evaluators import GraphicsAccuracyEvaluator, compose_graphics_accuracy_claim
@@ -141,6 +148,7 @@ print(evaluation.result.is_correct, evaluation.result.basis)
 
 | Evaluator | Grades | Default provider | Docs |
 | --- | --- | --- | --- |
+| `GraphicsComplexityEvaluator` | 3–12 | Google | Docs pending |
 | `GraphicsAccuracyEvaluator` | K–12 | Google | Early access; docs pending |
 
 **Standards alignment** — checks a math item against a standard, component by component.

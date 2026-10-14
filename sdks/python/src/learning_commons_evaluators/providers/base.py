@@ -42,6 +42,9 @@ class Message(TypedDict):
 #: Image formats every supported vendor accepts natively.
 ImageMediaType = Literal["image/png", "image/jpeg", "image/webp"]
 
+#: Where an attachment goes on the final user turn, relative to its text; the contract declares it.
+AttachmentPosition = Literal["before_text", "after_text"]
+
 
 @dataclass(frozen=True)
 class ImageAttachment:
@@ -56,6 +59,7 @@ class ImageAttachment:
 
     data: bytes
     media_type: ImageMediaType
+    position: AttachmentPosition
 
 
 @dataclass(frozen=True)
@@ -97,9 +101,10 @@ class LLMProvider(Protocol):
     implementation conforms unchanged. A provider that has it sets
     ``supports_attachments = True`` and accepts an ``attachments`` keyword on
     :meth:`generate_structured`: a sequence of :class:`ImageAttachment`, placed on the final
-    user turn ahead of its text. The attribute is optional and absent means no; an evaluator
-    that attaches images refuses such a provider at construction, and passes
-    ``attachments`` only to one that declares it, and only when there are some.
+    user turn in order, each before or after its text as its ``position`` says. The attribute
+    is optional and absent means no; an evaluator that attaches images refuses such a
+    provider at construction, and passes ``attachments`` only to one that declares it, and
+    only when there are some.
 
     The built-in adapters build a vendor client for each call and close it before the call
     returns, so an adapter holds no connection between calls and has nothing to release.
@@ -182,6 +187,7 @@ def provider_context(provider: LLMProvider) -> tuple[DependencyId, str]:
 
 
 __all__ = [
+    "AttachmentPosition",
     "ImageAttachment",
     "ImageMediaType",
     "LLMProvider",

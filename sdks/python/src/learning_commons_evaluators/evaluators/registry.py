@@ -29,6 +29,9 @@ from learning_commons_evaluators.evaluators.feedback.ela_writing.tone_appropriat
 from learning_commons_evaluators.evaluators.feedback.ela_writing.withholding_answers import (
     WithholdingAnswersEvaluator,
 )
+from learning_commons_evaluators.evaluators.graphics.ela.graphics_complexity import (
+    GraphicsComplexityEvaluator,
+)
 from learning_commons_evaluators.evaluators.graphics.math.graphics_accuracy import (
     GraphicsAccuracyEvaluator,
 )
@@ -69,6 +72,7 @@ EVALUATORS: tuple[type[BaseEvaluator], ...] = (
     StudentResponseSpecificityEvaluator,
     ToneAppropriatenessEvaluator,
     WithholdingAnswersEvaluator,
+    GraphicsComplexityEvaluator,
     GraphicsAccuracyEvaluator,
     BackgroundKnowledgeDemandsEvaluator,
     GradeLevelAppropriatenessEvaluator,

@@ -15,11 +15,12 @@ import sys
 import zlib
 from dataclasses import replace
 from pathlib import Path
+from typing import get_args
 
 import pytest
 from PIL import Image
 
-from learning_commons_evaluators import InputValidationError
+from learning_commons_evaluators import AttachmentPosition, InputValidationError
 from learning_commons_evaluators.features.image_source import (
     ImageBounds,
     ImageInfo,
@@ -133,12 +134,24 @@ class TestLoadImage:
     def test_returns_the_exact_bytes_with_the_detected_media_type(self, tmp_path: Path) -> None:
         data = encoded("PNG", 512, 256)
         # The extension is deliberately meaningless: the bytes decide.
-        attachment = load_image("image_paths[0]", self.write(tmp_path, "chart.dat", data), BOUNDS)
+        attachment = load_image(
+            "image_paths[0]",
+            self.write(tmp_path, "chart.dat", data),
+            BOUNDS,
+            position="before_text",
+        )
         assert attachment.data == data
         assert attachment.media_type == "image/png"
 
+    @pytest.mark.parametrize("position", get_args(AttachmentPosition))
+    def test_carries_the_position_it_is_given(self, position: AttachmentPosition) -> None:
+        attachment = load_image("image_paths[0]", str(FIXTURE_IMAGE), BOUNDS, position=position)
+        assert attachment.position == position
+
     def test_accepts_a_real_fixture_image_within_the_shipped_bounds(self) -> None:
-        attachment = load_image("image_paths[0]", str(FIXTURE_IMAGE), BOUNDS)
+        attachment = load_image(
+            "image_paths[0]", str(FIXTURE_IMAGE), BOUNDS, position="before_text"
+        )
         assert attachment.media_type == "image/png"
         assert attachment.data == FIXTURE_IMAGE.read_bytes()
 
@@ -147,20 +160,22 @@ class TestLoadImage:
     ) -> None:
         self.write(tmp_path, "here.png", encoded("PNG", 100, 100))
         monkeypatch.chdir(tmp_path)
-        assert load_image("f", "here.png", BOUNDS).media_type == "image/png"
+        assert load_image("f", "here.png", BOUNDS, position="before_text").media_type == "image/png"
 
     def test_names_the_field_and_position_in_every_error(self, tmp_path: Path) -> None:
         with pytest.raises(InputValidationError, match=r"^image_paths\[2\]: could not read file"):
-            load_image("image_paths[2]", str(tmp_path / "missing.png"), BOUNDS)
+            load_image(
+                "image_paths[2]", str(tmp_path / "missing.png"), BOUNDS, position="before_text"
+            )
 
     def test_an_unreadable_path_keeps_its_cause(self, tmp_path: Path) -> None:
         with pytest.raises(InputValidationError) as caught:
-            load_image("f", str(tmp_path / "missing.png"), BOUNDS)
+            load_image("f", str(tmp_path / "missing.png"), BOUNDS, position="before_text")
         assert isinstance(caught.value.__cause__, FileNotFoundError)
 
     def test_a_path_the_os_cannot_take_is_unreadable_not_a_crash(self) -> None:
         with pytest.raises(InputValidationError, match="could not read file"):
-            load_image("f", "bad\0path.png", BOUNDS)
+            load_image("f", "bad\0path.png", BOUNDS, position="before_text")
 
     def test_rejects_a_file_that_is_not_an_accepted_image_by_its_bytes(
         self, tmp_path: Path
@@ -169,21 +184,26 @@ class TestLoadImage:
         with pytest.raises(
             InputValidationError, match=r"not an accepted image \(PNG, JPEG, WEBP\)"
         ):
-            load_image("f", path, BOUNDS)
+            load_image("f", path, BOUNDS, position="before_text")
 
     def test_rejects_a_format_the_contract_does_not_list(self, tmp_path: Path) -> None:
         png_only = replace(BOUNDS, formats=("image/png",))
         path = self.write(tmp_path, "photo.jpg", encoded("JPEG", 100, 100))
         with pytest.raises(InputValidationError, match=r"\(PNG\)"):
-            load_image("f", path, png_only)
+            load_image("f", path, png_only, position="before_text")
 
     def test_rejects_a_file_below_min_bytes_including_an_empty_one(self, tmp_path: Path) -> None:
         with pytest.raises(
             InputValidationError, match=r"0 bytes \(0\.00 MB\); the minimum is 64 bytes"
         ):
-            load_image("f", self.write(tmp_path, "empty.png", b""), BOUNDS)
+            load_image("f", self.write(tmp_path, "empty.png", b""), BOUNDS, position="before_text")
         with pytest.raises(InputValidationError, match="minimum is 64"):
-            load_image("f", self.write(tmp_path, "tiny.png", encoded("PNG", 20, 20)[:40]), BOUNDS)
+            load_image(
+                "f",
+                self.write(tmp_path, "tiny.png", encoded("PNG", 20, 20)[:40]),
+                BOUNDS,
+                position="before_text",
+            )
 
     def test_rejects_a_file_over_max_bytes_by_its_size_on_disk(self, tmp_path: Path) -> None:
         big = padded(encoded("PNG", 100, 100), BOUNDS.max_bytes + 1)
@@ -191,7 +211,7 @@ class TestLoadImage:
             InputValidationError,
             match=r"5,242,881 bytes \(5\.00 MB\); the maximum is 5,242,880 bytes",
         ):
-            load_image("f", self.write(tmp_path, "huge.png", big), BOUNDS)
+            load_image("f", self.write(tmp_path, "huge.png", big), BOUNDS, position="before_text")
 
     def test_reads_no_more_than_one_byte_past_max_bytes(self, tmp_path: Path) -> None:
         # The size on disk is checked first, but the read is capped too, so a file that grows
@@ -216,23 +236,23 @@ class TestLoadImage:
         with pytest.MonkeyPatch.context() as patch:
             patch.setattr(os, "fstat", lying_fstat)
             with pytest.raises(InputValidationError, match=r"201 bytes .* the maximum is 200"):
-                load_image("f", path, small)
+                load_image("f", path, small, position="before_text")
 
     def test_rejects_an_edge_below_min_edge(self, tmp_path: Path) -> None:
         path = self.write(tmp_path, "narrow.png", encoded("PNG", 10, 400))
         with pytest.raises(InputValidationError, match="10×400 px; each edge must be 16 to 2560"):
-            load_image("f", path, BOUNDS)
+            load_image("f", path, BOUNDS, position="before_text")
 
     def test_rejects_an_edge_above_max_edge_and_says_how_to_fix_it(self, tmp_path: Path) -> None:
         path = self.write(tmp_path, "wide.webp", encoded("WEBP", 2677, 1605))
         with pytest.raises(
             InputValidationError, match="2677×1605 px.*Resize to 2560 px on the long edge"
         ):
-            load_image("f", path, BOUNDS)
+            load_image("f", path, BOUNDS, position="before_text")
 
     def test_accepts_both_edges_exactly_at_the_bounds(self, tmp_path: Path) -> None:
         path = self.write(tmp_path, "edge.png", encoded("PNG", 2560, 16))
-        assert load_image("f", path, BOUNDS).media_type == "image/png"
+        assert load_image("f", path, BOUNDS, position="before_text").media_type == "image/png"
 
     def test_a_header_too_large_to_open_is_an_edge_failure(self, tmp_path: Path) -> None:
         # Pillow will not open a header declaring this many pixels, so the dimensions are never
@@ -242,11 +262,11 @@ class TestLoadImage:
             InputValidationError,
             match="more pixels than can be read safely.*Resize to 2560 px",
         ):
-            load_image("f", path, BOUNDS)
+            load_image("f", path, BOUNDS, position="before_text")
 
     def test_rejects_a_path_that_is_not_a_regular_file(self, tmp_path: Path) -> None:
         with pytest.raises(InputValidationError, match="is not a regular file"):
-            load_image("f", str(tmp_path), BOUNDS)
+            load_image("f", str(tmp_path), BOUNDS, position="before_text")
 
     @pytest.mark.skipif(sys.platform == "win32", reason="no FIFOs on Windows")
     def test_refuses_a_fifo_without_blocking_on_it(self, tmp_path: Path) -> None:
@@ -254,12 +274,12 @@ class TestLoadImage:
         os.mkfifo(fifo)
         # With a blocking open this would hang until a writer appeared.
         with pytest.raises(InputValidationError, match="is not a regular file"):
-            load_image("f", str(fifo), BOUNDS)
+            load_image("f", str(fifo), BOUNDS, position="before_text")
 
     def test_rejects_a_header_it_cannot_read(self, tmp_path: Path) -> None:
         path = self.write(tmp_path, "bad.jpg", padded(b"\xff\xd8\xff\xd9"))
         with pytest.raises(InputValidationError, match="not an accepted image"):
-            load_image("f", path, BOUNDS)
+            load_image("f", path, BOUNDS, position="before_text")
 
 
 def test_the_loader_knows_every_format_the_providers_accept() -> None:
