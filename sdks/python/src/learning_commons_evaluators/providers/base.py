@@ -42,6 +42,9 @@ class Message(TypedDict):
 #: Image formats every supported vendor accepts natively.
 ImageMediaType = Literal["image/png", "image/jpeg", "image/webp"]
 
+#: Where an attachment goes on the final user turn, relative to its text; the contract declares it.
+AttachmentPosition = Literal["before_text", "after_text"]
+
 
 @dataclass(frozen=True)
 class ImageAttachment:
@@ -56,6 +59,7 @@ class ImageAttachment:
 
     data: bytes
     media_type: ImageMediaType
+    position: AttachmentPosition
 
 
 @dataclass(frozen=True)
@@ -97,9 +101,19 @@ class LLMProvider(Protocol):
     implementation conforms unchanged. A provider that has it sets
     ``supports_attachments = True`` and accepts an ``attachments`` keyword on
     :meth:`generate_structured`: a sequence of :class:`ImageAttachment`, placed on the final
-    user turn ahead of its text. The attribute is optional and absent means no; an evaluator
-    that attaches images refuses such a provider at construction, and passes
-    ``attachments`` only to one that declares it, and only when there are some.
+    user turn in order, each before or after its text as its ``position`` says. The attribute
+    is optional and absent means no; an evaluator that attaches images refuses such a
+    provider at construction, and passes ``attachments`` only to one that declares it, and
+    only when there are some.
+
+    The built-in adapters build a vendor client for each call and close it before the call
+    returns, so an adapter holds no connection between calls and has nothing to release.
+    A vendor client pools connections on the event loop that opened them, and
+    ``evaluate_sync`` runs each evaluation on a loop of its own: a client kept across calls
+    hands the next one a connection whose loop is gone, and a client nobody closes leaves
+    its sockets open until garbage collection. The price is a connection set up per model
+    call, small beside the call itself. A client injected into an adapter is the caller's
+    to close, and is used as given.
     """
 
     @property
@@ -173,6 +187,7 @@ def provider_context(provider: LLMProvider) -> tuple[DependencyId, str]:
 
 
 __all__ = [
+    "AttachmentPosition",
     "ImageAttachment",
     "ImageMediaType",
     "LLMProvider",

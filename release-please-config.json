@@ -58,7 +58,14 @@
         "sdks/python": {
             "release-type": "python",
             "changelog-path": "CHANGELOG.md",
-            "component": "sdks-python"
+            "component": "sdks-python",
+            "extra-files": [
+                {
+                    "type": "toml",
+                    "path": "uv.lock",
+                    "jsonpath": "$.package[?(@.name.value=='learning-commons-evaluators')].version"
+                }
+            ]
         },
         "sdks/typescript": {
             "release-type": "node",

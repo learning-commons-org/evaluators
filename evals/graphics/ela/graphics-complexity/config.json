@@ -52,7 +52,7 @@
     {
       "id": "evaluate_graphics_complexity",
       "type": "llm",
-      "description": "Single multimodal LLM call that produces the EvaluatorOutput JSON: the rendered user text followed by one attached image per graphic, in `image_paths` order, so the Nth image matches the Nth label in {figure_labels} (see `attachments`). The model rates each graphic on its own and checks whether any must be read against each other; the excerpt's complexity_score is the highest of those ratings. Those per-graphic working fields are used for internal validation and are not part of the returned output.",
+      "description": "Single multimodal LLM call that produces the EvaluatorOutput JSON: the rendered user text followed by one attached image per graphic, in `image_paths` order, so the Nth image matches the Nth label in {figure_labels} (see `attachments`). The model rates each graphic on its own and checks whether any must be read against each other; the excerpt's complexity_score is the highest of those ratings. Those per-graphic working fields condition the score and are not part of the returned output.",
       "prompt": {
         "messages": [
           {
@@ -97,7 +97,7 @@
         "kind": "structured_output"
       },
       "attachments": [
-        { "input": "image_paths", "kind": "image" }
+        { "input": "image_paths", "kind": "image", "position": "after_text" }
       ]
     }
   ],

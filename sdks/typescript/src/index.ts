@@ -48,6 +48,7 @@ export type {
   LLMRequest,
   ImageAttachment,
   ImageMediaType,
+  AttachmentPosition,
   LLMResponse,
   TextGenerationResponse,
   Message,
@@ -112,6 +113,8 @@ export type { ToneAppropriatenessResult } from './schemas/feedback/ela-writing/t
 export { ToneAppropriatenessOutputSchema } from './schemas/feedback/ela-writing/tone-appropriateness.js';
 export type { WithholdingAnswersResult } from './schemas/feedback/ela-writing/withholding-answers.js';
 export { WithholdingAnswersOutputSchema } from './schemas/feedback/ela-writing/withholding-answers.js';
+export type { GraphicsComplexityResult } from './schemas/graphics/ela/graphics-complexity.js';
+export { GraphicsComplexityOutputSchema } from './schemas/graphics/ela/graphics-complexity.js';
 export type { GraphicsAccuracyResult } from './schemas/graphics/math/graphics-accuracy.js';
 export { GraphicsAccuracyOutputSchema } from './schemas/graphics/math/graphics-accuracy.js';
 
@@ -164,6 +167,9 @@ export {
   evaluateWithholdingAnswers,
   MathStandardsAlignmentEvaluator,
   evaluateMathStandardsAlignment,
+  GraphicsComplexityEvaluator,
+  evaluateGraphicsComplexity,
+  type GraphicsComplexityInput,
   GraphicsAccuracyEvaluator,
   evaluateGraphicsAccuracy,
   composeGraphicsAccuracyClaim,

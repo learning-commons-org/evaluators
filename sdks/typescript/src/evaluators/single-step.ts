@@ -1,5 +1,5 @@
-import type { ZodType } from 'zod';
-import type { ImageAttachment, ImageMediaType, LLMProvider } from '../providers/index.js';
+import { ZodObject, type ZodType } from 'zod';
+import type { AttachmentPosition, ImageAttachment, ImageMediaType, LLMProvider } from '../providers/index.js';
 import { loadImage, type ImageBounds } from '../features/image-source.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import type { StageDetail } from '../telemetry/index.js';
@@ -37,7 +37,7 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
     required_credentials?: string[];
     optional?: boolean;
     /** Inputs whose files are attached to the user turn as content parts; see `config.schema.json`. */
-    attachments?: ReadonlyArray<{ input: string; kind: string }>;
+    attachments?: ReadonlyArray<{ input: string; kind: string; position: string }>;
   }>;
   preprocessing?: Array<{
     id: string;
@@ -47,10 +47,22 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
   outcome?: { score: string; reasoning: string };
 }
 
-export interface SingleStepDefinition<TResult> {
+export interface SingleStepDefinition<TInput, TResult> {
   contract: SingleStepContract;
   inputSchema: DeclaredInputSchema;
+  /** What the caller receives. */
   outputSchema: ZodType<TResult>;
+  /**
+   * What the model is asked for, when the contract marks output properties `x-model-only`:
+   * `outputSchema`'s fields plus those, which are stripped before the result is returned.
+   */
+  responseSchema?: ZodObject;
+  /**
+   * Fills in what the contract says an omitted optional input means. Runs after validation
+   * and before preprocessing, so it sees well-formed inputs and anything it throws is
+   * telemetered like any other failure.
+   */
+  prepareInputs?: (input: TInput) => TInput;
   /** The contract's `system.txt`, verbatim. Placeholders are substituted per call. */
   systemPrompt: string;
   /** The contract's `user.txt`, verbatim. */
@@ -59,6 +71,9 @@ export interface SingleStepDefinition<TResult> {
 
 /** Keyed by the union, so a new `ImageMediaType` fails to compile until it is listed here. */
 const SUPPORTED_FORMATS: Record<ImageMediaType, true> = { 'image/png': true, 'image/jpeg': true, 'image/webp': true };
+
+/** Keyed by the union for the same reason. */
+const SUPPORTED_POSITIONS: Record<AttachmentPosition, true> = { before_text: true, after_text: true };
 
 /**
  * The step's attached inputs, each paired with the `x-image` bounds on its items.
@@ -72,13 +87,16 @@ export function attachmentsOf(
   step: SingleStepContract['steps'][number],
   inputSchema: DeclaredInputSchema,
   evaluatorName: string,
-): Array<{ input: string; bounds: ImageBounds }> {
-  return (step.attachments ?? []).map(({ input, kind }) => {
+): Array<{ input: string; position: AttachmentPosition; bounds: ImageBounds }> {
+  return (step.attachments ?? []).map(({ input, kind, position }) => {
     // Annotated on the binding, not the arrow, so a call narrows like a `throw`.
     const refuse: (why: string) => never = (why) => {
       throw new Error(`${evaluatorName} config.json attaches "${input}": ${why}`);
     };
     if (kind !== 'image') refuse(`kind "${kind}" is not supported; this SDK sends only images.`);
+    if (!Object.hasOwn(SUPPORTED_POSITIONS, position)) {
+      refuse(`position "${position}" is not supported; expected ${Object.keys(SUPPORTED_POSITIONS).join(' or ')}.`);
+    }
     const spec = inputSchema.properties[input];
     // Optional or non-array, a request could omit the images and be sent without them.
     if (spec?.type !== 'array') refuse('it must be an array input.');
@@ -102,7 +120,7 @@ export function attachmentsOf(
     const bounds = declared as ImageBounds;
     if (bounds.min_bytes > bounds.max_bytes) refuse('`x-image.min_bytes` exceeds `max_bytes`.');
     if (bounds.min_edge > bounds.max_edge) refuse('`x-image.min_edge` exceeds `max_edge`.');
-    return { input, bounds };
+    return { input, position: position as AttachmentPosition, bounds };
   });
 }
 
@@ -175,15 +193,25 @@ function vendorOf(step: { model: { provider: string } }, name: string): Provider
  * }) {}
  * ```
  */
-export function defineSingleStepEvaluator<TInput extends Record<string, string | number | string[]>, TResult>(
-  definition: SingleStepDefinition<TResult>,
+export function defineSingleStepEvaluator<
+  TInput extends Record<string, string | number | string[] | undefined>,
+  TResult,
+>(
+  definition: SingleStepDefinition<TInput, TResult>,
 ): SingleStepEvaluatorClass<TInput, TResult> {
-  const { contract, inputSchema, outputSchema, systemPrompt, userPrompt } = definition;
+  const { contract, inputSchema, outputSchema, responseSchema, prepareInputs, systemPrompt, userPrompt } = definition;
 
   const STEP = stepFor(contract);
   const VENDOR = vendorOf(STEP, contract.evaluator.name);
   const ATTACHMENTS = attachmentsOf(STEP, inputSchema, contract.evaluator.name);
   const PREPROCESSING = contract.preprocessing ?? [];
+  // With model-only fields, the model fills in `responseSchema` and the caller receives
+  // only the fields `outputSchema` names.
+  if (responseSchema && !(outputSchema instanceof ZodObject)) {
+    throw new Error(`${contract.evaluator.name}: a responseSchema needs an object outputSchema to strip it to.`);
+  }
+  const RETURNED_FIELDS = responseSchema ? Object.keys((outputSchema as ZodObject).shape) : undefined;
+  const SENT_SCHEMA: ZodType = responseSchema ?? outputSchema;
   // An attached input holds file paths, not prose; the primary text is the first field that
   // is neither attached nor an enum.
   const ATTACHED_FIELDS = new Set(ATTACHMENTS.map((a) => a.input));
@@ -255,7 +283,7 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
         // Inside the try so a validation failure is telemetered as an error event,
         // and before the inputs are read so a non-object is reported as one.
         validateInputs(input, inputSchema);
-        const all = input as Record<string, string | number | string[]>;
+        const all = (prepareInputs ? prepareInputs(input) : input) as Record<string, string | number | string[]>;
         // Attached inputs are files, never prompt text; only the other inputs render.
         const fields = Object.fromEntries(
           Object.entries(all).filter(([name]) => !ATTACHED_FIELDS.has(name)),
@@ -283,12 +311,12 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
         }
 
         // Attached files are read here, in array order, after validation and before any
-        // paid call; the provider places them on the user turn ahead of the text.
+        // paid call; the provider places each before or after the text as declared.
         const attachments: ImageAttachment[] = [];
-        for (const { input: name, bounds } of ATTACHMENTS) {
+        for (const { input: name, position, bounds } of ATTACHMENTS) {
           const paths = all[name] as string[];
           for (const [i, path] of paths.entries()) {
-            attachments.push(await loadImage(`${name}[${i}]`, path, bounds));
+            attachments.push({ ...(await loadImage(`${name}[${i}]`, path, bounds)), position });
           }
         }
 
@@ -298,9 +326,14 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
             { role: 'user', content: PROMPTS.getUserPrompt(promptInputs) },
           ],
           ...(attachments.length ? { attachments } : {}),
-          schema: outputSchema,
+          schema: SENT_SCHEMA,
           temperature: STEP.generation?.temperature,
         });
+        const data = RETURNED_FIELDS
+          ? (Object.fromEntries(
+              RETURNED_FIELDS.map((field) => [field, (response.data as Record<string, unknown>)[field]]),
+            ) as TResult)
+          : (response.data as TResult);
 
         const latencyMs = Date.now() - startTime;
         const tokenUsage = {
@@ -317,7 +350,7 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
 
         const result: EvaluationResult<TResult> = {
           evaluator: METADATA.id,
-          result: response.data,
+          result: data,
           metadata: {
             model: this.provider.label,
             processingTimeMs: latencyMs,
@@ -343,7 +376,7 @@ export function defineSingleStepEvaluator<TInput extends Record<string, string |
           operation: 'evaluate',
           gradeLevel,
           score: METADATA.outcome
-            ? (response.data as Record<string, unknown>)[METADATA.outcome.score]
+            ? (data as Record<string, unknown>)[METADATA.outcome.score]
             : undefined,
           processingTimeMs: latencyMs,
         });

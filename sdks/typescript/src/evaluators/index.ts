@@ -1,6 +1,12 @@
 export { getEvaluators, getEvaluator } from './registry.js';
 
 export {
+  GraphicsComplexityEvaluator,
+  evaluateGraphicsComplexity,
+  type GraphicsComplexityInput,
+} from './graphics/ela/graphics-complexity.js';
+
+export {
   GraphicsAccuracyEvaluator,
   evaluateGraphicsAccuracy,
   composeGraphicsAccuracyClaim,

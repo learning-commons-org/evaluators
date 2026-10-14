@@ -112,6 +112,8 @@ class Attachment(_ContractModel):
 
     input: str
     kind: str
+    #: ``before_text`` or ``after_text``: where the files go relative to the user turn's text.
+    position: str
 
 
 class Step(_ContractModel):
@@ -221,6 +223,20 @@ class Contract(_ContractModel):
             raise LookupError(
                 f'{self.evaluator.name} config.json names "{source_path}", which was not bundled.'
             ) from None
+
+    @property
+    def model_only_fields(self) -> tuple[str, ...]:
+        """The top-level output properties marked ``x-model-only``.
+
+        The model must still fill them in, so they stay in the schema it is sent; the caller's
+        result omits them. ``config.schema.json`` states the rule.
+        """
+        properties: dict[str, Any] = self.output_schema.get("properties", {})
+        return tuple(
+            name
+            for name, spec in properties.items()
+            if isinstance(spec, dict) and spec.get("x-model-only") is True
+        )
 
     @property
     def required_credentials(self) -> list[str]:

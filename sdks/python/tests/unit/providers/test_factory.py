@@ -63,8 +63,10 @@ def test_max_retries_reaches_the_vendor_client() -> None:
     openai_adapter = OpenAIProvider(
         ProviderConfig(type=Provider.OPENAI, model="m", api_key="k", max_retries=3)
     )
-    assert openai_adapter._client.max_retries == 3
+    assert openai_adapter._new_client is not None
+    assert openai_adapter._new_client().max_retries == 3
     anthropic_adapter = AnthropicProvider(
         ProviderConfig(type=Provider.ANTHROPIC, model="m", api_key="k", max_retries=0)
     )
-    assert anthropic_adapter._client.max_retries == 0
+    assert anthropic_adapter._new_client is not None
+    assert anthropic_adapter._new_client().max_retries == 0

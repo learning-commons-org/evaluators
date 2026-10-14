@@ -20,7 +20,11 @@ from dataclasses import dataclass
 from typing import Literal, NamedTuple
 
 from learning_commons_evaluators.errors import InputValidationError
-from learning_commons_evaluators.providers.base import ImageAttachment, ImageMediaType
+from learning_commons_evaluators.providers.base import (
+    AttachmentPosition,
+    ImageAttachment,
+    ImageMediaType,
+)
 
 
 @dataclass(frozen=True)
@@ -123,7 +127,13 @@ def _read_bounded(path: str, field: str, max_bytes: int) -> bytes:
         raise InputValidationError(f'{field}: could not read file "{path}".', cause) from cause
 
 
-def load_image(field: str, path: str, bounds: ImageBounds) -> ImageAttachment:
+def load_image(
+    field: str,
+    path: str,
+    bounds: ImageBounds,
+    *,
+    position: AttachmentPosition,
+) -> ImageAttachment:
     """Read the image at ``path`` and return it as an attachment, enforcing every bound the
     contract declares for it.
 
@@ -132,6 +142,8 @@ def load_image(field: str, path: str, bounds: ImageBounds) -> ImageAttachment:
     :param field: the input's name and position, for error messages (e.g. ``image_paths[0]``)
     :param path: a local file path, absolute or relative to the working directory
     :param bounds: the contract's ``x-image`` block for this input
+    :param position: where the image goes relative to the user turn's text, as the contract's
+        attachment declares it; required, so no caller can place an image by default
     :raises InputValidationError: if the file cannot be read, is not an accepted format with
         a readable header by its bytes, or falls outside the declared size or edge bounds
     """
@@ -170,7 +182,7 @@ def load_image(field: str, path: str, bounds: ImageBounds) -> ImageAttachment:
             f"to {bounds.max_edge} px. {resize}"
         )
 
-    return ImageAttachment(data=data, media_type=media_type)
+    return ImageAttachment(data=data, media_type=media_type, position=position)
 
 
 __all__ = ["ImageBounds", "ImageInfo", "inspect_image", "load_image"]

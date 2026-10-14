@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import base64
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from typing import TypeVar
 
 from learning_commons_evaluators.errors import ConfigurationError, LLMOutputProcessingError
 from learning_commons_evaluators.providers.base import (
@@ -13,6 +14,8 @@ from learning_commons_evaluators.providers.base import (
     Provider,
     ProviderConfig,
 )
+
+PartT = TypeVar("PartT")
 
 
 def require_config(config: ProviderConfig, expected: Provider) -> tuple[str, str]:
@@ -56,13 +59,25 @@ def split_system(messages: Sequence[Message]) -> tuple[str | None, list[Message]
 def last_user_turn(messages: Sequence[Message]) -> int:
     """The index of the final user turn, which is where every adapter places attachments.
 
-    Attachments go ahead of that turn's text, matching the TypeScript SDK; turns before it
-    pass through unchanged.
+    Turns before it pass through unchanged, matching the TypeScript SDK.
     """
     for index in range(len(messages) - 1, -1, -1):
         if messages[index]["role"] == "user":
             return index
     raise ValueError("Attachments need a user message to be attached to.")
+
+
+def around_text(
+    text: PartT, attachments: Sequence[ImageAttachment], part: Callable[[ImageAttachment], PartT]
+) -> list[PartT]:
+    """The final user turn's content: each attachment, in array order, before or after the text
+    part as its ``position`` says. ``part`` spells one image the way the vendor's API takes it.
+    """
+    return [
+        *(part(a) for a in attachments if a.position == "before_text"),
+        text,
+        *(part(a) for a in attachments if a.position == "after_text"),
+    ]
 
 
 def base64_data(attachment: ImageAttachment) -> str:
