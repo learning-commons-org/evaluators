@@ -106,17 +106,19 @@ describe('input types match the contracts they name', () => {
     expect(optional.sort()).toEqual(Object.keys(contract).filter((name) => !required.includes(name)).sort());
   });
 
-  it.each(DECLARED)('$typeName carries the contract\'s enum values and array shape', ({ typeName, properties, contract }) => {
+  it.each(DECLARED)('$typeName carries the contract\'s enum values and array shape', ({ typeName, properties, contract, optional }) => {
     // The reason for generating these rather than deriving them: a declared `enum` becomes a
     // literal union, so a bad grade is a compile error instead of a run-time one on a paid
     // call. An array of strings (an attached input's paths) is `string[]`. Anything else stays
-    // `string` — the length and count bounds are not expressible.
+    // `string`. An optional property also accepts null, which the runtime treats as absent.
+    // Length and count bounds are not expressible.
     for (const [name, spec] of Object.entries(contract)) {
-      const expected = spec.enum
+      const base = spec.enum
         ? spec.enum.map((v) => JSON.stringify(v)).join(' | ')
         : spec.type === 'array'
           ? 'string[]'
           : 'string';
+      const expected = optional.includes(name) ? `${base} | null` : base;
 
       expect(properties[name], `${typeName}.${name}`).toBe(expected);
     }

@@ -14,7 +14,7 @@ export type GraphicsComplexityInput = {
   /** One local image path per graphic in scope, in the order they should be considered. Each file is checked against the `x-image` bounds before any model call; an image outside them is rejected, not resized. */
   "image_paths": string[];
   /** Optional comma-separated labels matching the order of `image_paths` (e.g. 'Figure 1, Figure 2'). If omitted, graphics are auto-labeled 'Image 1', 'Image 2', etc. */
-  "figure_labels"?: string;
+  "figure_labels"?: string | null;
 };
 
 /** What the model is asked for: the output plus the working fields its contract marks `x-model-only`. */

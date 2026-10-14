@@ -31,3 +31,6 @@ jobs:
 
       - name: Run checks
         run: python scripts/check.py
+
+      - name: Test the checks
+        run: python -m unittest discover -s scripts/tests
