@@ -83,12 +83,13 @@ def text_inputs(
 
     Strings are bound as they are. An attached input's file paths are never prompt text,
     so the inputs named in ``attached`` are left out. Any other array becomes compact JSON,
-    the same text the TypeScript binder produces.
+    the same text the TypeScript binder produces, with an optional field left out or set
+    to ``None`` absent rather than ``null``.
     """
     return {
         name: value
         if isinstance(value, str)
-        else json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+        else json.dumps(_without_nulls(value), ensure_ascii=False, separators=(",", ":"))
         for name, value in values.items()
         if name not in attached
     }
@@ -141,6 +142,15 @@ def _validate_array(
             raise InputValidationError(f"{where} must be a string.")
         _validate_string(where, item, items)
     return tuple(value)
+
+
+def _without_nulls(value: Any) -> Any:
+    """Drop object keys whose value is None, and do the same inside nested lists."""
+    if isinstance(value, (list, tuple)):
+        return [_without_nulls(item) for item in value]
+    if isinstance(value, Mapping):
+        return {key: _without_nulls(item) for key, item in value.items() if item is not None}
+    return value
 
 
 def _validate_object(path: str, value: Any, spec: Mapping[str, Any]) -> None:
