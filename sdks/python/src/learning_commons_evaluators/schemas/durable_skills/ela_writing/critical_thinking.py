@@ -6,9 +6,9 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_serializer
 
 EVALUATOR_ID = "durable_skills.ela_writing.critical_thinking"
 
@@ -19,6 +19,28 @@ class SourcePassage(BaseModel):
     title: str | None = None
     author: str | None = None
     text: str
+
+    @model_serializer(mode="wrap")
+    def _serialize(self, serializer: Any) -> Any:
+        """Leave an unset optional field out, instead of writing ``null``."""
+        dumped = serializer(self)
+        if not isinstance(dumped, dict):
+            return dumped
+        optional = {
+            name
+            for name, field in type(self).model_fields.items()
+            if not field.is_required()
+        }
+        optional.update(
+            field.alias
+            for field in type(self).model_fields.values()
+            if not field.is_required() and field.alias is not None
+        )
+        return {
+            key: value
+            for key, value in dumped.items()
+            if value is not None or key not in optional
+        }
 
 
 class CriticalThinkingInput(BaseModel):
@@ -60,6 +82,28 @@ class Indicators(BaseModel):
     counterarguments: Indicator
     facts_over_opinions: Indicator
     drawing_conclusions: Indicator
+
+    @model_serializer(mode="wrap")
+    def _serialize(self, serializer: Any) -> Any:
+        """Leave an unset optional field out, instead of writing ``null``."""
+        dumped = serializer(self)
+        if not isinstance(dumped, dict):
+            return dumped
+        optional = {
+            name
+            for name, field in type(self).model_fields.items()
+            if not field.is_required()
+        }
+        optional.update(
+            field.alias
+            for field in type(self).model_fields.values()
+            if not field.is_required() and field.alias is not None
+        )
+        return {
+            key: value
+            for key, value in dumped.items()
+            if value is not None or key not in optional
+        }
 
 
 class CriticalThinkingOutput(BaseModel):

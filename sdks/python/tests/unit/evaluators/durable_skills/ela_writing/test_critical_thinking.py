@@ -46,7 +46,10 @@ async def test_one_passage_omits_synthesizing_sources(providers: ProviderFactory
     )
 
     assert isinstance(evaluation.result, CriticalThinkingOutput)
-    assert evaluation.result.indicators.synthesizing_sources is None
+    indicators = evaluation.result.indicators
+    assert indicators.synthesizing_sources is None
+    assert "synthesizing_sources" not in indicators.model_dump()
+    assert "synthesizing_sources" not in indicators.model_dump_json()
     assert evaluation.result.critical_thinking_score == "exploring"
     prompt = providers.last.calls[0]["messages"][1]["content"]
     assert "Number of source passages provided: 1" in prompt

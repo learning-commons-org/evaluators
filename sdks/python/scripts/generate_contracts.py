@@ -159,6 +159,7 @@ class _Emitter:
     uses_field: bool = False
     uses_config: bool = False
     uses_any: bool = False
+    uses_serializer: bool = False
 
     def unique(self, name: str) -> str:
         candidate, n = name, 2
@@ -312,6 +313,37 @@ class _Emitter:
 
         if not properties:
             lines.append(f"{_INDENT}pass")
+        # An optional field defaults to None. Dumping that writes ``null``; the schema's
+        # "omitted" is the key being absent, so a model with one drops those keys.
+        if any(prop not in required for prop in properties):
+            self.uses_serializer = True
+            self.uses_any = True
+            lines.extend(
+                [
+                    "",
+                    '    @model_serializer(mode="wrap")',
+                    "    def _serialize(self, serializer: Any) -> Any:",
+                    '        """Leave an unset optional field out, instead of writing ``null``."""',
+                    "        dumped = serializer(self)",
+                    "        if not isinstance(dumped, dict):",
+                    "            return dumped",
+                    "        optional = {",
+                    "            name",
+                    "            for name, field in type(self).model_fields.items()",
+                    "            if not field.is_required()",
+                    "        }",
+                    "        optional.update(",
+                    "            field.alias",
+                    "            for field in type(self).model_fields.values()",
+                    "            if not field.is_required() and field.alias is not None",
+                    "        )",
+                    "        return {",
+                    "            key: value",
+                    "            for key, value in dumped.items()",
+                    "            if value is not None or key not in optional",
+                    "        }",
+                ]
+            )
         self.blocks.append("\n".join(lines))
         return name
 
@@ -345,6 +377,8 @@ class _Emitter:
             pydantic.append("ConfigDict")
         if self.uses_field:
             pydantic.append("Field")
+        if self.uses_serializer:
+            pydantic.append("model_serializer")
         lines = ["from __future__ import annotations", ""]
         if typing:
             lines.append(f"from typing import {', '.join(typing)}")
