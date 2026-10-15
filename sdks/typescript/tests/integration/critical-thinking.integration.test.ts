@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { CriticalThinkingEvaluator } from '../../src/evaluators/durable-skills/ela-writing/critical-thinking.js';
+import type { EvaluationResult } from '../../src/schemas/index.js';
 import { runEvaluatorTest, type BaseTestCase } from '../utils/index.js';
+import { medianRating, presentRatings } from '../unit/evaluators/critical-thinking-score.test.js';
 
 /**
  * Critical Thinking evaluator integration tests.
@@ -74,7 +76,18 @@ describeIntegration('CriticalThinkingEvaluator - Integration', () => {
         telemetry: false,
       });
 
-      const result = await runEvaluatorTest(testCase, { evaluator });
+      const result = await runEvaluatorTest(testCase, {
+        evaluator,
+        extractResult: (evaluation: EvaluationResult<Record<string, unknown>>) => {
+          const payload = evaluation.result as {
+            critical_thinking_score: string;
+            indicators: Record<string, { rating: string } | undefined>;
+          };
+          const score = payload.critical_thinking_score;
+          expect(score).toBe(medianRating(presentRatings(payload.indicators)));
+          return score;
+        },
+      });
 
       expect(result.matched, result.logs.join('\n')).toBe(true);
     },
