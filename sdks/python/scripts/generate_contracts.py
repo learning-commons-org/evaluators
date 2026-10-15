@@ -370,7 +370,11 @@ def emit_schema_module(config: dict[str, Any], config_dir: Path) -> str:
     input_schema = json.loads((config_dir / input_ref).read_text(encoding="utf-8"))
     output_schema = json.loads((config_dir / output_ref).read_text(encoding="utf-8"))
 
-    emitter = _Emitter(defs=dict(output_schema.get("$defs", {})))
+    # Input `$defs` name caller types such as SourcePassage. Output `$defs` win on a
+    # shared key, because the structured result is what the model returns.
+    defs = dict(input_schema.get("$defs", {}))
+    defs.update(output_schema.get("$defs", {}))
+    emitter = _Emitter(defs=defs)
 
     # --- Input: placeholder names as kwargs; bounds and enums are enforced by the
     # evaluator from the schema (SDK spec §4), so the model carries only the shape. Grade
@@ -397,10 +401,13 @@ def emit_schema_module(config: dict[str, Any], config_dir: Path) -> str:
             overrides[prop] = "str"
         elif spec.get("type") == "array":
             items = spec.get("items") or {}
+            # An array of a ``$defs`` object is emitted as a list of that named model.
+            if "$ref" in items:
+                continue
             if items.get("type") != "string":
                 raise ValueError(
                     f'Input "{prop}" is an array of {items.get("type")}; only arrays of strings '
-                    "are rendered."
+                    "or of a $defs object are rendered."
                 )
             overrides[prop] = "list[str]"
     input_name = emitter.unique(f"{class_base}Input")
