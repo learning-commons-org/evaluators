@@ -163,6 +163,55 @@ class TestEmitter:
         assert module["JURISDICTION_VALUES"] == ("Multi-State", "Ohio")
         assert module["EVALUATOR_ID"] == "widgets.gadgets.widget"
 
+    def test_input_def_becomes_a_named_model(self, tmp_path: Path) -> None:
+        config_path = _write_contract(
+            tmp_path / "named",
+            evaluator_id="widgets.gadgets.widget",
+            input_schema={
+                "type": "object",
+                "required": ["source_passages"],
+                "additionalProperties": False,
+                "properties": {
+                    "source_passages": {
+                        "type": "array",
+                        "items": {"$ref": "#/$defs/SourcePassage"},
+                    },
+                },
+                "$defs": {
+                    "SourcePassage": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["text"],
+                        "properties": {
+                            "title": {"type": "string"},
+                            "author": {"type": "string"},
+                            "text": {"type": "string"},
+                        },
+                    },
+                },
+            },
+            output_schema={
+                "type": "object",
+                "required": ["ok"],
+                "additionalProperties": False,
+                "properties": {"ok": {"type": "string"}},
+            },
+        )
+        config = json.loads(config_path.read_text())
+        module = _exec_module(generator.emit_schema_module(config, config_path.parent))
+
+        passage = module["SourcePassage"]
+        assert issubclass(passage, BaseModel)
+        assert passage.model_fields["text"].is_required() is True
+        assert passage.model_fields["title"].is_required() is False
+        assert passage.model_fields["author"].is_required() is False
+        assert get_args(module["WidgetInput"].model_fields["source_passages"].annotation) == (
+            passage,
+        )
+        instance = module["WidgetInput"](source_passages=[{"text": "A passage."}])
+        assert instance.source_passages[0].title is None
+        assert instance.source_passages[0].text == "A passage."
+
     def test_input_model_is_frozen_and_forbids_extras(self, module: dict[str, Any]) -> None:
         with pytest.raises(ValidationError):
             module["WidgetInput"](
