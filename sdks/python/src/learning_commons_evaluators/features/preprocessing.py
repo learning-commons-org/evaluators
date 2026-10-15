@@ -35,7 +35,7 @@ def _builtins_function(function: str) -> Callable[..., int]:
 
 def _builtins(function: str, value: Any) -> float:
     """The length of a list. A string here would be a character count, which is not the count."""
-    if not isinstance(value, list):
+    if not isinstance(value, (list, tuple)):
         raise TypeError(f"builtins.{function} counts a list, not {type(value).__name__}.")
     return float(_builtins_function(function)(value))
 
