@@ -151,6 +151,11 @@ def test_array_rejects_shape_mistakes() -> None:
         )
 
 
+def test_optional_none_is_omitted_from_json() -> None:
+    values = validate_inputs({"source_passages": [{"text": "A", "title": None}]}, PASSAGE_SCHEMA)
+    assert text_inputs(values)["source_passages"] == '[{"text":"A"}]'
+
+
 def test_string_items_are_checked_and_inline_schemas_need_no_ref() -> None:
     strings = {
         "properties": {"tags": {"type": "array", "items": {"type": "string", "minLength": 1}}},
