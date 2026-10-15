@@ -22,6 +22,10 @@ from learning_commons_evaluators.schemas.text_complexity.ela_reading.grade_level
     GradeBand,
 )
 from tests.integration.conftest import fixtures_for, keys_for
+from tests.unit.evaluators.durable_skills.ela_writing.test_critical_thinking_score import (
+    median_rating,
+    present_ratings,
+)
 
 ATTEMPTS = 3
 
@@ -95,6 +99,8 @@ async def test_fixture(evaluator: type[BaseEvaluator], case: dict[str, Any]) -> 
         assert evaluation.metadata.model == _expected_model(contract, case["input"])
         assert evaluation.metadata.token_usage.output_tokens > 0
         outcome = read_outcome(evaluation, evaluator.metadata.outcome)
+        if evaluator.metadata.id == "durable_skills.ela_writing.critical_thinking":
+            assert outcome.score == median_rating(present_ratings(evaluation.result.indicators))
         verdicts.append(outcome.score)
         if outcome.score == expected:
             return
