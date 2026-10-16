@@ -124,6 +124,7 @@ export {
   type BackgroundKnowledgeDemandsInput,
   type GradeLevelAppropriatenessInput,
   type MathStandardsAlignmentInput,
+  type MathStandardsAlignmentUuidInput,
   type MeaningDirectnessInput,
   type OrganizationalStructureInput,
   type PurposeClarityInput,

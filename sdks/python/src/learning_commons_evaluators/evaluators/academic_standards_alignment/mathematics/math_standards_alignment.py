@@ -45,12 +45,18 @@ from learning_commons_evaluators.config import EvaluatorConfig
 from learning_commons_evaluators.contracts import load_contract
 from learning_commons_evaluators.contracts.loader import ModelSpec, Prompt, Step
 from learning_commons_evaluators.dependencies.knowledge_graph import (
+    STANDARD_SEARCH_LIMIT,
     AcademicStandard,
     KnowledgeGraphClient,
     LearningComponent,
+    LearningComponentSet,
     StandardMatch,
 )
-from learning_commons_evaluators.errors import InputValidationError, LLMOutputProcessingError
+from learning_commons_evaluators.errors import (
+    InputValidationError,
+    KnowledgeGraphError,
+    LLMOutputProcessingError,
+)
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.inputs import text_inputs, validate_inputs
 from learning_commons_evaluators.evaluators.single_step import step_for
@@ -166,6 +172,8 @@ class _Request:
     question: str
     case_identifier_uuid: str
     statement_code: str
+    #: Set when the copy was chosen by reading its components, so they are not read twice.
+    component_set: LearningComponentSet | None = None
 
 
 #: Each entry point's inputs, named for the other's failure message. Passing one method's
@@ -177,6 +185,14 @@ _ELSEWHERE = {
     "jurisdiction": "evaluate_by_code()",
     "grade_level": "evaluate_by_code()",
 }
+
+
+def _search_capped(statement_code: str) -> KnowledgeGraphError:
+    """The refusal for an empty copy the search may have hidden a populated one behind."""
+    return KnowledgeGraphError(
+        f'Statement code "{statement_code}" matched {STANDARD_SEARCH_LIMIT} or more standards, '
+        "and the copy chosen has no learning components; the rest could not be checked"
+    )
 
 
 # --- The model's answer ---------------------------------------------------------------
@@ -353,10 +369,13 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                 # the model is asked rather than held open through the slowest step.
                 async with self._knowledge_graph() as knowledge_graph:
                     request = await name_standard(raw, run, context, knowledge_graph)
-                    component_set = await knowledge_graph.get_learning_component_set(
-                        request.case_identifier_uuid
-                    )
+                    component_set = request.component_set
+                    if component_set is None:
+                        component_set = await knowledge_graph.get_learning_component_set(
+                            request.case_identifier_uuid
+                        )
                 statement_code = request.statement_code
+                case_identifier_uuid = request.case_identifier_uuid
                 components = component_set.components
                 if component_set.undescribed_count:
                     # total_count reports what was judged, so say why it is short of what
@@ -379,6 +398,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                     return self._envelope(
                         MathStandardsAlignmentResult(
                             statement_code=statement_code,
+                            case_identifier_uuid=case_identifier_uuid,
                             learning_components=[],
                             aligned_count=0,
                             total_count=0,
@@ -417,6 +437,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
 
                 result = MathStandardsAlignmentResult(
                     statement_code=statement_code,
+                    case_identifier_uuid=case_identifier_uuid,
                     learning_components=judged,
                     aligned_count=sum(1 for component in judged if component.aligned),
                     total_count=len(components),
@@ -481,7 +502,9 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
             self.metadata.label,
             extra={**context, "standard": uuid, "text_length": run.text_length},
         )
-        return _Request(question, uuid, await self._statement_code(uuid, context, knowledge_graph))
+        standard = await self._read_standard(uuid, context, knowledge_graph)
+        # The Knowledge Graph's spelling of the UUID and code, not the caller's.
+        return _Request(question, standard.case_identifier_uuid, standard.statement_code or "")
 
     async def _named_by_code(
         self,
@@ -514,10 +537,10 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                 "text_length": run.text_length,
             },
         )
-        match = await self._resolve(
+        match, component_set = await self._resolve(
             statement_code, jurisdiction, grade_level, context, knowledge_graph
         )
-        return _Request(question, match.case_identifier_uuid, match.statement_code)
+        return _Request(question, match.case_identifier_uuid, match.statement_code, component_set)
 
     @staticmethod
     def _validated(raw: Any, schema: Mapping[str, Any]) -> dict[str, str]:
@@ -535,33 +558,24 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                     )
         return text_inputs(validate_inputs(raw, schema))
 
-    async def _statement_code(
+    async def _read_standard(
         self, uuid: str, context: _Context, knowledge_graph: KnowledgeGraphClient
-    ) -> str:
-        """The Knowledge Graph's own spelling of the standard's code, once it is a math one.
+    ) -> AcademicStandard:
+        """The standard a UUID names, read once, with its subject checked.
 
-        Read rather than taken from the input, because the input is a UUID: the payload
-        reports the code so a result can be joined to a report keyed on codes, which is
-        what the TypeScript SDK's payload carries. Every field but the UUID is optional in
-        the Knowledge Graph, so a sparsely authored standard yields an empty code; that is
-        said out loud rather than passed off as a code.
-
-        This is also where the subject is checked, because it is the one place a standard
-        named by UUID is read. It runs before the learning components are fetched and
-        before any model call, so a standard this evaluator cannot judge costs one request
-        rather than a full evaluation.
+        The subject is checked here because this is the one place a standard named by UUID is
+        read. It runs before the learning components are fetched and before any model call.
 
         :raises InputValidationError: when the standard belongs to another subject.
         """
         standard = await knowledge_graph.get_academic_standard(uuid)
         self._require_subject(standard, context)
-        if standard.statement_code:
-            return standard.statement_code
-        self.logger.warning(
-            "Standard carries no statement code; the payload reports an empty one",
-            extra={**context, "standard": uuid},
-        )
-        return ""
+        if not standard.statement_code:
+            self.logger.warning(
+                "Standard carries no statement code; the payload reports an empty one",
+                extra={**context, "standard": uuid},
+            )
+        return standard
 
     def _require_subject(self, standard: AcademicStandard, context: _Context) -> None:
         """Refuse a standard from another subject before it reaches the math rubric.
@@ -600,8 +614,10 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         grade_level: str | None,
         context: dict[str, Any],
         knowledge_graph: KnowledgeGraphClient,
-    ) -> StandardMatch:
+    ) -> tuple[StandardMatch, LearningComponentSet | None]:
         """The one standard a code names in a jurisdiction, with the grade breaking ties.
+
+        Returns the components too when they were read to choose the copy, else ``None``.
 
         A code is not unique on its own. Within a framework it is reused across courses --
         an integrated pathway and a subject pathway both carry an algebra code -- and the
@@ -609,19 +625,24 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         the optional ``grade_level`` is for; the extra lookups it cost happen only when a
         code was ambiguous, never on the ordinary path.
 
-        When nothing separates them -- no grade given, or the grade leaves several -- the
-        first is evaluated and the choice is logged with what else it could have been. The
-        alternatives are usually the same standard authored once per course, so failing
-        would refuse work that is almost certainly correct. What is not acceptable is
-        choosing silently.
+        Among the copies that remain, the first one carrying learning components is
+        evaluated: a copy authored with none would otherwise score as an empty standard
+        while a populated one sat in the results. When nothing separates them -- no grade
+        given, or the grade leaves several -- the choice is logged with what else it could
+        have been. The alternatives are usually the same standard authored once per course,
+        so failing would refuse work that is almost certainly correct. What is not
+        acceptable is choosing silently.
 
         :raises StandardNotFoundError: raised by the search itself when nothing matches.
         """
         matches = await knowledge_graph.search_standards(
             statement_code, jurisdiction=jurisdiction, academic_subject=ACADEMIC_SUBJECT
         )
+        # A search at its cap may have left out a copy, so a grade filter cannot make an empty copy
+        # safe to judge. Only the complete search can.
+        truncated = len(matches) >= STANDARD_SEARCH_LIMIT
         if len(matches) == 1:
-            return matches[0]
+            return matches[0], None
 
         at_grade = (
             await self._at_grade(matches, grade_level, knowledge_graph) if grade_level else []
@@ -633,10 +654,19 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                 grade_level,
                 extra={**context, "statement_code": statement_code},
             )
-            return at_grade[0]
+            if not truncated:
+                return at_grade[0], None
+            component_set = await knowledge_graph.get_learning_component_set(
+                at_grade[0].case_identifier_uuid
+            )
+            if not component_set.components:
+                raise _search_capped(statement_code)
+            return at_grade[0], component_set
 
         candidates = at_grade or matches
-        chosen = candidates[0]
+        chosen, component_set = await self._chosen_copy(candidates, knowledge_graph)
+        if truncated and not component_set.components:
+            raise _search_capped(statement_code)
         alternatives = [m.case_identifier_uuid for m in candidates if m is not chosen]
         if grade_level is None:
             self.logger.warning(
@@ -670,7 +700,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                     "alternatives": alternatives,
                 },
             )
-        return chosen
+        return chosen, component_set
 
     async def _at_grade(
         self,
@@ -695,6 +725,35 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
             for match, standard in zip(matches, standards, strict=True)
             if grade_level in standard.grade_level
         ]
+
+    async def _chosen_copy(
+        self, matches: Sequence[StandardMatch], knowledge_graph: KnowledgeGraphClient
+    ) -> tuple[StandardMatch, LearningComponentSet]:
+        """The first copy with learning components, else the first readable copy.
+
+        Every copy is read, because whether a copy has any is the only thing that tells an
+        empty copy from the one worth evaluating. Falls back to an empty copy only when every
+        copy read cleanly; otherwise the failure is raised rather than reported as a standard
+        with nothing to judge.
+        """
+        results = await asyncio.gather(
+            *(
+                knowledge_graph.get_learning_component_set(match.case_identifier_uuid)
+                for match in matches
+            ),
+            return_exceptions=True,
+        )
+        readable = [
+            (match, component_set)
+            for match, component_set in zip(matches, results, strict=True)
+            if not isinstance(component_set, BaseException)
+        ]
+        populated = [
+            (match, component_set) for match, component_set in readable if component_set.components
+        ]
+        if not populated and len(readable) < len(matches):
+            raise next(r for r in results if isinstance(r, BaseException))
+        return (populated or readable)[0]
 
     # --- pieces of the flow ------------------------------------------------------------
 

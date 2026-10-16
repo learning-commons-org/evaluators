@@ -94,6 +94,7 @@ class MathStandardsAlignmentOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     statement_code: str = Field(description="The standard code that was evaluated (matches the statement_code input)")
+    case_identifier_uuid: str | None = Field(description="CASE Network UUID of the standard the SDK reported on, so a result can be traced to the exact copy of a code. Null when the SDK did not report a resolved standard: a bulk pair that failed, or one skipped by the coarse filter before its copy was known.")
     learning_components: list[LearningComponentsItem]
     aligned_count: int = Field(ge=0, description="Number of learning components this question aligns to")
     total_count: int = Field(ge=0, description="Total number of learning components for this standard")
