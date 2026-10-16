@@ -330,10 +330,13 @@ does.
 **`grade_level` disambiguates.** Within one framework a code can be reused across courses, and
 the Knowledge Graph returns one result per copy. Passing the grade separates them. Only an
 ambiguous code costs extra lookups, one per candidate, and the ordinary path is unchanged.
-Among the copies left, the first one carrying learning components is evaluated, so a copy
-authored with none never shadows a populated one. When nothing separates them, the choice
-is logged at `warning` with the alternatives. `evaluation.result.statement_code` always
-reports the Knowledge Graph's own spelling of whatever was resolved.
+Without a grade, or when the grade leaves several copies, the first one carrying learning
+components is evaluated, so a copy authored with none does not shadow a populated one. When
+the grade leaves exactly one copy, that copy is evaluated even if it has no components: the
+grade has already decided the choice, and the result is `0 of 0`. When nothing separates
+them, the choice is logged at `warning` with the alternatives.
+`evaluation.result.statement_code` always reports the Knowledge Graph's own spelling of
+whatever was resolved, and `evaluation.result.case_identifier_uuid` names the copy judged.
 
 `evaluate_by_code()`'s inputs are the contract's, under the contract's names, plus that
 one optional extra — so anything written against the registry is a valid call, and the

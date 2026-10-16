@@ -24,6 +24,7 @@ from learning_commons_evaluators import (
     read_outcome,
 )
 from learning_commons_evaluators.dependencies.knowledge_graph import (
+    STANDARD_SEARCH_LIMIT,
     AcademicStandard,
     KnowledgeGraphClient,
     LearningComponentSet,
@@ -623,6 +624,25 @@ class TestResolvingTheCode:
             await build(knowledge_graph).evaluate_by_code(
                 question=QUESTION, statement_code=STATEMENT_CODE
             )
+        assert providers.calls == []
+
+    async def test_a_capped_candidate_list_with_no_populated_copy_is_refused(
+        self, providers: ProviderFactory
+    ) -> None:
+        # The search returned as many copies as it can, so one further down may carry components.
+        capped = FakeKnowledgeGraph(
+            *(
+                replace(
+                    DEFAULT_STANDARD,
+                    case_identifier_uuid=f"6ba0{i:04d}-d7cc-11e8-824f-0242ac160002",
+                    components=(),
+                )
+                for i in range(STANDARD_SEARCH_LIMIT)
+            )
+        )
+
+        with pytest.raises(KnowledgeGraphError, match="could not be checked"):
+            await build(capped).evaluate_by_code(question=QUESTION, statement_code=STATEMENT_CODE)
         assert providers.calls == []
 
     async def test_an_ambiguous_code_with_no_populated_copy_evaluates_the_first_and_says_so(

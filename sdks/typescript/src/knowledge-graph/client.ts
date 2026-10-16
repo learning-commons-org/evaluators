@@ -232,10 +232,17 @@ export class KnowledgeGraphClient {
     );
     const readable = reads.flatMap((read, i) => (read.status === 'fulfilled' ? [{ i, components: read.value }] : []));
     const populated = readable.find((read) => read.components.length > 0);
-    // Falling back to an empty copy is only honest when every copy read cleanly. If one
-    // failed, it may be the populated one, and judging the empty copy would report 0 of 0.
+    // Falling back to an empty copy is only honest when every copy read cleanly and the list is
+    // complete. A failed read may be the populated copy, and a capped list may hide one, so
+    // judging the empty copy would report 0 of 0 for a standard that may have components.
     if (!populated && readable.length < candidates.length) {
       throw reads.find((read): read is PromiseRejectedResult => read.status === 'rejected')!.reason;
+    }
+    if (!populated && candidates.length >= STANDARD_SEARCH_LIMIT) {
+      throw new KnowledgeGraphError(
+        `Statement code "${statementCode}" matched ${STANDARD_SEARCH_LIMIT} or more standards, none with ` +
+        'learning components in the first page; the rest could not be checked',
+      );
     }
     const chosen = populated ?? readable[0];
     return {

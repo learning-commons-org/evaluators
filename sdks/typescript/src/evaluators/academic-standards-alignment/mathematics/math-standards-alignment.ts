@@ -109,9 +109,9 @@ export interface LearningComponentResult {
 export interface MathStandardsAlignmentResult {
   statement_code: string;
   /**
-   * CASE Network UUID of the standard that was judged, so a result can be traced to the exact
-   * copy of a code. Null when no standard was resolved: a pair skipped by the coarse filter, or
-   * one that failed before its standard was chosen.
+   * CASE Network UUID of the standard the SDK reported on, so a result can be traced to the exact
+   * copy of a code. Null when the SDK did not report a resolved standard: a bulk pair that failed,
+   * or one skipped by the coarse filter before its copy was known.
    */
   case_identifier_uuid: string | null;
   learning_components: LearningComponentResult[];
@@ -460,7 +460,8 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
               const failure = lcFailures.get(code);
               return {
                 statement_code: code,
-                case_identifier_uuid: null,
+                // The prefetch chose this copy, so its total_count comes from it.
+                case_identifier_uuid: cached?.uuid ?? null,
                 learning_components: [],
                 aligned_count: 0,
                 total_count: cached?.components.length ?? 0,
