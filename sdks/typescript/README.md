@@ -272,6 +272,7 @@ part of the standard an item does and does not reach:
 ```jsonc
 {
   "statement_code": "3.MD.C.7.d",
+  "case_identifier_uuid": "6ba25656-d7cc-11e8-824f-0242ac160002", // the copy of the standard that was judged
   "learning_components": [
     {
       "identifier": "29c42ed3-da20-5288-a4b1-c72989c97fe4",
