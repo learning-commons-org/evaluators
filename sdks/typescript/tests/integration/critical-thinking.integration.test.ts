@@ -63,12 +63,15 @@ const TEST_CASES: BaseTestCase[] = FIXTURES.map((fixture) => ({
   acceptable: neighbors(fixture.expected.critical_thinking_score),
 }));
 
+// Three long passages are the expensive call. The case stays in fixtures.json.
+const LIVE_CASES = TEST_CASES.filter((testCase) => testCase.id !== '5076429_cleaned');
+
 describeIntegration('CriticalThinkingEvaluator - Integration', () => {
   it('spans more than one score', () => {
     expect(new Set(TEST_CASES.map((testCase) => testCase.expected)).size).toBeGreaterThan(1);
   });
 
-  it.each(TEST_CASES)(
+  it.each(LIVE_CASES)(
     '$id expects $expected',
     async (testCase) => {
       const evaluator = new CriticalThinkingEvaluator({
