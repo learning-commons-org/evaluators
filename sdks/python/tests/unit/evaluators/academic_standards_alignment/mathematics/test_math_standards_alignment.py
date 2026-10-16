@@ -627,6 +627,51 @@ class TestResolvingTheCode:
             )
         assert providers.calls == []
 
+    async def test_a_capped_search_does_not_let_a_grade_pick_an_empty_copy(
+        self, providers: ProviderFactory
+    ) -> None:
+        # The grade leaves two empty copies, but the search stopped at its cap, so a populated copy
+        # at that grade may have been left out.
+        capped = FakeKnowledgeGraph(
+            *(
+                replace(
+                    DEFAULT_STANDARD,
+                    case_identifier_uuid=f"6ba0{i:04d}-d7cc-11e8-824f-0242ac160002",
+                    grade_level=(GradeLevel.GRADE_3,) if i < 2 else (GradeLevel.GRADE_4,),
+                    components=(),
+                )
+                for i in range(STANDARD_SEARCH_LIMIT)
+            )
+        )
+
+        with pytest.raises(KnowledgeGraphError, match="could not be checked"):
+            await build(capped).evaluate_by_code(
+                question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
+            )
+        assert providers.calls == []
+
+    async def test_a_capped_search_does_not_let_a_grade_isolate_an_empty_copy(
+        self, providers: ProviderFactory
+    ) -> None:
+        # The grade leaves one copy, and it is empty; a populated copy may be past the cap.
+        capped = FakeKnowledgeGraph(
+            replace(DEFAULT_STANDARD, components=(), grade_level=(GradeLevel.GRADE_3,)),
+            *(
+                replace(
+                    DEFAULT_STANDARD,
+                    case_identifier_uuid=f"6ba0{i:04d}-d7cc-11e8-824f-0242ac160002",
+                    grade_level=(GradeLevel.GRADE_4,),
+                )
+                for i in range(1, STANDARD_SEARCH_LIMIT)
+            ),
+        )
+
+        with pytest.raises(KnowledgeGraphError, match="could not be checked"):
+            await build(capped).evaluate_by_code(
+                question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
+            )
+        assert providers.calls == []
+
     async def test_a_capped_candidate_list_with_no_populated_copy_is_refused(
         self, providers: ProviderFactory
     ) -> None:
