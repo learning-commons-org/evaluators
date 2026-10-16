@@ -571,6 +571,8 @@ class TestResolvingTheCode:
         )
 
         assert evaluation.result.total_count == len(LEARNING_COMPONENTS)
+        # The result names the copy that was judged, so a caller can tell it apart from the other.
+        assert evaluation.result.case_identifier_uuid == OTHER_UUID
         [call] = providers.calls
         prompt = "\n".join(message["content"] for message in call["messages"])
         for identifier, _ in LEARNING_COMPONENTS:
@@ -687,6 +689,12 @@ class TestEvaluate:
             question=QUESTION, statement_code="3.md.c.7.d", grade_level="3"
         )
         assert evaluation.result.statement_code == STATEMENT_CODE
+
+    async def test_the_payload_names_the_standard_judged_by_uuid(
+        self, providers: ProviderFactory
+    ) -> None:
+        evaluation = await build().evaluate(question=QUESTION, case_identifier_uuid=STANDARD_UUID)
+        assert evaluation.result.case_identifier_uuid == STANDARD_UUID
 
     async def test_aligned_count_reflects_the_verdicts_rather_than_the_component_count(
         self, providers: ProviderFactory, script: Script

@@ -255,6 +255,7 @@ describe('MathStandardsAlignmentEvaluator — evaluateByCode', () => {
     const byEvaluate = await evaluator.evaluate(input);
 
     expect(byCode.result).toEqual(byEvaluate.result);
+    expect(byCode.result.case_identifier_uuid).toBe('standard-uuid');
   });
 });
 
@@ -294,6 +295,7 @@ describe('MathStandardsAlignmentEvaluator — evaluateByUuid', () => {
     expect(kg.getAcademicStandard).toHaveBeenCalledWith(UUID);
     expect(kg.getLearningComponents).toHaveBeenCalledWith(UUID);
     expect(result.statement_code).toBe('3.MD.C.7.d');
+    expect(result.case_identifier_uuid).toBe(UUID);
     expect(result.total_count).toBe(1);
     expect(result.aligned_count).toBe(1);
   });
