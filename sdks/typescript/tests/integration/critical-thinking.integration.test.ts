@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
+import CONFIG from '../../../../evals/durable-skills/ela-writing/critical-thinking/config.json';
 import { CriticalThinkingEvaluator } from '../../src/evaluators/durable-skills/ela-writing/critical-thinking.js';
 import type { EvaluationResult } from '../../src/schemas/index.js';
 import { runEvaluatorTest, type BaseTestCase } from '../utils/index.js';
@@ -93,6 +94,57 @@ describeIntegration('CriticalThinkingEvaluator - Integration', () => {
       });
 
       expect(result.matched, result.logs.join('\n')).toBe(true);
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  // Four short passages, once. The three-passage fixture stays out of this run, so this
+  // call is what still rates indicator 2.1 and checks the five-rating median.
+  it(
+    'rates four short passages in one call',
+    async () => {
+      const evaluator = new CriticalThinkingEvaluator({
+        anthropicApiKey: process.env.ANTHROPIC_API_KEY!,
+        telemetry: false,
+      });
+
+      const evaluation = await evaluator.evaluate({
+        assignment_text: 'Argue whether towns should plant more street trees. Use the sources.',
+        source_passages: [
+          {
+            title: 'Shade',
+            author: 'City trees office',
+            text: 'Street trees cool sidewalks and give birds a place to nest.',
+          },
+          {
+            title: 'Roots',
+            author: null,
+            text: 'Tree roots can lift pavement when they are planted in a narrow strip.',
+          },
+          {
+            author: 'A gardener',
+            text: 'Young trees need water through their first summer.',
+          },
+          { text: 'Bare soil dries faster when nothing shades it.' },
+        ],
+        essay_text:
+          'Towns should plant more street trees. Shade says they cool sidewalks. ' +
+          'Roots warns that pavement can lift, so each tree needs room. ' +
+          'A gardener says young trees need water. Bare soil dries faster without shade.',
+      });
+
+      expect(evaluation.evaluator).toBe(CONFIG.evaluator.id);
+      const model = CONFIG.steps[0].model;
+      expect(evaluation.metadata.model).toBe(`${model.provider}:${model.name}`);
+      const score = evaluation.result.critical_thinking_score;
+      expect(LEVELS).toContain(score);
+      expect(score).toBe(
+        medianRating(
+          presentRatings(
+            evaluation.result.indicators as Record<string, { rating: string } | undefined>,
+          ),
+        ),
+      );
     },
     TEST_TIMEOUT_MS,
   );
