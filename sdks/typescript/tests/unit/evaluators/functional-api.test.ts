@@ -187,15 +187,18 @@ describe('functional API wrappers — feedback family', () => {
 
 describe('functional API wrappers — durable skills', () => {
   const ASSIGNMENT = 'Using the sources, argue whether the town should limit cars downtown.';
-  const ESSAY = 'Dear city council, the sources disagree about the cost of fewer cars.';
+  const ESSAY =
+    'Dear city council, the sources disagree about the cost of fewer cars. The essay names ' +
+    'both sources and then stops. It does not weigh the disagreement, and it never says ' +
+    'whether the town should limit cars downtown or leave the street open.';
 
   it('evaluateCriticalThinking renders the passages and derives the source count', async () => {
     const result = await evaluateCriticalThinking(
       {
         assignment_text: ASSIGNMENT,
         source_passages: [
-          { title: 'A Car-Free Downtown', text: 'Fewer cars, cleaner air.' },
-          { text: 'Shops reported fewer customers.' },
+          { title: 'A Car-Free Downtown', text: 'Fewer cars, cleaner air. Streets stay quieter when through traffic is kept out.' },
+          { text: 'Shops reported fewer customers. Some owners asked the town to keep the street open to cars.' },
         ],
         essay_text: ESSAY,
       },
@@ -241,7 +244,7 @@ describe('functional API wrappers — durable skills', () => {
     const result = await evaluateCriticalThinking(
       {
         assignment_text: ASSIGNMENT,
-        source_passages: [{ title: 'Unmasking the Face on Mars', text: 'The face is a mesa.' }],
+        source_passages: [{ title: 'Unmasking the Face on Mars', text: 'The face is a mesa, according to the article the student was given.' }],
         essay_text: ESSAY,
       },
       CONFIG,

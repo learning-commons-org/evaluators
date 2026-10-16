@@ -374,7 +374,7 @@ const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknow
     construct(E).evaluate({
       assignment_text: 'Using the sources, argue whether your town should limit cars downtown.',
       source_passages: CRITICAL_THINKING_PASSAGES,
-      essay_text: text,
+      essay_text: criticalThinkingEssay(text),
     }),
 };
 
@@ -387,7 +387,17 @@ const INVOKE: Record<string, (E: EvaluatorClass, text: string) => Promise<unknow
 const MULTI_STEP = new Set<string>([SENTENCE_ID, VocabularyComplexityEvaluator.metadata.id]);
 
 /** The passages the Critical Thinking invoke passes, so a length check can expect this count. */
-const CRITICAL_THINKING_PASSAGES = [{ text: 'A passage.' }, { text: 'Another passage.' }];
+const CRITICAL_THINKING_PASSAGES = [
+  { text: 'A passage the student was given to read before writing.' },
+  { text: 'Another passage the student was given to read before writing.' },
+];
+
+function criticalThinkingEssay(text: string): string {
+  const extra = ' The essay restates the sources and then stops.';
+  let essay = text;
+  while (essay.length < 200) essay += extra;
+  return essay;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function construct(E: EvaluatorClass): any {
