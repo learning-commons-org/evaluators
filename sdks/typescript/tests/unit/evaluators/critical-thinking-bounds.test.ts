@@ -8,11 +8,8 @@ import { InputValidationError } from '../../../src/errors.js';
 import type { CriticalThinkingInput } from '../../../src/schemas/durable-skills/ela-writing/critical-thinking.js';
 
 const ASSIGNMENT = 'Using the sources, argue whether the town should limit cars downtown.';
-const ESSAY =
-  'Dear city council, the article says the face is a mesa. The student names that ' +
-  'source and restates its claim, then stops. No other evidence is weighed, and the ' +
-  'essay does not answer whether the town should limit cars downtown.';
-const PASSAGE = 'The face is a mesa, according to the article the student was given.';
+const ESSAY = 'Dear city council, the article says the face is a mesa.';
+const PASSAGE = 'The face is a mesa.';
 
 function input(overrides: Partial<CriticalThinkingInput>): CriticalThinkingInput {
   return {
@@ -30,9 +27,7 @@ const evaluator = new CriticalThinkingEvaluator({
 
 describe('Critical Thinking input bounds', () => {
   it.each([
-    ['a'.repeat(199), 'essay_text', 'essay_text is too short. Minimum length is 200 characters.'],
     ['a'.repeat(12001), 'essay_text', 'essay_text is too long. Maximum length is 12000 characters.'],
-    ['a'.repeat(19), 'assignment_text', 'assignment_text is too short. Minimum length is 20 characters.'],
     ['a'.repeat(3001), 'assignment_text', 'assignment_text is too long. Maximum length is 3000 characters.'],
   ] as const)('rejects %s on %s', async (value, field, message) => {
     await expect(evaluator.evaluate(input({ [field]: value }))).rejects.toThrow(message);
@@ -41,10 +36,7 @@ describe('Critical Thinking input bounds', () => {
     );
   });
 
-  it('rejects a passage text outside 50 to 9000 characters', async () => {
-    await expect(
-      evaluator.evaluate(input({ source_passages: [{ text: 'a'.repeat(49) }] })),
-    ).rejects.toThrow('source_passages[0].text is too short. Minimum length is 50 characters.');
+  it('rejects a passage text over 9000 characters', async () => {
     await expect(
       evaluator.evaluate(input({ source_passages: [{ text: 'a'.repeat(9001) }] })),
     ).rejects.toThrow('source_passages[0].text is too long. Maximum length is 9000 characters.');

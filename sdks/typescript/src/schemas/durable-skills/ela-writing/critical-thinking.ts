@@ -13,11 +13,11 @@ export interface SourcePassage {
 }
 
 export type CriticalThinkingInput = {
-  /** Assignment prompt instructions (~500 words max). */
+  /** The writing assignment / prompt given to the student. */
   "assignment_text": string;
   /** Source passages in the order the student received them. Position is the source number: the first item is Source 1, the second is Source 2, and so on. The SDK does not sort or renumber this list. When a passage has no title or author, that number is a valid way for the student to name it. */
   "source_passages": SourcePassage[];
-  /** Student essay (~200–2,000 words). */
+  /** The student's essay, verbatim (may contain spelling/grammar errors). */
   "essay_text": string;
 };
 

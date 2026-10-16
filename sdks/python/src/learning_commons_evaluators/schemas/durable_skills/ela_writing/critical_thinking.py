@@ -26,9 +26,9 @@ class CriticalThinkingInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    assignment_text: str = Field(description="Assignment prompt instructions (~500 words max).")
+    assignment_text: str = Field(description="The writing assignment / prompt given to the student.")
     source_passages: list[SourcePassage] = Field(description="Source passages in the order the student received them. Position is the source number: the first item is Source 1, the second is Source 2, and so on. The SDK does not sort or renumber this list. When a passage has no title or author, that number is a valid way for the student to name it.")
-    essay_text: str = Field(description="Student essay (~200–2,000 words).")
+    essay_text: str = Field(description="The student's essay, verbatim (may contain spelling/grammar errors).")
 
 
 class Evidence(BaseModel):
