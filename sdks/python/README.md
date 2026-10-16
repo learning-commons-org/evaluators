@@ -158,7 +158,7 @@ See [Math Standards Alignment](#math-standards-alignment) below, which has two e
 | --- | --- | --- | --- | --- |
 | `MathStandardsAlignmentEvaluator` | K–12 | Anthropic | `learning_commons_api_key` (Knowledge Graph) | [Link](https://docs.learningcommons.org/evaluators/academic-standards-evaluators/math-standards-alignment) |
 
-**Durable skills** — rates a student argumentative essay. Takes
+**Durable skills** — rates a student argumentative essay. This evaluator was validated on essays for grades 8–10. Takes
 `assignment_text`, `source_passages`, and `essay_text`. `source_passages` is a
 list of `{title?, author?, text}` in the order the student received them. The
 first item is Source 1. A passage may omit `title` and `author`; the source
