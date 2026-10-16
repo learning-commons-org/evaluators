@@ -4,6 +4,7 @@
   "type": "object",
   "required": [
     "statement_code",
+    "case_identifier_uuid",
     "learning_components",
     "aligned_count",
     "total_count"
@@ -13,6 +14,13 @@
     "statement_code": {
       "type": "string",
       "description": "The standard code that was evaluated (matches the statement_code input)"
+    },
+    "case_identifier_uuid": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "CASE Network UUID of the standard that was judged, so a result can be traced to the exact copy of a code. Null when no standard was resolved (a pair that failed before resolution, or one skipped by the coarse filter)."
     },
     "learning_components": {
       "type": "array",

@@ -69,6 +69,7 @@ export type MathStandardsAlignmentUuidInput = {
 
 /** What an evaluation needs from the Knowledge Graph: the standard's components and code. */
 interface StandardRead {
+  uuid: string;
   statementCode: string | null;
   components: LearningComponent[];
 }
@@ -107,6 +108,12 @@ export interface LearningComponentResult {
  */
 export interface MathStandardsAlignmentResult {
   statement_code: string;
+  /**
+   * CASE Network UUID of the standard that was judged, so a result can be traced to the exact
+   * copy of a code. Null when no standard was resolved: a pair skipped by the coarse filter, or
+   * one that failed before its standard was chosen.
+   */
+  case_identifier_uuid: string | null;
   learning_components: LearningComponentResult[];
   aligned_count: number;
   total_count: number;
@@ -435,6 +442,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
             error: failure,
             standards: item.statement_codes.map((code) => ({
               statement_code: code,
+              case_identifier_uuid: null,
               learning_components: [],
               aligned_count: 0,
               total_count: 0,
@@ -452,6 +460,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
               const failure = lcFailures.get(code);
               return {
                 statement_code: code,
+                case_identifier_uuid: null,
                 learning_components: [],
                 aligned_count: 0,
                 total_count: cached?.components.length ?? 0,
@@ -467,6 +476,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
             } catch (err) {
               result = {
                 statement_code: code,
+                case_identifier_uuid: null,
                 learning_components: [],
                 aligned_count: 0,
                 // Report the real component count when the pre-fetch knows it, so an
@@ -622,7 +632,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 
       if (components.length === 0) {
         return this.envelope(
-          { statement_code: statementCode, learning_components: [], aligned_count: 0, total_count: 0 },
+          { statement_code: statementCode, case_identifier_uuid: standard.uuid, learning_components: [], aligned_count: 0, total_count: 0 },
           startTime,
         );
       }
@@ -709,7 +719,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       }).catch(() => undefined);
 
       return this.envelope(
-        { statement_code: statementCode, learning_components: learningComponents, aligned_count: alignedCount, total_count: components.length },
+        { statement_code: statementCode, case_identifier_uuid: standard.uuid, learning_components: learningComponents, aligned_count: alignedCount, total_count: components.length },
         startTime,
         { inputTokens: tokenUsage.input_tokens, outputTokens: tokenUsage.output_tokens },
       );
@@ -755,7 +765,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         chosenComponentCount: standard.components.length,
       });
     }
-    return { statementCode: standard.statementCode, components: standard.components };
+    return { uuid: standard.uuid, statementCode: standard.statementCode, components: standard.components };
   }
 
   private async readStandardByUuid(caseIdentifierUUID: string): Promise<StandardRead> {
@@ -775,7 +785,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       });
     }
     const components = await this.kgClient.getLearningComponents(caseIdentifierUUID);
-    return { statementCode: standard.statementCode, components };
+    return { uuid: caseIdentifierUUID, statementCode: standard.statementCode, components };
   }
 
   private async runCoarseFilter(

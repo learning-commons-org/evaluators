@@ -384,6 +384,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                     return self._envelope(
                         MathStandardsAlignmentResult(
                             statement_code=statement_code,
+                            case_identifier_uuid=request.case_identifier_uuid,
                             learning_components=[],
                             aligned_count=0,
                             total_count=0,
@@ -422,6 +423,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
 
                 result = MathStandardsAlignmentResult(
                     statement_code=statement_code,
+                    case_identifier_uuid=request.case_identifier_uuid,
                     learning_components=judged,
                     aligned_count=sum(1 for component in judged if component.aligned),
                     total_count=len(components),
