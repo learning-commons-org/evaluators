@@ -272,7 +272,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
   }
 
   // -------------------------------------------------------------------------
-  // evaluate — single question × single standard (the primitive)
+  // evaluate — single question × the standard a code names (resolved to one copy)
   // -------------------------------------------------------------------------
 
   async evaluate(
@@ -284,6 +284,13 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       () => this.readStandardByCode(input.statement_code, input.jurisdiction),
       input.statement_code,
     );
+  }
+
+  /** The same evaluation as {@link evaluate}, under the name the Python SDK uses for it. */
+  evaluateByCode(
+    input: MathStandardsAlignmentInput,
+  ): Promise<EvaluationResult<MathStandardsAlignmentResult>> {
+    return this.evaluate(input);
   }
 
   // -------------------------------------------------------------------------

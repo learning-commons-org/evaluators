@@ -321,8 +321,9 @@ console.log(result.critical_thinking_score); // e.g. "analyzing"
 console.log(result.reasoning);
 ```
 
-`evaluate()` takes a code and resolves it. A code can name several standards, one per copy a
-framework keeps, and the first copy with learning components is the one judged. If you already
+`evaluate()` takes a code and resolves it; `evaluateByCode()` is the same call under the name the
+Python SDK uses. A code can name several standards, one per copy a framework keeps, and the first
+copy with learning components is the one judged. If you already
 hold the standard's CASE Network UUID, `evaluateByUuid()` judges that standard directly and
 skips the resolution:
 

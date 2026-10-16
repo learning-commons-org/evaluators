@@ -242,6 +242,22 @@ describe('a failed learning-component prefetch is reported, not silently zero', 
   });
 });
 
+describe('MathStandardsAlignmentEvaluator — evaluateByCode', () => {
+  it('returns what evaluate returns for the same input', async () => {
+    const input = {
+      question: 'A playground is shaped like an L. What is its area?',
+      statement_code: '3.MD.C.7.d',
+      jurisdiction: Jurisdiction.MultiState,
+    };
+    const evaluator = construct();
+
+    const byCode = await evaluator.evaluateByCode(input);
+    const byEvaluate = await evaluator.evaluate(input);
+
+    expect(byCode.result).toEqual(byEvaluate.result);
+  });
+});
+
 describe('MathStandardsAlignmentEvaluator — evaluateByUuid', () => {
   const UUID = '6ba25656-d7cc-11e8-824f-0242ac160002';
 
