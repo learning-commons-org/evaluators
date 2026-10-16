@@ -172,7 +172,7 @@ class _Request:
     question: str
     case_identifier_uuid: str
     statement_code: str
-    #: Already read while the copy was chosen, so the evaluation does not walk it again.
+    #: Set when the copy was chosen by reading its components, so they are not read twice.
     component_set: LearningComponentSet | None = None
 
 
@@ -367,6 +367,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                             request.case_identifier_uuid
                         )
                 statement_code = request.statement_code
+                case_identifier_uuid = request.case_identifier_uuid
                 components = component_set.components
                 if component_set.undescribed_count:
                     # total_count reports what was judged, so say why it is short of what
@@ -389,7 +390,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                     return self._envelope(
                         MathStandardsAlignmentResult(
                             statement_code=statement_code,
-                            case_identifier_uuid=request.case_identifier_uuid,
+                            case_identifier_uuid=case_identifier_uuid,
                             learning_components=[],
                             aligned_count=0,
                             total_count=0,
@@ -428,7 +429,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
 
                 result = MathStandardsAlignmentResult(
                     statement_code=statement_code,
-                    case_identifier_uuid=request.case_identifier_uuid,
+                    case_identifier_uuid=case_identifier_uuid,
                     learning_components=judged,
                     aligned_count=sum(1 for component in judged if component.aligned),
                     total_count=len(components),
@@ -493,7 +494,9 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
             self.metadata.label,
             extra={**context, "standard": uuid, "text_length": run.text_length},
         )
-        return _Request(question, uuid, await self._statement_code(uuid, context, knowledge_graph))
+        standard = await self._read_standard(uuid, context, knowledge_graph)
+        # The Knowledge Graph's spelling of the UUID and code, not the caller's.
+        return _Request(question, standard.case_identifier_uuid, standard.statement_code or "")
 
     async def _named_by_code(
         self,
@@ -547,33 +550,24 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                     )
         return text_inputs(validate_inputs(raw, schema))
 
-    async def _statement_code(
+    async def _read_standard(
         self, uuid: str, context: _Context, knowledge_graph: KnowledgeGraphClient
-    ) -> str:
-        """The Knowledge Graph's own spelling of the standard's code, once it is a math one.
+    ) -> AcademicStandard:
+        """The standard a UUID names, read once, with its subject checked.
 
-        Read rather than taken from the input, because the input is a UUID: the payload
-        reports the code so a result can be joined to a report keyed on codes, which is
-        what the TypeScript SDK's payload carries. Every field but the UUID is optional in
-        the Knowledge Graph, so a sparsely authored standard yields an empty code; that is
-        said out loud rather than passed off as a code.
-
-        This is also where the subject is checked, because it is the one place a standard
-        named by UUID is read. It runs before the learning components are fetched and
-        before any model call, so a standard this evaluator cannot judge costs one request
-        rather than a full evaluation.
+        The subject is checked here because this is the one place a standard named by UUID is
+        read. It runs before the learning components are fetched and before any model call.
 
         :raises InputValidationError: when the standard belongs to another subject.
         """
         standard = await knowledge_graph.get_academic_standard(uuid)
         self._require_subject(standard, context)
-        if standard.statement_code:
-            return standard.statement_code
-        self.logger.warning(
-            "Standard carries no statement code; the payload reports an empty one",
-            extra={**context, "standard": uuid},
-        )
-        return ""
+        if not standard.statement_code:
+            self.logger.warning(
+                "Standard carries no statement code; the payload reports an empty one",
+                extra={**context, "standard": uuid},
+            )
+        return standard
 
     def _require_subject(self, standard: AcademicStandard, context: _Context) -> None:
         """Refuse a standard from another subject before it reaches the math rubric.
@@ -715,13 +709,12 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
     async def _chosen_copy(
         self, matches: Sequence[StandardMatch], knowledge_graph: KnowledgeGraphClient
     ) -> tuple[StandardMatch, LearningComponentSet]:
-        """The first copy that carries learning components, with the components read.
+        """The first copy with learning components, else the first readable copy.
 
-        Read for each copy, because whether a copy has any is the only thing that tells an
-        empty copy from the one worth evaluating. Falling back to an empty copy is honest
-        only when every copy read cleanly: if one failed, it may be the populated one, so
-        the failure is raised rather than reported as a standard with nothing to judge.
-        Only an ambiguous code gets here.
+        Every copy is read, because whether a copy has any is the only thing that tells an
+        empty copy from the one worth evaluating. Falls back to an empty copy only when every
+        copy read cleanly; otherwise the failure is raised rather than reported as a standard
+        with nothing to judge.
         """
         results = await asyncio.gather(
             *(

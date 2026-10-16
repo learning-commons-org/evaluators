@@ -71,7 +71,7 @@ function makeMockKgClient(overrides: Partial<KnowledgeGraphClient> = {}): Knowle
         gradeLevel: ['3'],
       },
     ]),
-    getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', description: 'Area additive', components: LC_COMPONENTS }),
+    getLearningComponentsByCode: vi.fn().mockImplementation((code: string) => Promise.resolve({ uuid: 'uuid-abc', statementCode: code, description: 'Area additive', components: LC_COMPONENTS, undescribedCount: 0 })),
     ...overrides,
   } as unknown as KnowledgeGraphClient;
 }
@@ -190,7 +190,7 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
   it('reports zero tokens when it resolves without calling a model', async () => {
     // A standard with no learning components returns early. Reporting the mock's token
     // counts here would attribute a cost to a call that never happened.
-    const emptyRepo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [] }) });
+    const emptyRepo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', statementCode: STATEMENT_CODE, components: [], undescribedCount: 0 }) });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: emptyRepo }));
 
     const { metadata } = await evaluator.evaluate({ question: QUESTION, statement_code: STATEMENT_CODE, jurisdiction: JURISDICTION });
@@ -211,7 +211,7 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
   });
 
   it('makes no LLM call and returns empty result when standard has no learning components', async () => {
-    const emptyRepo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [] }) });
+    const emptyRepo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', statementCode: STATEMENT_CODE, components: [], undescribedCount: 0 }) });
     const evaluator = new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: emptyRepo }));
 
     const { result } = await evaluator.evaluate({ question: QUESTION, statement_code: STATEMENT_CODE, jurisdiction: JURISDICTION });
@@ -251,7 +251,7 @@ describe('MathStandardsAlignmentEvaluator - evaluate', () => {
 
   it('correctly handles kindergarten standard', async () => {
     const kRepo = makeMockKgClient({
-      getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ identifier: 'lc-k01', description: 'Count objects' }] }),
+      getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', statementCode: 'K.CC.A.1', components: [{ identifier: 'lc-k01', description: 'Count objects' }], undescribedCount: 0 }),
     });
     vi.mocked(mockProvider.generateStructured).mockResolvedValue({
       ...MOCK_BATCH_RESPONSE,
@@ -290,7 +290,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems (per-question codes)',
   });
 
   it('evaluates each item against its own standards list', async () => {
-    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ identifier: 'lc-t01', description: 'LC' }] }) });
+    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockImplementation((code: string) => Promise.resolve({ uuid: 'uuid-abc', statementCode: code, components: [{ identifier: 'lc-t01', description: 'LC' }], undescribedCount: 0 })) });
     vi.mocked(mockProvider.generateStructured).mockResolvedValue({
       ...MOCK_BATCH_RESPONSE,
       data: { evaluations: [{ lc_id: 'lc-t01', reasoning: 'ok', answer: 'Yes', feedback: '' }] },
@@ -311,7 +311,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems (per-question codes)',
   });
 
   it('deduplicates statement_codes per item', async () => {
-    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ identifier: 'lc-t01', description: 'LC' }] }) });
+    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockImplementation((code: string) => Promise.resolve({ uuid: 'uuid-abc', statementCode: code, components: [{ identifier: 'lc-t01', description: 'LC' }], undescribedCount: 0 })) });
     vi.mocked(mockProvider.generateStructured).mockResolvedValue({
       ...MOCK_BATCH_RESPONSE,
       data: { evaluations: [{ lc_id: 'lc-t01', reasoning: 'ok', answer: 'Yes', feedback: '' }] },
@@ -328,7 +328,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems (per-question codes)',
   });
 
   it('onProgress fires for each completed (item, standard) pair', async () => {
-    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ identifier: 'lc-t01', description: 'LC' }] }) });
+    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockImplementation((code: string) => Promise.resolve({ uuid: 'uuid-abc', statementCode: code, components: [{ identifier: 'lc-t01', description: 'LC' }], undescribedCount: 0 })) });
     vi.mocked(mockProvider.generateStructured).mockResolvedValue({
       ...MOCK_BATCH_RESPONSE,
       data: { evaluations: [{ lc_id: 'lc-t01', reasoning: 'ok', answer: 'Yes', feedback: '' }] },
@@ -362,7 +362,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems (shared codes)', () =>
   });
 
   it('deduplicates shared statement_codes — each unique code evaluated once per question', async () => {
-    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [{ identifier: 'lc-t01', description: 'LC' }] }) });
+    const repo = makeMockKgClient({ getLearningComponentsByCode: vi.fn().mockImplementation((code: string) => Promise.resolve({ uuid: 'uuid-abc', statementCode: code, components: [{ identifier: 'lc-t01', description: 'LC' }], undescribedCount: 0 })) });
     vi.mocked(mockProvider.generateStructured).mockResolvedValue({
       ...MOCK_BATCH_RESPONSE,
       data: { evaluations: [{ lc_id: 'lc-t01', reasoning: 'ok', answer: 'Yes', feedback: '' }] },
@@ -942,7 +942,7 @@ describe('MathStandardsAlignmentEvaluator - evaluateItems error isolation', () =
     // Fourth way: the standard exists but has no learning components, so nothing was
     // measured. Counting it as evaluated would read as a judgement.
     const noComponents = makeMockKgClient({
-      getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', components: [] }),
+      getLearningComponentsByCode: vi.fn().mockResolvedValue({ uuid: 'uuid-abc', statementCode: STATEMENT_CODE, components: [], undescribedCount: 0 }),
     });
     const unauthored = await new MathStandardsAlignmentEvaluator(makeConfig({ _kgClient: noComponents }))
       .evaluateByGradeLevel(['Q1'], '3', JURISDICTION);

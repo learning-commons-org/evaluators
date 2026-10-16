@@ -216,25 +216,19 @@ export class KnowledgeGraphClient {
     });
   }
 
-  /**
-   * The standard a code names, with its components. A code can name several standards
-   * (a framework reuses it across courses), so each is read and the first one that has
-   * components is chosen. Among several populated copies the first wins.
-   */
+  /** The standard a code names, with its components. Among several copies, the first populated one wins. */
   async getLearningComponentsByCode(
     statementCode: string,
     opts?: StandardInfoOptions,
-  ): Promise<StandardInfo & { components: LearningComponent[] }> {
+  ): Promise<StandardInfo & LearningComponentSet> {
     const candidates = await this.getStandardCandidates(statementCode, opts);
-    // Every copy settles so one unreadable copy cannot fail a lookup another copy answers.
     const reads = await Promise.allSettled(
-      candidates.map((candidate) => this.getLearningComponents(candidate.uuid)),
+      candidates.map((candidate) => this.getLearningComponentSet(candidate.uuid)),
     );
-    const readable = reads.flatMap((read, i) => (read.status === 'fulfilled' ? [{ i, components: read.value }] : []));
-    const populated = readable.find((read) => read.components.length > 0);
-    // Falling back to an empty copy is only honest when every copy read cleanly and the list is
-    // complete. A failed read may be the populated copy, and a capped list may hide one, so
-    // judging the empty copy would report 0 of 0 for a standard that may have components.
+    const readable = reads.flatMap((read, i) => (read.status === 'fulfilled' ? [{ i, set: read.value }] : []));
+    const populated = readable.find((read) => read.set.components.length > 0);
+    // An empty copy is judged only when every copy read and the list is complete; otherwise
+    // the populated copy may be the one that failed or was cut off.
     if (!populated && readable.length < candidates.length) {
       throw reads.find((read): read is PromiseRejectedResult => read.status === 'rejected')!.reason;
     }
@@ -248,7 +242,7 @@ export class KnowledgeGraphClient {
     return {
       ...candidates[chosen.i],
       ...(candidates.length > 1 ? { ambiguous: true } : {}),
-      components: chosen.components,
+      ...chosen.set,
     };
   }
 

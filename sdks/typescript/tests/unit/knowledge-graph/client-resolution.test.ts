@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { KnowledgeGraphClient } from '../../../src/knowledge-graph/client.js';
-import { InputValidationError } from '../../../src/errors.js';
+import { InputValidationError, KnowledgeGraphError } from '../../../src/errors.js';
 
 const API_KEY = 'test-key';
 const CODE = 'HSN-RN.B.3';
@@ -11,8 +11,8 @@ const LCS = [{ identifier: 'lc-1', description: 'Rewrite exponents' }];
 function clientWith(candidates: unknown[], componentsByUuid: Record<string, unknown[]>) {
   const client = new KnowledgeGraphClient(API_KEY);
   vi.spyOn(client, 'getStandardCandidates').mockResolvedValue(candidates as never);
-  vi.spyOn(client, 'getLearningComponents').mockImplementation(
-    async (uuid: string) => (componentsByUuid[uuid] ?? []) as never,
+  vi.spyOn(client, 'getLearningComponentSet').mockImplementation(
+    async (uuid: string) => ({ components: componentsByUuid[uuid] ?? [], undescribedCount: 0 }) as never,
   );
   return client;
 }
@@ -56,9 +56,9 @@ describe('KnowledgeGraphClient - getLearningComponentsByCode with several matche
       POPULATED_COPY,
       { ...EMPTY_COPY, uuid: 'broken' },
     ] as never);
-    vi.spyOn(client, 'getLearningComponents').mockImplementation(async (uuid: string) => {
+    vi.spyOn(client, 'getLearningComponentSet').mockImplementation(async (uuid: string) => {
       if (uuid === 'broken') throw new Error('KG 503');
-      return (uuid === 'populated-copy' ? LCS : []) as never;
+      return { components: uuid === 'populated-copy' ? LCS : [], undescribedCount: 0 } as never;
     });
 
     const result = await client.getLearningComponentsByCode(CODE);
@@ -68,7 +68,7 @@ describe('KnowledgeGraphClient - getLearningComponentsByCode with several matche
 
   it('fails only when no copy can be read', async () => {
     const client = clientWith([EMPTY_COPY, { ...EMPTY_COPY, uuid: 'other' }], {});
-    vi.spyOn(client, 'getLearningComponents').mockRejectedValue(new Error('KG 503'));
+    vi.spyOn(client, 'getLearningComponentSet').mockRejectedValue(new Error('KG 503'));
 
     await expect(client.getLearningComponentsByCode(CODE)).rejects.toThrow('KG 503');
   });
@@ -76,19 +76,20 @@ describe('KnowledgeGraphClient - getLearningComponentsByCode with several matche
   it('does not judge an empty copy when the populated copy could not be read', async () => {
     const client = new KnowledgeGraphClient(API_KEY);
     vi.spyOn(client, 'getStandardCandidates').mockResolvedValue([EMPTY_COPY, POPULATED_COPY] as never);
-    vi.spyOn(client, 'getLearningComponents').mockImplementation(async (uuid: string) => {
+    vi.spyOn(client, 'getLearningComponentSet').mockImplementation(async (uuid: string) => {
       if (uuid === 'populated-copy') throw new Error('KG 429');
-      return [] as never;
+      return { components: [], undescribedCount: 0 } as never;
     });
 
-    await expect(client.getLearningComponentsByCode(CODE)).rejects.toThrow('KG 429');
+    const err = await client.getLearningComponentsByCode(CODE).catch((e) => e);
+    expect(err?.message).toBe('KG 429');
   });
 
   it('refuses to judge an empty copy when the candidate list may be truncated', async () => {
     const capped = Array.from({ length: 50 }, (_, i) => ({ ...EMPTY_COPY, uuid: `copy-${i}` }));
     const client = clientWith(capped, {});
 
-    await expect(client.getLearningComponentsByCode(CODE)).rejects.toThrow(/could not be checked/);
+    await expect(client.getLearningComponentsByCode(CODE)).rejects.toThrow(/matched 50 or more standards.*could not be checked/);
   });
 
   it('does not flag a single match as ambiguous', async () => {
@@ -145,12 +146,50 @@ describe('KnowledgeGraphClient - getAcademicStandard', () => {
     expect(standard.academicSubject).toBeNull();
   });
 
+  it('requests the standard at its own UUID path', async () => {
+    const fetchMock = mockFetch(200, { caseIdentifierUUID: '6ba25656-d7cc-11e8-824f-0242ac160002' });
+
+    await new KnowledgeGraphClient(API_KEY).getAcademicStandard('6ba25656-d7cc-11e8-824f-0242ac160002');
+
+    expect(fetchMock.mock.calls[0][0].url).toContain('/academic-standards/6ba25656-d7cc-11e8-824f-0242ac160002');
+  });
+
   it('refuses a malformed UUID before making a request', async () => {
     const fetchMock = mockFetch(200, {});
 
-    await expect(new KnowledgeGraphClient(API_KEY).getAcademicStandard('not-a-uuid'))
-      .rejects.toBeInstanceOf(InputValidationError);
+    const err = await new KnowledgeGraphClient(API_KEY).getAcademicStandard('not-a-uuid').catch((e) => e);
+
+    expect(err).toBeInstanceOf(InputValidationError);
+    expect(err.message).toContain('"not-a-uuid"');
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('treats an empty response as a Knowledge Graph error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-length': '0' }),
+      json: () => Promise.resolve(undefined),
+      text: () => Promise.resolve(''),
+    }));
+
+    const err = await new KnowledgeGraphClient(API_KEY)
+      .getAcademicStandard('6ba25656-d7cc-11e8-824f-0242ac160002')
+      .catch((e) => e);
+
+    expect(err).toBeInstanceOf(KnowledgeGraphError);
+    expect(err.message).toContain('Unexpected empty response');
+  });
+
+  it('reports a server error as a Knowledge Graph error, not an input error', async () => {
+    mockFetch(500, { message: 'boom' });
+
+    const err = await new KnowledgeGraphClient(API_KEY)
+      .getAcademicStandard('6ba25656-d7cc-11e8-824f-0242ac160002')
+      .catch((e) => e);
+
+    expect(err).toBeInstanceOf(KnowledgeGraphError);
+    expect(err).not.toBeInstanceOf(InputValidationError);
   });
 
   it('reports a UUID the Knowledge Graph does not hold as an input error', async () => {
