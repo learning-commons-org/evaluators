@@ -45,13 +45,18 @@ from learning_commons_evaluators.config import EvaluatorConfig
 from learning_commons_evaluators.contracts import load_contract
 from learning_commons_evaluators.contracts.loader import ModelSpec, Prompt, Step
 from learning_commons_evaluators.dependencies.knowledge_graph import (
+    STANDARD_SEARCH_LIMIT,
     AcademicStandard,
     KnowledgeGraphClient,
     LearningComponent,
     LearningComponentSet,
     StandardMatch,
 )
-from learning_commons_evaluators.errors import InputValidationError, LLMOutputProcessingError
+from learning_commons_evaluators.errors import (
+    InputValidationError,
+    KnowledgeGraphError,
+    LLMOutputProcessingError,
+)
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
 from learning_commons_evaluators.evaluators.inputs import text_inputs, validate_inputs
 from learning_commons_evaluators.evaluators.single_step import step_for
@@ -735,6 +740,11 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         ]
         if not populated and len(readable) < len(matches):
             raise next(r for r in results if isinstance(r, BaseException))
+        if not populated and len(matches) >= STANDARD_SEARCH_LIMIT:
+            raise KnowledgeGraphError(
+                f"Statement code matched {STANDARD_SEARCH_LIMIT} or more standards, none with "
+                "learning components in the first page; the rest could not be checked"
+            )
         return (populated or readable)[0]
 
     # --- pieces of the flow ------------------------------------------------------------

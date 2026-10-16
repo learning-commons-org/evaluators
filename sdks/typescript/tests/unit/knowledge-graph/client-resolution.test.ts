@@ -84,6 +84,13 @@ describe('KnowledgeGraphClient - getLearningComponentsByCode with several matche
     await expect(client.getLearningComponentsByCode(CODE)).rejects.toThrow('KG 429');
   });
 
+  it('refuses to judge an empty copy when the candidate list may be truncated', async () => {
+    const capped = Array.from({ length: 50 }, (_, i) => ({ ...EMPTY_COPY, uuid: `copy-${i}` }));
+    const client = clientWith(capped, {});
+
+    await expect(client.getLearningComponentsByCode(CODE)).rejects.toThrow(/could not be checked/);
+  });
+
   it('does not flag a single match as ambiguous', async () => {
     const client = clientWith([POPULATED_COPY], { 'populated-copy': LCS });
 

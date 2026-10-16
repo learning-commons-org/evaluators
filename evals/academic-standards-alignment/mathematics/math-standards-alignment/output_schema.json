@@ -20,7 +20,7 @@
         "string",
         "null"
       ],
-      "description": "CASE Network UUID of the standard that was judged, so a result can be traced to the exact copy of a code. Null when no standard was resolved (a pair that failed before resolution, or one skipped by the coarse filter)."
+      "description": "CASE Network UUID of the standard the SDK reported on, so a result can be traced to the exact copy of a code. Null when the SDK did not report a resolved standard: a bulk pair that failed, or one skipped by the coarse filter before its copy was known."
     },
     "learning_components": {
       "type": "array",
