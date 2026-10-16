@@ -187,6 +187,14 @@ _ELSEWHERE = {
 }
 
 
+def _search_capped(statement_code: str) -> KnowledgeGraphError:
+    """The refusal for an empty copy the search may have hidden a populated one behind."""
+    return KnowledgeGraphError(
+        f'Statement code "{statement_code}" matched {STANDARD_SEARCH_LIMIT} or more standards, '
+        "and the copy chosen has no learning components; the rest could not be checked"
+    )
+
+
 # --- The model's answer ---------------------------------------------------------------
 
 
@@ -630,6 +638,9 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         matches = await knowledge_graph.search_standards(
             statement_code, jurisdiction=jurisdiction, academic_subject=ACADEMIC_SUBJECT
         )
+        # A search at its cap may have left out a copy, so a grade filter cannot make an empty copy
+        # safe to judge. Only the complete search can.
+        truncated = len(matches) >= STANDARD_SEARCH_LIMIT
         if len(matches) == 1:
             return matches[0], None
 
@@ -643,10 +654,19 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                 grade_level,
                 extra={**context, "statement_code": statement_code},
             )
-            return at_grade[0], None
+            if not truncated:
+                return at_grade[0], None
+            component_set = await knowledge_graph.get_learning_component_set(
+                at_grade[0].case_identifier_uuid
+            )
+            if not component_set.components:
+                raise _search_capped(statement_code)
+            return at_grade[0], component_set
 
         candidates = at_grade or matches
         chosen, component_set = await self._chosen_copy(candidates, knowledge_graph)
+        if truncated and not component_set.components:
+            raise _search_capped(statement_code)
         alternatives = [m.case_identifier_uuid for m in candidates if m is not chosen]
         if grade_level is None:
             self.logger.warning(
@@ -733,11 +753,6 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         ]
         if not populated and len(readable) < len(matches):
             raise next(r for r in results if isinstance(r, BaseException))
-        if not populated and len(matches) >= STANDARD_SEARCH_LIMIT:
-            raise KnowledgeGraphError(
-                f"Statement code matched {STANDARD_SEARCH_LIMIT} or more standards, none with "
-                "learning components in the first page; the rest could not be checked"
-            )
         return (populated or readable)[0]
 
     # --- pieces of the flow ------------------------------------------------------------

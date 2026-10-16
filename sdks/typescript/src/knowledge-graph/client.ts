@@ -253,9 +253,11 @@ export class KnowledgeGraphClient {
     }
     let data: components['schemas']['StandardsFrameworkItem'] | undefined;
     try {
-      ({ data } = await this.http.GET('/academic-standards/{caseIdentifierUUID}', {
-        params: { path: { caseIdentifierUUID } },
-      }).catch(wrapJsonError));
+      ({ data } = await this.limit(() =>
+        this.http.GET('/academic-standards/{caseIdentifierUUID}', {
+          params: { path: { caseIdentifierUUID } },
+        }).catch(wrapJsonError),
+      ));
     } catch (err) {
       if (err instanceof KnowledgeGraphError && err.statusCode === 404) {
         throw new InputValidationError(`Knowledge Graph has no academic standard "${caseIdentifierUUID}"`, err);

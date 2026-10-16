@@ -13,7 +13,7 @@ import {
   STEP,
   SUPPORTED_GRADES,
 } from '../../../prompts/math/standards-alignment/index.js';
-import { KnowledgeGraphClient, Jurisdiction, type LearningComponent } from '../../../knowledge-graph/index.js';
+import { KnowledgeGraphClient, Jurisdiction, normalizeStatementCode, type LearningComponent } from '../../../knowledge-graph/index.js';
 import { EvaluatorError, DependencyError, InputValidationError, LLMOutputProcessingError, wrapProviderError } from '../../../errors.js';
 import type { StageDetail } from '../../../telemetry/index.js';
 import CONFIG from '../../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/config.json';
@@ -543,7 +543,9 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     const by_standard = codes.map((code) => {
       const results = by_question.map(({ question, standards }) => ({
         question,
-        result: standards.find((s) => s.statement_code === code),
+        // Matched on the normalized code: a result carries the Knowledge Graph's spelling, which may
+        // differ from the grade listing's in case.
+        result: standards.find((s) => normalizeStatementCode(s.statement_code) === normalizeStatementCode(code)),
       }));
 
       const covered_by = results.flatMap(({ question, result }) => {

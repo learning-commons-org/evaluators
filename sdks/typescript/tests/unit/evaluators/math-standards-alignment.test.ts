@@ -292,6 +292,33 @@ describe('MathStandardsAlignmentEvaluator — evaluateByCode', () => {
   });
 });
 
+describe('MathStandardsAlignmentEvaluator — evaluateByGradeLevel joins', () => {
+  it('counts a standard as evaluated when the listing and the knowledge graph spell its code differently', async () => {
+    const evaluator = construct({
+      _kgClient: {
+        getStandardsByGradeLevel: vi.fn().mockResolvedValue([
+          { caseIdentifierUUID: 'uuid-abc', statementCode: '3.md.c.7.d' },
+        ]),
+        getLearningComponentsByCode: vi.fn().mockResolvedValue({
+          uuid: 'uuid-abc',
+          statementCode: '3.MD.C.7.D',
+          components: [{ identifier: 'lc-1', description: 'Decompose rectilinear figures' }],
+          undescribedCount: 0,
+        }),
+      } as unknown as KnowledgeGraphClient,
+    });
+
+    const result = await evaluator.evaluateByGradeLevel(
+      ['A playground is shaped like an L. What is its area?'],
+      '3',
+      Jurisdiction.MultiState,
+    );
+
+    expect(result.by_standard[0].evaluated_count).toBe(1);
+    expect(result.by_standard[0].covered_by).toHaveLength(1);
+  });
+});
+
 describe('MathStandardsAlignmentEvaluator — evaluateByUuid', () => {
   const UUID = '6ba25656-d7cc-11e8-824f-0242ac160002';
 
