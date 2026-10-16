@@ -48,6 +48,7 @@ from learning_commons_evaluators.dependencies.knowledge_graph import (
     AcademicStandard,
     KnowledgeGraphClient,
     LearningComponent,
+    LearningComponentSet,
     StandardMatch,
 )
 from learning_commons_evaluators.errors import InputValidationError, LLMOutputProcessingError
@@ -166,6 +167,8 @@ class _Request:
     question: str
     case_identifier_uuid: str
     statement_code: str
+    #: Already read while the copy was chosen, so the evaluation does not walk it again.
+    component_set: LearningComponentSet | None = None
 
 
 #: Each entry point's inputs, named for the other's failure message. Passing one method's
@@ -353,9 +356,11 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                 # the model is asked rather than held open through the slowest step.
                 async with self._knowledge_graph() as knowledge_graph:
                     request = await name_standard(raw, run, context, knowledge_graph)
-                    component_set = await knowledge_graph.get_learning_component_set(
-                        request.case_identifier_uuid
-                    )
+                    component_set = request.component_set
+                    if component_set is None:
+                        component_set = await knowledge_graph.get_learning_component_set(
+                            request.case_identifier_uuid
+                        )
                 statement_code = request.statement_code
                 components = component_set.components
                 if component_set.undescribed_count:
@@ -514,10 +519,10 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                 "text_length": run.text_length,
             },
         )
-        match = await self._resolve(
+        match, component_set = await self._resolve(
             statement_code, jurisdiction, grade_level, context, knowledge_graph
         )
-        return _Request(question, match.case_identifier_uuid, match.statement_code)
+        return _Request(question, match.case_identifier_uuid, match.statement_code, component_set)
 
     @staticmethod
     def _validated(raw: Any, schema: Mapping[str, Any]) -> dict[str, str]:
@@ -600,8 +605,10 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         grade_level: str | None,
         context: dict[str, Any],
         knowledge_graph: KnowledgeGraphClient,
-    ) -> StandardMatch:
+    ) -> tuple[StandardMatch, LearningComponentSet | None]:
         """The one standard a code names in a jurisdiction, with the grade breaking ties.
+
+        Returns the components too when they were read to choose the copy, else ``None``.
 
         A code is not unique on its own. Within a framework it is reused across courses --
         an integrated pathway and a subject pathway both carry an algebra code -- and the
@@ -623,7 +630,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
             statement_code, jurisdiction=jurisdiction, academic_subject=ACADEMIC_SUBJECT
         )
         if len(matches) == 1:
-            return matches[0]
+            return matches[0], None
 
         at_grade = (
             await self._at_grade(matches, grade_level, knowledge_graph) if grade_level else []
@@ -635,10 +642,10 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                 grade_level,
                 extra={**context, "statement_code": statement_code},
             )
-            return at_grade[0]
+            return at_grade[0], None
 
         candidates = at_grade or matches
-        chosen = await self._chosen_copy(candidates, knowledge_graph)
+        chosen, component_set = await self._chosen_copy(candidates, knowledge_graph)
         alternatives = [m.case_identifier_uuid for m in candidates if m is not chosen]
         if grade_level is None:
             self.logger.warning(
@@ -672,7 +679,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                     "alternatives": alternatives,
                 },
             )
-        return chosen
+        return chosen, component_set
 
     async def _at_grade(
         self,
@@ -700,30 +707,33 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
 
     async def _chosen_copy(
         self, matches: Sequence[StandardMatch], knowledge_graph: KnowledgeGraphClient
-    ) -> StandardMatch:
-        """The first copy that carries learning components, else the first copy readable.
+    ) -> tuple[StandardMatch, LearningComponentSet]:
+        """The first copy that carries learning components, with the components read.
 
         Read for each copy, because whether a copy has any is the only thing that tells an
-        empty copy from the one worth evaluating. A copy that cannot be read does not fail
-        the lookup while another can be judged; only when none can is the first failure
-        raised. Only an ambiguous code gets here.
+        empty copy from the one worth evaluating. Falling back to an empty copy is honest
+        only when every copy read cleanly: if one failed, it may be the populated one, so
+        the failure is raised rather than reported as a standard with nothing to judge.
+        Only an ambiguous code gets here.
         """
         results = await asyncio.gather(
             *(
-                knowledge_graph.get_learning_components(match.case_identifier_uuid)
+                knowledge_graph.get_learning_component_set(match.case_identifier_uuid)
                 for match in matches
             ),
             return_exceptions=True,
         )
         readable = [
-            (match, components)
-            for match, components in zip(matches, results, strict=True)
-            if not isinstance(components, BaseException)
+            (match, component_set)
+            for match, component_set in zip(matches, results, strict=True)
+            if not isinstance(component_set, BaseException)
         ]
-        if not readable:
+        populated = [
+            (match, component_set) for match, component_set in readable if component_set.components
+        ]
+        if not populated and len(readable) < len(matches):
             raise next(r for r in results if isinstance(r, BaseException))
-        populated = [match for match, components in readable if components]
-        return (populated or [match for match, _ in readable])[0]
+        return (populated or readable)[0]
 
     # --- pieces of the flow ------------------------------------------------------------
 

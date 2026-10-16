@@ -73,6 +73,17 @@ describe('KnowledgeGraphClient - getLearningComponentsByCode with several matche
     await expect(client.getLearningComponentsByCode(CODE)).rejects.toThrow('KG 503');
   });
 
+  it('does not judge an empty copy when the populated copy could not be read', async () => {
+    const client = new KnowledgeGraphClient(API_KEY);
+    vi.spyOn(client, 'getStandardCandidates').mockResolvedValue([EMPTY_COPY, POPULATED_COPY] as never);
+    vi.spyOn(client, 'getLearningComponents').mockImplementation(async (uuid: string) => {
+      if (uuid === 'populated-copy') throw new Error('KG 429');
+      return [] as never;
+    });
+
+    await expect(client.getLearningComponentsByCode(CODE)).rejects.toThrow('KG 429');
+  });
+
   it('does not flag a single match as ambiguous', async () => {
     const client = clientWith([POPULATED_COPY], { 'populated-copy': LCS });
 

@@ -226,14 +226,18 @@ export class KnowledgeGraphClient {
     opts?: StandardInfoOptions,
   ): Promise<StandardInfo & { components: LearningComponent[] }> {
     const candidates = await this.getStandardCandidates(statementCode, opts);
-    // A copy that cannot be read must not fail the lookup while another copy can be
-    // judged, so every copy settles and the choice is made among those that read.
+    // Every copy settles so one unreadable copy cannot fail a lookup another copy answers.
     const reads = await Promise.allSettled(
       candidates.map((candidate) => this.getLearningComponents(candidate.uuid)),
     );
     const readable = reads.flatMap((read, i) => (read.status === 'fulfilled' ? [{ i, components: read.value }] : []));
-    if (readable.length === 0) throw (reads[0] as PromiseRejectedResult).reason;
-    const chosen = readable.find((read) => read.components.length > 0) ?? readable[0];
+    const populated = readable.find((read) => read.components.length > 0);
+    // Falling back to an empty copy is only honest when every copy read cleanly. If one
+    // failed, it may be the populated one, and judging the empty copy would report 0 of 0.
+    if (!populated && readable.length < candidates.length) {
+      throw reads.find((read): read is PromiseRejectedResult => read.status === 'rejected')!.reason;
+    }
+    const chosen = populated ?? readable[0];
     return {
       ...candidates[chosen.i],
       ...(candidates.length > 1 ? { ambiguous: true } : {}),
