@@ -2,6 +2,7 @@ import pLimit from 'p-limit';
 import createClient, { type Middleware } from 'openapi-fetch';
 import {
   KnowledgeGraphError,
+  InputValidationError,
   StandardNotFoundError,
   AuthenticationError,
   RateLimitError,
@@ -12,10 +13,11 @@ import {
 
 /** Every error raised here attributes to the Knowledge Graph service. */
 const KG: DependencyId = 'knowledge-graph';
-import type { AcademicStandard, LearningComponent, LearningComponentSet, StandardInfo } from './types.js';
+import type { AcademicStandard, AcademicStandardRecord, LearningComponent, LearningComponentSet, StandardInfo } from './types.js';
 import type { paths, components } from './kg-api.js';
 
 const KG_BASE_URL = 'https://api.learningcommons.org/knowledge-graph/v0';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CCSS_FRAMEWORK_UUID = 'c6496676-d7cb-11e8-824f-0242ac160002';
 const KG_TIMEOUT_MS = 30_000;
 const STANDARDS_PAGE_SIZE = 500;
@@ -214,13 +216,54 @@ export class KnowledgeGraphClient {
     });
   }
 
+  /**
+   * The standard a code names, with its components. A code can name several standards
+   * (a framework reuses it across courses), so each is read and the first one that has
+   * components is chosen. Among several populated copies the first wins.
+   */
   async getLearningComponentsByCode(
     statementCode: string,
     opts?: StandardInfoOptions,
   ): Promise<StandardInfo & { components: LearningComponent[] }> {
-    const info = await this.getStandardInfo(statementCode, opts);
-    const components = await this.getLearningComponents(info.uuid);
-    return { ...info, components };
+    const candidates = await this.getStandardCandidates(statementCode, opts);
+    // A copy that cannot be read must not fail the lookup while another copy can be
+    // judged, so every copy settles and the choice is made among those that read.
+    const reads = await Promise.allSettled(
+      candidates.map((candidate) => this.getLearningComponents(candidate.uuid)),
+    );
+    const readable = reads.flatMap((read, i) => (read.status === 'fulfilled' ? [{ i, components: read.value }] : []));
+    if (readable.length === 0) throw (reads[0] as PromiseRejectedResult).reason;
+    const chosen = readable.find((read) => read.components.length > 0) ?? readable[0];
+    return {
+      ...candidates[chosen.i],
+      ...(candidates.length > 1 ? { ambiguous: true } : {}),
+      components: chosen.components,
+    };
+  }
+
+  /** One standard by its CASE Network UUID. Throws `InputValidationError` if none has it. */
+  async getAcademicStandard(caseIdentifierUUID: string): Promise<AcademicStandardRecord> {
+    if (!UUID_PATTERN.test(caseIdentifierUUID)) {
+      throw new InputValidationError(`case_identifier_uuid must be a CASE Network UUID, got "${caseIdentifierUUID}"`);
+    }
+    let data: components['schemas']['StandardsFrameworkItem'] | undefined;
+    try {
+      ({ data } = await this.http.GET('/academic-standards/{caseIdentifierUUID}', {
+        params: { path: { caseIdentifierUUID } },
+      }).catch(wrapJsonError));
+    } catch (err) {
+      if (err instanceof KnowledgeGraphError && err.statusCode === 404) {
+        throw new InputValidationError(`Knowledge Graph has no academic standard "${caseIdentifierUUID}"`, err);
+      }
+      throw err;
+    }
+    if (data === undefined) throw new KnowledgeGraphError('Unexpected empty response from Knowledge Graph');
+    return {
+      uuid: data.caseIdentifierUUID,
+      statementCode: data.statementCode ?? null,
+      description: data.description ?? null,
+      academicSubject: data.academicSubject ?? null,
+    };
   }
 
   // ---------------------------------------------------------------------------

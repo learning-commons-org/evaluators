@@ -321,6 +321,20 @@ console.log(result.critical_thinking_score); // e.g. "analyzing"
 console.log(result.reasoning);
 ```
 
+`evaluate()` takes a code and resolves it. A code can name several standards, one per copy a
+framework keeps, and the first copy with learning components is the one judged. If you already
+hold the standard's CASE Network UUID, `evaluateByUuid()` judges that standard directly and
+skips the resolution:
+
+```typescript
+const { result } = await evaluator.evaluateByUuid({
+  question: "A playground is shaped like an L. What is its area?",
+  case_identifier_uuid: "6ba25656-d7cc-11e8-824f-0242ac160002",
+});
+```
+
+It refuses a standard from another subject with `InputValidationError`, before any model call.
+
 Each evaluator is also available as a function — `evaluateGradeLevelAppropriateness(input, config)` and so on — for callers who would rather not hold an instance.
 
 ## Discovering evaluators

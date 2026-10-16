@@ -609,11 +609,13 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         the optional ``grade_level`` is for; the extra lookups it cost happen only when a
         code was ambiguous, never on the ordinary path.
 
-        When nothing separates them -- no grade given, or the grade leaves several -- the
-        first is evaluated and the choice is logged with what else it could have been. The
-        alternatives are usually the same standard authored once per course, so failing
-        would refuse work that is almost certainly correct. What is not acceptable is
-        choosing silently.
+        Among the copies that remain, the first one carrying learning components is
+        evaluated: a copy authored with none would otherwise score as an empty standard
+        while a populated one sat in the results. When nothing separates them -- no grade
+        given, or the grade leaves several -- the choice is logged with what else it could
+        have been. The alternatives are usually the same standard authored once per course,
+        so failing would refuse work that is almost certainly correct. What is not
+        acceptable is choosing silently.
 
         :raises StandardNotFoundError: raised by the search itself when nothing matches.
         """
@@ -636,7 +638,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
             return at_grade[0]
 
         candidates = at_grade or matches
-        chosen = candidates[0]
+        chosen = await self._chosen_copy(candidates, knowledge_graph)
         alternatives = [m.case_identifier_uuid for m in candidates if m is not chosen]
         if grade_level is None:
             self.logger.warning(
@@ -695,6 +697,33 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
             for match, standard in zip(matches, standards, strict=True)
             if grade_level in standard.grade_level
         ]
+
+    async def _chosen_copy(
+        self, matches: Sequence[StandardMatch], knowledge_graph: KnowledgeGraphClient
+    ) -> StandardMatch:
+        """The first copy that carries learning components, else the first copy readable.
+
+        Read for each copy, because whether a copy has any is the only thing that tells an
+        empty copy from the one worth evaluating. A copy that cannot be read does not fail
+        the lookup while another can be judged; only when none can is the first failure
+        raised. Only an ambiguous code gets here.
+        """
+        results = await asyncio.gather(
+            *(
+                knowledge_graph.get_learning_components(match.case_identifier_uuid)
+                for match in matches
+            ),
+            return_exceptions=True,
+        )
+        readable = [
+            (match, components)
+            for match, components in zip(matches, results, strict=True)
+            if not isinstance(components, BaseException)
+        ]
+        if not readable:
+            raise next(r for r in results if isinstance(r, BaseException))
+        populated = [match for match, components in readable if components]
+        return (populated or [match for match, _ in readable])[0]
 
     # --- pieces of the flow ------------------------------------------------------------
 

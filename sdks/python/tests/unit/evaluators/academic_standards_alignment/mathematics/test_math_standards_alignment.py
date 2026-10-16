@@ -29,7 +29,7 @@ from learning_commons_evaluators.dependencies.knowledge_graph import (
     LearningComponentSet,
     StandardMatch,
 )
-from learning_commons_evaluators.errors import RateLimitError
+from learning_commons_evaluators.errors import KnowledgeGraphError, RateLimitError
 from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
     BatchedLCEvaluation,
     LCEvaluation,
@@ -552,8 +552,70 @@ class TestResolvingTheCode:
 
         [warning] = [record for record in caplog.records if record.levelno == logging.WARNING]
         assert "no grade was given" in warning.getMessage()
-        # Nothing was read to compare grades, because there was no grade to compare to.
-        assert knowledge_graph.requested == [STANDARD_UUID]
+        # Both copies were read: with no grade to compare, whether each has components is
+        # what separates them.
+        assert set(knowledge_graph.requested) == {STANDARD_UUID, OTHER_UUID}
+
+    async def test_an_ambiguous_code_picks_the_copy_that_has_learning_components(
+        self, providers: ProviderFactory
+    ) -> None:
+        # The first copy is authored with none; evaluating it would score an empty standard
+        # while the populated copy sat unused.
+        empty_first = FakeKnowledgeGraph(
+            replace(DEFAULT_STANDARD, components=()),
+            replace(DEFAULT_STANDARD, case_identifier_uuid=OTHER_UUID),
+        )
+
+        evaluation = await build(empty_first).evaluate_by_code(
+            question=QUESTION, statement_code=STATEMENT_CODE
+        )
+
+        assert evaluation.result.total_count == len(LEARNING_COMPONENTS)
+        [call] = providers.calls
+        prompt = "\n".join(message["content"] for message in call["messages"])
+        for identifier, _ in LEARNING_COMPONENTS:
+            assert f"[{identifier}]" in prompt
+
+    async def test_an_unreadable_copy_does_not_fail_a_populated_one(
+        self, providers: ProviderFactory
+    ) -> None:
+        class CopyOutage(FakeKnowledgeGraph):
+            async def get_learning_component_set(
+                self, case_identifier_uuid: str
+            ) -> LearningComponentSet:
+                if case_identifier_uuid == OTHER_UUID:
+                    raise KnowledgeGraphError("Knowledge Graph request failed (HTTP 503)")
+                return await super().get_learning_component_set(case_identifier_uuid)
+
+        knowledge_graph = CopyOutage(
+            replace(DEFAULT_STANDARD, components=()),
+            replace(DEFAULT_STANDARD, case_identifier_uuid=OTHER_UUID),
+            replace(DEFAULT_STANDARD, case_identifier_uuid="6ba04404-d7cc-11e8-824f-0242ac160002"),
+        )
+
+        evaluation = await build(knowledge_graph).evaluate_by_code(
+            question=QUESTION, statement_code=STATEMENT_CODE
+        )
+
+        assert evaluation.result.total_count == len(LEARNING_COMPONENTS)
+
+    async def test_an_ambiguous_code_with_no_populated_copy_evaluates_the_first_and_says_so(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        knowledge_graph = FakeKnowledgeGraph(
+            replace(DEFAULT_STANDARD, components=()),
+            replace(DEFAULT_STANDARD, case_identifier_uuid=OTHER_UUID, components=()),
+        )
+
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            evaluation = await build(knowledge_graph).evaluate_by_code(
+                question=QUESTION, statement_code=STATEMENT_CODE
+            )
+
+        assert evaluation.result.total_count == 0
+        assert providers.calls == []
+        [warning] = [record for record in caplog.records if record.levelno == logging.WARNING]
+        assert getattr(warning, "chosen") == STANDARD_UUID  # noqa: B009 — a log extra
 
     async def test_a_grade_matching_no_candidate_falls_back_and_says_so(
         self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture

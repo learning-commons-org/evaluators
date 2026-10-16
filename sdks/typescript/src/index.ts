@@ -129,6 +129,7 @@ export {
   type GradeLevelAppropriatenessInput,
   type CriticalThinkingInput,
   type MathStandardsAlignmentInput,
+  type MathStandardsAlignmentUuidInput,
   type MeaningDirectnessInput,
   type OrganizationalStructureInput,
   type PurposeClarityInput,
