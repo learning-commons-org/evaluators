@@ -599,6 +599,30 @@ class TestResolvingTheCode:
 
         assert evaluation.result.total_count == len(LEARNING_COMPONENTS)
 
+    async def test_an_unreadable_populated_copy_is_not_replaced_by_an_empty_one(
+        self, providers: ProviderFactory
+    ) -> None:
+        # The empty copy reads cleanly; the populated one may be the transient failure. Judging
+        # the empty copy would report 0 of 0 with no error, the bug this path exists to prevent.
+        class CopyOutage(FakeKnowledgeGraph):
+            async def get_learning_component_set(
+                self, case_identifier_uuid: str
+            ) -> LearningComponentSet:
+                if case_identifier_uuid == OTHER_UUID:
+                    raise KnowledgeGraphError("Knowledge Graph request failed (HTTP 429)")
+                return await super().get_learning_component_set(case_identifier_uuid)
+
+        knowledge_graph = CopyOutage(
+            replace(DEFAULT_STANDARD, components=()),
+            replace(DEFAULT_STANDARD, case_identifier_uuid=OTHER_UUID),
+        )
+
+        with pytest.raises(KnowledgeGraphError):
+            await build(knowledge_graph).evaluate_by_code(
+                question=QUESTION, statement_code=STATEMENT_CODE
+            )
+        assert providers.calls == []
+
     async def test_an_ambiguous_code_with_no_populated_copy_evaluates_the_first_and_says_so(
         self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
     ) -> None:
