@@ -555,7 +555,8 @@ class TestResolvingTheCode:
         assert "no grade was given" in warning.getMessage()
         # Both copies were read: with no grade to compare, whether each has components is
         # what separates them.
-        assert set(knowledge_graph.requested) == {STANDARD_UUID, OTHER_UUID}
+        # Each copy is read exactly once: the chosen copy's components are reused, not fetched again.
+        assert sorted(knowledge_graph.requested) == sorted([STANDARD_UUID, OTHER_UUID])
 
     async def test_an_ambiguous_code_picks_the_copy_that_has_learning_components(
         self, providers: ProviderFactory
@@ -782,6 +783,7 @@ class TestStandardsWithNothingToJudge:
         assert evaluation.result.learning_components == []
         assert evaluation.result.aligned_count == 0
         assert evaluation.result.total_count == 0
+        assert evaluation.result.case_identifier_uuid == STANDARD_UUID
         # Zero tokens is what says no model answered; the label still names the model that
         # would have.
         assert evaluation.metadata.token_usage.input_tokens == 0
@@ -798,7 +800,10 @@ class TestStandardsWithNothingToJudge:
             ).evaluate_by_code(question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3")
 
         assert evaluation.result.total_count == 3
-        assert any("no description" in record.getMessage() for record in caplog.records)
+        assert any(
+            "2 learning component(s) with no description" in record.getMessage()
+            for record in caplog.records
+        )
 
 
 class TestTheModelsAnswerIsVerified:

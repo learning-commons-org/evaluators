@@ -257,6 +257,39 @@ describe('MathStandardsAlignmentEvaluator — evaluateByCode', () => {
     expect(byCode.result).toEqual(byEvaluate.result);
     expect(byCode.result.case_identifier_uuid).toBe('standard-uuid');
   });
+
+  it('reports the knowledge graph spelling of the code, not the caller\'s', async () => {
+    const { result } = await construct().evaluate({
+      question: 'A playground is shaped like an L. What is its area?',
+      statement_code: '3.md.c.7.d',
+      jurisdiction: Jurisdiction.MultiState,
+    });
+
+    expect(result.statement_code).toBe('3.MD.C.7.d');
+  });
+
+  it('warns when learning components have no description and are not counted', async () => {
+    const evaluator = construct({
+      _kgClient: {
+        getLearningComponentsByCode: vi.fn().mockResolvedValue({
+          uuid: 'standard-uuid',
+          statementCode: '3.MD.C.7.d',
+          normalizedCode: '3.MD.C.7.D',
+          components: [{ identifier: 'lc-1', description: 'Decompose rectilinear figures' }],
+          undescribedCount: 2,
+        }),
+      } as unknown as KnowledgeGraphClient,
+    });
+    const warn = vi.spyOn(evaluator['logger'], 'warn');
+
+    await evaluator.evaluate({
+      question: 'A playground is shaped like an L. What is its area?',
+      statement_code: '3.MD.C.7.d',
+      jurisdiction: Jurisdiction.MultiState,
+    });
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('no description'), expect.objectContaining({ undescribedCount: 2 }));
+  });
 });
 
 describe('MathStandardsAlignmentEvaluator — evaluateByUuid', () => {
@@ -270,10 +303,10 @@ describe('MathStandardsAlignmentEvaluator — evaluateByUuid', () => {
   ) {
     return {
       getAcademicStandard: vi.fn().mockResolvedValue(standard),
-      getLearningComponents: vi.fn().mockResolvedValue(components),
+      getLearningComponentSet: vi.fn().mockResolvedValue({ components, undescribedCount: 0 }),
     } as unknown as KnowledgeGraphClient & {
       getAcademicStandard: ReturnType<typeof vi.fn>;
-      getLearningComponents: ReturnType<typeof vi.fn>;
+      getLearningComponentSet: ReturnType<typeof vi.fn>;
     };
   }
 
@@ -293,11 +326,23 @@ describe('MathStandardsAlignmentEvaluator — evaluateByUuid', () => {
     });
 
     expect(kg.getAcademicStandard).toHaveBeenCalledWith(UUID);
-    expect(kg.getLearningComponents).toHaveBeenCalledWith(UUID);
+    expect(kg.getLearningComponentSet).toHaveBeenCalledWith(UUID);
     expect(result.statement_code).toBe('3.MD.C.7.d');
     expect(result.case_identifier_uuid).toBe(UUID);
     expect(result.total_count).toBe(1);
     expect(result.aligned_count).toBe(1);
+  });
+
+  it('reports the knowledge graph spelling of the UUID, not the caller\'s', async () => {
+    const kg = uuidKg({ ...MATH_STANDARD, uuid: UUID });
+
+    const { result } = await construct({ _kgClient: kg }).evaluateByUuid({
+      question: 'What is 12 + 7?',
+      case_identifier_uuid: UUID.toUpperCase(),
+    });
+
+    expect(result.case_identifier_uuid).toBe(UUID);
+    expect(kg.getLearningComponentSet).toHaveBeenCalledWith(UUID);
   });
 
   it('reports an empty code when the standard carries none', async () => {
@@ -317,7 +362,48 @@ describe('MathStandardsAlignmentEvaluator — evaluateByUuid', () => {
     await expect(
       construct({ _kgClient: kg }).evaluateByUuid({ question: 'What is 12 + 7?', case_identifier_uuid: UUID }),
     ).rejects.toBeInstanceOf(InputValidationError);
-    expect(kg.getLearningComponents).not.toHaveBeenCalled();
+    expect(kg.getLearningComponentSet).not.toHaveBeenCalled();
+  });
+
+  it('judges a standard whose subject the Knowledge Graph does not state', async () => {
+    const kg = uuidKg({ ...MATH_STANDARD, academicSubject: null });
+
+    const { result } = await construct({ _kgClient: kg }).evaluateByUuid({
+      question: 'What is 12 + 7?',
+      case_identifier_uuid: UUID,
+    });
+
+    expect(result.total_count).toBe(1);
+  });
+
+  it('names the subject it refused in the error', async () => {
+    const kg = uuidKg({ ...MATH_STANDARD, academicSubject: 'English Language Arts' });
+
+    const err = await construct({ _kgClient: kg })
+      .evaluateByUuid({ question: 'What is 12 + 7?', case_identifier_uuid: UUID })
+      .catch((e) => e);
+
+    expect(err.message).toContain('English Language Arts');
+    expect(err.message).toContain('judges Mathematics standards');
+  });
+
+  it('does not warn when the standard carries a statement code', async () => {
+    const evaluator = construct({ _kgClient: uuidKg(MATH_STANDARD) });
+    const warn = vi.spyOn(evaluator['logger'], 'warn');
+
+    await evaluator.evaluateByUuid({ question: 'What is 12 + 7?', case_identifier_uuid: UUID });
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('warns when the standard carries no statement code', async () => {
+    const kg = uuidKg({ ...MATH_STANDARD, statementCode: null });
+    const evaluator = construct({ _kgClient: kg });
+    const warn = vi.spyOn(evaluator['logger'], 'warn');
+
+    await evaluator.evaluateByUuid({ question: 'What is 12 + 7?', case_identifier_uuid: UUID });
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('no statement code'), expect.anything());
   });
 
   it('requires case_identifier_uuid', async () => {

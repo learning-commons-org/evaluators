@@ -47,7 +47,6 @@ const CODE_SCHEMA = {
   required: ['statement_code'],
 };
 
-/** The UUID entry point's inputs: the contract's question, plus the standard named by UUID. */
 const UUID_SCHEMA = {
   properties: {
     question: INPUT_SCHEMA.properties.question,
@@ -60,18 +59,17 @@ const UUID_SCHEMA = {
   required: ['question', 'case_identifier_uuid'],
 };
 
-// Written out rather than derived: the contract declares no UUID input, so there is no
-// generated type to take it from.
+// Written out: the contract declares no UUID input to derive it from.
 export type MathStandardsAlignmentUuidInput = {
   question: string;
   case_identifier_uuid: string;
 };
 
-/** What an evaluation needs from the Knowledge Graph: the standard's components and code. */
 interface StandardRead {
   uuid: string;
   statementCode: string | null;
   components: LearningComponent[];
+  undescribedCount: number;
 }
 
 export type MathStandardsAlignmentInput = InputsOf<{ properties: Record<'question' | 'statement_code' | 'jurisdiction', unknown> }> & {
@@ -109,8 +107,7 @@ export interface LearningComponentResult {
 export interface MathStandardsAlignmentResult {
   statement_code: string;
   /**
-   * CASE Network UUID of the standard the SDK reported on, so a result can be traced to the exact
-   * copy of a code. Null when the SDK did not report a resolved standard: a bulk pair that failed,
+   * CASE Network UUID of the copy judged. Null when no copy was resolved: a bulk pair that failed,
    * or one skipped by the coarse filter before its copy was known.
    */
   case_identifier_uuid: string | null;
@@ -286,11 +283,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     input: MathStandardsAlignmentInput,
   ): Promise<EvaluationResult<MathStandardsAlignmentResult>> {
     validateInputs(input, INPUT_SCHEMA);
-    return this._evaluateCore(
-      input.question,
-      () => this.readStandardByCode(input.statement_code, input.jurisdiction),
-      input.statement_code,
-    );
+    return this._evaluateCore(input.question, () => this.readStandardByCode(input.statement_code, input.jurisdiction));
   }
 
   /** The same evaluation as {@link evaluate}, under the name the Python SDK uses for it. */
@@ -300,12 +293,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     return this.evaluate(input);
   }
 
-  // -------------------------------------------------------------------------
-  // evaluateByUuid — single question × the standard a CASE Network UUID names
-  //
-  // A UUID names exactly one standard, so nothing is resolved or chosen. Use this when a
-  // picker or an earlier lookup already has the UUID; evaluate() takes a code and resolves it.
-  // -------------------------------------------------------------------------
+  // evaluateByUuid — single question × the standard a CASE Network UUID names (no resolution)
 
   async evaluateByUuid(
     input: MathStandardsAlignmentUuidInput,
@@ -459,7 +447,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
               const cached = lcCache.get(code);
               const failure = lcFailures.get(code);
               return {
-                statement_code: code,
+                statement_code: cached?.statementCode ?? code,
                 // The prefetch chose this copy, so its total_count comes from it.
                 case_identifier_uuid: cached?.uuid ?? null,
                 learning_components: [],
@@ -472,7 +460,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
             let result: MathStandardsAlignmentResult;
             try {
               result = (await bankLimit(() =>
-                this._evaluateCore(item.question, () => this.readStandardByCode(code, jurisdiction), code),
+                this._evaluateCore(item.question, () => this.readStandardByCode(code, jurisdiction)),
               )).result;
             } catch (err) {
               result = {
@@ -612,15 +600,9 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     };
   }
 
-  /**
-   * Judge `question` against the standard `lookup` reads. `reportedCode` is the code the
-   * caller passed, reported as given; a UUID has none, so it reports the code the
-   * Knowledge Graph states for the standard.
-   */
   private async _evaluateCore(
     question: string,
     lookup: () => Promise<StandardRead>,
-    reportedCode?: string,
   ): Promise<EvaluationResult<MathStandardsAlignmentResult>> {
 
     const startTime = Date.now();
@@ -629,7 +611,13 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     try {
       const standard = await lookup();
       const { components } = standard;
-      const statementCode = reportedCode ?? standard.statementCode ?? '';
+      const statementCode = standard.statementCode ?? '';
+      if (standard.undescribedCount > 0) {
+        this.logger.warn(
+          'Standard has learning components with no description; they cannot be judged and are not counted',
+          { evaluator: EVALUATOR_ID, statementCode, undescribedCount: standard.undescribedCount },
+        );
+      }
 
       if (components.length === 0) {
         return this.envelope(
@@ -766,13 +754,17 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         chosenComponentCount: standard.components.length,
       });
     }
-    return { uuid: standard.uuid, statementCode: standard.statementCode, components: standard.components };
+    return {
+      uuid: standard.uuid,
+      statementCode: standard.statementCode,
+      components: standard.components,
+      undescribedCount: standard.undescribedCount,
+    };
   }
 
   private async readStandardByUuid(caseIdentifierUUID: string): Promise<StandardRead> {
     const standard = await this.kgClient.getAcademicStandard(caseIdentifierUUID);
-    // A UUID names any standard in the Knowledge Graph, ELA included. Refuse another subject
-    // here, before the components are fetched and a math rubric judges them.
+    // A UUID can name a standard from any subject, so refuse one before a math rubric judges it.
     if (standard.academicSubject != null && standard.academicSubject !== KG_SUBJECT) {
       throw new InputValidationError(
         `Standard ${caseIdentifierUUID} is a ${standard.academicSubject} standard; ` +
@@ -785,8 +777,8 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         standard: caseIdentifierUUID,
       });
     }
-    const components = await this.kgClient.getLearningComponents(caseIdentifierUUID);
-    return { uuid: caseIdentifierUUID, statementCode: standard.statementCode, components };
+    const { components, undescribedCount } = await this.kgClient.getLearningComponentSet(standard.uuid);
+    return { uuid: standard.uuid, statementCode: standard.statementCode, components, undescribedCount };
   }
 
   private async runCoarseFilter(
