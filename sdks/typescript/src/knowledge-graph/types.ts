@@ -98,6 +98,15 @@ export interface LearningComponentSet {
   undescribedCount: number;
 }
 
+/** One standard as the Knowledge Graph states it, looked up by UUID. */
+export interface AcademicStandardRecord {
+  uuid: string;
+  statementCode: string | null;
+  description: string | null;
+  /** The KG's subject label, or `null` when the service states none. */
+  academicSubject: string | null;
+}
+
 /** Resolved info from a standard code lookup. */
 export interface StandardInfo {
   uuid: string;
@@ -106,6 +115,6 @@ export interface StandardInfo {
   statementCode: string;
   /** Canonical lookup key (see normalizeStatementCode) — dedupe on this. */
   normalizedCode: string;
-  /** Code matched multiple standards; uuid/description are the first match. */
+  /** Code matched multiple standards; uuid/description are the chosen match. */
   ambiguous?: boolean;
 }

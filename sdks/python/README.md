@@ -287,11 +287,12 @@ them does not change the judgement; a different framework, such as Florida's, ge
 does.
 
 **`grade_level` disambiguates.** Within one framework a code can be reused across courses, and
-the Knowledge Graph returns one result per copy. Passing the grade separates them, at the
-cost of one extra lookup per candidate — and only when a code turned out to be ambiguous,
-never on the ordinary path. When nothing separates them, the first is evaluated and the
-choice is logged at `warning` with the alternatives. `evaluation.result.statement_code`
-always reports the Knowledge Graph's own spelling of whatever was resolved.
+the Knowledge Graph returns one result per copy. Passing the grade separates them. Only an
+ambiguous code costs extra lookups, one per candidate, and the ordinary path is unchanged.
+Among the copies left, the first one carrying learning components is evaluated, so a copy
+authored with none never shadows a populated one. When nothing separates them, the choice
+is logged at `warning` with the alternatives. `evaluation.result.statement_code` always
+reports the Knowledge Graph's own spelling of whatever was resolved.
 
 `evaluate_by_code()`'s inputs are the contract's, under the contract's names, plus that
 one optional extra — so anything written against the registry is a valid call, and the

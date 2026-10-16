@@ -13,7 +13,7 @@ import {
   STEP,
   SUPPORTED_GRADES,
 } from '../../../prompts/math/standards-alignment/index.js';
-import { KnowledgeGraphClient, Jurisdiction } from '../../../knowledge-graph/index.js';
+import { KnowledgeGraphClient, Jurisdiction, type LearningComponent } from '../../../knowledge-graph/index.js';
 import { EvaluatorError, DependencyError, InputValidationError, LLMOutputProcessingError, wrapProviderError } from '../../../errors.js';
 import type { StageDetail } from '../../../telemetry/index.js';
 import CONFIG from '../../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/config.json';
@@ -46,6 +46,32 @@ const CODE_SCHEMA = {
   properties: { statement_code: INPUT_SCHEMA.properties.statement_code },
   required: ['statement_code'],
 };
+
+/** The UUID entry point's inputs: the contract's question, plus the standard named by UUID. */
+const UUID_SCHEMA = {
+  properties: {
+    question: INPUT_SCHEMA.properties.question,
+    case_identifier_uuid: {
+      type: 'string',
+      minLength: 1,
+      description: "CASE Network UUID of the math standard to evaluate against -- the Knowledge Graph's caseIdentifierUUID.",
+    },
+  },
+  required: ['question', 'case_identifier_uuid'],
+};
+
+// Written out rather than derived: the contract declares no UUID input, so there is no
+// generated type to take it from.
+export type MathStandardsAlignmentUuidInput = {
+  question: string;
+  case_identifier_uuid: string;
+};
+
+/** What an evaluation needs from the Knowledge Graph: the standard's components and code. */
+interface StandardRead {
+  statementCode: string | null;
+  components: LearningComponent[];
+}
 
 export type MathStandardsAlignmentInput = InputsOf<{ properties: Record<'question' | 'statement_code' | 'jurisdiction', unknown> }> & {
   jurisdiction: Jurisdiction;
@@ -253,7 +279,25 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     input: MathStandardsAlignmentInput,
   ): Promise<EvaluationResult<MathStandardsAlignmentResult>> {
     validateInputs(input, INPUT_SCHEMA);
-    return this._evaluateCore(input.question, input.statement_code, input.jurisdiction);
+    return this._evaluateCore(
+      input.question,
+      () => this.readStandardByCode(input.statement_code, input.jurisdiction),
+      input.statement_code,
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // evaluateByUuid — single question × the standard a CASE Network UUID names
+  //
+  // A UUID names exactly one standard, so nothing is resolved or chosen. Use this when a
+  // picker or an earlier lookup already has the UUID; evaluate() takes a code and resolves it.
+  // -------------------------------------------------------------------------
+
+  async evaluateByUuid(
+    input: MathStandardsAlignmentUuidInput,
+  ): Promise<EvaluationResult<MathStandardsAlignmentResult>> {
+    validateInputs(input, UUID_SCHEMA);
+    return this._evaluateCore(input.question, () => this.readStandardByUuid(input.case_identifier_uuid));
   }
 
   // -------------------------------------------------------------------------
@@ -410,8 +454,9 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
             }
             let result: MathStandardsAlignmentResult;
             try {
-              result = (await bankLimit(() => this._evaluateCore(item.question, code, jurisdiction)))
-                .result;
+              result = (await bankLimit(() =>
+                this._evaluateCore(item.question, () => this.readStandardByCode(code, jurisdiction), code),
+              )).result;
             } catch (err) {
               result = {
                 statement_code: code,
@@ -549,32 +594,24 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
     };
   }
 
+  /**
+   * Judge `question` against the standard `lookup` reads. `reportedCode` is the code the
+   * caller passed, reported as given; a UUID has none, so it reports the code the
+   * Knowledge Graph states for the standard.
+   */
   private async _evaluateCore(
     question: string,
-    statementCode: string,
-    jurisdiction: Jurisdiction,
+    lookup: () => Promise<StandardRead>,
+    reportedCode?: string,
   ): Promise<EvaluationResult<MathStandardsAlignmentResult>> {
 
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
 
     try {
-      const { components, ambiguous, uuid, description } = await this.kgClient.getLearningComponentsByCode(
-        statementCode,
-        { jurisdiction, academicSubject: KG_SUBJECT },
-      );
-
-      // Interim: first match wins until candidate resolution lands. Warn so the
-      // choice, not the model, is the suspect when a result looks wrong.
-      if (ambiguous) {
-        this.logger.warn('Statement code matched multiple standards; evaluating the first', {
-          evaluator: EVALUATOR_ID,
-          statementCode,
-          jurisdiction,
-          chosenUuid: uuid,
-          chosenDescription: description,
-        });
-      }
+      const standard = await lookup();
+      const { components } = standard;
+      const statementCode = reportedCode ?? standard.statementCode ?? '';
 
       if (components.length === 0) {
         return this.envelope(
@@ -692,6 +729,46 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       if (error instanceof EvaluatorError) throw error;
       throw wrapProviderError(error, this.providerContext(this.detailProvider));
     }
+  }
+
+  private async readStandardByCode(statementCode: string, jurisdiction: Jurisdiction): Promise<StandardRead> {
+    const standard = await this.kgClient.getLearningComponentsByCode(statementCode, {
+      jurisdiction,
+      academicSubject: KG_SUBJECT,
+    });
+    // A code can name several standards. Warn so the choice, not the model, is the suspect
+    // when a result looks wrong.
+    if (standard.ambiguous) {
+      this.logger.warn('Statement code matched multiple standards; evaluating the chosen one', {
+        evaluator: EVALUATOR_ID,
+        statementCode,
+        jurisdiction,
+        chosenUuid: standard.uuid,
+        chosenDescription: standard.description,
+        chosenComponentCount: standard.components.length,
+      });
+    }
+    return { statementCode: standard.statementCode, components: standard.components };
+  }
+
+  private async readStandardByUuid(caseIdentifierUUID: string): Promise<StandardRead> {
+    const standard = await this.kgClient.getAcademicStandard(caseIdentifierUUID);
+    // A UUID names any standard in the Knowledge Graph, ELA included. Refuse another subject
+    // here, before the components are fetched and a math rubric judges them.
+    if (standard.academicSubject != null && standard.academicSubject !== KG_SUBJECT) {
+      throw new InputValidationError(
+        `Standard ${caseIdentifierUUID} is a ${standard.academicSubject} standard; ` +
+        `${EVALUATOR_ID} judges ${KG_SUBJECT} standards. Pass the UUID of a mathematics standard.`,
+      );
+    }
+    if (standard.statementCode == null) {
+      this.logger.warn('Standard carries no statement code; the result reports an empty one', {
+        evaluator: EVALUATOR_ID,
+        standard: caseIdentifierUUID,
+      });
+    }
+    const components = await this.kgClient.getLearningComponents(caseIdentifierUUID);
+    return { statementCode: standard.statementCode, components };
   }
 
   private async runCoarseFilter(

@@ -4,6 +4,7 @@ import {
   Jurisdiction,
 } from '../../../src/evaluators/academic-standards-alignment/mathematics/math-standards-alignment.js';
 import type { KnowledgeGraphClient } from '../../../src/knowledge-graph/client.js';
+import { InputValidationError } from '../../../src/errors.js';
 import CONFIG from '../../../../../evals/academic-standards-alignment/mathematics/math-standards-alignment/config.json';
 
 /**
@@ -238,5 +239,72 @@ describe('a failed learning-component prefetch is reported, not silently zero', 
     expect(standard.error?.message, 'the failure must reach the caller').toContain(
       'KG unavailable',
     );
+  });
+});
+
+describe('MathStandardsAlignmentEvaluator — evaluateByUuid', () => {
+  const UUID = '6ba25656-d7cc-11e8-824f-0242ac160002';
+
+  function uuidKg(
+    standard: Record<string, unknown>,
+    components: Array<{ identifier: string; description: string }> = [
+      { identifier: 'lc-1', description: 'Decompose rectilinear figures' },
+    ],
+  ) {
+    return {
+      getAcademicStandard: vi.fn().mockResolvedValue(standard),
+      getLearningComponents: vi.fn().mockResolvedValue(components),
+    } as unknown as KnowledgeGraphClient & {
+      getAcademicStandard: ReturnType<typeof vi.fn>;
+      getLearningComponents: ReturnType<typeof vi.fn>;
+    };
+  }
+
+  const MATH_STANDARD = {
+    uuid: UUID,
+    statementCode: '3.MD.C.7.d',
+    description: 'Recognize area as additive.',
+    academicSubject: 'Mathematics',
+  };
+
+  it('judges the components of the standard the UUID names', async () => {
+    const kg = uuidKg({ ...MATH_STANDARD, uuid: UUID });
+
+    const { result } = await construct({ _kgClient: kg }).evaluateByUuid({
+      question: 'A playground is shaped like an L. What is its area?',
+      case_identifier_uuid: UUID,
+    });
+
+    expect(kg.getAcademicStandard).toHaveBeenCalledWith(UUID);
+    expect(kg.getLearningComponents).toHaveBeenCalledWith(UUID);
+    expect(result.statement_code).toBe('3.MD.C.7.d');
+    expect(result.total_count).toBe(1);
+    expect(result.aligned_count).toBe(1);
+  });
+
+  it('reports an empty code when the standard carries none', async () => {
+    const kg = uuidKg({ ...MATH_STANDARD, statementCode: null });
+
+    const { result } = await construct({ _kgClient: kg }).evaluateByUuid({
+      question: 'What is 12 + 7?',
+      case_identifier_uuid: UUID,
+    });
+
+    expect(result.statement_code).toBe('');
+  });
+
+  it('refuses a standard from another subject before reading its components', async () => {
+    const kg = uuidKg({ ...MATH_STANDARD, academicSubject: 'English Language Arts' });
+
+    await expect(
+      construct({ _kgClient: kg }).evaluateByUuid({ question: 'What is 12 + 7?', case_identifier_uuid: UUID }),
+    ).rejects.toBeInstanceOf(InputValidationError);
+    expect(kg.getLearningComponents).not.toHaveBeenCalled();
+  });
+
+  it('requires case_identifier_uuid', async () => {
+    await expect(
+      construct().evaluateByUuid({ question: 'What is 12 + 7?' } as never),
+    ).rejects.toBeInstanceOf(InputValidationError);
   });
 });
