@@ -40,7 +40,7 @@ async def test_short_essay_returns_a_level() -> None:
                 "author": "A gardener",
                 "text": "Young trees need water through their first summer.",
             },
-            {"text": "Bare soil dries faster when nothing shades it from the sun."},
+            {"text": "Bare soil dries faster when nothing shades it."},
         ],
         essay_text=(
             "Towns should plant more street trees. Shade says they cool sidewalks. "

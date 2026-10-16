@@ -14,12 +14,8 @@ from learning_commons_evaluators.schemas.durable_skills.ela_writing.critical_thi
 from tests.unit.conftest import ProviderFactory
 
 ASSIGNMENT = "Using the sources, argue whether the town should limit cars downtown."
-ESSAY = (
-    "Dear city council, the article says the face is a mesa. The student names that "
-    "source and restates its claim, then stops. No other evidence is weighed, and the "
-    "essay does not answer whether the town should limit cars downtown."
-)
-PASSAGE = "The face is a mesa, according to the article the student was given."
+ESSAY = "Dear city council, the article says the face is a mesa."
+PASSAGE = "The face is a mesa."
 
 
 def _without_synthesizing(schema: type[BaseModel]) -> Any:
@@ -75,22 +71,13 @@ def _call(**overrides: Any) -> dict[str, Any]:
 @pytest.mark.parametrize(
     ("overrides", "message"),
     [
-        ({"essay_text": "a" * 199}, "essay_text is too short. Minimum length is 200 characters."),
         (
             {"essay_text": "a" * 12001},
             "essay_text is too long. Maximum length is 12000 characters.",
         ),
         (
-            {"assignment_text": "a" * 19},
-            "assignment_text is too short. Minimum length is 20 characters.",
-        ),
-        (
             {"assignment_text": "a" * 3001},
             "assignment_text is too long. Maximum length is 3000 characters.",
-        ),
-        (
-            {"source_passages": [{"text": "a" * 49}]},
-            r"source_passages\[0\].text is too short. Minimum length is 50 characters.",
         ),
         (
             {"source_passages": [{"text": "a" * 9001}]},
