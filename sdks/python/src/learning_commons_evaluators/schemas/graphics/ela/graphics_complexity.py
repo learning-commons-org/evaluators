@@ -6,9 +6,9 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_serializer
 
 EVALUATOR_ID = "graphics.ela.graphics_complexity"
 
@@ -37,6 +37,28 @@ class GraphicsComplexityInput(BaseModel):
     grade_level: int = Field(description="Target student grade level.")
     image_paths: list[str] = Field(description="One local image path per graphic in scope, in the order they should be considered. Each file is checked against the `x-image` bounds before any model call; an image outside them is rejected, not resized.")
     figure_labels: str | None = Field(default=None, description="Optional comma-separated labels matching the order of `image_paths` (e.g. 'Figure 1, Figure 2'). If omitted, graphics are auto-labeled 'Image 1', 'Image 2', etc.")
+
+    @model_serializer(mode="wrap")
+    def _serialize(self, serializer: Any) -> Any:
+        """Leave an unset optional field out, instead of writing ``null``."""
+        dumped = serializer(self)
+        if not isinstance(dumped, dict):
+            return dumped
+        optional = {
+            name
+            for name, field in type(self).model_fields.items()
+            if not field.is_required()
+        }
+        optional.update(
+            field.alias
+            for field in type(self).model_fields.values()
+            if not field.is_required() and field.alias is not None
+        )
+        return {
+            key: value
+            for key, value in dumped.items()
+            if value is not None or key not in optional
+        }
 
 
 class DetailedSummaryItem(BaseModel):

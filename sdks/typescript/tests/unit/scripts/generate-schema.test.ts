@@ -379,12 +379,15 @@ describe('generateSchemaFile against real contracts', () => {
     expect(code).toContain('"source_count": number;');
   });
 
-  it('types Critical Thinking source passages as SourcePassage[]', () => {
+  it('types Critical Thinking passages as a named object array', () => {
     const { content } = generateSchemaFile(
       contract('durable-skills/ela-writing/critical-thinking'),
     );
 
     expect(content).toContain('export interface SourcePassage {');
+    expect(content).toContain('"title"?: string | null;');
+    expect(content).toContain('"author"?: string | null;');
+    expect(content).toContain('"text": string;');
     expect(content).toContain('"source_passages": SourcePassage[];');
     expect(content).toContain('"assignment_text": string;');
     expect(content).toContain('"essay_text": string;');

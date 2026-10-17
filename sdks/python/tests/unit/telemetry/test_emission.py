@@ -167,11 +167,16 @@ class TestEveryEvaluatorReports:
         for name in texts:
             assert inputs[name] not in request["body"]
         # Nor any file an attached input named: a path can carry a user or project name.
+        # Nor any text inside an array of objects, such as a source passage.
         for name, spec in schema["properties"].items():
             if spec.get("type") == "array":
-                for path in inputs[name]:
-                    assert path not in request["body"]
-                    assert Path(path).name not in request["body"]
+                for item in inputs[name]:
+                    if isinstance(item, str):
+                        assert item not in request["body"]
+                        assert Path(item).name not in request["body"]
+                    else:
+                        for field in item.values():
+                            assert field not in request["body"]
         # A length, and no field that could hold the text.
         text_field = primary_text_field(schema)
         assert text_field is not None

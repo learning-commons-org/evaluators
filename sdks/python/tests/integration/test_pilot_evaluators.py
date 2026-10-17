@@ -22,12 +22,21 @@ from learning_commons_evaluators.schemas.text_complexity.ela_reading.grade_level
     GradeBand,
 )
 from tests.integration.conftest import fixtures_for, keys_for
+from tests.unit.evaluators.durable_skills.ela_writing.test_critical_thinking_score import (
+    median_rating,
+    present_ratings,
+)
 
 ATTEMPTS = 3
 
 COMPLEXITY_ORDER = ["slightly_complex", "moderately_complex", "very_complex", "exceedingly_complex"]
 GRADE_BAND_ORDER = list(GradeBand.__args__)  # type: ignore[attr-defined]
 CRITICAL_THINKING_ORDER = ["not_evident", "exploring", "analyzing", "integrating", "extending"]
+
+#: Expert fixtures that stay in ``fixtures.json`` and are not called from this suite.
+#: ``5076429_cleaned`` is three long passages on Claude Opus; the short smoke test in
+#: ``test_critical_thinking`` is the call to re-run while developing.
+_SKIP_LIVE = {("durable_skills.ela_writing.critical_thinking", "5076429_cleaned")}
 
 #: Every evaluator whose contract declares an ``outcome``, paired with each of its fixture
 #: cases. The declaration is what this module judges against, so an evaluator without one
@@ -42,6 +51,7 @@ CASES = [
     if evaluator.contract.outcome is not None
     and not any(step.attachments for step in evaluator.contract.steps)
     for case in fixtures_for(evaluator.contract)
+    if (evaluator.metadata.id, case["id"]) not in _SKIP_LIVE
 ]
 
 
@@ -89,6 +99,8 @@ async def test_fixture(evaluator: type[BaseEvaluator], case: dict[str, Any]) -> 
         assert evaluation.metadata.model == _expected_model(contract, case["input"])
         assert evaluation.metadata.token_usage.output_tokens > 0
         outcome = read_outcome(evaluation, evaluator.metadata.outcome)
+        if evaluator.metadata.id == "durable_skills.ela_writing.critical_thinking":
+            assert outcome.score == median_rating(present_ratings(evaluation.result.indicators))
         verdicts.append(outcome.score)
         if outcome.score == expected:
             return

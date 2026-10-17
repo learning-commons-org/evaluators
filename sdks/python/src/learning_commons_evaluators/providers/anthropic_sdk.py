@@ -2,8 +2,11 @@
 
 Structured output uses ``messages.parse`` with a pydantic model as ``output_format``: the
 SDK sends the schema as the message's JSON output format and validates the completion
-against it. Anthropic requires ``max_tokens``; a request that names none gets
-:data:`DEFAULT_MAX_TOKENS`, the same ceiling the TypeScript SDK's Anthropic adapter applies.
+against it. Anthropic requires ``max_tokens``. A request that names none gets
+:data:`DEFAULT_MAX_TOKENS`. The TypeScript adapter sends the model's own ceiling instead
+(128,000 for ``claude-opus-5``). This client calls non-streaming ``messages.parse``, which
+refuses anything above 21,333 tokens. The default is 20,000, the higher ceiling we send
+pending a team discussion of anything above it.
 
 Each call builds its own client and closes it before returning; see
 :class:`~learning_commons_evaluators.providers.base.LLMProvider` for why.
@@ -45,7 +48,9 @@ if TYPE_CHECKING:
 T = TypeVar("T", bound=BaseModel)
 
 #: Output ceiling when the caller names none. Anthropic makes the parameter mandatory.
-DEFAULT_MAX_TOKENS = 4096
+#: A non-streaming call above 21,333 tokens is refused before it is sent. 20,000 is the
+#: higher ceiling we send pending a team discussion of anything above it.
+DEFAULT_MAX_TOKENS = 20000
 
 
 class AnthropicProvider:
