@@ -242,43 +242,127 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
     expect(messages[1].content).toBe('A passage.|{figure_labels}');
   });
 
-  it('fills {sources} from input.source_passages as JSON, without null keys', async () => {
+  it('fills {sources} from input.source_passages and counts the list', async () => {
+    const provider = fakeProvider();
+    const first = { title: 'A Car-Free Downtown', text: 'Air quality improved.' };
+    const second = {
+      title: 'The Cost of Going Car-Free',
+      author: 'City staff',
+      text: 'Deliveries can be harmed.',
+    };
+    const byAuthor = { author: 'A parent', text: 'Our street got quieter.' };
+    const untitled = { text: 'Shops reported fewer customers.' };
+    const schema = {
+      properties: {
+        source_passages: {
+          type: 'array',
+          minItems: 1,
+          items: { $ref: '#/$defs/SourcePassage' },
+        },
+      },
+      required: ['source_passages'],
+      $defs: {
+        SourcePassage: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['text'],
+          properties: {
+            title: { type: 'string', minLength: 1 },
+            author: { type: 'string', minLength: 1 },
+            text: { type: 'string', minLength: 1 },
+          },
+        },
+      },
+    };
+    const E = defineSingleStepEvaluator<{ source_passages: Record<string, unknown>[] }, Output>({
+      contract: contract({
+        preprocessing: [
+          {
+            id: 'count_source_passages',
+            input: 'source_passages',
+            output: 'source_count',
+            implementation: { typescript: { library: 'builtins', function: 'length' } },
+          },
+        ],
+        steps: [
+          {
+            id: 'evaluate_thing',
+            model: { provider: 'google', name: 'm' },
+            prompt: {
+              placeholders: {
+                sources: { source: 'input.source_passages' },
+                source_count: { source: 'preprocessing.source_count' },
+              },
+            },
+          },
+        ],
+      }) as never,
+      inputSchema: schema,
+      outputSchema: OUTPUT_SCHEMA,
+      systemPrompt: 'system',
+      userPrompt: 'count: {source_count}\n{sources}',
+    });
+
+    const evaluate = (passages: Record<string, unknown>[]) =>
+      new E({ llmProvider: provider, telemetry: false }).evaluate({ source_passages: passages });
+
+    // Title and author, title only, author only, neither: the same four passages and the
+    // same expected text as the Python test, which is the cross-SDK guarantee.
+    await evaluate([second, first, byAuthor, untitled]);
+    const rendered = vi.mocked(provider.generateStructured).mock.calls[0][0].messages[1].content;
+    expect(rendered).toBe(
+      'count: 4\n' +
+        '### Source 1: The Cost of Going Car-Free — by City staff\n\n' +
+        'Deliveries can be harmed.\n\n' +
+        '### Source 2: A Car-Free Downtown\n\n' +
+        'Air quality improved.\n\n' +
+        '### Source 3 — by A parent\n\n' +
+        'Our street got quieter.\n\n' +
+        '### Source 4\n\n' +
+        'Shops reported fewer customers.',
+    );
+
+    await evaluate([first, second]);
+    const swapped = vi.mocked(provider.generateStructured).mock.calls[1][0].messages[1].content;
+    expect(swapped).toContain('count: 2');
+    expect(swapped).toContain('### Source 1: A Car-Free Downtown');
+    expect(swapped).toContain('### Source 2: The Cost of Going Car-Free — by City staff');
+    expect(swapped.indexOf('Source 1')).toBeLessThan(swapped.indexOf('Source 2'));
+  });
+
+  it('binds an array that is not a source passage as JSON, without null keys', async () => {
     const provider = fakeProvider();
     // An interface, as the generator emits, rather than a Record.
-    interface Passage {
-      title?: string | null;
+    interface Note {
+      label?: string | null;
       text: string;
     }
-    const passages: Passage[] = [
-      { title: 'A title', text: 'A passage.' },
-      { title: null, text: 'Another passage.' },
+    const notes: Note[] = [
+      { label: null, text: 'A note.' },
+      { label: 'B', text: 'Another note.' },
     ];
-    const E = defineSingleStepEvaluator<{ source_passages: Passage[] }, Output>({
+    const E = defineSingleStepEvaluator<{ notes: Note[] }, Output>({
       contract: contract({
         steps: [
           {
             id: 'evaluate_thing',
             model: { provider: 'google', name: 'm' },
-            prompt: { placeholders: { sources: { source: 'input.source_passages' } } },
+            prompt: { placeholders: { notes: { source: 'input.notes' } } },
           },
         ],
       }) as never,
       inputSchema: {
         properties: {
-          source_passages: {
-            type: 'array',
-            minItems: 1,
-            items: { $ref: '#/$defs/SourcePassage' },
-          },
+          notes: { type: 'array', minItems: 1, items: { $ref: '#/$defs/Note' } },
         },
-        required: ['source_passages'],
+        required: ['notes'],
         $defs: {
-          SourcePassage: {
+          Note: {
             type: 'object',
             additionalProperties: false,
             required: ['text'],
             properties: {
-              title: { type: 'string', minLength: 1 },
+              label: { type: 'string', minLength: 1 },
               text: { type: 'string', minLength: 1 },
             },
           },
@@ -286,15 +370,13 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
       },
       outputSchema: OUTPUT_SCHEMA,
       systemPrompt: 'system',
-      userPrompt: '{sources}',
+      userPrompt: '{notes}',
     });
 
-    await new E({ llmProvider: provider, telemetry: false }).evaluate({ source_passages: passages });
+    await new E({ llmProvider: provider, telemetry: false }).evaluate({ notes });
 
     const messages = vi.mocked(provider.generateStructured).mock.calls[0][0].messages;
-    expect(messages[1].content).toBe(
-      '[{"title":"A title","text":"A passage."},{"text":"Another passage."}]',
-    );
+    expect(messages[1].content).toBe('[{"text":"A note."},{"label":"B","text":"Another note."}]');
   });
 
   it('sends no temperature when the step declares none', async () => {

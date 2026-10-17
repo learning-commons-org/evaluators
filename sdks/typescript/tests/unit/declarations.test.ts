@@ -35,7 +35,7 @@ interface Declared {
   properties: Record<string, string>;
   /** The properties the generator emitted as optional (`"name"?:`). */
   optional: string[];
-  contract: Record<string, { enum?: string[]; type?: string }>;
+  contract: Record<string, { type?: string; enum?: string[]; items?: { $ref?: string } }>;
   required: string[];
 }
 
@@ -67,7 +67,7 @@ const DECLARED: Declared[] = generatedModules(join(SRC, 'schemas')).flatMap((fil
 
   const relative = sourceMatch[1].replace(/^(\.\.\/)+/, '').replace(/^evals\//, '');
   const contract = JSON.parse(readFileSync(join(EVALS, relative), 'utf-8')) as {
-    properties: Record<string, { enum?: string[]; type?: string }>;
+    properties: Record<string, { type?: string; enum?: string[]; items?: { $ref?: string } }>;
     required?: string[];
   };
 
@@ -109,15 +109,19 @@ describe('input types match the contracts they name', () => {
   it.each(DECLARED)('$typeName carries the contract\'s enum values and array shape', ({ typeName, properties, contract, optional }) => {
     // The reason for generating these rather than deriving them: a declared `enum` becomes a
     // literal union, so a bad grade is a compile error instead of a run-time one on a paid
-    // call. An array of strings (an attached input's paths) is `string[]`. Anything else stays
+    // call. An integer becomes `number`. An array of strings (an attached input's paths) is
+    // `string[]`, and an array of a `$def` object is that type's array. Anything else stays
     // `string`. An optional property also accepts null, which the runtime treats as absent.
     // Length and count bounds are not expressible.
     for (const [name, spec] of Object.entries(contract)) {
+      const ref = spec.items?.$ref;
       const base = spec.enum
         ? spec.enum.map((v) => JSON.stringify(v)).join(' | ')
-        : spec.type === 'array'
-          ? 'string[]'
-          : 'string';
+        : spec.type === 'integer'
+          ? 'number'
+          : spec.type === 'array'
+            ? `${ref ? ref.replace('#/$defs/', '') : 'string'}[]`
+            : 'string';
       const expected = optional.includes(name) ? `${base} | null` : base;
 
       expect(properties[name], `${typeName}.${name}`).toBe(expected);

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -192,6 +192,40 @@ describe('generateSchemaFile', () => {
     expect(() => generateSchemaFile(path)).toThrow(missing);
   });
 
+  it('types a top-level property omitted from required as optional', () => {
+    // Graphics Complexity ships figure_labels this way. A missing or null value is absent.
+    const dir = mkdtempSync(join(tmpdir(), 'optional-input-'));
+    const outputSchema = resolve(
+      __dirname,
+      '../../../../../evals/text-complexity/ela-reading/purpose-clarity/output_schema.json',
+    );
+    writeFileSync(
+      join(dir, 'input_schema.json'),
+      JSON.stringify({
+        type: 'object',
+        properties: {
+          text: { type: 'string' },
+          figure_labels: { type: 'string', description: 'Optional labels.' },
+        },
+        required: ['text'],
+      }),
+    );
+    writeFileSync(
+      join(dir, 'config.json'),
+      JSON.stringify({
+        evaluator: { id: 'graphics.ela.widget' },
+        input_schema: { $ref: 'input_schema.json' },
+        output_schema: { $ref: relative(dir, outputSchema) },
+      }),
+    );
+
+    const { content } = generateSchemaFile(join(dir, 'config.json'));
+
+    expect(content).toContain('"text": string;');
+    expect(content).toContain('/** Optional labels. */');
+    expect(content).toContain('"figure_labels"?: string | null;');
+  });
+
   it('output is deterministic across multiple calls', () => {
     const first = generateSchemaFile(PURPOSE_CONFIG).content;
     const second = generateSchemaFile(PURPOSE_CONFIG).content;
@@ -328,6 +362,23 @@ describe('generateSchemaFile against real contracts', () => {
     expect(content).toContain('export const PurposeClarityOutputSchema');
   });
 
+  it('types an integer input as number and leaves strings as strings', () => {
+    const code = renderInputDeclarations(
+      {
+        type: 'object',
+        required: ['text', 'source_count'],
+        properties: {
+          text: { type: 'string' },
+          source_count: { type: 'integer' },
+        },
+      },
+      'Widget',
+    );
+
+    expect(code).toContain('"text": string;');
+    expect(code).toContain('"source_count": number;');
+  });
+
   it('types Critical Thinking passages as a named object array', () => {
     const { content } = generateSchemaFile(
       contract('durable-skills/ela-writing/critical-thinking'),
@@ -340,6 +391,8 @@ describe('generateSchemaFile against real contracts', () => {
     expect(content).toContain('"source_passages": SourcePassage[];');
     expect(content).toContain('"assignment_text": string;');
     expect(content).toContain('"essay_text": string;');
+    expect(content).not.toContain('"source_count"');
+    expect(content).not.toContain('"sources": string;');
   });
 
   it('names an input $def and types an array of it', () => {
