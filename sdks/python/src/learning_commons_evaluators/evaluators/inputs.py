@@ -7,14 +7,19 @@ applies no defaults of its own.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import json
+from collections.abc import Collection, Mapping
 from typing import Any
 
 from learning_commons_evaluators.errors import InputValidationError
 
-#: A validated input: the string the prompt binds, or for an array input (an attached
-#: input's file paths) its items, in order.
-InputValue = str | tuple[str, ...]
+#: One item of an array input: a string, such as an attached file's path, or an object
+#: whose declared fields are strings. An optional field may be ``None``, which is absent.
+InputItem = str | Mapping[str, str | None]
+
+#: A validated input: the string the prompt binds, or for an array input its items, in
+#: order. An array is either attached, as file paths, or bound into the prompt as text.
+InputValue = str | tuple[InputItem, ...]
 
 
 def validate_inputs(inputs: Any, schema: Mapping[str, Any]) -> dict[str, InputValue]:
@@ -27,12 +32,13 @@ def validate_inputs(inputs: Any, schema: Mapping[str, Any]) -> dict[str, InputVa
     Values come back as the strings the prompt binds: an ``int`` passed for an enumerated
     string input such as ``grade_level`` is the idiomatic Python convenience (§2.3) and is
     rendered as its token before the enum check. An array input comes back as a tuple of
-    its items, each checked as a string against the array's ``items``.
+    its items, each checked against the array's ``items``: a string, or an object in
+    ``$defs``.
 
     :raises InputValidationError: On a non-mapping, an unknown key, a missing field, a
         wrongly typed value, a whitespace-only or out-of-bounds string, a value outside
-        a declared ``enum``, or an array input that is not a list of strings or has a count
-        outside ``minItems``/``maxItems``.
+        a declared ``enum``, or an array input with a count outside
+        ``minItems``/``maxItems`` or an item that fails its own declaration.
     """
     if not isinstance(inputs, Mapping):
         raise InputValidationError(
@@ -52,6 +58,7 @@ def validate_inputs(inputs: Any, schema: Mapping[str, Any]) -> dict[str, InputVa
 
     required = list(schema.get("required", []))
     order = [*required, *(f for f in declared if f not in required)]
+    defs = schema.get("$defs", {})
 
     values: dict[str, InputValue] = {}
     for field in order:
@@ -62,23 +69,46 @@ def validate_inputs(inputs: Any, schema: Mapping[str, Any]) -> dict[str, InputVa
                 raise InputValidationError(f"{field} is required.")
             continue
         values[field] = (
-            _validate_array(field, value, spec)
+            _validate_array(field, value, spec, defs)
             if spec.get("type") == "array"
             else _validate_field(field, value, spec)
         )
     return values
 
 
-def text_inputs(values: Mapping[str, InputValue]) -> dict[str, str]:
-    """The validated inputs that are strings, which are the only ones a prompt can bind.
+def text_inputs(
+    values: Mapping[str, InputValue], *, attached: Collection[str] = ()
+) -> dict[str, str]:
+    """The validated inputs as the text a prompt binds.
 
-    For an evaluator whose contract declares no array input this is every input; one that
-    attaches files reads its array inputs from the full mapping instead.
+    Strings are bound as they are. An attached input's file paths are never prompt text,
+    so the inputs named in ``attached`` are left out. Any other array becomes compact JSON,
+    the same text the TypeScript binder produces, with an optional field left out or set
+    to ``None`` absent rather than ``null``.
     """
-    return {name: value for name, value in values.items() if isinstance(value, str)}
+    return {
+        name: value
+        if isinstance(value, str)
+        else json.dumps(_without_nulls(value), ensure_ascii=False, separators=(",", ":"))
+        for name, value in values.items()
+        if name not in attached
+    }
 
 
-def _validate_array(field: str, value: Any, spec: Mapping[str, Any]) -> tuple[str, ...]:
+def _resolve(spec: Mapping[str, Any], defs: Mapping[str, Any]) -> Mapping[str, Any]:
+    ref = spec.get("$ref")
+    if not isinstance(ref, str):
+        return spec
+    key = ref.removeprefix("#/$defs/")
+    node = defs.get(key)
+    if not isinstance(node, Mapping):
+        raise InputValidationError(f'Cannot resolve $ref "{ref}".')
+    return node
+
+
+def _validate_array(
+    field: str, value: Any, spec: Mapping[str, Any], defs: Mapping[str, Any]
+) -> tuple[InputItem, ...]:
     # A list or a tuple; a bare string is a sequence too, but is exactly the mistake of
     # passing one path where the contract asks for an array of them.
     if not isinstance(value, (list, tuple)):
@@ -96,19 +126,62 @@ def _validate_array(field: str, value: Any, spec: Mapping[str, Any]) -> tuple[st
         raise InputValidationError(
             f"{field} accepts at most {count(maximum)}; received {len(value)}."
         )
-    items = spec.get("items") or {}
-    if items.get("type") != "string":
-        # A contract fault, not a caller's: the only arrays contracts declare are file paths.
+    items = _resolve(spec.get("items") or {}, defs)
+    if items.get("type") not in ("string", "object"):
+        # A contract fault, not a caller's: the eval-schemas check admits only these two.
         raise ValueError(
             f"{field} is declared as an array of {items.get('type')}; only arrays of strings "
-            "are supported."
+            "or objects are supported."
         )
     for index, item in enumerate(value):
         where = f"{field}[{index}]"
+        if items.get("type") == "object":
+            _validate_object(where, item, items)
+            continue
         if not isinstance(item, str):
             raise InputValidationError(f"{where} must be a string.")
         _validate_string(where, item, items)
     return tuple(value)
+
+
+def _without_nulls(value: Any) -> Any:
+    """Drop object keys whose value is None, and do the same inside nested lists."""
+    if isinstance(value, (list, tuple)):
+        return [_without_nulls(item) for item in value]
+    if isinstance(value, Mapping):
+        return {key: _without_nulls(item) for key, item in value.items() if item is not None}
+    return value
+
+
+def _validate_object(path: str, value: Any, spec: Mapping[str, Any]) -> None:
+    if not isinstance(value, Mapping):
+        raise InputValidationError(f"{path} must be an object.")
+    properties: Mapping[str, Mapping[str, Any]] = spec.get("properties", {})
+    declared = list(properties)
+    if spec.get("additionalProperties") is False:
+        for key in value:
+            if key not in declared:
+                raise InputValidationError(
+                    f'Unknown input "{path}.{key}". This object accepts: {", ".join(declared)}.'
+                )
+    required = list(spec.get("required", []))
+    for prop in [*required, *(name for name in declared if name not in required)]:
+        prop_spec = properties[prop]
+        prop_path = f"{path}.{prop}"
+        if prop_spec.get("type") != "string":
+            # A contract fault, as above: object fields are strings.
+            raise ValueError(
+                f"{prop_path} is declared as {prop_spec.get('type')}; only string fields "
+                "are supported."
+            )
+        prop_value = value.get(prop)
+        if prop_value is None:
+            if prop in required:
+                raise InputValidationError(f"{prop_path} is required.")
+            continue
+        if not isinstance(prop_value, str):
+            raise InputValidationError(f"{prop_path} must be a string.")
+        _validate_string(prop_path, prop_value, prop_spec)
 
 
 def _validate_field(field: str, value: Any, spec: Mapping[str, Any]) -> str:
@@ -167,4 +240,4 @@ def primary_text_field(schema: Mapping[str, Any]) -> str | None:
     return None
 
 
-__all__ = ["InputValue", "primary_text_field", "text_inputs", "validate_inputs"]
+__all__ = ["InputItem", "InputValue", "primary_text_field", "text_inputs", "validate_inputs"]

@@ -61,7 +61,8 @@ def test_unknown_library_function_and_transform_fail_loudly() -> None:
     # NotImplementedError, not a provider error: the gap is this SDK's, and evaluators check
     # it at class creation so it never reaches the evaluation's error boundary.
     with pytest.raises(
-        NotImplementedError, match='Unsupported preprocessing library "nltk". Supported: textstat'
+        NotImplementedError,
+        match='Unsupported preprocessing library "nltk". Supported: textstat, builtins',
     ):
         run_preprocessing_step(TEXT, Implementation(library="nltk", function="f"))
     with pytest.raises(NotImplementedError, match='Function "nope" not found in textstat'):
@@ -75,6 +76,17 @@ def test_unknown_library_function_and_transform_fail_loudly() -> None:
     )
     with pytest.raises(NotImplementedError, match='Unsupported post_transform type "floor"'):
         run_preprocessing_step(TEXT, impl)
+
+
+def test_builtins_len_counts_a_list_and_refuses_anything_else() -> None:
+    assert (
+        run_preprocessing_step(["a", "b", "c"], Implementation(library="builtins", function="len"))
+        == 3.0
+    )
+    with pytest.raises(NotImplementedError, match='Function "nope" not found in builtins'):
+        run_preprocessing_step([], Implementation(library="builtins", function="nope"))
+    with pytest.raises(TypeError, match="counts a list, not str"):
+        run_preprocessing_step("hello", Implementation(library="builtins", function="len"))
 
 
 @pytest.mark.parametrize(

@@ -99,6 +99,113 @@ def test_integer_fields() -> None:
         validate_inputs({**GOOD, "count": 0}, SCHEMA)
 
 
+PASSAGE_SCHEMA = {
+    "properties": {
+        "source_passages": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"$ref": "#/$defs/SourcePassage"},
+        }
+    },
+    "required": ["source_passages"],
+    "$defs": {
+        "SourcePassage": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["text"],
+            "properties": {
+                "title": {"type": "string", "minLength": 1},
+                "author": {"type": "string", "minLength": 1},
+                "text": {"type": "string", "minLength": 1},
+            },
+        }
+    },
+}
+
+
+def test_array_of_objects_comes_back_as_a_tuple_and_binds_as_json() -> None:
+    passages = [{"text": "A passage."}, {"title": "A title", "text": "Another."}]
+    values = validate_inputs({"source_passages": passages}, PASSAGE_SCHEMA)
+    assert values["source_passages"] == tuple(passages)
+    bound = text_inputs(values)["source_passages"]
+    assert bound == '[{"text":"A passage."},{"title":"A title","text":"Another."}]'
+    assert bound != str(passages)
+
+
+def test_array_rejects_shape_mistakes() -> None:
+    with pytest.raises(InputValidationError, match="source_passages must be an array."):
+        validate_inputs({"source_passages": "A passage."}, PASSAGE_SCHEMA)
+    with pytest.raises(
+        InputValidationError, match=r"^source_passages needs at least 1 item; received 0\.$"
+    ):
+        validate_inputs({"source_passages": []}, PASSAGE_SCHEMA)
+    with pytest.raises(InputValidationError, match=r"source_passages\[0\].text is required."):
+        validate_inputs({"source_passages": [{"title": "Only a title"}]}, PASSAGE_SCHEMA)
+    with pytest.raises(InputValidationError, match="title cannot be empty"):
+        validate_inputs(
+            {"source_passages": [{"title": "  ", "text": "A passage."}]}, PASSAGE_SCHEMA
+        )
+    with pytest.raises(InputValidationError, match=r'Unknown input "source_passages\[0\].note"'):
+        validate_inputs(
+            {"source_passages": [{"text": "A passage.", "note": "nope"}]}, PASSAGE_SCHEMA
+        )
+
+
+def test_optional_none_is_omitted_from_json() -> None:
+    values = validate_inputs({"source_passages": [{"text": "A", "title": None}]}, PASSAGE_SCHEMA)
+    assert text_inputs(values)["source_passages"] == '[{"text":"A"}]'
+
+
+def test_string_items_are_checked_and_inline_schemas_need_no_ref() -> None:
+    strings = {
+        "properties": {"tags": {"type": "array", "items": {"type": "string", "minLength": 1}}},
+        "required": ["tags"],
+    }
+    assert text_inputs(validate_inputs({"tags": ["a"]}, strings))["tags"] == '["a"]'
+    with pytest.raises(InputValidationError, match=r"tags\[0\] must be a string."):
+        validate_inputs({"tags": [1]}, strings)
+    with pytest.raises(InputValidationError, match=r"tags\[0\] cannot be empty"):
+        validate_inputs({"tags": ["  "]}, strings)
+
+
+def test_an_unresolved_ref_is_an_input_error() -> None:
+    missing = {
+        "properties": {
+            "source_passages": {"type": "array", "items": {"$ref": "#/$defs/Missing"}},
+        },
+        "required": ["source_passages"],
+        "$defs": {},
+    }
+    with pytest.raises(InputValidationError, match='Cannot resolve \\$ref "#/\\$defs/Missing"'):
+        validate_inputs({"source_passages": [{}]}, missing)
+
+
+def test_object_items_must_be_objects_and_string_fields_must_be_strings() -> None:
+    with pytest.raises(InputValidationError, match=r"source_passages\[0\] must be an object."):
+        validate_inputs({"source_passages": ["A passage."]}, PASSAGE_SCHEMA)
+    with pytest.raises(InputValidationError, match=r"source_passages\[0\].title must be a string."):
+        validate_inputs({"source_passages": [{"text": "A", "title": 1}]}, PASSAGE_SCHEMA)
+
+
+def test_an_object_field_that_is_not_a_string_is_a_contract_fault() -> None:
+    schema = {
+        "required": ["source_passages"],
+        "properties": {
+            "source_passages": {"type": "array", "items": {"$ref": "#/$defs/SourcePassage"}}
+        },
+        "$defs": {
+            "SourcePassage": {
+                "type": "object",
+                "required": ["text"],
+                "properties": {"text": {"type": "integer"}},
+            }
+        },
+    }
+    with pytest.raises(ValueError, match="declared as integer; only string fields") as caught:
+        validate_inputs({"source_passages": [{"text": 1}]}, schema)
+    assert not isinstance(caught.value, InputValidationError)
+
+
 def test_primary_text_field_is_the_first_non_enum_string() -> None:
     assert primary_text_field(SCHEMA) == "text"
     assert (
@@ -167,13 +274,15 @@ class TestArrayInputs:
             "required": ["counts"],
             "properties": {"counts": {"type": "array", "items": {"type": "integer"}}},
         }
-        with pytest.raises(ValueError, match="array of integer; only arrays of strings") as caught:
+        with pytest.raises(
+            ValueError, match="array of integer; only arrays of strings or objects"
+        ) as caught:
             validate_inputs({"counts": [1]}, schema)
         assert not isinstance(caught.value, InputValidationError)
 
-    def test_text_inputs_keeps_only_what_a_prompt_can_bind(self) -> None:
+    def test_text_inputs_leaves_out_attached_inputs(self) -> None:
         values = validate_inputs({"figures": ["a.png"], "claim": "c"}, ARRAY_SCHEMA)
-        assert text_inputs(values) == {"claim": "c"}
+        assert text_inputs(values, attached={"figures"}) == {"claim": "c"}
 
     def test_the_primary_text_is_never_an_array(self) -> None:
         assert primary_text_field(ARRAY_SCHEMA) == "claim"
