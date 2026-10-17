@@ -5,6 +5,14 @@ All notable changes to the evaluator prompt files will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.10.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.9.0...evals-prompts-v1.10.0) (2026-10-17)
+
+
+### Features
+
+* **python-sdk:** accept structured evaluator inputs ([#354](https://github.com/learning-commons-org/evaluators/issues/354)) ([946d5f4](https://github.com/learning-commons-org/evaluators/commit/946d5f4a6d9185ed37a3d92c3f53e99f6b65754a))
+* **ts-sdk:** add the Critical Thinking evaluator ([#350](https://github.com/learning-commons-org/evaluators/issues/350)) ([b9b06a6](https://github.com/learning-commons-org/evaluators/commit/b9b06a645dcef4ea50eccc6d602259a1f4b6b112))
+
 ## [1.9.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.8.0...evals-prompts-v1.9.0) (2026-10-10)
 
 
