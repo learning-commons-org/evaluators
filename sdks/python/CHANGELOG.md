@@ -2,6 +2,15 @@
 
 All notable changes to the `learning-commons-evaluators` Python SDK will be documented in this file.
 
+## [1.2.0](https://github.com/learning-commons-org/evaluators/compare/sdks-python-v1.1.0...sdks-python-v1.2.0) (2026-10-17)
+
+
+### Features
+
+* **python-sdk:** accept structured evaluator inputs ([#354](https://github.com/learning-commons-org/evaluators/issues/354)) ([946d5f4](https://github.com/learning-commons-org/evaluators/commit/946d5f4a6d9185ed37a3d92c3f53e99f6b65754a))
+* **python-sdk:** add the Critical Thinking evaluator ([#351](https://github.com/learning-commons-org/evaluators/issues/351)) ([18536e4](https://github.com/learning-commons-org/evaluators/commit/18536e4432a5e6c3a2f711b6e6ee1d97a35326b8))
+* **ts-sdk:** add the Critical Thinking evaluator ([#350](https://github.com/learning-commons-org/evaluators/issues/350)) ([b9b06a6](https://github.com/learning-commons-org/evaluators/commit/b9b06a645dcef4ea50eccc6d602259a1f4b6b112))
+
 ## [1.1.0](https://github.com/learning-commons-org/evaluators/compare/sdks-python-v1.0.0...sdks-python-v1.1.0) (2026-10-10)
 
 
