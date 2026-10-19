@@ -56,7 +56,7 @@
               "string",
               "null"
             ],
-            "description": "If aligned=false: concrete revision to make the item align. If aligned=true: null."
+            "description": "If aligned=false: concrete revision to make the item align. If aligned=true: a brief note, or null."
           }
         }
       }

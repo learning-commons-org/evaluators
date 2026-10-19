@@ -85,7 +85,7 @@ class LearningComponentsItem(BaseModel):
     description: str = Field(description="The learning component description from the Knowledge Graph")
     reasoning: str = Field(description="Concise explanation of what the LC requires, what the question asks, and why they do or do not align")
     aligned: bool = Field(description="True if the question directly elicits the skill described by this learning component")
-    feedback: str | None = Field(description="If aligned=false: concrete revision to make the item align. If aligned=true: null.")
+    feedback: str | None = Field(description="If aligned=false: concrete revision to make the item align. If aligned=true: a brief note, or null.")
 
 
 class MathStandardsAlignmentOutput(BaseModel):
