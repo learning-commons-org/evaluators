@@ -1,11 +1,12 @@
 """Anthropic adapter over the native ``anthropic`` SDK (D10).
 
-Structured output uses ``messages.parse`` with a pydantic model as ``output_format``: the
-SDK sends the schema as the message's JSON output format and validates the completion
-against it. Anthropic requires ``max_tokens``. A request that names none gets
-:data:`DEFAULT_MAX_TOKENS`. The TypeScript adapter sends the model's own ceiling instead
-(128,000 for ``claude-opus-5``). This client calls non-streaming ``messages.parse``, which
-refuses anything above 21,333 tokens. The default is 20,000, the higher ceiling we send
+Structured output sends the pydantic model's JSON schema as the message's output format,
+the same one ``messages.parse`` builds, through ``messages.create``, and validates the text
+afterwards. That order lets the stop reason be read first: a completion cut off at
+``max_tokens`` is reported as truncated rather than as a schema error. Anthropic requires
+``max_tokens``. A request that names none gets :data:`DEFAULT_MAX_TOKENS`. The TypeScript
+adapter sends the model's own ceiling instead (128,000 for ``claude-opus-5``). This client
+makes non-streaming calls, which the SDK refuses above 21,333 tokens. The default is 20,000, the higher ceiling we send
 pending a team discussion of anything above it.
 
 Each call builds its own client and closes it before returning; see
@@ -20,7 +21,7 @@ from contextlib import asynccontextmanager
 from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from learning_commons_evaluators.providers._common import (
     around_text,
@@ -30,6 +31,7 @@ from learning_commons_evaluators.providers._common import (
     no_structured_output,
     require_config,
     split_system,
+    truncated_output,
 )
 from learning_commons_evaluators.providers.base import (
     ImageAttachment,
@@ -139,17 +141,34 @@ class AnthropicProvider:
         max_tokens: int | None = None,
         attachments: Sequence[ImageAttachment] = (),
     ) -> LLMResponse[T]:
+        from anthropic import transform_schema
+
         start = time.perf_counter()
+        request = self._request(messages, temperature, max_tokens, attachments)
+        # The JSON output format ``messages.parse`` would send, sent through ``create`` so
+        # the stop reason can be read before the text is validated: ``parse`` validates
+        # inside the call, and cut-off JSON would surface as a schema error instead.
+        output_format = {
+            "type": "json_schema",
+            "schema": transform_schema(TypeAdapter(schema).json_schema()),
+        }
         async with self._session() as client:
-            message = await client.messages.parse(
-                output_format=schema,
-                **self._request(messages, temperature, max_tokens, attachments),
+            message = await client.messages.create(
+                output_config={"format": output_format}, **request
             )
-        parsed = message.parsed_output
-        if parsed is None:
-            # Truncation (``max_tokens``) and refusals both end without a parseable block;
-            # the stop reason says which.
-            raise no_structured_output(self.label, getattr(message, "stop_reason", None))
+        stop_reason = getattr(message, "stop_reason", None)
+        if stop_reason == "max_tokens":
+            raise truncated_output(
+                self.label, temperature=temperature, max_tokens=request["max_tokens"]
+            )
+        text = "".join(
+            getattr(block, "text", "") for block in message.content if block.type == "text"
+        )
+        if not text.strip():
+            # A refusal ends without a text block; the stop reason says so.
+            raise no_structured_output(self.label, stop_reason)
+        # A pydantic ValidationError here classifies as LLMOutputProcessingError, as before.
+        parsed = schema.model_validate_json(text)
         return LLMResponse(
             data=parsed,
             model=self._model,

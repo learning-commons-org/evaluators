@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from openai import omit
@@ -26,13 +26,27 @@ MESSAGES: list[Message] = [
 ]
 
 
-def _client(parsed: Any = None, text: str = "", usage: Any = None, **extra: Any) -> Any:
+def _client(
+    parsed: Any = None,
+    text: str = "",
+    usage: Any = None,
+    body: dict[str, Any] | None = None,
+    **extra: Any,
+) -> Any:
+    """A fake whose raw ``responses.parse`` carries ``body`` and parses to ``parsed``."""
     usage = usage if usage is not None else SimpleNamespace(input_tokens=11, output_tokens=7)
     parse_result = SimpleNamespace(output_parsed=parsed, usage=usage, **extra)
+    # The async client's raw form is a LegacyAPIResponse: a read httpx body, sync ``parse``.
+    raw = SimpleNamespace(
+        http_response=SimpleNamespace(
+            json=Mock(return_value=body or {"status": "completed", "incomplete_details": None})
+        ),
+        parse=Mock(return_value=parse_result),
+    )
     create_result = SimpleNamespace(output_text=text, usage=usage)
     return SimpleNamespace(
         responses=SimpleNamespace(
-            parse=AsyncMock(return_value=parse_result),
+            with_raw_response=SimpleNamespace(parse=AsyncMock(return_value=raw)),
             create=AsyncMock(return_value=create_result),
         )
     )
@@ -55,7 +69,7 @@ class TestGenerateStructured:
     async def test_sends_the_system_prompt_as_instructions_and_the_rest_as_input(self) -> None:
         client = _client(parsed=_Verdict(score=1, reasoning="r"))
         await _adapter(client).generate_structured(MESSAGES, _Verdict, temperature=0.0)
-        kwargs = client.responses.parse.await_args.kwargs
+        kwargs = client.responses.with_raw_response.parse.await_args.kwargs
         assert kwargs["model"] == "gpt-4o-2024-11-20"
         assert kwargs["instructions"] == "You grade things."
         assert kwargs["input"] == [{"role": "user", "content": "Grade this."}]
@@ -66,27 +80,46 @@ class TestGenerateStructured:
         # A None temperature means "send nothing", for models that reject an explicit value.
         client = _client(parsed=_Verdict(score=1, reasoning="r"))
         await _adapter(client).generate_structured(MESSAGES, _Verdict)
-        kwargs = client.responses.parse.await_args.kwargs
+        kwargs = client.responses.with_raw_response.parse.await_args.kwargs
         assert kwargs["temperature"] is omit
         assert kwargs["max_output_tokens"] is omit
 
     async def test_omits_instructions_without_a_system_message(self) -> None:
         client = _client(parsed=_Verdict(score=1, reasoning="r"))
         await _adapter(client).generate_structured(MESSAGES[1:], _Verdict, max_tokens=256)
-        kwargs = client.responses.parse.await_args.kwargs
+        kwargs = client.responses.with_raw_response.parse.await_args.kwargs
         assert kwargs["instructions"] is omit
         assert kwargs["max_output_tokens"] == 256
 
     async def test_no_parsed_output_is_an_output_processing_error(self) -> None:
-        # A refusal or a truncated completion leaves nothing to parse: the dependency
-        # answered, so this is the model's output failing our contract.
-        client = _client(
-            parsed=None, incomplete_details=SimpleNamespace(reason="max_output_tokens")
-        )
-        with pytest.raises(LLMOutputProcessingError, match="max_output_tokens") as exc_info:
+        # A refusal leaves nothing to parse: the dependency answered, so this is the
+        # model's output failing our contract.
+        client = _client(parsed=None, status="completed")
+        with pytest.raises(LLMOutputProcessingError, match="completed") as exc_info:
             await _adapter(client).generate_structured(MESSAGES, _Verdict)
         assert exc_info.value.retryable is True
         assert "openai:gpt-4o-2024-11-20" in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        ("temperature", "retryable"), [(0.0, False), (None, True), (0.7, True)]
+    )
+    async def test_an_incomplete_max_output_tokens_response_is_truncated(
+        self, temperature: float | None, retryable: bool
+    ) -> None:
+        # Caught from the raw status, so parse never sees the cut-off JSON.
+        body = {"status": "incomplete", "incomplete_details": {"reason": "max_output_tokens"}}
+        client = _client(body=body)
+        with pytest.raises(LLMOutputProcessingError) as exc_info:
+            await _adapter(client).generate_structured(
+                MESSAGES, _Verdict, temperature=temperature, max_tokens=256
+            )
+        assert str(exc_info.value) == (
+            "openai:gpt-4o-2024-11-20 stopped at max_tokens=256 before its structured "
+            "output was complete."
+        )
+        assert exc_info.value.retryable is retryable
+        raw = client.responses.with_raw_response.parse.return_value
+        raw.parse.assert_not_called()
 
     async def test_missing_usage_counts_as_zero(self) -> None:
         client = _client(parsed=_Verdict(score=1, reasoning="r"), usage=SimpleNamespace())
@@ -96,7 +129,7 @@ class TestGenerateStructured:
     async def test_vendor_errors_propagate_unwrapped(self) -> None:
         # Classification is the evaluator boundary's job, via wrap_provider_error.
         client = _client()
-        client.responses.parse = AsyncMock(side_effect=RuntimeError("upstream"))
+        client.responses.with_raw_response.parse = AsyncMock(side_effect=RuntimeError("upstream"))
         with pytest.raises(RuntimeError, match="upstream"):
             await _adapter(client).generate_structured(MESSAGES, _Verdict)
 

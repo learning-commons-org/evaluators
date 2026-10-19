@@ -101,6 +101,25 @@ class TestGenerateStructured:
         with pytest.raises(LLMOutputProcessingError, match="SAFETY"):
             await _adapter(client).generate_structured(MESSAGES, _Verdict)
 
+    @pytest.mark.parametrize(
+        ("temperature", "retryable"), [(0.0, False), (None, True), (0.7, True)]
+    )
+    async def test_a_max_tokens_finish_is_truncated_before_the_text_is_validated(
+        self, temperature: float | None, retryable: bool
+    ) -> None:
+        # The real SDK reports an enum; its ``value`` is the name compared here.
+        finish = SimpleNamespace(value="MAX_TOKENS")
+        client = _client(
+            text='{"grade_band": "2-', candidates=[SimpleNamespace(finish_reason=finish)]
+        )
+        with pytest.raises(LLMOutputProcessingError) as exc_info:
+            await _adapter(client).generate_structured(MESSAGES, _Verdict, temperature=temperature)
+        assert str(exc_info.value) == (
+            "google:gemini-3.6-flash stopped at its output limit before its structured "
+            "output was complete."
+        )
+        assert exc_info.value.retryable is retryable
+
 
 class TestGenerateText:
     async def test_returns_the_text_without_a_response_schema(self) -> None:

@@ -89,11 +89,30 @@ def elapsed_ms(start: float) -> int:
     return int((time.perf_counter() - start) * 1000)
 
 
+def truncated_output(
+    label: str, *, temperature: float | None, max_tokens: int | None
+) -> LLMOutputProcessingError:
+    """The error for a completion that stopped at the output limit before it was complete.
+
+    At temperature 0 the same request stops at the same place, so resampling it would only
+    repeat the cost; it is raised as not retryable. At any other temperature, or with none
+    sent (the model's default), a resample may come back shorter, so it is retryable as
+    before. Each adapter raises this from the vendor's own stop signal, before it parses
+    the text, because cut-off JSON would otherwise surface as a schema error.
+    """
+    limit = f"max_tokens={max_tokens}" if max_tokens is not None else "its output limit"
+    return LLMOutputProcessingError(
+        f"{label} stopped at {limit} before its structured output was complete.",
+        retryable=temperature != 0,
+    )
+
+
 def no_structured_output(label: str, detail: str | None) -> LLMOutputProcessingError:
     """The error for a call that completed without a parseable structured payload.
 
-    Refusals, truncation and empty completions all land here: the dependency answered, so
-    this is the model's output failing our contract, which resamples rather than backs off.
+    Refusals and empty completions land here: the dependency answered, so this is the
+    model's output failing our contract, which resamples rather than backs off. A cut-off
+    completion is :func:`truncated_output` instead, which can name the limit.
     """
     suffix = f" ({detail})" if detail else ""
     return LLMOutputProcessingError(f"{label} returned no structured output{suffix}.")

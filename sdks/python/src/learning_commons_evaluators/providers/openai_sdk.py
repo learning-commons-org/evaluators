@@ -27,6 +27,7 @@ from learning_commons_evaluators.providers._common import (
     no_structured_output,
     require_config,
     split_system,
+    truncated_output,
 )
 from learning_commons_evaluators.providers.base import (
     ImageAttachment,
@@ -127,9 +128,19 @@ class OpenAIProvider:
     ) -> LLMResponse[T]:
         start = time.perf_counter()
         async with self._session() as client:
-            response = await client.responses.parse(
+            # The raw response first, so a completion cut off at the output limit is caught
+            # from its status before ``parse`` validates the cut-off JSON, which would
+            # surface as a schema error instead.
+            raw = await client.responses.with_raw_response.parse(
                 text_format=schema, **self._request(messages, temperature, max_tokens, attachments)
             )
+            # The async client's raw form is a LegacyAPIResponse: the body is already read,
+            # and ``parse`` is synchronous.
+            body = raw.http_response.json()
+            details = body.get("incomplete_details") if isinstance(body, dict) else None
+            if isinstance(details, dict) and details.get("reason") == "max_output_tokens":
+                raise truncated_output(self.label, temperature=temperature, max_tokens=max_tokens)
+            response = raw.parse()
         parsed = response.output_parsed
         if parsed is None:
             # A refusal or an incomplete completion leaves nothing to parse; the SDK reports
