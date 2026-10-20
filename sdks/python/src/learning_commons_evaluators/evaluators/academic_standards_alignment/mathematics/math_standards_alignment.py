@@ -241,10 +241,8 @@ class LCEvaluation(BaseModel):
     lc_id: str
     reasoning: str
     answer: Literal["Yes", "No"]
-    #: Optional, because the contract's output schema declares it nullable and says an
-    #: aligned component's feedback is ``null``. Typed ``str`` here would reject a
-    #: response the registry calls valid, burn the resamples, and fail the evaluation.
-    feedback: str | None = None
+    #: Required but nullable, as the contract declares it. The optional form failed on DSCR-2453.
+    feedback: str | None
 
 
 class BatchedLCEvaluation(BaseModel):

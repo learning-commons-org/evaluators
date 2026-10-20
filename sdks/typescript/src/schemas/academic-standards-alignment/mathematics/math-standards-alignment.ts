@@ -6,7 +6,7 @@ export const LCEvaluationSchema = z.object({
   lc_id: z.string(),
   reasoning: z.string(),
   answer: z.enum(['Yes', 'No']),
-  feedback: z.string(),
+  feedback: z.string().nullable(),
 });
 
 export const BatchedLCEvaluationSchema = z.object({

@@ -87,7 +87,7 @@ export interface LearningComponentResult {
   description: string;
   reasoning: string;
   aligned: boolean;
-  feedback: string;
+  feedback: string | null;
 }
 
 /**
@@ -656,7 +656,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       const evalById = new Map(
         evaluations
           .filter((e: { lc_id: string }) => sentIds.has(e.lc_id))
-          .map((e: { lc_id: string; reasoning: string; answer: 'Yes' | 'No'; feedback: string }) =>
+          .map((e: { lc_id: string; reasoning: string; answer: 'Yes' | 'No'; feedback: string | null }) =>
             [e.lc_id, e]
           )
       );
