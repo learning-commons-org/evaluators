@@ -5,7 +5,9 @@ passed to them (see :class:`~.base.ProviderConfig`) and they retry their own 408
 and connection failures with exponential backoff, honouring ``Retry-After``. Evaluation
 failures resample: a response that fails its output schema is sampling variance, so the
 call is simply made again, immediately, up to the same ``max_retries``. This module is that
-second loop.
+second loop. An output failure marked ``retryable=False`` is not variance and is raised at
+once: today that is a completion cut off at the output limit at temperature 0, which the
+same request would reproduce.
 """
 
 from __future__ import annotations
@@ -32,12 +34,13 @@ async def call_with_resampling(
     model: str | None = None,
     logger: logging.Logger | None = None,
 ) -> T:
-    """Await ``call``, resampling immediately on ``LLMOutputProcessingError``.
+    """Await ``call``, resampling immediately on a retryable ``LLMOutputProcessingError``.
 
     Every other failure is classified with :func:`wrap_provider_error` and raised at once:
     a retryable dependency error has already exhausted the vendor SDK's own backoff by the
-    time it surfaces here, and a non-retryable one must not be retried at all. Total
-    attempts are ``1 + max_retries``; ``0`` disables resampling.
+    time it surfaces here, and a non-retryable one must not be retried at all. The same
+    holds for an output failure marked not retryable. Total attempts are
+    ``1 + max_retries``; ``0`` disables resampling.
     """
     attempt = 0
     while True:
@@ -49,7 +52,11 @@ async def call_with_resampling(
                 if isinstance(raw, EvaluatorError)
                 else wrap_provider_error(raw, dependency=dependency, model=model)
             )
-            if isinstance(error, LLMOutputProcessingError) and attempt < max_retries:
+            if (
+                isinstance(error, LLMOutputProcessingError)
+                and error.retryable
+                and attempt < max_retries
+            ):
                 attempt += 1
                 if logger is not None:
                     logger.debug(

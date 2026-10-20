@@ -115,10 +115,13 @@ class EvaluationError(EvaluatorError):
 class LLMOutputProcessingError(EvaluationError):
     """Model response failed parsing, normalization, or its output schema.
 
-    Retryable immediately: the failure is sampling variance, so backing off only adds
-    latency. ``validation_errors`` carries per-field failures as schema locations and error
-    types (see :func:`sanitize_pydantic_errors`); ``None`` when the failure was not a
-    field-level one.
+    Retryable immediately by default: the failure is sampling variance, so backing off only
+    adds latency. The one exception is a completion that stopped at the output limit at
+    temperature 0 (see :func:`~.providers._common.truncated_output`), which is not variance:
+    the same request stops at the same place again, so it is raised with ``retryable=False``.
+    ``validation_errors`` carries per-field failures as schema locations and error types
+    (see :func:`sanitize_pydantic_errors`); ``None`` when the failure was not a field-level
+    one.
     """
 
     def __init__(
@@ -126,8 +129,10 @@ class LLMOutputProcessingError(EvaluationError):
         message: str,
         validation_errors: list[dict[str, Any]] | None = None,
         cause: BaseException | None = None,
+        *,
+        retryable: bool = True,
     ) -> None:
-        super().__init__(message, True, cause)
+        super().__init__(message, retryable, cause)
         self.validation_errors = validation_errors
 
 

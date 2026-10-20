@@ -62,7 +62,7 @@ def test_each_image_goes_before_or_after_the_text_as_its_position_says_in_array_
 
 class TestOpenAI:
     def call(self, client: Any) -> dict[str, Any]:
-        return dict(client.responses.parse.await_args.kwargs)
+        return dict(client.responses.with_raw_response.parse.await_args.kwargs)
 
     async def run(self, messages: list[Message], **kwargs: Any) -> dict[str, Any]:
         client = test_openai_sdk._client(parsed=test_openai_sdk._Verdict(score=1, reasoning="r"))
@@ -128,7 +128,7 @@ class TestAnthropic:
         await test_anthropic_sdk._adapter(client).generate_structured(
             messages, test_anthropic_sdk._Verdict, **kwargs
         )
-        return dict(client.messages.parse.await_args.kwargs)
+        return dict(client.messages.create.await_args.kwargs)
 
     def test_declares_attachment_support(self) -> None:
         adapter = test_anthropic_sdk._adapter(test_anthropic_sdk._client())

@@ -29,6 +29,7 @@ from learning_commons_evaluators.providers._common import (
     no_structured_output,
     require_config,
     split_system,
+    truncated_output,
 )
 from learning_commons_evaluators.providers.base import (
     ImageAttachment,
@@ -163,6 +164,12 @@ class GoogleProvider:
         # JSON schema the text is the payload, and the model validates it.
         parsed = response.parsed
         if not isinstance(parsed, schema):
+            candidates = getattr(response, "candidates", None) or []
+            finish = getattr(candidates[0], "finish_reason", None) if candidates else None
+            # Checked before the text is validated, so cut-off JSON is reported as
+            # truncated rather than as a schema error.
+            if finish is not None and str(getattr(finish, "value", finish)) == "MAX_TOKENS":
+                raise truncated_output(self.label, temperature=temperature, max_tokens=max_tokens)
             text = response.text
             if text is None or not text.strip():
                 # Safety blocks and empty candidates end with no text; the finish reason

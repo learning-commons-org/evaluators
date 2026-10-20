@@ -57,6 +57,24 @@ async def test_raises_once_the_budget_is_spent() -> None:
     assert call.calls == 2
 
 
+async def test_a_failure_marked_not_retryable_is_raised_without_resampling() -> None:
+    # A completion cut off at temperature 0 would stop at the same place again.
+    truncated = LLMOutputProcessingError("stopped at max_tokens", retryable=False)
+    call = _Flaky([truncated])
+    with pytest.raises(LLMOutputProcessingError) as exc_info:
+        await call_with_resampling(call, max_retries=2, dependency="anthropic")
+    assert exc_info.value is truncated
+    assert call.calls == 1
+
+
+async def test_a_retryable_failure_after_a_resample_still_resamples() -> None:
+    call = _Flaky(
+        [LLMOutputProcessingError("bad"), LLMOutputProcessingError("bad", retryable=True)]
+    )
+    assert await call_with_resampling(call, max_retries=2, dependency="anthropic") == "ok"
+    assert call.calls == 3
+
+
 async def test_zero_disables_resampling() -> None:
     call = _Flaky([LLMOutputProcessingError("once")])
     with pytest.raises(LLMOutputProcessingError):

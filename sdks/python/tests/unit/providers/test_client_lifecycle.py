@@ -58,7 +58,20 @@ class _FakeOpenAI(_FakeClient):
 
     def __init__(self, **options: Any) -> None:
         super().__init__(**options)
-        self.responses = SimpleNamespace(parse=self._call, create=self._call)
+        self.responses = SimpleNamespace(
+            parse=self._call,
+            create=self._call,
+            with_raw_response=SimpleNamespace(parse=self._raw_call),
+        )
+
+    async def _raw_call(self, **request: Any) -> Any:
+        """What ``responses.with_raw_response.parse`` returns: a LegacyAPIResponse, read and sync."""
+        result = await self._call(**request)
+
+        def body() -> dict[str, Any]:
+            return {"status": "completed", "incomplete_details": None}
+
+        return SimpleNamespace(http_response=SimpleNamespace(json=body), parse=lambda: result)
 
     async def __aenter__(self) -> _FakeOpenAI:
         return self
@@ -70,7 +83,7 @@ class _FakeOpenAI(_FakeClient):
 class _FakeAnthropic(_FakeOpenAI):
     result = SimpleNamespace(
         parsed_output=_Verdict(score=1),
-        content=[SimpleNamespace(type="text", text="t")],
+        content=[SimpleNamespace(type="text", text='{"score": 1}')],
         usage=None,
         stop_reason="end_turn",
     )
