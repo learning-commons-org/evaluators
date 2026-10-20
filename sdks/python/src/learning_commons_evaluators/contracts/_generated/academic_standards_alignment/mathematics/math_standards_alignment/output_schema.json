@@ -4,6 +4,7 @@
   "type": "object",
   "required": [
     "statement_code",
+    "case_identifier_uuid",
     "learning_components",
     "aligned_count",
     "total_count"
@@ -13,6 +14,13 @@
     "statement_code": {
       "type": "string",
       "description": "The standard code that was evaluated (matches the statement_code input)"
+    },
+    "case_identifier_uuid": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "CASE Network UUID of the standard the SDK reported on, so a result can be traced to the exact copy of a code. Null when the SDK did not report a resolved standard: a bulk pair that failed, or one skipped by the coarse filter before its copy was known."
     },
     "learning_components": {
       "type": "array",
@@ -48,7 +56,7 @@
               "string",
               "null"
             ],
-            "description": "If aligned=false: concrete revision to make the item align. If aligned=true: null."
+            "description": "If aligned=false: concrete revision to make the item align. If aligned=true: a brief note, or null."
           }
         }
       }
