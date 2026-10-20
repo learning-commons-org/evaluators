@@ -129,4 +129,5 @@ export {
   type QuestionResult,
   type QuestionBankOptions,
   type MathStandardsAlignmentInput,
+  type MathStandardsAlignmentUuidInput,
 } from './academic-standards-alignment/mathematics/math-standards-alignment.js';
