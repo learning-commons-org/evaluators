@@ -56,8 +56,15 @@ fall back to the summary above and say in the report that the spec text was
 unavailable.
 
 - **Contract source of truth:** `evals/<family>/<subject>/<evaluator>/` — each
-  holds `config.json`, `input_schema.json`, `output_schema.json`, `system.txt`,
-  `user.txt`, `fixtures.json` (schemas for these live in `evals/_schemas/`).
+  holds `config.json`, `input_schema.json`, `output_schema.json`, `fixtures.json`
+  (schemas for these live in `evals/_schemas/`), plus prompt files. Prompt
+  filenames are **not** uniform: single-step evaluators typically have
+  `system.txt`/`user.txt`, but others ship multiple prompt pairs and
+  grade-specific rubrics (e.g. sentence-structure's `analysis-*`/`complexity-*`
+  prompts and `rubric-grade-*.txt`), and multi-step evaluators reference extra
+  user prompts. The authoritative list is whatever `config.json` references —
+  follow every prompt and preprocessing `source_path` it names when comparing
+  judgment inputs, never a fixed filename list.
 - **Python generated mirror:** `sdks/python/src/learning_commons_evaluators/contracts/_generated/`
   and the nested packages under `.../schemas/<family>/<subject>/`, produced by
   `make generate-contracts` (run from `sdks/python/`). `make check-generated`
@@ -83,7 +90,14 @@ unavailable.
 3. Check the generated mirrors are regenerated, not hand-edited: compare the
    `evals/` source against both generated copies; if tooling is available, prefer
    running the drift checks (`make check-generated` in `sdks/python/`,
-   `npm run generate:schemas:check` in `sdks/typescript/`) over eyeballing.
+   `npm run generate:schemas:check` in `sdks/typescript/`) over eyeballing — but
+   know their coverage limits. The TypeScript check only covers contracts whose
+   committed schema module exists **and** starts with the GENERATED marker
+   (`generatedContracts()` in `sdks/typescript/scripts/generate-schema.ts`);
+   a still-hand-written module or a missing module is silently skipped. So a
+   passing check does not establish parity for every evaluator: additionally
+   confirm a schema module exists for each evaluator in the registry, and
+   compare hand-written modules against the contract directly.
 4. For envelope/config/error changes, grep both SDKs for the touched field or
    category names and confirm the other side carries the same semantics.
 5. Mind release boundaries: an evaluator can legitimately exist in one SDK ahead
