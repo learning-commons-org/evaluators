@@ -288,6 +288,23 @@ part of the standard an item does and does not reach:
 }
 ```
 
+`evaluate()` takes a code and resolves it; `evaluateByCode()` is the same call under the name the
+Python SDK uses. A code can name several standards, one per copy a framework keeps, and the first
+copy with learning components is the one judged. Unlike the Python method, this takes no
+`grade_level`, so a code that names copies at several grades resolves to the first populated copy
+whatever its grade. If you already
+hold the standard's CASE Network UUID, `evaluateByUuid()` judges that standard directly and
+skips the resolution:
+
+```typescript
+const { result } = await evaluator.evaluateByUuid({
+  question: "A playground is shaped like an L. What is its area?",
+  case_identifier_uuid: "6ba25656-d7cc-11e8-824f-0242ac160002",
+});
+```
+
+It refuses a standard from another subject with `InputValidationError`, before any model call.
+
 Durable skills — rates a student argumentative essay. Takes `{ assignment_text, source_passages, essay_text }`. `source_passages` is a list of `{ title?, author?, text }` in the order the student received them. The first item is Source 1. A passage may omit `title` and `author`; the source number is still a valid way to name it. The SDK counts the list for the prompt. The prompt asks the model to omit indicator 2.1 (`synthesizing_sources`) when that count is 1. The published output schema still accepts the field either present or absent; the SDK does not reject a mismatch. Returns `critical_thinking_score` on a five-level scale — `not_evident`, `exploring`, `analyzing`, `integrating`, `extending` — with `reasoning` and per-indicator `indicators`.
 
 | Evaluator                    | Grades | Default provider | Docs                                                                                                |

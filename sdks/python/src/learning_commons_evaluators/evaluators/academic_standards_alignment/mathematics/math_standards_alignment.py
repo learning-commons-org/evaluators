@@ -33,10 +33,18 @@ loop of its own.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
+from collections.abc import (
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Iterable,
+    Mapping,
+    Sequence,
+)
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal, TypeAlias, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -110,6 +118,10 @@ _MODEL, _PROMPT = _llm_step(STEP)
 #: The subject every lookup is scoped to. A code like ``3.MD.C.7`` is only unique within
 #: one subject's framework.
 ACADEMIC_SUBJECT = AcademicSubject.MATHEMATICS
+
+#: Copies of one ambiguous code read at once. The Knowledge Graph client does not limit
+#: concurrency itself, so an unbounded fan-out here could draw rate limits.
+_READ_CONCURRENCY = 5
 
 #: What :meth:`MathStandardsAlignmentEvaluator.evaluate` accepts. The contract declares no
 #: UUID input, so ``question`` is the registry's own property object -- its bounds and
@@ -185,6 +197,24 @@ _ELSEWHERE = {
     "jurisdiction": "evaluate_by_code()",
     "grade_level": "evaluate_by_code()",
 }
+
+
+_T = TypeVar("_T")
+
+
+async def _all_or_first_failure(reads: Iterable[Coroutine[Any, Any, _T]]) -> list[_T]:
+    """Run every read; on the first failure, cancel the rest and raise that failure unwrapped.
+
+    Cancelling matters because reads queued behind the concurrency gate would otherwise start
+    after the failure has already decided the call.
+    """
+    tasks: list[asyncio.Task[_T]] = []
+    try:
+        async with asyncio.TaskGroup() as group:
+            tasks = [group.create_task(read) for read in reads]
+    except* Exception as failures:
+        raise failures.exceptions[0] from None
+    return [task.result() for task in tasks]
 
 
 def _search_capped(statement_code: str) -> KnowledgeGraphError:
@@ -339,8 +369,11 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
             code turns out to name more than one standard, which it does when a framework
             reuses codes across courses.
 
-        :raises InputValidationError: an input is missing, unknown, or outside its schema.
+        :raises InputValidationError: an input is missing, unknown, or outside its schema, or the
+            grade matches no copy of the code.
         :raises StandardNotFoundError: the code names no standard in that jurisdiction.
+        :raises KnowledgeGraphError: the search hit its cap with no copy holding components, or a
+            copy could not be read.
         :raises DependencyError: as :meth:`evaluate`.
         :raises LLMOutputProcessingError: as :meth:`evaluate`.
         """
@@ -647,6 +680,12 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         at_grade = (
             await self._at_grade(matches, grade_level, knowledge_graph) if grade_level else []
         )
+        if grade_level and not at_grade:
+            # Widening to every copy would judge a standard from another grade under this one.
+            raise InputValidationError(
+                f"Statement code {statement_code} matched {len(matches)} standards in "
+                f"{jurisdiction}, none taught at grade {grade_level}."
+            )
         if len(at_grade) == 1:
             self.logger.debug(
                 "Statement code matched %d standards; grade %s identifies one",
@@ -714,12 +753,13 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         together rather than in turn: this runs only for an ambiguous code, and serialising
         a handful of lookups would make the rare path the slow one as well.
         """
-        standards = await asyncio.gather(
-            *(
-                knowledge_graph.get_academic_standard(match.case_identifier_uuid)
-                for match in matches
-            )
-        )
+        gate = asyncio.Semaphore(_READ_CONCURRENCY)
+
+        async def read(match: StandardMatch) -> AcademicStandard:
+            async with gate:
+                return await knowledge_graph.get_academic_standard(match.case_identifier_uuid)
+
+        standards = await _all_or_first_failure(read(match) for match in matches)
         return [
             match
             for match, standard in zip(matches, standards, strict=True)
@@ -729,30 +769,23 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
     async def _chosen_copy(
         self, matches: Sequence[StandardMatch], knowledge_graph: KnowledgeGraphClient
     ) -> tuple[StandardMatch, LearningComponentSet]:
-        """The first copy with learning components, else the first readable copy.
+        """The first copy with learning components, else the first copy.
 
         Every copy is read, because whether a copy has any is the only thing that tells an
-        empty copy from the one worth evaluating. Falls back to an empty copy only when every
-        copy read cleanly; otherwise the failure is raised rather than reported as a standard
-        with nothing to judge.
+        empty copy from the one worth evaluating. If any copy fails to read, the failure is
+        raised: the choice would otherwise depend on which requests happened to fail.
         """
-        results = await asyncio.gather(
-            *(
-                knowledge_graph.get_learning_component_set(match.case_identifier_uuid)
-                for match in matches
-            ),
-            return_exceptions=True,
-        )
-        readable = [
-            (match, component_set)
-            for match, component_set in zip(matches, results, strict=True)
-            if not isinstance(component_set, BaseException)
-        ]
+        gate = asyncio.Semaphore(_READ_CONCURRENCY)
+
+        async def read(match: StandardMatch) -> LearningComponentSet:
+            async with gate:
+                return await knowledge_graph.get_learning_component_set(match.case_identifier_uuid)
+
+        component_sets = await _all_or_first_failure(read(match) for match in matches)
+        readable = list(zip(matches, component_sets, strict=True))
         populated = [
             (match, component_set) for match, component_set in readable if component_set.components
         ]
-        if not populated and len(readable) < len(matches):
-            raise next(r for r in results if isinstance(r, BaseException))
         return (populated or readable)[0]
 
     # --- pieces of the flow ------------------------------------------------------------

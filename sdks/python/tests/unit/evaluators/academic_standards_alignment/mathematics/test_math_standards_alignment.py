@@ -580,9 +580,12 @@ class TestResolvingTheCode:
         for identifier, _ in LEARNING_COMPONENTS:
             assert f"[{identifier}]" in prompt
 
-    async def test_an_unreadable_copy_does_not_fail_a_populated_one(
+    async def test_an_unreadable_copy_fails_the_lookup_rather_than_changing_the_copy(
         self, providers: ProviderFactory
     ) -> None:
+        # Judging the populated copy because another failed to read would make the choice depend
+        # on which requests happened to fail. The lookup fails instead, so the result is the same
+        # on every run.
         class CopyOutage(FakeKnowledgeGraph):
             async def get_learning_component_set(
                 self, case_identifier_uuid: str
@@ -597,11 +600,11 @@ class TestResolvingTheCode:
             replace(DEFAULT_STANDARD, case_identifier_uuid="6ba04404-d7cc-11e8-824f-0242ac160002"),
         )
 
-        evaluation = await build(knowledge_graph).evaluate_by_code(
-            question=QUESTION, statement_code=STATEMENT_CODE
-        )
-
-        assert evaluation.result.total_count == len(LEARNING_COMPONENTS)
+        with pytest.raises(KnowledgeGraphError, match="503"):
+            await build(knowledge_graph).evaluate_by_code(
+                question=QUESTION, statement_code=STATEMENT_CODE
+            )
+        assert providers.calls == []
 
     async def test_an_unreadable_populated_copy_is_not_replaced_by_an_empty_one(
         self, providers: ProviderFactory
@@ -709,9 +712,10 @@ class TestResolvingTheCode:
         [warning] = [record for record in caplog.records if record.levelno == logging.WARNING]
         assert getattr(warning, "chosen") == STANDARD_UUID  # noqa: B009 — a log extra
 
-    async def test_a_grade_matching_no_candidate_falls_back_and_says_so(
-        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    async def test_a_grade_matching_no_copy_is_refused_rather_than_widened(
+        self, providers: ProviderFactory
     ) -> None:
+        # Widening to every copy would judge a standard from another grade under this one.
         eighth = replace(DEFAULT_STANDARD, grade_level=(GradeLevel.GRADE_8,))
         ninth = replace(
             DEFAULT_STANDARD,
@@ -720,14 +724,11 @@ class TestResolvingTheCode:
         )
         knowledge_graph = FakeKnowledgeGraph(eighth, ninth)
 
-        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
-            evaluation = await build(knowledge_graph).evaluate_by_code(
+        with pytest.raises(InputValidationError, match="none taught at grade 3"):
+            await build(knowledge_graph).evaluate_by_code(
                 question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
             )
-
-        [warning] = [record for record in caplog.records if record.levelno == logging.WARNING]
-        assert "0 at grade 3" in warning.getMessage()
-        assert evaluation.result.total_count == 3
+        assert providers.calls == []
 
 
 class TestEvaluate:

@@ -225,24 +225,22 @@ export class KnowledgeGraphClient {
     const reads = await Promise.allSettled(
       candidates.map((candidate) => this.getLearningComponentSet(candidate.uuid)),
     );
-    const readable = reads.flatMap((read, i) => (read.status === 'fulfilled' ? [{ i, set: read.value }] : []));
-    const populated = readable.find((read) => read.set.components.length > 0);
-    // An empty copy is judged only when every copy read and the list is complete; otherwise
-    // the populated copy may be the one that failed or was cut off.
-    if (!populated && readable.length < candidates.length) {
-      throw reads.find((read): read is PromiseRejectedResult => read.status === 'rejected')!.reason;
-    }
-    if (!populated && candidates.length >= STANDARD_SEARCH_LIMIT) {
+    // Any failed read raises: the copy chosen would otherwise depend on which requests failed.
+    const failed = reads.find((read): read is PromiseRejectedResult => read.status === 'rejected');
+    if (failed) throw failed.reason;
+    const sets = reads.map((read) => (read as PromiseFulfilledResult<LearningComponentSet>).value);
+    const populated = sets.findIndex((set) => set.components.length > 0);
+    if (populated === -1 && candidates.length >= STANDARD_SEARCH_LIMIT) {
       throw new KnowledgeGraphError(
         `Statement code "${statementCode}" matched ${STANDARD_SEARCH_LIMIT} or more standards, none with ` +
         'learning components in the first page; the rest could not be checked',
       );
     }
-    const chosen = populated ?? readable[0];
+    const chosen = populated === -1 ? 0 : populated;
     return {
-      ...candidates[chosen.i],
+      ...candidates[chosen],
       ...(candidates.length > 1 ? { ambiguous: true } : {}),
-      ...chosen.set,
+      ...sets[chosen],
     };
   }
 

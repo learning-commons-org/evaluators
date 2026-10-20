@@ -333,8 +333,12 @@ ambiguous code costs extra lookups, one per candidate, and the ordinary path is 
 Without a grade, or when the grade leaves several copies, the first one carrying learning
 components is evaluated, so a copy authored with none does not shadow a populated one. When
 the grade leaves exactly one copy, that copy is evaluated even if it has no components: the
-grade has already decided the choice, and the result is `0 of 0`. When nothing separates
-them, the choice is logged at `warning` with the alternatives.
+grade has already decided the choice, and the result is `0 of 0`. A grade that matches no
+copy raises `InputValidationError` rather than judging a copy from another grade. A code with
+a single match is judged without checking its grade. If any copy
+fails to read, the call fails, so the copy judged never depends on which requests happened to
+succeed. When nothing separates them, the choice is logged at `warning` with the alternatives.
+Every copy is read, at most five at a time.
 `evaluation.result.statement_code` always reports the Knowledge Graph's own spelling of
 whatever was resolved, and `evaluation.result.case_identifier_uuid` names the copy judged.
 

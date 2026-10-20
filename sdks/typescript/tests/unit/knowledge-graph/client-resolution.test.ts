@@ -49,7 +49,8 @@ describe('KnowledgeGraphClient - getLearningComponentsByCode with several matche
     expect(result.ambiguous).toBe(true);
   });
 
-  it('chooses a readable populated copy when another copy cannot be read', async () => {
+  it('fails when any copy cannot be read, rather than choosing among the rest', async () => {
+    // The choice would otherwise depend on which requests happened to fail.
     const client = new KnowledgeGraphClient(API_KEY);
     vi.spyOn(client, 'getStandardCandidates').mockResolvedValue([
       EMPTY_COPY,
@@ -61,12 +62,10 @@ describe('KnowledgeGraphClient - getLearningComponentsByCode with several matche
       return { components: uuid === 'populated-copy' ? LCS : [], undescribedCount: 0 } as never;
     });
 
-    const result = await client.getLearningComponentsByCode(CODE);
-
-    expect(result.uuid).toBe('populated-copy');
+    await expect(client.getLearningComponentsByCode(CODE)).rejects.toThrow('KG 503');
   });
 
-  it('fails only when no copy can be read', async () => {
+  it('fails when every copy cannot be read', async () => {
     const client = clientWith([EMPTY_COPY, { ...EMPTY_COPY, uuid: 'other' }], {});
     vi.spyOn(client, 'getLearningComponentSet').mockRejectedValue(new Error('KG 503'));
 
