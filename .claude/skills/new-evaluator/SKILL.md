@@ -31,10 +31,19 @@ keys), and any dependencies (e.g. the Knowledge Graph) or `x-image` input bounds
 
 ## Step 1 — Python SDK (`sdks/python/`)
 
-1. **Regenerate the mirrors**: `make generate-contracts`. This bundles the
-   contract into `src/learning_commons_evaluators/contracts/_generated/...` and
-   emits the schema module under `src/.../schemas/<family>/<subject>/`. Never
-   hand-edit either; `make check-generated` must pass afterwards.
+1. **Bundle the contract**: a new contract must be named explicitly the first
+   time — bare `make generate-contracts` only regenerates contracts that are
+   already bundled. Run:
+
+   ```shell
+   make generate-contracts CONTRACT=../../evals/<family>/<subject>/<evaluator>/config.json
+   ```
+
+   This bundles the contract into
+   `src/learning_commons_evaluators/contracts/_generated/...` and emits the
+   schema module under `src/.../schemas/<family>/<subject>/`. Never hand-edit
+   either; `make check-generated` must pass afterwards (from then on, plain
+   `make generate-contracts` covers it).
 2. **Implement** `src/.../evaluators/<family>/<subject>/<evaluator>.py`, modeled
    on the nearest sibling (e.g. `durable_skills/ela_writing/critical_thinking.py`
    for single-step). Add any missing `__init__.py` files in the package chain.
@@ -54,11 +63,26 @@ keys), and any dependencies (e.g. the Knowledge Graph) or `x-image` input bounds
 
 ## Step 2 — TypeScript SDK (`sdks/typescript/`)
 
-1. **Regenerate schemas**: `npm run generate:schemas`, which writes
-   `src/schemas/<family>/<subject>/<evaluator>.ts`. Then add that exact path to
-   the root `.gitattributes` generated-file list — the TS schema modules are
-   listed one by one, and a unit test fails if the list and the GENERATED
-   markers disagree.
+1. **Generate the schema module**: the first generation must name the config
+   explicitly — `npm run generate:schemas` passes `--all`, which only selects
+   contracts whose generated module already exists (and the generator rejects
+   `--all` combined with named paths). Run:
+
+   ```shell
+   npx tsx scripts/generate-schema.ts ../../evals/<family>/<subject>/<evaluator>/config.json
+   ```
+
+   which writes `src/schemas/<family>/<subject>/<evaluator>.ts` (covered by
+   `npm run generate:schemas` from then on). Then add the **repository-relative**
+   entry to the root `.gitattributes` generated-file list:
+
+   ```text
+   sdks/typescript/src/schemas/<family>/<subject>/<evaluator>.ts linguist-generated=true
+   ```
+
+   The TS schema modules are listed one by one, and
+   `tests/unit/scripts/generate-schema.test.ts` fails if the list and the
+   GENERATED markers disagree.
 2. **Implement** `src/evaluators/<family>/<subject>/<evaluator>.ts`, modeled on
    the nearest sibling.
 3. **Register and export**: wire `src/evaluators/registry.ts`,
@@ -71,7 +95,10 @@ keys), and any dependencies (e.g. the Knowledge Graph) or `x-image` input bounds
 5. **Integration test**: `tests/integration/<evaluator>.integration.test.ts`,
    following the skip-without-keys pattern in `tests/README.md`.
 6. **Verify**: `npm run lint && npm run typecheck && npm run test:unit`. If you
-   touched the entry points, also `npm run verify:dist && npm run verify:package`.
+   touched the entry points, also
+   `npm run build && npm run verify:dist && npm run verify:package` — the
+   verify scripts check `dist/`, and nothing else builds it, so without a fresh
+   build they fail on missing declarations or validate stale exports.
 
 ## Step 3 — Live integration tests (required before calling it done)
 
@@ -86,8 +113,9 @@ set -a; source evals/.env; set +a
 Then, scoped to the new evaluator:
 
 ```shell
-# Python (from sdks/python/)
-RUN_INTEGRATION_TESTS=1 pytest tests/integration -v -k <evaluator>
+# Python (from sdks/python/) — note the snake_case module name: pytest paths
+# and -k expressions use underscores, so a kebab-case name selects nothing
+RUN_INTEGRATION_TESTS=1 pytest tests/integration/test_<evaluator_snake_case>.py -v
 
 # TypeScript (from sdks/typescript/)
 RUN_INTEGRATION_TESTS=true npm run test:integration -- <evaluator>
