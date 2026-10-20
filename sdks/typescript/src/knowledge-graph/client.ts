@@ -1,5 +1,6 @@
 import pLimit from 'p-limit';
 import createClient, { type Middleware } from 'openapi-fetch';
+import { z } from 'zod';
 import {
   KnowledgeGraphError,
   InputValidationError,
@@ -17,7 +18,6 @@ import type { AcademicStandard, AcademicStandardRecord, LearningComponent, Learn
 import type { paths, components } from './kg-api.js';
 
 const KG_BASE_URL = 'https://api.learningcommons.org/knowledge-graph/v0';
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CCSS_FRAMEWORK_UUID = 'c6496676-d7cb-11e8-824f-0242ac160002';
 const KG_TIMEOUT_MS = 30_000;
 const STANDARDS_PAGE_SIZE = 500;
@@ -246,7 +246,7 @@ export class KnowledgeGraphClient {
 
   /** One standard by its CASE Network UUID. Throws `InputValidationError` if none has it. */
   async getAcademicStandard(caseIdentifierUUID: string): Promise<AcademicStandardRecord> {
-    if (!UUID_PATTERN.test(caseIdentifierUUID)) {
+    if (!z.uuid().safeParse(caseIdentifierUUID).success) {
       throw new InputValidationError(`case_identifier_uuid must be a CASE Network UUID, got "${caseIdentifierUUID}"`);
     }
     let data: components['schemas']['StandardsFrameworkItem'] | undefined;
