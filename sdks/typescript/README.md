@@ -1,6 +1,6 @@
 # @learning-commons/evaluators
 
-[![npm version](https://img.shields.io/npm/v/@learning-commons/evaluators)](https://www.npmjs.com/package/@learning-commons/evaluators)
+![npm version](https://img.shields.io/npm/v/@learning-commons/evaluators)
 
 TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.org/evaluators/understanding-evaluators/introduction).
 
@@ -29,27 +29,20 @@ TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.or
 
 - Node 20.19+ or 22.12+ (`^20.19.0 || >=22.12.0`)
 - Type packages:
-
   ```bash
   npm install -D typescript @types/node @types/json-schema
   ```
-
-- [Vercel AI](https://sdk.vercel.ai) and [`zod`](https://zod.dev) version 4:
-
+- [Vercel AI](https://sdk.vercel.ai) and `[zod](https://zod.dev)` version 4:
   ```bash
   npm install ai zod@^4.1.8
   ```
-
 - In your project's `package.json`:
-
   ```json
   {
     "type": "module"
   }
   ```
-
 - In your project's `tsconfig.json`:
-
   ```json
   {
     "compilerOptions": {
@@ -133,32 +126,16 @@ getEvaluator("text_complexity.ela_reading.vocabulary_complexity");
 `EvaluatorMetadata` carries `id`, `stableId`, `idHistory`, `name`,
 `description`, `supportedGrades`, `defaultProviders`, optional
 `requiredCredentials`, and an optional `outcome` block naming which result
-fields hold the verdict and its rationale.
+fields hold the verdict and its rationale. `requiredCredentials` lists only
+non-LLM services: `["learning_commons_api_key"]` for math standards alignment
+and `[]` for the other eighteen. Provider keys follow `defaultProviders`, so
+`["google"]` means supply `googleApiKey`.
 
 ### Evaluation
 
-Every evaluator class exposes `evaluate(input)` (see [Supported evaluators](#supported-evaluators) for each evaluator's input and output).
+Every evaluator class exposes an `.evaluate(input)` method (see [Supported evaluators](#supported-evaluators) for each evaluator's input and output).
 
 Each evaluator class also has a matching helper `evaluate<Name>(input, config)`:
-
-| Evaluator                             | Helper                               | Typical input                                |
-| ------------------------------------- | ------------------------------------ | -------------------------------------------- |
-| `GradeLevelAppropriatenessEvaluator`  | `evaluateGradeLevelAppropriateness`  | `{ text }`                                   |
-| `BackgroundKnowledgeDemandsEvaluator` | `evaluateBackgroundKnowledgeDemands` | `{ text, grade_level }`                      |
-| `VocabularyComplexityEvaluator`       | `evaluateVocabularyComplexity`       | `{ text, grade_level }`                      |
-| `SentenceStructureEvaluator`          | `evaluateSentenceStructure`          | `{ text, grade_level }`                      |
-| `MeaningDirectnessEvaluator`          | `evaluateMeaningDirectness`          | `{ text, grade_level }`                      |
-| `PurposeClarityEvaluator`             | `evaluatePurposeClarity`             | `{ text, grade_level }`                      |
-| `OrganizationalStructureEvaluator`    | `evaluateOrganizationalStructure`    | `{ text, grade_level }`                      |
-| `ReferenceKnowledgeDemandsEvaluator`  | `evaluateReferenceKnowledgeDemands`  | `{ text, grade_level }`                      |
-| `StrengthAcknowledgmentEvaluator`     | `evaluateStrengthAcknowledgment`     | `{ student_text, feedback_text }`            |
-| `RevisionActionabilityEvaluator`      | `evaluateRevisionActionability`      | `{ student_text, feedback_text }`            |
-| `StudentResponseSpecificityEvaluator` | `evaluateStudentResponseSpecificity` | `{ student_text, feedback_text }`            |
-| `RevisionAccuracyEvaluator`           | `evaluateRevisionAccuracy`           | `{ student_text, feedback_text }`            |
-| `RevisionManageabilityEvaluator`      | `evaluateRevisionManageability`      | `{ student_text, feedback_text }`            |
-| `WithholdingAnswersEvaluator`         | `evaluateWithholdingAnswers`         | `{ student_text, feedback_text }`            |
-| `ToneAppropriatenessEvaluator`        | `evaluateToneAppropriateness`        | `{ student_text, feedback_text }`            |
-| `MathStandardsAlignmentEvaluator`     | `evaluateMathStandardsAlignment`     | `{ question, statement_code, jurisdiction }` |
 
 ```typescript example.ts
 import {
@@ -179,7 +156,29 @@ await evaluateGradeLevelAppropriateness(
 );
 ```
 
-`MathStandardsAlignmentEvaluator` adds 2 bulk methods on the instance - `evaluateItems` and `evaluateByGradeLevel` (these have no helpers):
+| Evaluator family   | Evaluator                             | Helper                               | Typical input                                        |
+| ------------------ | ------------------------------------- | ------------------------------------ | ---------------------------------------------------- |
+| Text Complexity    | `GradeLevelAppropriatenessEvaluator`  | `evaluateGradeLevelAppropriateness`  | `{ text }`                                           |
+|                    | `BackgroundKnowledgeDemandsEvaluator` | `evaluateBackgroundKnowledgeDemands` | `{ text, grade_level }`                              |
+|                    | `VocabularyComplexityEvaluator`       | `evaluateVocabularyComplexity`       | `{ text, grade_level }`                              |
+|                    | `SentenceStructureEvaluator`          | `evaluateSentenceStructure`          | `{ text, grade_level }`                              |
+|                    | `MeaningDirectnessEvaluator`          | `evaluateMeaningDirectness`          | `{ text, grade_level }`                              |
+|                    | `PurposeClarityEvaluator`             | `evaluatePurposeClarity`             | `{ text, grade_level }`                              |
+|                    | `OrganizationalStructureEvaluator`    | `evaluateOrganizationalStructure`    | `{ text, grade_level }`                              |
+|                    | `ReferenceKnowledgeDemandsEvaluator`  | `evaluateReferenceKnowledgeDemands`  | `{ text, grade_level }`                              |
+| Graphics           | `GraphicsComplexityEvaluator`         | `evaluateGraphicsComplexity`         | `{ text, grade_level, image_paths, figure_labels? }` |
+|                    | `GraphicsAccuracyEvaluator`           | `evaluateGraphicsAccuracy`           | `{ image_paths, claim }`                             |
+| Feedback           | `StrengthAcknowledgmentEvaluator`     | `evaluateStrengthAcknowledgment`     | `{ student_text, feedback_text }`                    |
+|                    | `RevisionActionabilityEvaluator`      | `evaluateRevisionActionability`      | `{ student_text, feedback_text }`                    |
+|                    | `StudentResponseSpecificityEvaluator` | `evaluateStudentResponseSpecificity` | `{ student_text, feedback_text }`                    |
+|                    | `RevisionAccuracyEvaluator`           | `evaluateRevisionAccuracy`           | `{ student_text, feedback_text }`                    |
+|                    | `RevisionManageabilityEvaluator`      | `evaluateRevisionManageability`      | `{ student_text, feedback_text }`                    |
+|                    | `WithholdingAnswersEvaluator`         | `evaluateWithholdingAnswers`         | `{ student_text, feedback_text }`                    |
+|                    | `ToneAppropriatenessEvaluator`        | `evaluateToneAppropriateness`        | `{ student_text, feedback_text }`                    |
+| Academic Standards | `MathStandardsAlignmentEvaluator`     | `evaluateMathStandardsAlignment`     | `{ question, statement_code, jurisdiction }`         |
+| Durable Skills     | `CriticalThinkingEvaluator`           | `evaluateCriticalThinking`           | `{ assignment_text, source_passages, essay_text }`   |
+
+The Math Standards Alignment evaluator also exposes `.evaluateByCode()`, `.evaluateByUuid({ question, case_identifier_uuid })` methods, as well as `evaluateItems` and `evaluateByGradeLevel` bulk methods on the instance (these have no helpers):
 
 ```typescript
 import {
@@ -192,15 +191,20 @@ const math = new MathStandardsAlignmentEvaluator({
   learningCommonsApiKey: process.env.LEARNING_COMMONS_API_KEY,
 });
 
-// M questions × per-question statement codes
+// Single evaluate calls
+await math.evaluateByCode({ question: "…", statement_code: "3.MD.C.7.d" });
+await math.evaluateByUuid({
+  question: "…",
+  case_identifier_uuid: "6ba25656-d7cc-11e8-824f-0242ac160002",
+});
+
+// Bulk methods
 await math.evaluateItems(
   [{ question: "…", statement_codes: ["5.NBT.A.1"] }],
   Jurisdiction.MultiState,
   { useCoarseFilter: true, onProgress: (done, total) => {} },
 );
-
-// Fetch every math standard for a grade, then evaluate each question against them
-await math.evaluateByGradeLevel(["…"], "5", Jurisdiction.MultiState);
+await math.evaluateByGradeLevel(["…"], "5", Jurisdiction.MultiState); // Fetch every 5th grade math standard + evaluate questions against them
 ```
 
 ### Outcomes
@@ -318,7 +322,7 @@ const { csv, json, html } = renderOutputs("text-complexity", output, {
 | `formatAsHTML(output, meta)`                        | text-complexity rubric report                                                              |
 
 `evaluate` accepts a family id or an `EvaluatorFamily` object. For the CLI,
-column requirements, and report shapes, see [`src/batch/README.md`](./src/batch/README.md).
+column requirements, and report shapes, see `[src/batch/README.md](./src/batch/README.md)`.
 
 ## More resources
 
