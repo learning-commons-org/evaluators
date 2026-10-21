@@ -213,7 +213,9 @@ const outcome = getEvaluator(evaluation.evaluator)?.outcome;
 const { score, reasoning } = readOutcome(evaluation, outcome);
 ```
 
-`readOutcome` picks the verdict and rationale named by the evaluator's declared `outcome` block. `score` is `undefined` when the evaluator has no declared outcome or the payload is missing that field — a reporting gap, not an evaluation failure.
+`readOutcome` picks the verdict and rationale named by the evaluator's declared `outcome` block.
+
+`score` is always a string, so a failing feedback verdict is "0", which is truthy. Compare explicitly (`score === "1"`), or read the numeric field from the result directly. `score` is `undefined` when the evaluator has no declared outcome or the payload is missing that field — a reporting gap, not an evaluation failure.
 
 ### Standards
 
