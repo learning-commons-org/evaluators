@@ -1,0 +1,11 @@
+{
+  "_note": "C2 known issue: essay cites sources that were never provided, with one unrelated passage. 'extending' showed up in 8/10 runs. Record the score, don't file a new bug.",
+  "assignment_text": "Should our school move the start time from 7:30 to 8:30 a.m.? Write a letter to the school board. Use the sources, address the strongest opposing view, and explain your reasoning.",
+  "source_passages": [
+    {
+      "author": "Coach Mike",
+      "text": "It really doesn't matter either way."
+    }
+  ],
+  "essay_text": "Dear School Board, I support the 8:30 start. Dr. Ortiz explains that melatonin arrives later at puberty, so most teens cannot fall asleep before 11 p.m. The Hillcrest pilot found students slept 34 more minutes a night and tardies dropped 25 percent, though its grade gains came the same year as a new curriculum, so I would not rely on them. Coach Reyes argues students will just stay up later, which is the strongest objection, but Hillcrest's trackers show bedtimes moved only 10 minutes. The $400,000 bus cost is real, so the board should adopt the change and measure sleep and attendance in the first year."
+}

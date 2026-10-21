@@ -1,0 +1,53 @@
+{
+  "_note": "Scenario D5. Expected messages come from inputs.py / inputs.ts on main. {\"$repeat\": [\"a\", N]} expands to a string of N characters. Cases with expect_error null should pass validation; with a dummy key they then fail with AuthenticationError, which counts as a pass.",
+  "base": {
+    "assignment_text": "Using the sources, argue whether your town should limit cars downtown.",
+    "source_passages": [
+      { "title": "A Car-Free Downtown", "text": "Several European cities closed their centers to cars; air quality improved." }
+    ],
+    "essay_text": "Our town should limit cars downtown because Source 1 says the air got cleaner."
+  },
+  "cases": [
+    { "id": "V01", "desc": "empty passage list", "set": { "source_passages": [] },
+      "expect_error": "InputValidationError", "message": "source_passages needs at least 1 item; received 0." },
+    { "id": "V02", "desc": "six passages (max is 5)",
+      "set": { "source_passages": [ {"text": "p1"}, {"text": "p2"}, {"text": "p3"}, {"text": "p4"}, {"text": "p5"}, {"text": "p6"} ] },
+      "expect_error": "InputValidationError", "message": "source_passages accepts at most 5 items; received 6." },
+    { "id": "V03", "desc": "passages as one string", "set": { "source_passages": "Source 1: some text" },
+      "expect_error": "InputValidationError", "message": "source_passages must be an array." },
+    { "id": "V04", "desc": "passage is a string, not an object", "set": { "source_passages": ["just text"] },
+      "expect_error": "InputValidationError", "message": "source_passages[0] must be an object." },
+    { "id": "V05", "desc": "passage missing text", "set": { "source_passages": [ { "title": "No body" } ] },
+      "expect_error": "InputValidationError", "message": "source_passages[0].text is required." },
+    { "id": "V06", "desc": "passage text is whitespace", "set": { "source_passages": [ { "text": "   " } ] },
+      "expect_error": "InputValidationError", "message": "source_passages[0].text cannot be empty or contain only whitespace" },
+    { "id": "V07", "desc": "passage text is a number", "set": { "source_passages": [ { "text": 123 } ] },
+      "expect_error": "InputValidationError", "message": "source_passages[0].text must be a string." },
+    { "id": "V08", "desc": "unknown passage field", "set": { "source_passages": [ { "text": "t", "url": "https://example.com" } ] },
+      "expect_error": "InputValidationError", "message": "Unknown input \"source_passages[0].url\". This object accepts: title, author, text." },
+    { "id": "V09", "desc": "empty-string title (decide: should \"\" act like a missing title?)", "set": { "source_passages": [ { "title": "", "text": "t" } ] },
+      "expect_error": "InputValidationError", "message": "source_passages[0].title cannot be empty or contain only whitespace" },
+    { "id": "V10", "desc": "title over 300 chars", "set": { "source_passages": [ { "title": {"$repeat": ["a", 301]}, "text": "t" } ] },
+      "expect_error": "InputValidationError", "message": "source_passages[0].title is too long. Maximum length is 300 characters." },
+    { "id": "V11", "desc": "author over 200 chars", "set": { "source_passages": [ { "author": {"$repeat": ["a", 201]}, "text": "t" } ] },
+      "expect_error": "InputValidationError", "message": "source_passages[0].author is too long. Maximum length is 200 characters." },
+    { "id": "V12", "desc": "passage text over 9,000 chars", "set": { "source_passages": [ { "text": {"$repeat": ["a", 9001]} } ] },
+      "expect_error": "InputValidationError", "message": "source_passages[0].text is too long. Maximum length is 9000 characters." },
+    { "id": "V13", "desc": "essay over 12,000 chars", "set": { "essay_text": {"$repeat": ["a", 12001]} },
+      "expect_error": "InputValidationError", "message": "essay_text is too long. Maximum length is 12000 characters." },
+    { "id": "V14", "desc": "assignment over 3,000 chars", "set": { "assignment_text": {"$repeat": ["a", 3001]} },
+      "expect_error": "InputValidationError", "message": "assignment_text is too long. Maximum length is 3000 characters." },
+    { "id": "V15", "desc": "missing essay", "unset": ["essay_text"],
+      "expect_error": "InputValidationError", "message": "essay_text is required." },
+    { "id": "V16", "desc": "old notebook input: source_count", "set": { "source_count": 1 },
+      "expect_error": "InputValidationError", "message": "Unknown input \"source_count\". This evaluator accepts: assignment_text, source_passages, essay_text." },
+    { "id": "V17", "desc": "old notebook input: sources string", "set": { "sources": "### Source 1\n\ntext" }, "unset": ["source_passages"],
+      "expect_error": "InputValidationError", "message": "Unknown input \"sources\". This evaluator accepts: assignment_text, source_passages, essay_text." },
+    { "id": "A01", "desc": "one-character essay is accepted", "set": { "essay_text": "?" }, "expect_error": null },
+    { "id": "A02", "desc": "exactly five passages",
+      "set": { "source_passages": [ {"text": "p1"}, {"text": "p2"}, {"text": "p3"}, {"text": "p4"}, {"text": "p5"} ] }, "expect_error": null },
+    { "id": "A03", "desc": "essay exactly 12,000 chars", "set": { "essay_text": {"$repeat": ["a", 12000]} }, "expect_error": null },
+    { "id": "A04", "desc": "optional fields explicitly null / None", "set": { "source_passages": [ { "title": null, "author": null, "text": "t" } ] }, "expect_error": null },
+    { "id": "A05", "desc": "author-only passage", "set": { "source_passages": [ { "author": "Dr. Ortiz", "text": "t" } ] }, "expect_error": null }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "_note": "C3: passages have no title or author; the essay cites them as Source 1 and Source 2. Citing by number should count as attribution.",
+  "assignment_text": "Using the sources, argue whether your school should require a foreign language.",
+  "source_passages": [
+    {
+      "text": "Students who study a second language score higher on tests of problem solving and memory, according to a ten-year study."
+    },
+    {
+      "text": "Many schools struggle to hire qualified language teachers, and required classes can crowd out electives students care about."
+    }
+  ],
+  "essay_text": "Our school should require a foreign language, but with flexibility. Source 1 shows that language study improves problem solving and memory, which helps in every subject. Source 2 raises a fair concern about hiring teachers and losing electives, so the school could offer online courses and count a language as an elective credit. That way students get the benefits in Source 1 without the costs in Source 2."
+}

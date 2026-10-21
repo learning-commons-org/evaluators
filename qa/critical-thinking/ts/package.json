@@ -1,0 +1,14 @@
+{
+  "name": "critical-thinking-qa",
+  "private": true,
+  "type": "module",
+  "description": "QA harness. setup.sh installs the packed SDK and its peer dependencies here without saving them, so this file never changes.",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  }
+}
