@@ -34,7 +34,7 @@ TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.or
   ```bash
   npm install -D typescript @types/node @types/json-schema
   ```
-- [Vercel AI](https://sdk.vercel.ai) and `[zod](https://zod.dev)` version 4:
+- [Vercel AI](https://sdk.vercel.ai) and [zod](https://zod.dev) version 4:
   ```bash
   npm install ai zod@^4.1.8
   ```
@@ -324,7 +324,7 @@ const { csv, json, html } = renderOutputs("text-complexity", output, {
 | `formatAsHTML(output, meta)`                        | text-complexity rubric report                                                              |
 
 `evaluate` accepts a family id or an `EvaluatorFamily` object. For the CLI,
-column requirements, and report shapes, see `[src/batch/README.md](./src/batch/README.md)`.
+column requirements, and report shapes, see [src/batch/README.md](./src/batch/README.md).
 
 ## More resources
 
