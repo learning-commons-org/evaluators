@@ -330,7 +330,7 @@ column requirements, and report shapes, see [src/batch/README.md](./src/batch/RE
 [Check out the docs](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview) for more implementation details:
 
 - [Configuration](https://docs.learningcommons.org/evaluators/sdk-api-reference/typescript/configuration), including model overrides
-- Input and [output](https://docs.learningcommons.org/evaluators/sdk-api-reference/typescript/outputs) schemas for all [Supported evaluators](#supported-evaluators)
+- [Inputs and output schemas](https://docs.learningcommons.org/evaluators/sdk-api-reference/typescript/outputs) for all [Supported evaluators](#supported-evaluators)
   - Read exported schemas with `Object.keys(ToneAppropriatenessOutputSchema.shape.key_features.shape)`
 - [Error handling](https://docs.learningcommons.org/evaluators/sdk-api-reference/typescript/error-handling)
 - [Batch evaluator](https://docs.learningcommons.org/evaluators/sdk-api-reference/typescript/batch-evaluator)
