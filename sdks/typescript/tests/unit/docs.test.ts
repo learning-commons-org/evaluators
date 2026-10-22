@@ -25,8 +25,10 @@ const EVALUATORS = Object.entries(sdk as Record<string, unknown>)
   )
   .map(([name, v]) => ({ name, metadata: (v as unknown as EvaluatorLike).metadata }));
 
-/** Every evaluator the README's tables list, by the class name in the first column. */
-const DOCUMENTED = [...README.matchAll(/^\| `(\w+Evaluator)`/gm)].map((m) => m[1]).sort();
+/** Every evaluator the README's tables list, by the first class name cell in each row. */
+const DOCUMENTED = [...README.matchAll(/^\|(?:[^|\n]*\|)*? +`(\w+Evaluator)` +\|/gm)]
+  .map((m) => m[1])
+  .sort();
 
 describe('README', () => {
   it('lists exactly the evaluators the package exports', () => {
