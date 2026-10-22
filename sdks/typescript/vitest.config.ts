@@ -6,9 +6,16 @@ import type { Plugin } from 'vite';
 
 // Vite rewrites a resolved file to a module URL before load(): `/src/...` inside
 // the project root, `/@fs/...` outside it. Read the file either URL points at.
+// `/@fs/Users/foo` -> `/Users/foo`. `/@fs/C:/work/foo` -> `C:/work/foo`.
+function filePathFromFsUrl(id: string): string {
+  const rest = id.slice('/@fs/'.length);
+  if (rest.startsWith('/') || /^[A-Za-z]:/.test(rest)) return rest;
+  return `/${rest}`;
+}
+
 function filePathFromModuleId(id: string): string {
   const clean = id.split('?')[0];
-  if (clean.startsWith('/@fs/')) return clean.slice('/@fs'.length);
+  if (clean.startsWith('/@fs/')) return filePathFromFsUrl(clean);
   if (existsSync(clean)) return clean;
   if (clean.startsWith('/')) return resolve(process.cwd(), clean.slice(1));
   return clean;
