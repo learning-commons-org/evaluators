@@ -1,0 +1,12 @@
+{
+  "_note": "D3: one passage. Expect synthesizing_sources absent (not null) and four indicators.",
+  "assignment_text": "Should our school move the start time from 7:30 to 8:30 a.m.? Write a letter to the school board. Use the source.",
+  "source_passages": [
+    {
+      "title": "Teen Sleep and School Start Times",
+      "author": "Dr. Ortiz",
+      "text": "Melatonin arrives about two hours later at puberty, so most teenagers cannot fall asleep before about 11 p.m. In one survey, 7 in 10 high school students slept fewer than 8 hours on school nights."
+    }
+  ],
+  "essay_text": "Dear School Board, the school should start at 8:30. Dr. Ortiz explains that teenagers cannot fall asleep before about 11 p.m., so waking at 6 for a 7:30 start means about seven hours of sleep, which is not enough. Some people say students will just stay up later, but the source says the problem is biology, not choice. A later start is a simple way to help students be awake for learning."
+}

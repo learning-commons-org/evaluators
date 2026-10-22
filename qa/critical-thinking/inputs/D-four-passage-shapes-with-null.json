@@ -1,0 +1,24 @@
+{
+  "_note": "D2: title+author, title with author null, author only, text only. Mirrors the SDK smoke tests. Expect success; author-only passage keeps its author.",
+  "assignment_text": "Argue whether towns should plant more street trees. Use the sources.",
+  "source_passages": [
+    {
+      "title": "Shade",
+      "author": "City trees office",
+      "text": "Street trees cool sidewalks and give birds a place to nest."
+    },
+    {
+      "title": "Roots",
+      "author": null,
+      "text": "Tree roots can lift pavement when they are planted in a narrow strip."
+    },
+    {
+      "author": "A gardener",
+      "text": "Young trees need water through their first summer."
+    },
+    {
+      "text": "Bare soil dries faster when nothing shades it."
+    }
+  ],
+  "essay_text": "Towns should plant more street trees. Shade says they cool sidewalks. Roots warns that pavement can lift, so each tree needs room. A gardener says young trees need water. Source 4 says bare soil dries faster without shade."
+}

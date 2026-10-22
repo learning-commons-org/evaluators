@@ -1,0 +1,19 @@
+{
+  "_note": "D2/D3: three passages (title only, title+author, text only). Expect synthesizing_sources present.",
+  "assignment_text": "Using the sources, argue whether your town should limit cars downtown.",
+  "source_passages": [
+    {
+      "title": "A Car-Free Downtown",
+      "text": "Several European cities closed their centers to cars; air quality improved and foot traffic to shops rose."
+    },
+    {
+      "title": "The Cost of Going Car-Free",
+      "author": "City staff",
+      "text": "Critics note delivery businesses and people with disabilities can be harmed when car access is removed without alternatives."
+    },
+    {
+      "text": "Downtown shops reported fewer customers in the first month after the pilot."
+    }
+  ],
+  "essay_text": "Dear city council, our town should limit cars downtown, but carefully. Source 1 shows that when European cities closed their centers to cars, the air got cleaner and more people walked to shops. Source 2 warns that deliveries and people with disabilities could be hurt, so we would need loading zones and accessible shuttles. Source 3 says shops lost customers at first, but one month is too short to judge. If we plan for the groups in Source 2, the benefits in Source 1 are worth it."
+}
