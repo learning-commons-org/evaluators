@@ -124,7 +124,7 @@
     "@types/prompts": "^2.4.9",
     "@typescript-eslint/eslint-plugin": "^8.59.4",
     "@typescript-eslint/parser": "^8.59.4",
-    "@vitest/coverage-v8": "^4.0.17",
+    "@vitest/coverage-v8": "^5.0.5",
     "ai": "^7.0.5",
     "eslint": "^10.4.0",
     "globals": "^17.6.0",
@@ -134,7 +134,8 @@
     "tsup": "^8.0.1",
     "tsx": "^4.21.0",
     "typescript": "^5.3.3",
-    "vitest": "^4.0.17",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5",
     "zod": "^4.4.3"
   },
   "overrides": {
@@ -143,6 +144,6 @@
     }
   },
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": ">=22.12.0"
   }
 }
