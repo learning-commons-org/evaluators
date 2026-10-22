@@ -28,7 +28,7 @@ TypeScript SDK for [Learning Commons evaluators](https://docs.learningcommons.or
 
 ## Dependencies
 
-- Node 20.19+ or 22.12+ (`^20.19.0 || >=22.12.0`)
+- Node 22.12+ (`>=22.12.0`)
 - Type packages:
   ```bash
   npm install -D typescript @types/node @types/json-schema

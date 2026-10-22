@@ -20,9 +20,8 @@ One command, not two:
 npm install @learning-commons/evaluators@^1 zod@^4 ai@^7 @ai-sdk/google@^4 @ai-sdk/openai@^4 @ai-sdk/anthropic@^4
 ```
 
-Install only the adapters you use. Node's floor is unchanged, but the range is now
-`^20.19.0 || >=22.12.0`: the CommonJS build requires ESM-only packages, so it needs
-`require(esm)`, which 20.19 has and 21.x / 22.0-22.11 do not.
+Install only the adapters you use. Node's floor is `>=22.12.0`: the CommonJS build
+requires ESM-only packages, so it needs `require(esm)`, which 21.x and 22.0-22.11 do not.
 
 **`zod` is now a peer dependency and must be added.** In 0.8.0 it was bundled, so npm
 installed a copy for us; now your project declares it, which is what guarantees there is only

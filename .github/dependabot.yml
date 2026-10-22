@@ -14,6 +14,16 @@ updates:
     commit-message:
       prefix: "chore: "
     groups:
+      # vitest and @vitest/* peer an exact version of each other, so a split
+      # bump fails npm ci. This group is first so it wins over dev-dependencies.
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+        update-types:
+          - "major"
+          - "minor"
+          - "patch"
       production-dependencies:
         dependency-type: "production"
         update-types:

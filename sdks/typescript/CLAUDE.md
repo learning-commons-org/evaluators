@@ -1,6 +1,6 @@
 # sdks/typescript
 
-`@learning-commons/evaluators`. Node `^20.19.0 || >=22.12.0`; CI tests on 20.19.0, 22, and 24.
+`@learning-commons/evaluators`. Node `>=22.12.0`; CI tests on 22 and 24.
 
 ## Verify
 
