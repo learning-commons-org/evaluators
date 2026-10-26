@@ -48,7 +48,7 @@ dependencies = [
     # Image inputs (features/image_source.py): reads an attached file's format and
     # dimensions from its header, without decoding pixels, to enforce the contract's
     # ``x-image`` bounds before any model call. Imported only when an image is loaded.
-    "pillow>=10.1.0,<13",
+    "pillow>=10.1.0,<14",
     # Knowledge Graph client (D9). The OpenAPI-generated transport under
     # dependencies/_generated/ is built on httpx and attrs, so both are unconditional —
     # the client ships with the package rather than behind an extra, so that the math
