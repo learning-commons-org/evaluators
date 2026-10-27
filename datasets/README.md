@@ -2,22 +2,10 @@
 
 These expert-annotated datasets are used to create and validate Learning Commons evaluators. They can also be used to complement other related edtech development work.
 
-## Text Complexity dataset
-
-[DOWNLOAD HERE](https://aidt-evaluators-files-public-prod.s3.us-west-2.amazonaws.com/Learning+Commons+annotations+of+CLEAR+for+qualitative+text+complexity+v1.0+2025-09-02.csv)
-
-| Version                                                                                | v1.0 2025-09-02 |
-| -------------------------------------------------------------------------------------- | --------------: |
-| [Columns](https://docs.learningcommons.org/evaluators/dataset/text-complexity#columns) |              14 |
-| Rows                                                                                   |            1097 |
-
-The [Text Complexity dataset](https://docs.learningcommons.org/evaluators/dataset/text-complexity) contains high-quality text complexity annotations for the CommonLit Ease of Readability (CLEAR) Corpus by literacy and education experts.
-
-The CLEAR Corpus was produced by [CommonLit in collaboration with Georgia State University](https://www.commonlit.org/blog/introducing-the-clear-corpus-an-open-dataset-to-advance-research-28ff8cfea84a/) ↗ and is comprised of nearly 5000 publicly available excerpts, each mapped against dimensions like Flesch-Kincaid and BT Easiness.
-
-We expanded the dataset by scoring a subset of the rows for dimensions in Student Achievement Partners (SAP)‘s [Qualitative Text Complexity Rubric for Informational Text](https://learnwithsap.b-cdn.net/app/uploads/2026/04/Qualitative-Text-Complexity-Rubric-Informational.pdf) ↗.
-
-Our [Text Complexity evaluators](../evals/text-complexity/) use this dataset as a benchmark when assessing AI-generated content.
+| Dataset                                                                                                                                                                                                                                                                           | Description                                                                                                                                                                                           | Related evaluator(s)                                                        | Columns and rows                                                                                      |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Text Complexity<br/><br/>[Docs](https://docs.learningcommons.org/evaluators/dataset/text-complexity) · [Download](https://aidt-evaluators-files-public-prod.s3.us-west-2.amazonaws.com/Learning+Commons+annotations+of+CLEAR+for+qualitative+text+complexity+v1.0+2025-09-02.csv) | High-quality text complexity annotations of the CommonLit Ease of Readability (CLEAR) Corpus by literacy and education experts.                                                                       | All [Text Complexity](../evals/text-complexity/) evaluators                 | 14 [columns](https://docs.learningcommons.org/evaluators/dataset/text-complexity#columns), 1097 rows  |
+| Graphics Complexity<br/><br/>[Docs](https://docs.learningcommons.org/evaluators/dataset/graphics-complexity) · [Download]()                                                                                                                                                       | Informational passages with charts, diagrams, and illustrations from the Graphics Complexity evaluator’s test set, kept only where a majority of literacy experts agreed with the evaluator’s rating. | [Graphics Complexity](../evals/graphics/ela/graphics-complexity/) evaluator | 7 [columns](https://docs.learningcommons.org/evaluators/dataset/graphics-complexity#columns), 17 rows |
 
 ## License
 
