@@ -1,5 +1,7 @@
 # Evaluators
 
+[![License](https://shields.io)](https://github.com/learning-commons-org/evaluators)
+
 <img style="width:100%" alt="Evaluators project banner logo" src="https://raw.githubusercontent.com/learning-commons-org/.github/refs/heads/main/assets/evals_hero_2.jpg" />
 
 <p align="center">
