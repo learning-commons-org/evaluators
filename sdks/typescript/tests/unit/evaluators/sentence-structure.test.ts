@@ -147,6 +147,40 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
     });
   });
 
+  it.each(['3', '4'] as const)('preserves fractional signals and valid rubric keys for grade %s', async (grade) => {
+    vi.mocked(mockProvider.generateStructured)
+      .mockResolvedValueOnce({
+        data: {
+          ...createMockSentenceAnalysis(),
+          num_words: 200,
+          num_subordinate_clauses: 1,
+          num_simple_transitions: 1,
+          num_appositive_phrases: 1,
+          num_participle_phrases: 1,
+        },
+        model: 'gpt-4o',
+        usage: { inputTokens: 1, outputTokens: 1 },
+        latencyMs: 0,
+      })
+      .mockResolvedValueOnce({
+        data: { complexity_score: 'slightly_complex', reasoning: 'Mock classification' },
+        model: 'gpt-4o',
+        usage: { inputTokens: 1, outputTokens: 1 },
+        latencyMs: 0,
+      });
+
+    await evaluator.evaluate({ text: 'Test passage.', grade_level: grade });
+    const messages = vi.mocked(mockProvider.generateStructured).mock.calls[1][0].messages;
+    const prompt = messages.map((message) => message.content).join('\n');
+    const features = JSON.parse(prompt.split('# TEXT STATISTICS\n')[1]);
+    expect(features.avg_subordinates_per_sentence).toBe(0.5);
+    expect(features.avg_transitions_per_sentence).toBe(0.5);
+    expect(features.appositive_phrase_density).toBe(0.5);
+    expect(features.participle_phrase_density).toBe(0.5);
+    expect(prompt).not.toContain('avg_sentence_length');
+    expect(prompt.match(/`avg_words_per_sentence`/g)).toHaveLength(4);
+  });
+
   describe('Error Handling', () => {
     it('should handle sentence analysis API failure', async () => {
       const testText = 'Test text here for API failure';

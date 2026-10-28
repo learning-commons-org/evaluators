@@ -45,6 +45,9 @@ ANALYSIS = SentenceAnalysis.model_validate(
         "num_sentences": 2,
         "num_words": 20,
         "sentence_word_counts": [6, 14],
+        "num_subordinate_clauses": 1,
+        "num_simple_transitions": 1,
+        "num_sophisticated_transitions": 0,
     }
 )
 
@@ -91,10 +94,12 @@ async def test_the_classification_step_reads_the_features_derived_from_the_analy
 ) -> None:
     await SentenceStructureEvaluator(openai_api_key="o").evaluate(text=TEXT, grade_level=5)
     user = providers.calls[1]["messages"][1]["content"]
-    expected = features_to_json(add_engineered_features(ANALYSIS.model_dump()))
+    expected = features_to_json(add_engineered_features(ANALYSIS.model_dump()), cast_to_int=False)
     assert expected in user
-    # Derived, not passed through: 20 words over 2 sentences, truncated for the prompt.
+    # Derived, not passed through: 20 words over 2 sentences.
     assert json.loads(expected)["avg_words_per_sentence"] == 10
+    assert json.loads(expected)["avg_subordinates_per_sentence"] == 0.5
+    assert json.loads(expected)["avg_transitions_per_sentence"] == 0.5
     assert TEXT in user
 
 
@@ -109,6 +114,9 @@ async def test_the_rubric_for_the_grade_is_the_one_the_contract_names(
     rubric = SentenceStructureEvaluator.contract.document(marker)
     user = providers.calls[1]["messages"][1]["content"]
     assert f"# GRADE {grade} RUBRIC\n{rubric}" in user
+    assert "avg_sentence_length" not in user
+    if grade in (3, 4):
+        assert rubric.count("avg_words_per_sentence") == 4
 
 
 async def test_returns_the_classification_as_the_result(providers: ProviderFactory) -> None:

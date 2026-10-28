@@ -5,8 +5,8 @@ rubric written in terms of percentages and averages. Turning the former into the
 arithmetic, so the contract declares it as preprocessing (``sentence_features``) rather
 than asking a model for it, and this module is that computation.
 
-Every derived value is rounded to one place here and cast to a whole number on the way into
-the prompt, which is the shape the rubric's thresholds are written against.
+Every derived value is rounded to one place here. The classifier preserves that fractional
+place so per-sentence averages and phrase densities below one remain meaningful.
 """
 
 from __future__ import annotations
@@ -196,26 +196,20 @@ def add_engineered_features(analysis: Mapping[str, Any]) -> dict[str, Any]:
         _ratio(_count(analysis, "num_sophisticated_transitions"), transitions) * 100
     )
 
-    # Deliberately Python's ties-to-even ``round``, not the SDK's half-up ``round_half_up``.
-    # These ratios are rationals over small counts, so they land on exact ties often, and a
-    # tie at ``n.95`` crosses an integer boundary once ``features_to_json`` casts it: 19
-    # transitions over 20 sentences is 0.95, which reaches the prompt as 0 under this rule
-    # and as 1 under the other. This is the arithmetic the notebook and the fixtures were
-    # produced by; unifying it is DSCR-2223, decided once for both SDKs alongside the
-    # truncate-versus-round question it belongs with.
+    # Preserve the notebook's ties-to-even rounding; cross-SDK rounding alignment
+    # is tracked separately in DSCR-2223.
     features.update({name: round(value, PRECISION) for name, value in derived.items()})
     return features
 
 
-def features_to_json(features: Mapping[str, Any]) -> str:
+def features_to_json(features: Mapping[str, Any], *, cast_to_int: bool = True) -> str:
     """:data:`FEATURE_COLS` as the JSON object bound to ``{sentence_features}``.
 
-    Every value is a whole number: the rubric's thresholds are written in whole percentages
-    and averages, and the fractional place the model would otherwise read invites precision
-    it cannot support. A feature the analysis did not produce is sent as ``null`` rather
-    than zero, so a missing count reads as missing rather than as "none found".
+    Set ``cast_to_int=False`` to retain one decimal place for the classifier, including
+    averages and densities below one. The default preserves the legacy serializer API.
+    A feature the analysis did not produce is sent as ``null`` rather than zero.
     """
-    payload: dict[str, int | None] = {}
+    payload: dict[str, int | float | None] = {}
     for name in FEATURE_COLS:
         value = features.get(name)
         if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -223,9 +217,7 @@ def features_to_json(features: Mapping[str, Any]) -> str:
         elif isinstance(value, int):
             payload[name] = value
         else:
-            # Truncated, not rounded: this is the notebook's arithmetic, and the fixtures
-            # and thresholds this evaluator was validated against were produced by it.
-            payload[name] = int(value)
+            payload[name] = int(value) if cast_to_int else round(value, PRECISION)
     return json.dumps(payload, indent=2)
 
 

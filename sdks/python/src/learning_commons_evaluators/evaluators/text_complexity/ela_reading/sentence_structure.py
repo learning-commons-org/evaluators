@@ -139,7 +139,7 @@ def sentence_features(analysis: Any) -> str:
     Takes the first step's output, which the contract names as this entry's ``input``.
     """
     counts = analysis.model_dump() if isinstance(analysis, BaseModel) else dict(analysis)
-    return features_to_json(add_engineered_features(counts))
+    return features_to_json(add_engineered_features(counts), cast_to_int=False)
 
 
 class SentenceStructureEvaluator(

@@ -132,3 +132,19 @@ def test_a_feature_the_analysis_did_not_produce_is_null_rather_than_zero() -> No
     payload = json.loads(features_to_json({}))
     assert set(payload) == set(FEATURE_COLS)
     assert all(value is None for value in payload.values())
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "expected"),
+    [
+        ("avg_transitions_per_sentence", 0.20, 0.2),
+        ("avg_subordinates_per_sentence", 0.43, 0.4),
+        ("appositive_phrase_density", 0.52, 0.5),
+        ("participle_phrase_density", 0.29, 0.3),
+        ("percent_simple_sentences", 60.5, 60.5),
+    ],
+)
+def test_fractional_signals_survive_serialization(name: str, value: float, expected: float) -> None:
+    payload = json.loads(features_to_json({name: value}, cast_to_int=False))
+    assert payload[name] == expected
+    assert payload["num_sentences"] is None
