@@ -1,6 +1,6 @@
 # Evaluators
 
-![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/learning-commons-org/evaluators) ![License](https://img.shields.io/badge/License-MIT-green)
+[![npm version](https://img.shields.io/npm/v/@learning-commons/evaluators)](https://www.npmjs.com/package/@learning-commons/evaluators) [![PyPI version](https://img.shields.io/pypi/v/learning-commons-evaluators)](https://pypi.org/project/learning-commons-evaluators/) ![License](https://img.shields.io/badge/License-MIT-green)
 
 <img style="width:100%" alt="Evaluators project banner logo" src="https://raw.githubusercontent.com/learning-commons-org/.github/refs/heads/main/assets/evals_hero_2.jpg" />
 
