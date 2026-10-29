@@ -5,6 +5,25 @@ All notable changes to the evaluator prompt files will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.10.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.9.0...evals-prompts-v1.10.0) (2026-10-29)
+
+
+### Features
+
+* **python-sdk:** accept structured evaluator inputs ([#354](https://github.com/learning-commons-org/evaluators/issues/354)) ([946d5f4](https://github.com/learning-commons-org/evaluators/commit/946d5f4a6d9185ed37a3d92c3f53e99f6b65754a))
+* **ts-sdk:** add the Critical Thinking evaluator ([#350](https://github.com/learning-commons-org/evaluators/issues/350)) ([b9b06a6](https://github.com/learning-commons-org/evaluators/commit/b9b06a645dcef4ea50eccc6d602259a1f4b6b112))
+
+
+### Bug Fixes
+
+* **sdks:** judge the standard copy that has learning components ([#377](https://github.com/learning-commons-org/evaluators/issues/377)) ([f8e880f](https://github.com/learning-commons-org/evaluators/commit/f8e880f8b220a265a117f72715370bb386d1f338))
+* **sdks:** require the feedback key, nullable as the contract declares it ([#388](https://github.com/learning-commons-org/evaluators/issues/388)) ([78c9ad9](https://github.com/learning-commons-org/evaluators/commit/78c9ad97ca89f577f9c8241fb8d243f93c1ddd55))
+
+
+### Documentation
+
+* Update datasets/README with latest correct info ([#403](https://github.com/learning-commons-org/evaluators/issues/403)) ([e1315f9](https://github.com/learning-commons-org/evaluators/commit/e1315f9d360db179e3819b99034489831b12d72b))
+
 ## [1.9.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.8.0...evals-prompts-v1.9.0) (2026-10-10)
 
 
