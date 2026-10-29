@@ -2,6 +2,27 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
+## [1.3.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v1.2.0...sdks-typescript-v1.3.0) (2026-10-29)
+
+
+### Features
+
+* **ts-sdk:** accept integer evaluator inputs ([#349](https://github.com/learning-commons-org/evaluators/issues/349)) ([173507a](https://github.com/learning-commons-org/evaluators/commit/173507a400fb6af93fbc2cd0000c8f13e8ab43d4))
+* **ts-sdk:** accept structured evaluator inputs ([#353](https://github.com/learning-commons-org/evaluators/issues/353)) ([cf64903](https://github.com/learning-commons-org/evaluators/commit/cf6490335e03dbf5b51856d5a09ed436fb023f4a))
+* **ts-sdk:** add the Critical Thinking evaluator ([#350](https://github.com/learning-commons-org/evaluators/issues/350)) ([b9b06a6](https://github.com/learning-commons-org/evaluators/commit/b9b06a645dcef4ea50eccc6d602259a1f4b6b112))
+
+
+### Bug Fixes
+
+* **sdks:** judge the standard copy that has learning components ([#377](https://github.com/learning-commons-org/evaluators/issues/377)) ([f8e880f](https://github.com/learning-commons-org/evaluators/commit/f8e880f8b220a265a117f72715370bb386d1f338))
+* **sdks:** require the feedback key, nullable as the contract declares it ([#388](https://github.com/learning-commons-org/evaluators/issues/388)) ([78c9ad9](https://github.com/learning-commons-org/evaluators/commit/78c9ad97ca89f577f9c8241fb8d243f93c1ddd55))
+
+
+### Documentation
+
+* Python SDK README update ([#394](https://github.com/learning-commons-org/evaluators/issues/394)) ([f03eec9](https://github.com/learning-commons-org/evaluators/commit/f03eec9e244e53810d1da3bc065cf38e0c09db0a))
+* Update TypeScript SDK README ([#290](https://github.com/learning-commons-org/evaluators/issues/290)) ([b9d4789](https://github.com/learning-commons-org/evaluators/commit/b9d47891c1b8ecdef3b09f19da557bb15ef4c6f3))
+
 ## [1.2.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v1.1.1...sdks-typescript-v1.2.0) (2026-10-10)
 
 
