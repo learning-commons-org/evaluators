@@ -111,20 +111,22 @@ Every evaluator class exposes `.evaluate(...)` and `.evaluate_sync(...)` (see [S
 Pass the contract's fields as keywords, or pass the evaluator's input model. Passing both raises `TypeError`.
 
 ```python
-from learning_commons_evaluators import (
-    GradeLevelAppropriatenessEvaluator,
-    GradeLevelAppropriatenessInput,
-)
+import asyncio
+from learning_commons_evaluators import GradeLevelAppropriatenessEvaluator
 
 evaluator = GradeLevelAppropriatenessEvaluator(google_api_key="...")
 
-# Keywords
-await evaluator.evaluate(text="The cat's out of the bag now.")
+# Sync
+evaluation = evaluator.evaluate_sync(text="The cat's out of the bag now.")
+print(evaluation.result.grade_band)
 
-# The same call, synchronous, with the input model
-evaluator.evaluate_sync(
-    GradeLevelAppropriatenessInput(text="The cat's out of the bag now.")
-)
+# Async
+async def main() -> None:
+  evaluation = await evaluator.evaluate(text="The cat's out of the bag now.")
+  print(evaluation.result.grade_band)
+
+if __name__ == "__main__":
+  asyncio.run(main())
 ```
 
 | Evaluator family   | Evaluator                             | Typical input                                        |
