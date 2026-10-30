@@ -59,7 +59,7 @@ for attempt in range(3):
 
 Every `EvaluatorError` exposes `retryable`. `DependencyError` and its subclasses add:
 
-- `dependency` — which service failed: `"openai"`, `"google"`, `"anthropic"`, `"knowledge-graph"`, or `"custom"` for a caller-injected provider.
+- `dependency` — which service failed: `"openai"`, `"google"`, `"anthropic"`, `"knowledge-graph"`, or `"custom"` for a caller-injected `llm_provider`, whatever its label.
 - `status_code` — the HTTP status, or `None`.
 - `request_id` — the dependency's request id for support escalation, read from `x-request-id`, `request-id`, or `x-amzn-requestid`, or `None`.
 - `model` — the model id in use when the dependency is an LLM provider, or `None`.
