@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { GradeLevelAppropriatenessEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/grade-level-appropriateness.js';
 import { Provider } from '../../../src/evaluators/base.js';
-import { ConfigurationError } from '../../../src/errors.js';
+import { AuthenticationError, ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 /**
@@ -117,4 +117,23 @@ describe('llmProvider — bring-your-own-provider', () => {
       ).toThrow(ConfigurationError);
     });
   });
+
+  // Spec §6: a caller-supplied provider is `custom` whatever its label says, so a
+  // client the caller labelled after one of our vendors is not reported as that vendor.
+  it.each(['vertex:gemini-2.5-pro', 'openai:gpt-4o'])(
+    'reports a failure of the injected provider labelled %s as custom',
+    async (label) => {
+      const { provider, generateStructured } = makeFakeProvider(label);
+      generateStructured.mockRejectedValue(Object.assign(new Error('nope'), { statusCode: 401 }));
+      const evaluator = new GradeLevelAppropriatenessEvaluator({
+        llmProvider: provider,
+        telemetry: false,
+      });
+
+      const error = await evaluator.evaluate({ text: SAMPLE_TEXT }).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(AuthenticationError);
+      expect(error).toMatchObject({ dependency: 'custom', model: label });
+    }
+  );
 });

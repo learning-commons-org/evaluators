@@ -55,7 +55,6 @@ from learning_commons_evaluators.providers import (
     Message,
     Provider,
     call_with_resampling,
-    provider_context,
 )
 from learning_commons_evaluators.schemas.evaluator import (
     EvaluationMetadata,
@@ -328,7 +327,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                 # Passed only when there are some, so a text-only provider is never handed a
                 # parameter it may not declare.
                 extra: dict[str, Any] = {"attachments": attachments} if attachments else {}
-                dependency, model = provider_context(self.provider)
+                dependency, model = self._provider_context(self.provider)
                 assert self._step.model is not None
                 response = await call_with_resampling(
                     lambda: self.provider.generate_structured(
