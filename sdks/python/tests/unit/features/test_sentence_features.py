@@ -148,3 +148,26 @@ def test_fractional_signals_survive_serialization(name: str, value: float, expec
     payload = json.loads(features_to_json({name: value}, cast_to_int=False))
     assert payload[name] == expected
     assert payload["num_sentences"] is None
+
+
+@pytest.mark.parametrize("boundary", [12, 13, 16, 17, 19, 22, 25, 30, 40, 45, 50, 55, 60])
+@pytest.mark.parametrize("offset", [-0.04, 0, 0.04])
+def test_flooring_preserves_integer_boundary_comparisons(boundary: int, offset: float) -> None:
+    raw = boundary + offset
+    payload = json.loads(features_to_json({"avg_words_per_sentence": raw}, floor_values=True))
+    floored = payload["avg_words_per_sentence"]
+    assert (floored < boundary) == (raw < boundary)
+    assert (floored >= boundary) == (raw >= boundary)
+
+
+def test_floor_uses_the_unrounded_ratio_and_handles_negative_values() -> None:
+    analysis = {**ANALYSIS, "num_sentences": 25, "num_words": 299, "flesch_kincaid_grade": -0.4}
+    raw = add_engineered_features(analysis, round_values=False)
+    assert raw["avg_words_per_sentence"] == 11.96
+    payload = json.loads(features_to_json(raw, floor_values=True))
+    assert payload["avg_words_per_sentence"] == 11
+    assert payload["flesch_kincaid_grade"] == -1
+    assert payload["avg_subordinates_per_sentence"] == 0
+    # The legacy helper still rounds, and its serializer still truncates.
+    assert add_engineered_features(analysis)["avg_words_per_sentence"] == 12.0
+    assert json.loads(features_to_json(raw))["flesch_kincaid_grade"] == 0

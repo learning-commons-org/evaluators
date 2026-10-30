@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SentenceStructureEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/sentence-structure.js';
 import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
+import { addEngineeredFeatures, featuresToJSON } from '../../../src/features/sentence-features.js';
 import CONFIG from '../../../../../evals/text-complexity/ela-reading/sentence-structure/config.json';
 
 // Derived from the contract rather than copied from it, so a model re-pin in
@@ -147,12 +148,15 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
     });
   });
 
-  it.each(['3', '4'] as const)('preserves fractional signals and valid rubric keys for grade %s', async (grade) => {
+  it.each(['3', '4'] as const)('floors raw features and uses explicit rubric boundaries for grade %s', async (grade) => {
     vi.mocked(mockProvider.generateStructured)
       .mockResolvedValueOnce({
         data: {
           ...createMockSentenceAnalysis(),
-          num_words: 200,
+          num_sentences: 25,
+          num_words: 299,
+          sentence_word_counts: [...Array(24).fill(12), 11],
+          flesch_kincaid_grade: -0.4,
           num_subordinate_clauses: 1,
           num_simple_transitions: 1,
           num_appositive_phrases: 1,
@@ -173,10 +177,15 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
     const messages = vi.mocked(mockProvider.generateStructured).mock.calls[1][0].messages;
     const prompt = messages.map((message) => message.content).join('\n');
     const features = JSON.parse(prompt.split('# TEXT STATISTICS\n')[1]);
-    expect(features.avg_subordinates_per_sentence).toBe(0.5);
-    expect(features.avg_transitions_per_sentence).toBe(0.5);
-    expect(features.appositive_phrase_density).toBe(0.5);
-    expect(features.participle_phrase_density).toBe(0.5);
+    expect(features.avg_subordinates_per_sentence).toBe(0);
+    expect(features.avg_transitions_per_sentence).toBe(0);
+    expect(features.appositive_phrase_density).toBe(0);
+    expect(features.participle_phrase_density).toBe(0);
+    expect(features.avg_words_per_sentence).toBe(11);
+    expect(features.flesch_kincaid_grade).toBe(-1);
+    expect(prompt).not.toContain('typically between ');
+    expect(prompt).not.toContain(' > ');
+    expect(prompt).toContain('>= ');
     expect(prompt).not.toContain('avg_sentence_length');
     expect(prompt.match(/`avg_words_per_sentence`/g)).toHaveLength(4);
   });
@@ -291,4 +300,18 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
     });
 
   });
+});
+
+describe('Raw floor boundary behavior', () => {
+  it.each([12, 13, 16, 17, 19, 22, 25, 30, 40, 45, 50, 55, 60])(
+    'preserves comparisons at integer boundary %s', (boundary) => {
+      for (const offset of [-0.04, 0, 0.04]) {
+        const raw = boundary + offset;
+        const features = { ...addEngineeredFeatures(createMockSentenceAnalysis()), avg_words_per_sentence: raw };
+        const payload = JSON.parse(featuresToJSON(features, 1, true, true));
+        expect(payload.avg_words_per_sentence < boundary).toBe(raw < boundary);
+        expect(payload.avg_words_per_sentence >= boundary).toBe(raw >= boundary);
+      }
+    }
+  );
 });

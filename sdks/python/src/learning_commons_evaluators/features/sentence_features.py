@@ -5,8 +5,8 @@ rubric written in terms of percentages and averages. Turning the former into the
 arithmetic, so the contract declares it as preprocessing (``sentence_features``) rather
 than asking a model for it, and this module is that computation.
 
-Every derived value is rounded to one place here. The classifier preserves that fractional
-place so per-sentence averages and phrase densities below one remain meaningful.
+The classifier requests unrounded derived values, then floors them directly for integer
+rubric boundaries. The helper defaults retain their previous behavior for other callers.
 """
 
 from __future__ import annotations
@@ -160,9 +160,12 @@ def _length_distribution(word_counts: Sequence[float]) -> dict[str, float]:
     return distribution
 
 
-def add_engineered_features(analysis: Mapping[str, Any]) -> dict[str, Any]:
+def add_engineered_features(
+    analysis: Mapping[str, Any], *, round_values: bool = True
+) -> dict[str, Any]:
     """The analysis plus every feature derived from it, each rounded to one place.
 
+    Set ``round_values=False`` before flooring so rounding cannot cross a rubric boundary.
     Takes the first step's output as a mapping and returns a new one; the counts are copied
     through unchanged, because the classifier prompt asks for several of them alongside the
     ratios (see :data:`FEATURE_COLS`).
@@ -198,15 +201,24 @@ def add_engineered_features(analysis: Mapping[str, Any]) -> dict[str, Any]:
 
     # Preserve the notebook's ties-to-even rounding; cross-SDK rounding alignment
     # is tracked separately in DSCR-2223.
-    features.update({name: round(value, PRECISION) for name, value in derived.items()})
+    features.update(
+        {
+            name: round(value, PRECISION) if round_values else value
+            for name, value in derived.items()
+        }
+    )
     return features
 
 
-def features_to_json(features: Mapping[str, Any], *, cast_to_int: bool = True) -> str:
+def features_to_json(
+    features: Mapping[str, Any], *, cast_to_int: bool = True, floor_values: bool = False
+) -> str:
     """:data:`FEATURE_COLS` as the JSON object bound to ``{sentence_features}``.
 
-    Set ``cast_to_int=False`` to retain one decimal place for the classifier, including
-    averages and densities below one. The default preserves the legacy serializer API.
+    ``floor_values=True`` floors the supplied values without preliminary rounding and
+    takes precedence over ``cast_to_int``. Supply unrounded features for this mode.
+    Otherwise, ``cast_to_int=False`` retains one decimal place. Defaults preserve the
+    legacy serializer API.
     A feature the analysis did not produce is sent as ``null`` rather than zero.
     """
     payload: dict[str, int | float | None] = {}
@@ -216,6 +228,8 @@ def features_to_json(features: Mapping[str, Any], *, cast_to_int: bool = True) -
             payload[name] = None
         elif isinstance(value, int):
             payload[name] = value
+        elif floor_values:
+            payload[name] = math.floor(value)
         else:
             payload[name] = int(value) if cast_to_int else round(value, PRECISION)
     return json.dumps(payload, indent=2)
