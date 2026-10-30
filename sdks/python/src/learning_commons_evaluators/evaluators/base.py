@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from learning_commons_evaluators.config import EvaluatorConfig, ModelOverride
 from learning_commons_evaluators.contracts.loader import Contract
-from learning_commons_evaluators.errors import ConfigurationError
+from learning_commons_evaluators.errors import ConfigurationError, DependencyId
 from learning_commons_evaluators.features.preprocessing import format_number
 from learning_commons_evaluators.logger import get_logger
 from learning_commons_evaluators.providers import (
@@ -20,6 +20,7 @@ from learning_commons_evaluators.providers import (
     Provider,
     ProviderConfig,
     create_provider,
+    provider_context,
 )
 from learning_commons_evaluators.schemas.evaluator import EvaluationResult
 from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
@@ -44,8 +45,9 @@ class BaseEvaluator(ABC):
         evaluator = PurposeClarityEvaluator(google_api_key="...")
         evaluator = PurposeClarityEvaluator(EvaluatorConfig(google_api_key="..."))
 
-    :raises ConfigurationError: for a malformed ``model_override`` or a missing credential
-        the evaluator's contract requires (§3.1), before any I/O.
+    :raises ConfigurationError: for a malformed ``model_override``, an ``llm_provider`` that
+        does not implement :class:`LLMProvider` or is combined with ``model_override``, or a
+        missing credential the evaluator's contract requires (§3.1), before any I/O.
     """
 
     #: The registry contract the evaluator is built from; set by the concrete class.
@@ -67,6 +69,7 @@ class BaseEvaluator(ABC):
         self.config = config
         self.logger = get_logger(self.metadata.id)
 
+        self._validate_llm_provider(config)
         self._override_provider = self._validate_model_override(config.model_override)
         self._validate_credentials()
 
@@ -102,6 +105,35 @@ class BaseEvaluator(ABC):
     # --- configuration -------------------------------------------------------------
 
     @staticmethod
+    def _validate_llm_provider(config: EvaluatorConfig) -> None:
+        """An injected ``llm_provider`` implements the protocol and stands alone (§3).
+
+        Checked by hand rather than with ``isinstance``: a runtime-checkable protocol only
+        tests that the names exist, so a ``label`` that is not a string would pass it and
+        fail later, inside an evaluation.
+        """
+        provider = config.llm_provider
+        if provider is None:
+            return
+        if not (
+            isinstance(getattr(provider, "label", None), str)
+            and callable(getattr(provider, "generate_structured", None))
+            and callable(getattr(provider, "generate_text", None))
+        ):
+            raise ConfigurationError(
+                "llm_provider must implement the LLMProvider interface: a string `label` and "
+                "`generate_structured` / `generate_text` methods."
+            )
+        # A contradictory directive rather than an ambient one: the override configures a
+        # built-in adapter the injected provider replaces, so one of the two would be
+        # silently ignored. Vendor keys, by contrast, are simply unused.
+        if config.model_override is not None:
+            raise ConfigurationError(
+                "Cannot set both llm_provider and model_override: llm_provider replaces the "
+                "built-in provider entirely, so model_override does not apply. Set one or the other."
+            )
+
+    @staticmethod
     def _validate_model_override(override: ModelOverride | None) -> Provider | None:
         if override is None:
             return None
@@ -121,7 +153,13 @@ class BaseEvaluator(ABC):
 
     @property
     def providers_in_use(self) -> tuple[Provider, ...]:
-        """The LLM providers this instance will call: the override's, or the contract's."""
+        """The LLM providers this instance will call: the override's, or the contract's.
+
+        Empty when an ``llm_provider`` is injected: its vendor is the caller's to know, and
+        its auth is its own, so no vendor key is derived from it (§3.1).
+        """
+        if self.config.llm_provider is not None:
+            return ()
         if self._override_provider is not None:
             return (self._override_provider,)
         return self.metadata.default_providers
@@ -207,7 +245,10 @@ class BaseEvaluator(ABC):
         return declared if self.config.model_override is None else None
 
     def _create_configured_provider(self, default: Provider, default_model: str) -> LLMProvider:
-        """A provider for one step, honouring ``model_override`` when set."""
+        """A provider for one step: the injected ``llm_provider``, or a built-in adapter
+        honouring ``model_override``."""
+        if self.config.llm_provider is not None:
+            return self.config.llm_provider
         provider, model = self.effective_model(default, default_model)
         return create_provider(
             ProviderConfig(
@@ -217,6 +258,18 @@ class BaseEvaluator(ABC):
                 max_retries=self.config.max_retries,
             )
         )
+
+    def _provider_context(self, provider: LLMProvider) -> tuple[DependencyId, str]:
+        """Dependency attribution for errors raised while calling ``provider`` (§6).
+
+        The injected ``llm_provider`` is ``custom`` whatever it calls itself: a caller may
+        well label a client of their own ``openai:...``, and reading that prefix would
+        report a vendor we never called. Every other provider is a built-in adapter, whose
+        label names its real vendor.
+        """
+        if provider is self.config.llm_provider:
+            return "custom", provider.label
+        return provider_context(provider)
 
     # --- telemetry -----------------------------------------------------------------
 

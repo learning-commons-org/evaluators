@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from learning_commons_evaluators.providers.base import Provider
+from learning_commons_evaluators.providers.base import LLMProvider, Provider
 
 
 @dataclass(frozen=True)
@@ -54,6 +54,10 @@ class EvaluatorConfig:
     #: telemetry is opted into separately via ``telemetry.learning_commons_api_key``.
     learning_commons_api_key: str | None = None
     model_override: ModelOverride | None = None
+    #: *(Draft)* A caller-supplied provider used for every LLM call instead of the built-in
+    #: adapters. It owns its own model and auth, so no vendor key is required alongside it;
+    #: it cannot be combined with ``model_override``, which configures an adapter it bypasses.
+    llm_provider: LLMProvider | None = None
     #: Retries on retryable errors; total attempts are ``1 + max_retries``. ``0`` disables.
     max_retries: int = 2
     #: ``True`` / ``False`` shorthand, or a :class:`TelemetryOptions`.

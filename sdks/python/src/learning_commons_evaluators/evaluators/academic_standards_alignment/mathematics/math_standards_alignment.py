@@ -75,7 +75,6 @@ from learning_commons_evaluators.providers import (
     Message,
     TokenUsage,
     call_with_resampling,
-    provider_context,
 )
 from learning_commons_evaluators.schemas.academic_standards_alignment.mathematics.math_standards_alignment import (
     EVALUATOR_ID,
@@ -456,7 +455,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                     )
                     return answer, self._verified(components, answer.data, statement_code)
 
-                dependency, model = provider_context(self.provider)
+                dependency, model = self._provider_context(self.provider)
                 response, judged = await call_with_resampling(
                     judge,
                     max_retries=self.config.max_retries,

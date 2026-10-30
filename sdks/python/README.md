@@ -264,6 +264,48 @@ add_engineered_features(analysis)  # sentence analysis → features
 features_to_json(features)         # JSON string for a prompt
 ```
 
+## Bring your own provider
+
+_Draft._ To send an evaluator's model calls through your own client, for example so that your token and cost tracking applies, pass `llm_provider`. Any object with a string `label` and async `generate_structured` and `generate_text` methods works (the `LLMProvider` protocol):
+
+```python
+from learning_commons_evaluators import ToneAppropriatenessEvaluator
+from learning_commons_evaluators.providers import (
+    LLMResponse,
+    TextGenerationResponse,
+    TokenUsage,
+)
+
+class MyProvider:
+    label = "acme-gateway:gpt-4o"
+
+    async def generate_structured(self, messages, schema, *, temperature=None, max_tokens=None):
+        reply = await my_client.complete(
+            messages, json_schema=schema.model_json_schema(), temperature=temperature, max_tokens=max_tokens
+        )
+        return LLMResponse(
+            data=schema.model_validate_json(reply.text),
+            model=reply.model,
+            usage=TokenUsage(input_tokens=reply.input_tokens, output_tokens=reply.output_tokens),
+            latency_ms=reply.latency_ms,
+        )
+
+    async def generate_text(self, messages, *, temperature=None, max_tokens=None):
+        reply = await my_client.complete(messages, temperature=temperature, max_tokens=max_tokens)
+        return TextGenerationResponse(
+            text=reply.text,
+            usage=TokenUsage(input_tokens=reply.input_tokens, output_tokens=reply.output_tokens),
+            latency_ms=reply.latency_ms,
+        )
+
+evaluator = ToneAppropriatenessEvaluator(llm_provider=MyProvider())
+```
+
+- Every LLM step of every evaluator, multi-step ones included, runs on it. No vendor API key is required; one passed anyway is unused. Non-LLM credentials still are: Math Standards Alignment needs `learning_commons_api_key` for the Knowledge Graph.
+- It cannot be combined with `model_override`, and an object missing any of the three members raises `ConfigurationError` at construction.
+- Evaluators that attach images (the graphics evaluators) also need `supports_attachments = True` on the provider and an `attachments` keyword on `generate_structured`.
+- Telemetry and `evaluation.metadata.model` report your `label`. A failed call raises the usual `DependencyError` with `dependency="custom"` and your label as `model`, whatever the label says.
+
 ## More resources
 
 [Check out the docs](https://docs.learningcommons.org/evaluators/sdk-api-reference/overview) for more implementation details:
