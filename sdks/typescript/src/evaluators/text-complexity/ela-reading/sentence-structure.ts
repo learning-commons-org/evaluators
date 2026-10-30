@@ -83,7 +83,7 @@ export class SentenceStructureEvaluator extends defineMultiStepEvaluator<
     calculateReadabilityMetrics: (text) => formatGroundTruthCounts(String(text)),
     // Cast to int and single-space, matching the Python implementation's JSON.
     addEngineeredFeatures: (analysis) =>
-      featuresToJSON(addEngineeredFeatures(analysis as SentenceAnalysis), 1, true),
+      featuresToJSON(addEngineeredFeatures(analysis as SentenceAnalysis), 1, false),
   },
   documents: {
     'rubric-grade-3.txt': RUBRIC_GRADE_3,
