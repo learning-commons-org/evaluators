@@ -31,7 +31,7 @@ Python SDK for [Learning Commons evaluators](https://docs.learningcommons.org/ev
 ## Dependencies
 
 - Python 3.11+
-- `pydantic`, `httpx`, `pillow`, and `textstat`, plus the provider clients (`openai`, `anthropic`, `google-genai`), each also available as an extra (see [Installation](#installation)).
+- `pydantic`, `httpx`, `pillow`, and `textstat`. The provider clients (`openai`, `anthropic`, `google-genai`) are extras: install the ones your evaluators use (see [Installation](#installation)).
 - Credentials are constructor arguments. The SDK reads no provider keys from the environment, so a shell `GOOGLE_API_KEY` leaves `google_api_key` unset. A missing key raises `ConfigurationError` at construction, before any I/O.
 
 ## Installation
@@ -52,7 +52,7 @@ pip install "learning-commons-evaluators[all]"             # every provider
 
 A `model_override` needs the extra for its provider instead. An evaluator whose provider's SDK is not installed raises `ConfigurationError` at construction, naming the extra to add.
 
-Version 1.x still installs all three provider clients without an extra, so these lines change nothing today. Version 2.0 will install them only through their extras, and the plain `pip install learning-commons-evaluators` will be for [bringing your own provider](#bring-your-own-provider), which needs none.
+The plain `pip install learning-commons-evaluators` installs no provider client. It is for [bringing your own provider](#bring-your-own-provider), which needs none.
 
 Pass the key each evaluator's default provider requires ([which keys](https://docs.learningcommons.org/evaluators/getting-started/quickstart#required-api-keys)):
 
