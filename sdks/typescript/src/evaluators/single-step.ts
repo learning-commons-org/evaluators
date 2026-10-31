@@ -424,7 +424,7 @@ export function defineSingleStepEvaluator<
 
         stageDetails.push({
           stage: STEP.id,
-          provider: this.provider.label,
+          provider: this.telemetryLabel(this.provider),
           latency_ms: response.latencyMs,
           token_usage: tokenUsage,
         });
@@ -447,7 +447,7 @@ export function defineSingleStepEvaluator<
           latencyMs,
           textLength: text.length,
           gradeLevel,
-          provider: this.provider.label,
+          provider: this.telemetryLabel(this.provider),
           tokenUsage,
           metadata: { stage_details: stageDetails },
         }).catch(() => undefined);
@@ -487,7 +487,7 @@ export function defineSingleStepEvaluator<
           latencyMs,
           textLength: text.length,
           gradeLevel,
-          provider: this.provider.label,
+          provider: this.telemetryLabel(this.provider),
           tokenUsage,
           errorCode: error instanceof Error ? error.name : 'UnknownError',
           metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,
