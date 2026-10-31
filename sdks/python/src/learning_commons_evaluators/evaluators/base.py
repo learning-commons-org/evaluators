@@ -22,6 +22,7 @@ from learning_commons_evaluators.providers import (
     create_provider,
     provider_context,
 )
+from learning_commons_evaluators.providers.factory import missing_sdk_error, sdk_installed
 from learning_commons_evaluators.schemas.evaluator import EvaluationResult
 from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
 from learning_commons_evaluators.telemetry import (
@@ -46,8 +47,9 @@ class BaseEvaluator(ABC):
         evaluator = PurposeClarityEvaluator(EvaluatorConfig(google_api_key="..."))
 
     :raises ConfigurationError: for a malformed ``model_override``, an ``llm_provider`` that
-        does not implement :class:`LLMProvider` or is combined with ``model_override``, or a
-        missing credential the evaluator's contract requires (§3.1), before any I/O.
+        does not implement :class:`LLMProvider` or is combined with ``model_override``, a
+        vendor SDK a built-in adapter needs that is not installed, or a missing credential
+        the evaluator's contract requires (§3.1), before any I/O.
     """
 
     #: The registry contract the evaluator is built from; set by the concrete class.
@@ -71,6 +73,7 @@ class BaseEvaluator(ABC):
 
         self._validate_llm_provider(config)
         self._override_provider = self._validate_model_override(config.model_override)
+        self._validate_sdks()
         self._validate_credentials()
 
         telemetry = config.telemetry_options
@@ -163,6 +166,18 @@ class BaseEvaluator(ABC):
         if self._override_provider is not None:
             return (self._override_provider,)
         return self.metadata.default_providers
+
+    def _validate_sdks(self) -> None:
+        """Every vendor SDK this instance's built-in adapters import is installed.
+
+        Checked at construction like a missing key, and for all providers at once, so an
+        install without the right extra fails before any I/O naming everything to add,
+        rather than with a bare ``ImportError`` from inside the first evaluation. An
+        injected ``llm_provider`` uses no built-in adapter, so it needs no vendor SDK.
+        """
+        missing = [provider for provider in self.providers_in_use if not sdk_installed(provider)]
+        if missing:
+            raise missing_sdk_error(missing, self.metadata.name)
 
     def _credentials_satisfied_by_injection(self) -> frozenset[str]:
         """Credentials an injected dependency already carries, so the config need not.

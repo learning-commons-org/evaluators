@@ -65,7 +65,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# One extra per provider, named by its `Provider` value, so the error for a missing SDK
+# names the extra mechanically. Each repeats its pin from `dependencies` above, where the
+# SDKs still sit so that no 1.x install changes; 2.0 drops them from there (DSCR-2625),
+# leaving the base install for callers who inject their own `llm_provider`. Bump a pin in
+# both places until then.
+openai = ["openai>=2.47.0,<4"]
+anthropic = ["anthropic>=1.0.0,<2"]
+google = ["google-genai>=1.39.0,<3"]
+all = ["learning-commons-evaluators[openai,anthropic,google]"]
 dev = [
+    # The unit tests build vendor exceptions, and mypy reads the vendor types.
+    "learning-commons-evaluators[all]",
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=5.0.0",
