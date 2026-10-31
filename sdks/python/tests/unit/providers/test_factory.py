@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import importlib.util
+import sys
+import types
+from typing import Any
+
 import pytest
 
 from learning_commons_evaluators.errors import ConfigurationError
 from learning_commons_evaluators.providers import Provider, ProviderConfig, create_provider
 from learning_commons_evaluators.providers.anthropic_sdk import AnthropicProvider
+from learning_commons_evaluators.providers.factory import missing_sdk_error, sdk_installed
 from learning_commons_evaluators.providers.google_genai import GoogleProvider
 from learning_commons_evaluators.providers.openai_sdk import OpenAIProvider
 
@@ -70,3 +76,65 @@ def test_max_retries_reaches_the_vendor_client() -> None:
     )
     assert anthropic_adapter._new_client is not None
     assert anthropic_adapter._new_client().max_retries == 0
+
+
+class TestVendorSDKs:
+    @pytest.fixture
+    def uninstalled(self, monkeypatch: pytest.MonkeyPatch) -> set[str]:
+        """Module names to treat as not installed; ``google.genai`` is found via ``google``."""
+        gone: set[str] = set()
+        find_spec = importlib.util.find_spec
+
+        def fake(name: str, package: str | None = None) -> Any:
+            if name in gone:
+                if name == "google.genai":
+                    raise ModuleNotFoundError("No module named 'google'", name="google")
+                return None
+            return find_spec(name, package)
+
+        monkeypatch.setattr(importlib.util, "find_spec", fake)
+        return gone
+
+    @pytest.mark.parametrize("provider", list(Provider))
+    def test_each_installed_sdk_is_found(self, provider: Provider) -> None:
+        assert sdk_installed(provider)
+
+    @pytest.mark.parametrize(
+        ("provider", "module"),
+        [
+            (Provider.OPENAI, "openai"),
+            (Provider.ANTHROPIC, "anthropic"),
+            (Provider.GOOGLE, "google.genai"),
+        ],
+    )
+    def test_a_missing_one_is_not(
+        self, uninstalled: set[str], provider: Provider, module: str
+    ) -> None:
+        uninstalled.add(module)
+        assert not sdk_installed(provider)
+        assert all(sdk_installed(other) for other in Provider if other is not provider)
+
+    def test_building_an_adapter_without_it_names_the_extra(self, uninstalled: set[str]) -> None:
+        uninstalled.add("google.genai")
+        with pytest.raises(ConfigurationError) as exc_info:
+            create_provider(ProviderConfig(type=Provider.GOOGLE, model="m", api_key="k"))
+        assert str(exc_info.value) == (
+            "The google provider needs the google-genai package, which is not installed. "
+            'Install it with: pip install "learning-commons-evaluators[google]"'
+        )
+
+    def test_the_error_names_every_missing_sdk_once(self) -> None:
+        error = missing_sdk_error(
+            [Provider.OPENAI, Provider.GOOGLE, Provider.OPENAI], "Vocabulary Complexity Evaluator"
+        )
+        assert str(error) == (
+            "Vocabulary Complexity Evaluator needs the openai and google-genai packages, which "
+            'are not installed. Install them with: pip install "learning-commons-evaluators[openai,google]"'
+        )
+
+    def test_a_module_stubbed_into_sys_modules_counts_as_installed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # ``find_spec`` raises for a module that has no spec; it is importable all the same.
+        monkeypatch.setitem(sys.modules, "anthropic", types.ModuleType("anthropic"))
+        assert sdk_installed(Provider.ANTHROPIC)
