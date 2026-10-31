@@ -29,19 +29,26 @@ classifiers = [
 # is admitted by a deliberate bump after the suite has run against it, not by resolution.
 # Dependabot (.github/dependabot.yml, pip ecosystem) proposes those bumps.
 #
-# Verified against: pydantic 2.13, textstat 0.7.13, openai 3.14, anthropic 1.6,
-# google-genai 2.23, httpx 0.28, attrs 26.1 (September 2026); pillow 12.3 (October 2026).
+# Verified against: pydantic 2.13, textstat 0.7.13, httpx 0.28, attrs 26.1 (September
+# 2026); pillow 12.3, openai 3.42, anthropic 2.3, google-genai 2.34 (October 2026).
+#
+# The lower bounds are the oldest versions the suite passes on, so a caller pinned to an
+# older release can still install the package; the `Lowest vendor SDKs` CI job installs
+# exactly those and runs it.
 dependencies = [
     "pydantic>=2.0.0,<3",
     "textstat>=0.7.0,<1",
     # Native provider SDKs (D10): one adapter per SDK under providers/. httpx is what
     # google-genai transports over and what the error taxonomy reads transport failures
     # from. openai (since 2.47.0) and anthropic (since 1.0.0) transport over httpx 2,
-    # published as the separate httpx2 package, which they bring themselves; the lower
-    # bounds are the first versions to do so, so httpx2 is always present for the error
-    # classifier and the tests that build the SDKs' exceptions.
-    "openai>=2.47.0,<4",
-    "anthropic>=1.0.0,<2",
+    # published as the separate httpx2 package, and earlier releases over httpx; the
+    # classifier reads either, looking httpx2 up only once something has imported it.
+    #
+    # 2.0.0 is the first openai to export `omit`, which the adapter sends for an absent
+    # parameter. 0.77.0 is the first anthropic whose `messages.create` takes
+    # `output_config`, which carries the structured-output format.
+    "openai>=2.0.0,<4",
+    "anthropic>=0.77.0,<3",
     # 1.39.0 is the first to let a client be closed (Client.close, AsyncClient.aclose).
     "google-genai>=1.39.0,<3",
     "httpx>=0.27.0,<1",
@@ -71,6 +78,9 @@ dev = [
     "pytest-cov>=5.0.0",
     "ruff>=0.9.0",
     "mypy>=1.14.0",
+    # The tests build openai and anthropic errors on httpx 2 responses. Their newer
+    # releases bring it themselves; at the lower bounds above nothing else does.
+    "httpx2>=2.0.0,<3",
     # `make generate-kg-client` / `make check-kg-client`. Pinned exactly: the generator's
     # output is committed, so a version bump is a large reviewable diff rather than a
     # surprise stale-client failure on someone else's PR.
