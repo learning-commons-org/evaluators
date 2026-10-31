@@ -304,7 +304,7 @@ evaluator = ToneAppropriatenessEvaluator(llm_provider=MyProvider())
 - Every LLM step of every evaluator, multi-step ones included, runs on it. No vendor API key is required; one passed anyway is unused. Non-LLM credentials still are: Math Standards Alignment needs `learning_commons_api_key` for the Knowledge Graph.
 - It cannot be combined with `model_override`, and an object missing any of the three members raises `ConfigurationError` at construction.
 - Evaluators that attach images (the graphics evaluators) also need `supports_attachments = True` on the provider and an `attachments` keyword on `generate_structured`.
-- Telemetry and `evaluation.metadata.model` report your `label`. A failed call raises the usual `DependencyError` with `dependency="custom"` and your label as `model`, whatever the label says.
+- `evaluation.metadata.model` reports your `label` as given, and a failed call raises the usual `DependencyError` with `dependency="custom"` and your label as `model`, whatever the label says. Telemetry reports it as `custom:<label>`, so it is never counted as one of the built-in providers.
 
 ## More resources
 

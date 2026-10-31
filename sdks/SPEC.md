@@ -149,6 +149,8 @@ Wherever a result or event reports which model ran:
 
 Model strings MUST reflect the model **actually used**, including any override.
 
+*(Draft)* A caller-supplied `llm_provider` (§3) reports its own `label` as its model string, which the SDK cannot verify. Results (§5.1) and errors (§6.2) carry the label as given. Telemetry (§8) carries `custom:{label}`, so an injected provider is never counted as a built-in one even when its label names a `Provider` value. Whether a provider is injected is decided by its identity (it is the configured `llm_provider`), never by parsing its label, and the prefix is always added, even to a label that already starts with `custom:`.
+
 ---
 
 ## 4. Input Validation

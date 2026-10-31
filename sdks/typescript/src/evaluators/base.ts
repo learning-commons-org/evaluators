@@ -466,6 +466,19 @@ export abstract class BaseEvaluator {
   }
 
   /**
+   * How telemetry names `provider` (spec §3.4): its label, marked when it was
+   * injected.
+   *
+   * An injected `llmProvider`'s label is the caller's own word, which nothing
+   * here can check, so telemetry reports it as `custom:{label}` and never counts
+   * it as a built-in vendor, whatever it says. Decided by identity, like
+   * `providerContext`; results and errors still carry the label as given.
+   */
+  protected telemetryLabel(provider: LLMProvider): string {
+    return provider === this.config.llmProvider ? `custom:${provider.label}` : provider.label;
+  }
+
+  /**
    * Dependency attribution for errors raised while calling `provider`.
    *
    * The injected `llmProvider` reports `custom` whatever it calls itself (spec

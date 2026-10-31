@@ -273,6 +273,18 @@ class BaseEvaluator(ABC):
 
     # --- telemetry -----------------------------------------------------------------
 
+    def _telemetry_label(self, provider: LLMProvider) -> str:
+        """How telemetry names ``provider`` (§3.4): its label, marked when it was injected.
+
+        An injected ``llm_provider``'s label is the caller's own word, which nothing here
+        can check, so telemetry reports it as ``custom:{label}`` and never counts it as a
+        built-in vendor, whatever it says. Decided by identity, like ``_provider_context``;
+        results and errors still carry the label as given.
+        """
+        if provider is self.config.llm_provider:
+            return f"custom:{provider.label}"
+        return provider.label
+
     @contextmanager
     def _telemetry_run(self, provider: str) -> Iterator[TelemetryRun]:
         """Report the evaluation running inside this block, however it ends.
