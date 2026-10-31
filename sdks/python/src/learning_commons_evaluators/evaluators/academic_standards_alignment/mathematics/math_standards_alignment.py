@@ -393,7 +393,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         input is telemetered rather than silently costing the caller nothing.
         """
         context: _Context = {"evaluator": self.metadata.id, "operation": "evaluate"}
-        with self._telemetry_run(self.provider.label) as run:
+        with self._telemetry_run(self._telemetry_label(self.provider)) as run:
             try:
                 # Every Knowledge Graph call happens here, so the client is closed before
                 # the model is asked rather than held open through the slowest step.
@@ -463,7 +463,12 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                     model=model,
                     logger=self.logger,
                 )
-                run.step(STEP.id, self.provider.label, response.latency_ms, response.usage)
+                run.step(
+                    STEP.id,
+                    self._telemetry_label(self.provider),
+                    response.latency_ms,
+                    response.usage,
+                )
 
                 result = MathStandardsAlignmentResult(
                     statement_code=statement_code,

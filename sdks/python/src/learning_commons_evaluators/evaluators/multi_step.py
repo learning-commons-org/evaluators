@@ -191,7 +191,7 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         raw = self._raw_fields(input, fields)
         # Until a step starts, the model named is the one the first declared step would
         # call, so a failure before any of them — a rejected input — still reports a model.
-        with self._telemetry_run(self._providers[self._steps[0].id].label) as run:
+        with self._telemetry_run(self._telemetry_label(self._providers[self._steps[0].id])) as run:
             try:
                 values = text_inputs(validate_inputs(raw, self.contract.input_schema))
                 text = values.get(self._text_field, "") if self._text_field else ""
@@ -211,7 +211,7 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                     provider = self._providers[step.id]
                     # Named before the call rather than after it, so a step that fails is
                     # reported against its own model and not against the last one to finish.
-                    run.provider = provider.label
+                    run.provider = self._telemetry_label(provider)
                     self.logger.debug(
                         "Running step %s", step.id, extra={**context, "operation": step.id}
                     )
@@ -219,7 +219,7 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                         step, provider, self._render_messages(step, values, outputs, computed)
                     )
                     outputs[step.id] = output
-                    run.step(step.id, provider.label, latency_ms, step_usage)
+                    run.step(step.id, self._telemetry_label(provider), latency_ms, step_usage)
 
                 final = outputs[plan[-1].id]
                 if not isinstance(final, self.output_model):
@@ -239,8 +239,9 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                     metadata=EvaluationMetadata(
                         # Every model that ran, in run order. One step, or several sharing a
                         # model, report that model alone; a branch that spans two report both,
-                        # because naming just the last would hide the model that fed it.
-                        model="+".join(dict.fromkeys(stage.provider for stage in run.stages)),
+                        # because naming just the last would hide the model that fed it. Read
+                        # off the providers, not the stages, whose names telemetry has marked.
+                        model="+".join(dict.fromkeys(self._providers[s.id].label for s in plan)),
                         processing_time_ms=elapsed_ms,
                         token_usage=EvaluationTokenUsage(
                             input_tokens=usage.input_tokens, output_tokens=usage.output_tokens
