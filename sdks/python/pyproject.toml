@@ -44,10 +44,10 @@ dependencies = [
     # published as the separate httpx2 package, and earlier releases over httpx; the
     # classifier reads either, looking httpx2 up only once something has imported it.
     #
-    # 2.0.0 is the first openai to export `omit`, which the adapter sends for an absent
+    # 1.108.1 is the first openai to export `omit`, which the adapter sends for an absent
     # parameter. 0.77.0 is the first anthropic whose `messages.create` takes
     # `output_config`, which carries the structured-output format.
-    "openai>=2.0.0,<4",
+    "openai>=1.108.1,<4",
     "anthropic>=0.77.0,<3",
     # 1.39.0 is the first to let a client be closed (Client.close, AsyncClient.aclose).
     "google-genai>=1.39.0,<3",
