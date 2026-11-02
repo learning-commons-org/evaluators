@@ -63,10 +63,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up Python
+      # The oldest Python the package supports, from `requires-python`, so the oldest SDKs
+      # run on the oldest interpreter a caller may have.
+      - name: Read the oldest supported Python
+        id: python
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import re, tomllib
+          spec = tomllib.load(open("pyproject.toml", "rb"))["project"]["requires-python"]
+          print(f"version={re.fullmatch(r'>=\s*(\d+\.\d+)(\.\d+)?', spec)[1]}")
+          PY
+
+      - name: Set up Python ${{ steps.python.outputs.version }}
         uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: ${{ steps.python.outputs.version }}
 
       # Each vendor SDK at the lower bound pyproject.toml declares, read from there so the
       # job tests whatever the bounds say. Tests only: mypy at these versions trips on test

@@ -27,15 +27,14 @@ classifiers = [
 # `messages.parse` and `extra_body`, google-genai `response_json_schema`, the SDKs'
 # exception attributes), which a major release may change without warning; a new major
 # is admitted by a deliberate bump after the suite has run against it, not by resolution.
-# Dependabot (.github/dependabot.yml, pip ecosystem) proposes those bumps.
+# Dependabot (.github/dependabot.yml, pip ecosystem) proposes those bumps. The `Verify`
+# CI jobs install the newest versions each range admits, so the upper end is always the
+# version under test.
 #
-# Verified against: pydantic 2.13, textstat 0.7.13, httpx 0.28, attrs 26.1 (September
-# 2026); pillow 12.3, openai 3.42, google-genai 2.34 (October 2026); anthropic 1.17 (November
-# 2026).
-#
-# The lower bounds are the oldest versions the suite passes on, so a caller pinned to an
-# older release can still install the package; the `Lowest vendor SDKs` CI job installs
-# exactly those and runs it.
+# The vendor SDK lower bounds (openai, anthropic, google-genai) are the oldest versions
+# the suite passes on, so a caller pinned to an older release can still install the
+# package; the `Lowest vendor SDKs` CI job installs exactly those and runs it. The other
+# lower bounds are not tested that way.
 dependencies = [
     "pydantic>=2.0.0,<3",
     "textstat>=0.7.0,<1",
