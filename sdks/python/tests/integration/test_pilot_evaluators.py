@@ -105,12 +105,13 @@ async def test_fixture(evaluator: type[BaseEvaluator], case: dict[str, Any]) -> 
         if outcome.score == expected:
             return
 
-    accept_adjacent = True
-    if evaluator.metadata.id == "durable_skills.ela_writing.critical_thinking":
-        # Critical Thinking is judged by its contract's tolerance, which asks for exact.
-        assert contract.fixtures is not None
-        accept_adjacent = bool(contract.fixtures.tolerance.get("allow_adjacent_levels"))
+    # The contract's tolerance decides whether a neighboring level passes; absent means it does.
+    tolerance = contract.fixtures.tolerance if contract.fixtures else {}
+    accept_adjacent = bool(tolerance.get("allow_adjacent_levels", True))
+    rule = (
+        "or a neighboring level" if accept_adjacent else "exactly (the contract allows no neighbor)"
+    )
     assert accept_adjacent and _adjacent(verdicts[-1], expected), (
-        f"{case['id']}: expected {expected}, got {verdicts} over {ATTEMPTS} attempts. "
-        f"Reasoning: {outcome.reasoning[:300]}"
+        f"{case['id']}: expected {expected} {rule}, got {verdicts} over {ATTEMPTS} "
+        f"attempts. Reasoning: {outcome.reasoning[:300]}"
     )

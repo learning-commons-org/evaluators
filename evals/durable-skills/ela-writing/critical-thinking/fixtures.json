@@ -46,7 +46,7 @@
   },
   {
     "id": "fabricated_citations_single_source",
-    "description": "Single-source prompt (2.1 omitted). Strong essay whose citations (Dr. Ortiz, Hillcrest pilot, Coach Reyes) do not appear in the only source passage. Under the round-up rule it scored Extending in 8 of 10 runs from an Exploring/Exploring/Extending/Extending split. Under the midpoint rule that split resolves to Integrating.",
+    "description": "Single-source prompt (2.1 omitted). Strong essay whose citations (Dr. Ortiz, Hillcrest pilot, Coach Reyes) do not appear in the only source passage. Under the round-up rule it scored Extending in 8 of 10 runs from an Exploring/Exploring/Extending/Extending split. Under the midpoint rule that split resolves to Integrating. Rule guard, not expert-rated: the expected label is what the midpoint rule gives for the model's own indicator split, unlike the two Round 3 cases above.",
     "input": {
       "assignment_text": "Your school board is deciding whether to move the high school start time from 7:30 to 8:30 a.m. Write a letter to the board arguing for or against the change. Use the sources, address the strongest opposing view, and explain your reasoning.",
       "source_passages": [

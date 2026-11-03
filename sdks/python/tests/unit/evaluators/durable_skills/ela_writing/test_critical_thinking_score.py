@@ -40,7 +40,7 @@ def test_five_ratings_take_the_middle() -> None:
     )
 
 
-def test_four_ratings_round_up() -> None:
+def test_neighboring_middle_ratings_round_up() -> None:
     assert median_rating(["exploring", "exploring", "analyzing", "analyzing"]) == "analyzing"
 
 

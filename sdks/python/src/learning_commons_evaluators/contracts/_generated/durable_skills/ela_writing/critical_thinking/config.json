@@ -94,7 +94,7 @@
     "path": "fixtures.json",
     "tolerance": {
       "allow_adjacent_levels": false,
-      "notes": "Exact match: a neighboring level would accept a slide from Integrating back to Extending on the single-source fabricated-citation case, which is the failure that case guards. Not Evident < Exploring < Analyzing < Integrating < Extending."
+      "notes": "If allow_adjacent_levels is true, predictions within one rubric step of the expected label count as a pass. Not Evident < Exploring < Analyzing < Integrating < Extending. It is false here because a neighboring level would accept a slide from Integrating back to Extending on the single-source fabricated-citation case, which is the failure that case guards."
     }
   }
 }

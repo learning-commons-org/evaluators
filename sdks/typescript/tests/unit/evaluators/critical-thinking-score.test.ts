@@ -31,7 +31,7 @@ describe('critical thinking score', () => {
     ).toBe('analyzing');
   });
 
-  it('rounds four ratings up', () => {
+  it('rounds neighboring middle ratings up', () => {
     expect(medianRating(['exploring', 'exploring', 'analyzing', 'analyzing'])).toBe('analyzing');
   });
 
