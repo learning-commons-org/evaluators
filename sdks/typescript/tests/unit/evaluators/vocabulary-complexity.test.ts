@@ -105,7 +105,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       expect(result.result.complexity_score).toBe('moderately_complex');
       expect(result.result.reasoning).toContain('grade-appropriate vocabulary');
       expect(result.metadata).toBeDefined();
-      expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20+openai:gpt-4.1-2025-04-14');
+      expect(result.metadata.model).toBe('openai:gpt-6-luna+openai:gpt-6-luna');
       // Not > 0: with both providers mocked and this branch computing no readability
       // score, the whole evaluation can finish inside one clock tick.
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
@@ -120,13 +120,13 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       // Verify background knowledge call
       const bgCall = vi.mocked(mockBackgroundProvider.generateText).mock.calls[0];
       expect(bgCall[0][0].content).toContain(testText);
-      expect(bgCall[1]).toBe(0); // temperature = 0
+      expect(bgCall[1]).toBe(1); // temperature = 1
 
       // Verify complexity call includes background knowledge
       const complexityCall = vi.mocked(mockComplexityProvider.generateStructured).mock.calls[0];
       expect(complexityCall[0].messages[1].content).toContain(testText);
       expect(complexityCall[0].schema).toBeDefined();
-      expect(complexityCall[0].temperature).toBe(0);
+      expect(complexityCall[0].temperature).toBe(1);
     });
 
 });
@@ -207,7 +207,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toHaveProperty('processingTimeMs');
 
       // Verify metadata values
-      expect(result.metadata.model).toBe('openai:gpt-4o-2024-11-20+openai:gpt-4.1-2025-04-14');
+      expect(result.metadata.model).toBe('openai:gpt-6-luna+openai:gpt-6-luna');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0); // Mocked calls can be instant (0ms)
       expect(result.metadata.tokenUsage.inputTokens).toBe(300);
       expect(result.metadata.tokenUsage.outputTokens).toBe(150);
@@ -275,13 +275,13 @@ describe('VocabularyComplexityEvaluator - complexity model per grade', () => {
   // The grade picks the complexity model, and the reported label has to name the one that
   // ran. Every other test in this file uses grade 5+, so the grades 3-4 branch went
   // unexercised and reported the grade 5-12 model for a year.
-  const BACKGROUND = 'openai:gpt-4o-2024-11-20';
+  const BACKGROUND = 'openai:gpt-6-luna';
 
   const CASES = [
     { grade: '3', provider: 'grades34ComplexityProvider', model: 'google:gemini-2.5-pro' },
     { grade: '4', provider: 'grades34ComplexityProvider', model: 'google:gemini-2.5-pro' },
-    { grade: '5', provider: 'otherGradesComplexityProvider', model: 'openai:gpt-4.1-2025-04-14' },
-    { grade: '12', provider: 'otherGradesComplexityProvider', model: 'openai:gpt-4.1-2025-04-14' },
+    { grade: '5', provider: 'otherGradesComplexityProvider', model: 'openai:gpt-6-luna' },
+    { grade: '12', provider: 'otherGradesComplexityProvider', model: 'openai:gpt-6-luna' },
   ] as const;
 
   it.each(CASES)(

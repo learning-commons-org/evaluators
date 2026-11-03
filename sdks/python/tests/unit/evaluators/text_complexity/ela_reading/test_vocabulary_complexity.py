@@ -20,9 +20,9 @@ from tests.unit.conftest import ProviderFactory
 TEXT = "Polo went on a 24-year trip to China with his father and uncle, merchants of Venice."
 KEYS = {"openai_api_key": "o", "google_api_key": "g"}
 
-BACKGROUND_MODEL = "openai:gpt-4o-2024-11-20"
+BACKGROUND_MODEL = "openai:gpt-6-luna"
 GRADES_34_MODEL = "google:gemini-2.5-pro"
-OTHER_GRADES_MODEL = "openai:gpt-4.1-2025-04-14"
+OTHER_GRADES_MODEL = "openai:gpt-6-luna"
 
 
 def test_metadata_is_the_contracts() -> None:

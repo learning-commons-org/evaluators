@@ -327,7 +327,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
    * Stage 2: Evaluate vocabulary complexity
    *
    * Uses the Qual Text Complexity rubric (SAP) and background knowledge to evaluate vocabulary complexity.
-   * Grades 3-4 use Gemini 2.5 Pro; grade levels 5-12 use GPT-4.1.
+   * Grades 3-4 use Gemini 2.5 Pro; grade levels 5-12 use gpt-6-luna.
    */
   private async evaluateComplexity(
     text: string,
