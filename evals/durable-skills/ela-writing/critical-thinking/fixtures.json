@@ -43,5 +43,22 @@
     "expected": {
       "critical_thinking_score": "exploring"
     }
+  },
+  {
+    "id": "fabricated_citations_single_source",
+    "description": "Single-source prompt (2.1 omitted). Strong essay whose citations (Dr. Ortiz, Hillcrest pilot, Coach Reyes) do not appear in the only source passage. Under the round-up rule it scored Extending in 8 of 10 runs from an Exploring/Exploring/Extending/Extending split. Under the midpoint rule that split resolves to Integrating.",
+    "input": {
+      "assignment_text": "Your school board is deciding whether to move the high school start time from 7:30 to 8:30 a.m. Write a letter to the board arguing for or against the change. Use the sources, address the strongest opposing view, and explain your reasoning.",
+      "source_passages": [
+        {
+          "author": "Coach Mike",
+          "text": "It really doesn't matter either way."
+        }
+      ],
+      "essay_text": "Dear Members of the School Board,\n\nI believe you should move the start time to 8:30, but the reason is not that teenagers are lazy or that later is always better. The reason is that the sources, read together, show a biology problem that a schedule can fix.\n\nDr. Ortiz explains that melatonin arrives about two hours later at puberty, so most teenagers \"cannot fall asleep before about 11 p.m.\" If that is true, and a 7:30 start means waking at about 6, then the most sleep a typical student can get is about seven hours, which is below the 8 to 10 hours teenagers need. The assumption here is that students fall asleep close to 11; Ortiz's survey, where 7 in 10 sleep fewer than 8 hours, suggests that assumption matches real life. So the early start does not just happen to go along with tired students; it makes them almost unavoidable.\n\nHillcrest's pilot is the test of that reasoning, and not all of its results are equally strong. The sleep trackers, which recorded 34 more minutes a night, are the strongest evidence because they measure sleep directly and match Ortiz's mechanism. The 25 percent drop in tardies is also strong, since being late to first period is exactly what a later bell should change. The rise in first-period grades is the weakest evidence: a new math curriculum started the same year, so concluding the later start caused better grades would be a post hoc mistake. I would not base the decision on grades at all.\n\nCoach Reyes argues that \"kids will just stay up an hour later.\" This is the most serious objection, because if it were true, the change would gain nothing. But Hillcrest's trackers show bedtimes moved only 10 minutes later while sleep rose 34 minutes, which is what Ortiz's biology predicts: students were already unable to fall asleep earlier, so the extra hour went to sleep. His point about students who work after school and about evening practices is reasonable, and the board should take it seriously, perhaps by moving practices to weekends or adjusting work schedules with local employers. His claim that \"we got up at 6 and we turned out fine\" is not relevant evidence, though. It is one person's memory, and it compares his generation to today's students as if they were the same situation, which is a false equivalence; it cannot outweigh sleep that was actually measured.\n\nThe real cost is the $400,000 for buses. Putting the sources together raises a question none of them answers: would the 3-point rise in attendance bring in enough state funding to cover part of that cost? I ask the board to adopt the 8:30 start and to study that question during the first year, measuring sleep and attendance again instead of grades.\n\nSincerely,\nA Grade 10 Student"
+    },
+    "expected": {
+      "critical_thinking_score": "integrating"
+    }
   }
 ]

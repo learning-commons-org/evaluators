@@ -105,7 +105,12 @@ async def test_fixture(evaluator: type[BaseEvaluator], case: dict[str, Any]) -> 
         if outcome.score == expected:
             return
 
-    assert _adjacent(verdicts[-1], expected), (
+    accept_adjacent = True
+    if evaluator.metadata.id == "durable_skills.ela_writing.critical_thinking":
+        # Critical Thinking is judged by its contract's tolerance, which asks for exact.
+        assert contract.fixtures is not None
+        accept_adjacent = bool(contract.fixtures.tolerance.get("allow_adjacent_levels"))
+    assert accept_adjacent and _adjacent(verdicts[-1], expected), (
         f"{case['id']}: expected {expected}, got {verdicts} over {ATTEMPTS} attempts. "
         f"Reasoning: {outcome.reasoning[:300]}"
     )
