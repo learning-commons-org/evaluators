@@ -105,7 +105,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       expect(result.result.complexity_score).toBe('moderately_complex');
       expect(result.result.reasoning).toContain('grade-appropriate vocabulary');
       expect(result.metadata).toBeDefined();
-      expect(result.metadata.model).toBe('openai:gpt-6-luna+openai:gpt-6-luna');
+      expect(result.metadata.model).toBe('openai:gpt-6-luna');
       // Not > 0: with both providers mocked and this branch computing no readability
       // score, the whole evaluation can finish inside one clock tick.
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
@@ -207,7 +207,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toHaveProperty('processingTimeMs');
 
       // Verify metadata values
-      expect(result.metadata.model).toBe('openai:gpt-6-luna+openai:gpt-6-luna');
+      expect(result.metadata.model).toBe('openai:gpt-6-luna');
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0); // Mocked calls can be instant (0ms)
       expect(result.metadata.tokenUsage.inputTokens).toBe(300);
       expect(result.metadata.tokenUsage.outputTokens).toBe(150);
@@ -327,8 +327,9 @@ describe('VocabularyComplexityEvaluator - complexity model per grade', () => {
       // The model that ran.
       expect(complexity.generateStructured).toHaveBeenCalledTimes(1);
       expect(unused.generateStructured).not.toHaveBeenCalled();
-      // The model that is reported. These two disagreeing is the bug.
-      expect(result.metadata.model).toBe(`${BACKGROUND}+${model}`);
+      // The model that is reported. These two disagreeing is the bug. A branch that runs
+      // the background model again names it once (SPEC §3.4).
+      expect(result.metadata.model).toBe(model === BACKGROUND ? model : `${BACKGROUND}+${model}`);
     },
   );
 });

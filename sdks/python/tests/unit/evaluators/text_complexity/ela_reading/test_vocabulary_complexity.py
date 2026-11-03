@@ -78,7 +78,9 @@ class TestGradeSelectsTheBranch:
         assert "It is intended for grade 7." in rating["messages"][1]["content"]
         # The entry's own condition excludes these grades, so the score is never computed.
         assert "Flesch-Kincaid" not in rating["messages"][1]["content"]
-        assert evaluation.metadata.model == f"{BACKGROUND_MODEL}+{OTHER_GRADES_MODEL}"
+        # Both steps run the same model, so the label names it once (SPEC §3.4).
+        assert OTHER_GRADES_MODEL == BACKGROUND_MODEL
+        assert evaluation.metadata.model == OTHER_GRADES_MODEL
 
     async def test_only_one_branch_runs(self, providers: ProviderFactory) -> None:
         await VocabularyComplexityEvaluator(**KEYS).evaluate(text=TEXT, grade_level=7)
