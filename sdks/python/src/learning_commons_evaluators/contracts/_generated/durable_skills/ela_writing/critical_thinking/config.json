@@ -44,7 +44,7 @@
           {
             "role": "system",
             "source_path": "system.txt",
-            "sha256": "b43d02e28dbda92fa29013ca709bf9e8656235450b04204914ad9e5cf4a5afb9"
+            "sha256": "c186aba9c6076ab3d86a2421d94fa9672f7b1c71bde89e5534f8034b46e816e5"
           },
           {
             "role": "user",
