@@ -199,8 +199,8 @@ def add_engineered_features(
         _ratio(_count(analysis, "num_sophisticated_transitions"), transitions) * 100
     )
 
-    # Preserve the notebook's ties-to-even rounding; cross-SDK rounding alignment
-    # is tracked separately in DSCR-2223.
+    # Keep one-decimal rounding for default callers. The sentence-structure evaluator
+    # sets round_values=False so its serializer can floor the unrounded values.
     features.update(
         {
             name: round(value, PRECISION) if round_values else value
@@ -210,18 +210,15 @@ def add_engineered_features(
     return features
 
 
-def features_to_json(
-    features: Mapping[str, Any], *, cast_to_int: bool = True, floor_values: bool = False
-) -> str:
+def features_to_json(features: Mapping[str, Any], *, floor_values: bool = False) -> str:
     """:data:`FEATURE_COLS` as the JSON object bound to ``{sentence_features}``.
 
-    ``floor_values=True`` floors the supplied values without preliminary rounding and
-    takes precedence over ``cast_to_int``. Supply unrounded features for this mode.
-    Otherwise, ``cast_to_int=False`` retains one decimal place. Defaults preserve the
-    legacy serializer API.
+    ``floor_values=True`` floors the supplied values without preliminary rounding.
+    Supply unrounded features for this mode. The default preserves the legacy behavior
+    of truncating the supplied values to integers.
     A feature the analysis did not produce is sent as ``null`` rather than zero.
     """
-    payload: dict[str, int | float | None] = {}
+    payload: dict[str, int | None] = {}
     for name in FEATURE_COLS:
         value = features.get(name)
         if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -231,7 +228,7 @@ def features_to_json(
         elif floor_values:
             payload[name] = math.floor(value)
         else:
-            payload[name] = int(value) if cast_to_int else round(value, PRECISION)
+            payload[name] = int(value)
     return json.dumps(payload, indent=2)
 
 
