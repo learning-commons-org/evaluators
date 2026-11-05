@@ -12,7 +12,7 @@ import { medianRating, presentRatings } from '../unit/evaluators/critical-thinki
  *
  * Cases are this evaluator's `fixtures.json`. `critical_thinking_score` is the expected
  * verdict. A neighboring level on not_evident < exploring < analyzing < integrating <
- * extending is acceptable, which is the contract's `allow_adjacent_levels` rule.
+ * extending is acceptable only when the contract's `allow_adjacent_levels` is true.
  *
  * Anthropic is the provider this contract names, and CI does not supply that key, so a
  * missing key skips the suite.
@@ -61,7 +61,9 @@ const TEST_CASES: BaseTestCase[] = FIXTURES.map((fixture) => ({
   id: fixture.id,
   inputs: fixture.input,
   expected: fixture.expected.critical_thinking_score,
-  acceptable: neighbors(fixture.expected.critical_thinking_score),
+  acceptable: CONFIG.fixtures.tolerance.allow_adjacent_levels
+    ? neighbors(fixture.expected.critical_thinking_score)
+    : [],
 }));
 
 // Three long passages are the expensive call. The case stays in fixtures.json.
