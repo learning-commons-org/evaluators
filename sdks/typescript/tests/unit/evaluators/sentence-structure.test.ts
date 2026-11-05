@@ -190,6 +190,59 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
     expect(prompt.match(/`avg_words_per_sentence`/g)).toHaveLength(4);
   });
 
+  it.each([
+    ['3', 'num_sentences_with_subordinate', 624, 2500, 24, 25, false],
+    ['3', 'num_sentences_with_subordinate', 449, 1000, 44, 45, false],
+    ['3', 'num_sentences_with_subordinate', 1124, 2500, 44, 45, false],
+    ['3', 'num_sentences_with_subordinate', 45, 100, 45, 45, true],
+    ['3', 'num_simple_sentences', 1499, 2500, 59, 60, false],
+    ['3', 'num_simple_sentences', 3, 5, 60, 60, true],
+    ['3', 'num_simple_sentences', 121, 200, 60, 60, true],
+    ['4', 'num_sentences_with_subordinate', 749, 2500, 29, 30, false],
+    ['4', 'num_sentences_with_subordinate', 1249, 2500, 49, 50, false],
+    ['4', 'num_sentences_with_subordinate', 1, 2, 50, 50, true],
+    ['4', 'num_sentences_with_multiple_subordinates', 199, 2500, 7, 8, false],
+    ['4', 'num_sentences_with_multiple_subordinates', 2, 25, 8, 8, true],
+  ] as const)('percentage boundaries in classification request: grade %s, %s = %i/%i', async (
+    grade, countName, numerator, denominator, expected, boundary, atOrAbove,
+  ) => {
+    // Mock counts, not the preprocessing. 44.9 catches whole-number rounding;
+    // 44.96 and 59.96 catch rounding to one decimal before truncation.
+    vi.mocked(mockProvider.generateStructured)
+      .mockResolvedValueOnce({
+        data: {
+          ...createMockSentenceAnalysis(),
+          num_sentences: denominator,
+          num_words: denominator * 10,
+          sentence_word_counts: Array(denominator).fill(10),
+          [countName]: numerator,
+        },
+        model: 'gpt-4o',
+        usage: { inputTokens: 1, outputTokens: 1 },
+        latencyMs: 0,
+      })
+      .mockResolvedValueOnce({
+        data: { complexity_score: 'slightly_complex', reasoning: 'Mock classification' },
+        model: 'gpt-4o',
+        usage: { inputTokens: 1, outputTokens: 1 },
+        latencyMs: 0,
+      });
+
+    await evaluator.evaluate({ text: 'Test passage.', grade_level: grade });
+    const messages = vi.mocked(mockProvider.generateStructured).mock.calls[1][0].messages;
+    const prompt = messages.map((message) => message.content).join('\n');
+    const features = JSON.parse(prompt.split('# TEXT STATISTICS\n')[1]);
+    const featureName = countName.replace('num_', 'percent_');
+    expect(features[featureName]).toBe(expected);
+    expect(features[featureName] >= boundary).toBe(atOrAbove);
+    expect(features[featureName] < boundary).toBe(!atOrAbove);
+    expect(prompt.split('\n').some((line) =>
+      line.includes(`\`${featureName}\``) && line.includes(`>= ${boundary}%`),
+    )).toBe(true);
+    // The mocked final label does not test LLM accuracy; the request's numeric
+    // values and inclusive cutoff instructions are the regression contract.
+  });
+
   describe('Error Handling', () => {
     it('should handle sentence analysis API failure', async () => {
       const testText = 'Test text here for API failure';
