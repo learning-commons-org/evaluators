@@ -41,10 +41,13 @@ ANALYSIS = SentenceAnalysis.model_validate(
             for name, field in SentenceAnalysis.model_fields.items()
             if field.annotation is float
         },
-        "reasoning": "two sentences",
-        "num_sentences": 2,
-        "num_words": 20,
-        "sentence_word_counts": [6, 14],
+        "reasoning": "synthetic sentence-length boundary case",
+        "num_sentences": 25,
+        "num_words": 299,
+        "sentence_word_counts": [12] * 24 + [11],
+        "num_subordinate_clauses": 1,
+        "num_simple_transitions": 1,
+        "num_sophisticated_transitions": 0,
     }
 )
 
@@ -91,11 +94,72 @@ async def test_the_classification_step_reads_the_features_derived_from_the_analy
 ) -> None:
     await SentenceStructureEvaluator(openai_api_key="o").evaluate(text=TEXT, grade_level=5)
     user = providers.calls[1]["messages"][1]["content"]
-    expected = features_to_json(add_engineered_features(ANALYSIS.model_dump()))
+    expected = features_to_json(
+        add_engineered_features(ANALYSIS.model_dump(), round_values=False), floor_values=True
+    )
     assert expected in user
-    # Derived, not passed through: 20 words over 2 sentences, truncated for the prompt.
-    assert json.loads(expected)["avg_words_per_sentence"] == 10
+    # Floor the raw ratio 299/25 = 11.96, without rounding it up to 12 first.
+    assert json.loads(expected)["avg_words_per_sentence"] == 11
+    assert json.loads(expected)["avg_subordinates_per_sentence"] == 0
+    assert json.loads(expected)["avg_transitions_per_sentence"] == 0
     assert TEXT in user
+
+
+@pytest.mark.parametrize(
+    ("grade", "count_name", "numerator", "denominator", "expected", "boundary", "at_or_above"),
+    [
+        (3, "num_sentences_with_subordinate", 624, 2500, 24, 25, False),
+        (3, "num_sentences_with_subordinate", 449, 1000, 44, 45, False),
+        (3, "num_sentences_with_subordinate", 1124, 2500, 44, 45, False),
+        (3, "num_sentences_with_subordinate", 45, 100, 45, 45, True),
+        (3, "num_simple_sentences", 1499, 2500, 59, 60, False),
+        (3, "num_simple_sentences", 3, 5, 60, 60, True),
+        (3, "num_simple_sentences", 121, 200, 60, 60, True),
+        (4, "num_sentences_with_subordinate", 749, 2500, 29, 30, False),
+        (4, "num_sentences_with_subordinate", 1249, 2500, 49, 50, False),
+        (4, "num_sentences_with_subordinate", 1, 2, 50, 50, True),
+        (4, "num_sentences_with_multiple_subordinates", 199, 2500, 7, 8, False),
+        (4, "num_sentences_with_multiple_subordinates", 2, 25, 8, 8, True),
+    ],
+)
+async def test_percentage_boundaries_in_classification_request(
+    providers: ProviderFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    grade: int,
+    count_name: str,
+    numerator: int,
+    denominator: int,
+    expected: int,
+    boundary: int,
+    at_or_above: bool,
+) -> None:
+    # Mock the grammatical counts, then inspect the real classification request.
+    # In particular, 44.9 catches TS whole-number rounding; 44.96 and 59.96
+    # catch rounding to one decimal before truncation in either SDK.
+    monkeypatch.setitem(
+        globals(),
+        "ANALYSIS",
+        ANALYSIS.model_copy(
+            update={
+                "num_sentences": denominator,
+                "num_words": denominator * 10,
+                "sentence_word_counts": [10] * denominator,
+                count_name: numerator,
+            }
+        ),
+    )
+    await SentenceStructureEvaluator(openai_api_key="o").evaluate(text=TEXT, grade_level=grade)
+    user = providers.calls[1]["messages"][1]["content"]
+    features = json.loads(user.split("# TEXT STATISTICS\n", 1)[1])
+    feature_name = count_name.replace("num_", "percent_", 1)
+    assert features[feature_name] == expected
+    assert (features[feature_name] >= boundary) is at_or_above
+    assert (features[feature_name] < boundary) is (not at_or_above)
+    assert any(
+        f"`{feature_name}`" in line and f">= {boundary}%" in line for line in user.splitlines()
+    )
+    # The mocked final label is not evidence of LLM accuracy. This test guards
+    # the numbers and inclusive cutoff instructions that the classifier receives.
 
 
 @pytest.mark.parametrize(
@@ -109,6 +173,12 @@ async def test_the_rubric_for_the_grade_is_the_one_the_contract_names(
     rubric = SentenceStructureEvaluator.contract.document(marker)
     user = providers.calls[1]["messages"][1]["content"]
     assert f"# GRADE {grade} RUBRIC\n{rubric}" in user
+    assert "avg_sentence_length" not in user
+    if grade in (3, 4):
+        assert rubric.count("avg_words_per_sentence") == 4
+        assert "typically between " not in rubric
+        assert " > " not in rubric
+        assert ">= " in rubric
 
 
 async def test_returns_the_classification_as_the_result(providers: ProviderFactory) -> None:
