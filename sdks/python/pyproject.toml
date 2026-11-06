@@ -34,16 +34,8 @@ classifiers = [
 dependencies = [
     "pydantic>=2.0.0,<3",
     "textstat>=0.7.0,<1",
-    # Native provider SDKs (D10): one adapter per SDK under providers/. httpx is what
-    # google-genai transports over and what the error taxonomy reads transport failures
-    # from. openai (since 2.47.0) and anthropic (since 1.0.0) transport over httpx 2,
-    # published as the separate httpx2 package, which they bring themselves; the lower
-    # bounds are the first versions to do so, so httpx2 is always present for the error
-    # classifier and the tests that build the SDKs' exceptions.
-    "openai>=2.47.0,<4",
-    "anthropic>=1.0.0,<2",
-    # 1.39.0 is the first to let a client be closed (Client.close, AsyncClient.aclose).
-    "google-genai>=1.39.0,<3",
+    # What the Knowledge Graph client and google-genai transport over, and what the error
+    # taxonomy reads transport failures from. The provider SDKs are extras, below.
     "httpx>=0.27.0,<1",
     # Image inputs (features/image_source.py): reads an attached file's format and
     # dimensions from its header, without decoding pixels, to enforce the contract's
@@ -65,13 +57,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# One extra per provider, named by its `Provider` value, so the error for a missing SDK
-# names the extra mechanically. Each repeats its pin from `dependencies` above, where the
-# SDKs still sit so that no 1.x install changes; 2.0 drops them from there (DSCR-2625),
-# leaving the base install for callers who inject their own `llm_provider`. Bump a pin in
-# both places until then.
+# Native provider SDKs (D10), one extra per adapter under providers/, named by its
+# `Provider` value so the error for a missing SDK names the extra mechanically. None is
+# in the base install: a caller who injects their own `llm_provider` needs none of them,
+# and most evaluators call one provider. The caps follow the rule above.
+#
+# openai (since 2.47.0) and anthropic (since 1.0.0) transport over httpx 2, published as
+# the separate httpx2 package, which they bring themselves; the lower bounds are the first
+# versions to do so, so httpx2 is present for the error classifier wherever their errors
+# can be raised, and for the tests that build those errors.
 openai = ["openai>=2.47.0,<4"]
 anthropic = ["anthropic>=1.0.0,<2"]
+# 1.39.0 is the first to let a client be closed (Client.close, AsyncClient.aclose).
 google = ["google-genai>=1.39.0,<3"]
 all = ["learning-commons-evaluators[openai,anthropic,google]"]
 dev = [

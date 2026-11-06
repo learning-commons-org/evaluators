@@ -68,13 +68,11 @@ jobs:
         with:
           python-version: "3.13"
 
-      # 1.x still lists the vendor SDKs as dependencies, so they are removed again here;
-      # from 2.0 the plain install brings none and the uninstall step can go.
-      - name: Install the package without vendor SDKs
+      # The plain install, as a caller who brings their own provider has it.
+      - name: Install the package without extras
         run: |
           python -m pip install --upgrade pip
           pip install . pytest pytest-asyncio
-          pip uninstall -y openai anthropic google-genai
 
       - name: Every evaluator without them
         run: python -m pytest tests/unit/test_without_vendor_sdks.py -p no:cacheprovider
