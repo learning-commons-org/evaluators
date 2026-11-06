@@ -2,6 +2,13 @@
 
 All notable changes to the `learning-commons-evaluators` Python SDK will be documented in this file.
 
+## [1.2.1](https://github.com/learning-commons-org/evaluators/compare/sdks-python-v1.2.0...sdks-python-v1.2.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **sentence-structure:** align feature names, flooring, and rubric boundaries ([#404](https://github.com/learning-commons-org/evaluators/issues/404)) ([e1b5dfb](https://github.com/learning-commons-org/evaluators/commit/e1b5dfb4631ffff37819e18d040efca04506bb5d))
+
 ## [1.2.0](https://github.com/learning-commons-org/evaluators/compare/sdks-python-v1.1.0...sdks-python-v1.2.0) (2026-11-04)
 
 
