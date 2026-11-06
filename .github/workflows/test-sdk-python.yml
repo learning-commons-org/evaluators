@@ -53,6 +53,32 @@ jobs:
       - name: make verify
         run: make verify
 
+  without-vendor-sdks:
+    name: Without vendor SDKs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/python
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      # 1.x still lists the vendor SDKs as dependencies, so they are removed again here;
+      # from 2.0 the plain install brings none and the uninstall step can go.
+      - name: Install the package without vendor SDKs
+        run: |
+          python -m pip install --upgrade pip
+          pip install . pytest pytest-asyncio
+          pip uninstall -y openai anthropic google-genai
+
+      - name: Every evaluator without them
+        run: python -m pytest tests/unit/test_without_vendor_sdks.py -p no:cacheprovider
+
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
