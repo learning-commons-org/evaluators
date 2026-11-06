@@ -105,7 +105,13 @@ async def test_fixture(evaluator: type[BaseEvaluator], case: dict[str, Any]) -> 
         if outcome.score == expected:
             return
 
-    assert _adjacent(verdicts[-1], expected), (
-        f"{case['id']}: expected {expected}, got {verdicts} over {ATTEMPTS} attempts. "
-        f"Reasoning: {outcome.reasoning[:300]}"
+    # The contract's tolerance decides whether a neighboring level passes; absent means it does.
+    tolerance = contract.fixtures.tolerance if contract.fixtures else {}
+    accept_adjacent = bool(tolerance.get("allow_adjacent_levels", True))
+    rule = (
+        "or a neighboring level" if accept_adjacent else "exactly (the contract allows no neighbor)"
+    )
+    assert accept_adjacent and _adjacent(verdicts[-1], expected), (
+        f"{case['id']}: expected {expected} {rule}, got {verdicts} over {ATTEMPTS} "
+        f"attempts. Reasoning: {outcome.reasoning[:300]}"
     )
