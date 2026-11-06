@@ -92,7 +92,7 @@ describe('Anthropic modelOverride — plumbing', () => {
 });
 
 describe('Anthropic modelOverride — vocabulary multi-model collapse', () => {
-  // Vocabulary deliberately uses three models; an override collapses all three.
+  // Vocabulary has three call sites on two models; an override collapses all three.
   // Asserted so the CLI can warn rather than surprise users.
   it('collapses all three vocabulary call sites onto the single override model', () => {
     new VocabularyComplexityEvaluator(anthropicOnlyConfig());
@@ -102,7 +102,7 @@ describe('Anthropic modelOverride — vocabulary multi-model collapse', () => {
     expect(models).toEqual([ANTHROPIC_MODEL, ANTHROPIC_MODEL, ANTHROPIC_MODEL]);
   });
 
-  it('uses three distinct models across two providers without an override', () => {
+  it('uses two distinct models across two providers without an override', () => {
     new VocabularyComplexityEvaluator({
       googleApiKey: 'g-test',
       openaiApiKey: 'o-test',
@@ -111,6 +111,6 @@ describe('Anthropic modelOverride — vocabulary multi-model collapse', () => {
 
     const calls = createProvider.mock.calls.map(([arg]) => arg);
     expect(calls.map((c) => c.type)).toEqual([Provider.Google, Provider.OpenAI, Provider.OpenAI]);
-    expect(new Set(calls.map((c) => c.model)).size).toBe(3);
+    expect(new Set(calls.map((c) => c.model)).size).toBe(2);
   });
 });
