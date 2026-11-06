@@ -2,6 +2,13 @@
 
 All notable changes to the `@learning-commons/evaluators` TypeScript SDK will be documented in this file.
 
+## [1.3.1](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v1.3.0...sdks-typescript-v1.3.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **sentence-structure:** align feature names, flooring, and rubric boundaries ([#404](https://github.com/learning-commons-org/evaluators/issues/404)) ([e1b5dfb](https://github.com/learning-commons-org/evaluators/commit/e1b5dfb4631ffff37819e18d040efca04506bb5d))
+
 ## [1.3.0](https://github.com/learning-commons-org/evaluators/compare/sdks-typescript-v1.2.0...sdks-typescript-v1.3.0) (2026-11-04)
 
 
