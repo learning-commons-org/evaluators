@@ -120,13 +120,13 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       // Verify background knowledge call
       const bgCall = vi.mocked(mockBackgroundProvider.generateText).mock.calls[0];
       expect(bgCall[0][0].content).toContain(testText);
-      expect(bgCall[1]).toBe(1); // temperature = 1
+      expect(bgCall[1]).toBeNull(); // temperature = null: the parameter is omitted
 
       // Verify complexity call includes background knowledge
       const complexityCall = vi.mocked(mockComplexityProvider.generateStructured).mock.calls[0];
       expect(complexityCall[0].messages[1].content).toContain(testText);
       expect(complexityCall[0].schema).toBeDefined();
-      expect(complexityCall[0].temperature).toBe(1);
+      expect(complexityCall[0].temperature).toBeNull();
     });
 
 });

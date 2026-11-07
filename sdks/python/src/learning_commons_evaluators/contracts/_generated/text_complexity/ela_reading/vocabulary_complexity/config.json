@@ -88,7 +88,7 @@
         "name": "gpt-6-luna"
       },
       "generation": {
-        "temperature": 1
+        "temperature": null
       },
       "parser": {
         "kind": "structured_output"
@@ -198,7 +198,7 @@
         "name": "gpt-6-luna"
       },
       "generation": {
-        "temperature": 1
+        "temperature": null
       },
       "parser": {
         "kind": "structured_output"
