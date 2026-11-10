@@ -139,10 +139,10 @@
       },
       "model": {
         "provider": "google",
-        "name": "gemini-2.5-pro"
+        "name": "gemini-3.8-flash"
       },
       "generation": {
-        "temperature": 0
+        "temperature": null
       },
       "parser": {
         "kind": "structured_output"

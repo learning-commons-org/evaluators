@@ -90,7 +90,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
           reasoning: 'The text uses grade-appropriate vocabulary.',
           factors: ['Academic terminology', 'Clear structure'],
         },
-        model: 'gemini-2.5-pro',
+        model: 'gemini-3.8-flash',
         usage: {
           inputTokens: 200,
           outputTokens: 100,
@@ -189,7 +189,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
           reasoning: 'Detailed reasoning here',
           factors: ['Factor 1', 'Factor 2'],
         },
-        model: 'gemini-2.5-pro',
+        model: 'gemini-3.8-flash',
         usage: { inputTokens: 200, outputTokens: 100 },
         latencyMs: 800,
       });
@@ -258,7 +258,7 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
 
       vi.mocked(mockComplexityProvider.generateStructured).mockResolvedValue({
         data: mockComplexityData,
-        model: 'gemini-2.5-pro',
+        model: 'gemini-3.8-flash',
         usage: { inputTokens: 200, outputTokens: 100 },
         latencyMs: 800,
       });
@@ -278,8 +278,8 @@ describe('VocabularyComplexityEvaluator - complexity model per grade', () => {
   const BACKGROUND = 'openai:gpt-6-luna';
 
   const CASES = [
-    { grade: '3', provider: 'grades34ComplexityProvider', model: 'google:gemini-2.5-pro' },
-    { grade: '4', provider: 'grades34ComplexityProvider', model: 'google:gemini-2.5-pro' },
+    { grade: '3', provider: 'grades34ComplexityProvider', model: 'google:gemini-3.8-flash' },
+    { grade: '4', provider: 'grades34ComplexityProvider', model: 'google:gemini-3.8-flash' },
     { grade: '5', provider: 'otherGradesComplexityProvider', model: 'openai:gpt-6-luna' },
     { grade: '12', provider: 'otherGradesComplexityProvider', model: 'openai:gpt-6-luna' },
   ] as const;

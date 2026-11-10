@@ -21,7 +21,7 @@ TEXT = "Polo went on a 24-year trip to China with his father and uncle, merchant
 KEYS = {"openai_api_key": "o", "google_api_key": "g"}
 
 BACKGROUND_MODEL = "openai:gpt-6-luna"
-GRADES_34_MODEL = "google:gemini-2.5-pro"
+GRADES_34_MODEL = "google:gemini-3.8-flash"
 OTHER_GRADES_MODEL = "openai:gpt-6-luna"
 
 
