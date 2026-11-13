@@ -2,6 +2,20 @@
 
 All notable changes to the `learning-commons-evaluators` Python SDK will be documented in this file.
 
+## [1.3.0](https://github.com/learning-commons-org/evaluators/compare/sdks-python-v1.2.0...sdks-python-v1.3.0) (2026-11-13)
+
+
+### Features
+
+* **python-sdk:** add llm_provider to inject a caller-supplied LLM provider ([#405](https://github.com/learning-commons-org/evaluators/issues/405)) ([270dd6f](https://github.com/learning-commons-org/evaluators/commit/270dd6f9aaa6fc7cd412dc56173df26b9fa6a803))
+* report an injected llm_provider as custom:&lt;label&gt; in telemetry ([#411](https://github.com/learning-commons-org/evaluators/issues/411)) ([cc63a62](https://github.com/learning-commons-org/evaluators/commit/cc63a62abc19b433986a9e13826e1c5fc6ab1fd7))
+
+
+### Bug Fixes
+
+* **python-sdk:** accept older openai and anthropic releases ([#409](https://github.com/learning-commons-org/evaluators/issues/409)) ([03a297b](https://github.com/learning-commons-org/evaluators/commit/03a297bd9dcdc8dd780e5e27ee803b0c1f6e3994))
+* **sentence-structure:** align feature names, flooring, and rubric boundaries ([#404](https://github.com/learning-commons-org/evaluators/issues/404)) ([e1b5dfb](https://github.com/learning-commons-org/evaluators/commit/e1b5dfb4631ffff37819e18d040efca04506bb5d))
+
 ## [1.2.0](https://github.com/learning-commons-org/evaluators/compare/sdks-python-v1.1.0...sdks-python-v1.2.0) (2026-11-04)
 
 
