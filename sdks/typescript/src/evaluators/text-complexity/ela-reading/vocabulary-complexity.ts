@@ -147,9 +147,11 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     const startTime = Date.now();
     const stageDetails: StageDetail[] = [];
     const backgroundProviderLabel = this.backgroundKnowledgeProvider.label;
+    const backgroundTelemetryLabel = this.telemetryLabel(this.backgroundKnowledgeProvider);
     // Only the background model is known before the grade is read; if validation fails
-    // no complexity model runs, so the error event reports just this one.
-    let modelLabel = backgroundProviderLabel;
+    // no complexity model runs, so the error event reports just this one. Named as
+    // telemetry names providers (spec §3.4); the result's model is built below.
+    let telemetryModelLabel = backgroundTelemetryLabel;
 
     try {
       // Inside the try so a validation failure is telemetered as an error event,
@@ -159,11 +161,15 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
 
       // One model reports one label (SPEC §3.4): under an override, or when the grade's
       // complexity step runs the same model as background knowledge.
-      const complexityProviderLabel = this.complexityProviderFor(gradeLevel).label;
-      modelLabel =
-        this.config.modelOverride || complexityProviderLabel === backgroundProviderLabel
-          ? backgroundProviderLabel
-          : `${backgroundProviderLabel}+${complexityProviderLabel}`;
+      const complexityProvider = this.complexityProviderFor(gradeLevel);
+      const sameModel =
+        Boolean(this.config.modelOverride) || complexityProvider.label === backgroundProviderLabel;
+      const modelLabel = sameModel
+        ? backgroundProviderLabel
+        : `${backgroundProviderLabel}+${complexityProvider.label}`;
+      telemetryModelLabel = sameModel
+        ? backgroundTelemetryLabel
+        : `${backgroundTelemetryLabel}+${this.telemetryLabel(complexityProvider)}`;
 
       this.logger.info('Starting Vocabulary Complexity evaluation', {
         evaluator: VocabularyComplexityEvaluator.metadata.id,
@@ -180,7 +186,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
 
       stageDetails.push({
         stage: 'background_knowledge',
-        provider: backgroundProviderLabel,
+        provider: backgroundTelemetryLabel,
         latency_ms: bgResponse.latencyMs,
         token_usage: {
           input_tokens: bgResponse.usage.inputTokens,
@@ -204,7 +210,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
 
       stageDetails.push({
         stage: 'complexity_evaluation',
-        provider: this.complexityProviderFor(gradeLevel).label,
+        provider: this.telemetryLabel(this.complexityProviderFor(gradeLevel)),
         latency_ms: complexityResponse.latencyMs,
         token_usage: {
           input_tokens: complexityResponse.usage.inputTokens,
@@ -237,7 +243,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
         latencyMs,
         textLength: text.length,
         gradeLevel,
-        provider: modelLabel,
+        provider: telemetryModelLabel,
         tokenUsage: totalTokenUsage,
         metadata: {
           stage_details: stageDetails,
@@ -277,7 +283,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
         latencyMs,
         textLength: text.length,
         gradeLevel,
-        provider: modelLabel,
+        provider: telemetryModelLabel,
         tokenUsage: totalTokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,

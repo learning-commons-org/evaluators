@@ -172,10 +172,10 @@ def provider_context(provider: LLMProvider) -> tuple[DependencyId, str]:
     """Dependency attribution for errors raised while calling ``provider``.
 
     The label is ``provider:model``, and its prefix is a :class:`Provider` value on both the
-    default and ``model_override`` paths, so those report their real vendor. An injected
-    provider can label itself anything; that reports ``custom`` rather than guessing a
-    vendor we never called. The label is always kept as ``model``, so the caller's own
-    identifier is never lost.
+    default and ``model_override`` paths, so those report their real vendor. A label with
+    any other prefix reports ``custom`` rather than guessing a vendor we never called, and
+    is kept whole as ``model``. An evaluator attributes an injected ``llm_provider`` as
+    ``custom`` before reaching this, whatever its label (§6).
     """
     label = provider.label
     prefix, separator, rest = label.partition(":")

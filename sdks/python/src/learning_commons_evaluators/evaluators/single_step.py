@@ -55,7 +55,6 @@ from learning_commons_evaluators.providers import (
     Message,
     Provider,
     call_with_resampling,
-    provider_context,
 )
 from learning_commons_evaluators.schemas.evaluator import (
     EvaluationMetadata,
@@ -309,7 +308,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         # Argument shape is a programmer error, raised as such; everything from validation
         # on is an evaluation failure, logged, classified, and telemetered.
         raw = self._raw_fields(input, fields)
-        with self._telemetry_run(self.provider.label) as run:
+        with self._telemetry_run(self._telemetry_label(self.provider)) as run:
             try:
                 validated = self._prepare_inputs(validate_inputs(raw, self.contract.input_schema))
                 # Attached inputs are files, never prompt text; only the other inputs render.
@@ -328,7 +327,7 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                 # Passed only when there are some, so a text-only provider is never handed a
                 # parameter it may not declare.
                 extra: dict[str, Any] = {"attachments": attachments} if attachments else {}
-                dependency, model = provider_context(self.provider)
+                dependency, model = self._provider_context(self.provider)
                 assert self._step.model is not None
                 response = await call_with_resampling(
                     lambda: self.provider.generate_structured(
@@ -342,7 +341,12 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                     model=model,
                     logger=self.logger,
                 )
-                run.step(self._step.id, self.provider.label, response.latency_ms, response.usage)
+                run.step(
+                    self._step.id,
+                    self._telemetry_label(self.provider),
+                    response.latency_ms,
+                    response.usage,
+                )
                 data = self._returned(response.data)
 
                 elapsed_ms = run.elapsed_ms

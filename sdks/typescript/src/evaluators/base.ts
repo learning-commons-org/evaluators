@@ -17,6 +17,13 @@ import { createProvider } from '../providers/index.js';
 import type { LLMProvider } from '../providers/index.js';
 
 /**
+ * Longest injected-provider label telemetry sends after `custom:` (spec §3.4),
+ * in characters (code points, as in the Python SDK). The label is the only
+ * caller-written free text in the event.
+ */
+export const TELEMETRY_LABEL_MAX = 64;
+
+/**
  * Supported LLM providers
  */
 export enum Provider {
@@ -466,24 +473,47 @@ export abstract class BaseEvaluator {
   }
 
   /**
+   * How telemetry names `provider` (spec §3.4): its label, marked when it was
+   * injected.
+   *
+   * An injected `llmProvider`'s label is the caller's own word, which nothing
+   * here can check, so telemetry reports it as `custom:{label}` and never counts
+   * it as a built-in vendor, whatever it says. The label is cut to
+   * `TELEMETRY_LABEL_MAX` characters, so a long one (a template, a pasted URL)
+   * never reaches the event whole. Decided by identity, like `providerContext`;
+   * results and errors still carry the label as given.
+   */
+  protected telemetryLabel(provider: LLMProvider): string {
+    if (provider !== this.config.llmProvider) return provider.label;
+    return `custom:${Array.from(provider.label).slice(0, TELEMETRY_LABEL_MAX).join('')}`;
+  }
+
+  /**
    * Dependency attribution for errors raised while calling `provider`.
    *
-   * The label is `provider:model`, and its prefix is a `Provider` value on both
-   * the default and `modelOverride` paths, so those report their real vendor. An
-   * injected `llmProvider` can label itself anything; that reports `custom`
-   * rather than guessing a vendor we never called. The label is always kept as
-   * `model`, so the caller's own identifier is never lost.
+   * The injected `llmProvider` reports `custom` whatever it calls itself (spec
+   * §6): a caller may well label a client of their own `openai:...`, and reading
+   * that prefix would report a vendor we never called. Its label is kept whole
+   * as `model`, so the caller's own identifier is never lost.
+   *
+   * Every other provider is a built-in adapter, labelled `provider:model` with a
+   * `Provider` prefix on both the default and `modelOverride` paths, so those
+   * report their real vendor.
    */
   protected providerContext(provider: LLMProvider): {
     dependency: DependencyId;
     model: string;
   } {
     const label = provider.label;
+    if (provider === this.config.llmProvider) {
+      return { dependency: 'custom', model: label };
+    }
+
     const separator = label.indexOf(':');
     const prefix = separator === -1 ? label : label.slice(0, separator);
 
-    // An unrecognised prefix means a caller-supplied provider, whose vendor is
-    // theirs to know; the label is the only identifier we have, so keep it whole.
+    // An unrecognised prefix names no vendor of ours, so do not guess one; the
+    // label is the only identifier we have, so keep it whole.
     if (!PROVIDER_DEPENDENCIES.has(prefix)) {
       return { dependency: 'custom', model: label };
     }
