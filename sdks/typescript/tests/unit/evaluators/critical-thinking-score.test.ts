@@ -1,20 +1,21 @@
 /**
  * The median the Critical Thinking prompt asks the model to form.
  *
- * Odd count takes the middle rating. Even count takes the higher of the two middle
- * ratings. A missing indicator is not a rating.
+ * Odd count takes the middle rating. Even count takes the level halfway between the two
+ * middle ratings, and the higher level when halfway falls between two. A missing
+ * indicator is not a rating.
  */
 import { describe, expect, it } from 'vitest';
 
 export const LEVELS = ['not_evident', 'exploring', 'analyzing', 'integrating', 'extending'] as const;
 
 export function medianRating(ratings: readonly string[]): string {
-  const ordered = [...ratings].sort(
-    (left, right) =>
-      LEVELS.indexOf(left as (typeof LEVELS)[number]) -
-      LEVELS.indexOf(right as (typeof LEVELS)[number]),
-  );
-  return ordered[Math.floor(ordered.length / 2)];
+  const ordered = ratings
+    .map((rating) => LEVELS.indexOf(rating as (typeof LEVELS)[number]))
+    .sort((left, right) => left - right);
+  const middle = Math.floor(ordered.length / 2);
+  if (ordered.length % 2) return LEVELS[ordered[middle]];
+  return LEVELS[Math.ceil((ordered[middle - 1] + ordered[middle]) / 2)];
 }
 
 export function presentRatings(
@@ -30,8 +31,24 @@ describe('critical thinking score', () => {
     ).toBe('analyzing');
   });
 
-  it('rounds four ratings up', () => {
+  it('rounds neighboring middle ratings up', () => {
     expect(medianRating(['exploring', 'exploring', 'analyzing', 'analyzing'])).toBe('analyzing');
+  });
+
+  it('takes the midpoint of four ratings', () => {
+    expect(medianRating(['exploring', 'exploring', 'integrating', 'integrating'])).toBe(
+      'analyzing',
+    );
+    expect(medianRating(['not_evident', 'not_evident', 'extending', 'extending'])).toBe(
+      'analyzing',
+    );
+  });
+
+  it('rounds the midpoint of four ratings up', () => {
+    expect(medianRating(['exploring', 'exploring', 'extending', 'extending'])).toBe('integrating');
+    expect(medianRating(['not_evident', 'not_evident', 'integrating', 'integrating'])).toBe(
+      'analyzing',
+    );
   });
 
   it('leaves equal ratings unchanged', () => {

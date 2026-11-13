@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SentenceStructureEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/sentence-structure.js';
 import { ConfigurationError } from '../../../src/errors.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
+import { addEngineeredFeatures, featuresToJSON } from '../../../src/features/sentence-features.js';
 import CONFIG from '../../../../../evals/text-complexity/ela-reading/sentence-structure/config.json';
 
 // Derived from the contract rather than copied from it, so a model re-pin in
@@ -147,6 +148,101 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
     });
   });
 
+  it.each(['3', '4'] as const)('floors raw features and uses explicit rubric boundaries for grade %s', async (grade) => {
+    vi.mocked(mockProvider.generateStructured)
+      .mockResolvedValueOnce({
+        data: {
+          ...createMockSentenceAnalysis(),
+          num_sentences: 25,
+          num_words: 299,
+          sentence_word_counts: [...Array(24).fill(12), 11],
+          flesch_kincaid_grade: -0.4,
+          num_subordinate_clauses: 1,
+          num_simple_transitions: 1,
+          num_appositive_phrases: 1,
+          num_participle_phrases: 1,
+        },
+        model: 'gpt-4o',
+        usage: { inputTokens: 1, outputTokens: 1 },
+        latencyMs: 0,
+      })
+      .mockResolvedValueOnce({
+        data: { complexity_score: 'slightly_complex', reasoning: 'Mock classification' },
+        model: 'gpt-4o',
+        usage: { inputTokens: 1, outputTokens: 1 },
+        latencyMs: 0,
+      });
+
+    await evaluator.evaluate({ text: 'Test passage.', grade_level: grade });
+    const messages = vi.mocked(mockProvider.generateStructured).mock.calls[1][0].messages;
+    const prompt = messages.map((message) => message.content).join('\n');
+    const features = JSON.parse(prompt.split('# TEXT STATISTICS\n')[1]);
+    expect(features.avg_subordinates_per_sentence).toBe(0);
+    expect(features.avg_transitions_per_sentence).toBe(0);
+    expect(features.appositive_phrase_density).toBe(0);
+    expect(features.participle_phrase_density).toBe(0);
+    expect(features.avg_words_per_sentence).toBe(11);
+    expect(features.flesch_kincaid_grade).toBe(-1);
+    expect(prompt).not.toContain('typically between ');
+    expect(prompt).not.toContain(' > ');
+    expect(prompt).toContain('>= ');
+    expect(prompt).not.toContain('avg_sentence_length');
+    expect(prompt.match(/`avg_words_per_sentence`/g)).toHaveLength(4);
+  });
+
+  it.each([
+    ['3', 'num_sentences_with_subordinate', 624, 2500, 24, 25, false],
+    ['3', 'num_sentences_with_subordinate', 449, 1000, 44, 45, false],
+    ['3', 'num_sentences_with_subordinate', 1124, 2500, 44, 45, false],
+    ['3', 'num_sentences_with_subordinate', 45, 100, 45, 45, true],
+    ['3', 'num_simple_sentences', 1499, 2500, 59, 60, false],
+    ['3', 'num_simple_sentences', 3, 5, 60, 60, true],
+    ['3', 'num_simple_sentences', 121, 200, 60, 60, true],
+    ['4', 'num_sentences_with_subordinate', 749, 2500, 29, 30, false],
+    ['4', 'num_sentences_with_subordinate', 1249, 2500, 49, 50, false],
+    ['4', 'num_sentences_with_subordinate', 1, 2, 50, 50, true],
+    ['4', 'num_sentences_with_multiple_subordinates', 199, 2500, 7, 8, false],
+    ['4', 'num_sentences_with_multiple_subordinates', 2, 25, 8, 8, true],
+  ] as const)('percentage boundaries in classification request: grade %s, %s = %i/%i', async (
+    grade, countName, numerator, denominator, expected, boundary, atOrAbove,
+  ) => {
+    // Mock counts, not the preprocessing. 44.9 catches whole-number rounding;
+    // 44.96 and 59.96 catch rounding to one decimal before truncation.
+    vi.mocked(mockProvider.generateStructured)
+      .mockResolvedValueOnce({
+        data: {
+          ...createMockSentenceAnalysis(),
+          num_sentences: denominator,
+          num_words: denominator * 10,
+          sentence_word_counts: Array(denominator).fill(10),
+          [countName]: numerator,
+        },
+        model: 'gpt-4o',
+        usage: { inputTokens: 1, outputTokens: 1 },
+        latencyMs: 0,
+      })
+      .mockResolvedValueOnce({
+        data: { complexity_score: 'slightly_complex', reasoning: 'Mock classification' },
+        model: 'gpt-4o',
+        usage: { inputTokens: 1, outputTokens: 1 },
+        latencyMs: 0,
+      });
+
+    await evaluator.evaluate({ text: 'Test passage.', grade_level: grade });
+    const messages = vi.mocked(mockProvider.generateStructured).mock.calls[1][0].messages;
+    const prompt = messages.map((message) => message.content).join('\n');
+    const features = JSON.parse(prompt.split('# TEXT STATISTICS\n')[1]);
+    const featureName = countName.replace('num_', 'percent_');
+    expect(features[featureName]).toBe(expected);
+    expect(features[featureName] >= boundary).toBe(atOrAbove);
+    expect(features[featureName] < boundary).toBe(!atOrAbove);
+    expect(prompt.split('\n').some((line) =>
+      line.includes(`\`${featureName}\``) && line.includes(`>= ${boundary}%`),
+    )).toBe(true);
+    // The mocked final label does not test LLM accuracy; the request's numeric
+    // values and inclusive cutoff instructions are the regression contract.
+  });
+
   describe('Error Handling', () => {
     it('should handle sentence analysis API failure', async () => {
       const testText = 'Test text here for API failure';
@@ -257,4 +353,18 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
     });
 
   });
+});
+
+describe('Raw floor boundary behavior', () => {
+  it.each([12, 13, 16, 17, 19, 22, 25, 30, 40, 45, 50, 55, 60])(
+    'preserves comparisons at integer boundary %s', (boundary) => {
+      for (const offset of [-0.04, 0, 0.04]) {
+        const raw = boundary + offset;
+        const features = { ...addEngineeredFeatures(createMockSentenceAnalysis()), avg_words_per_sentence: raw };
+        const payload = JSON.parse(featuresToJSON(features, 1, true, true));
+        expect(payload.avg_words_per_sentence < boundary).toBe(raw < boundary);
+        expect(payload.avg_words_per_sentence >= boundary).toBe(raw >= boundary);
+      }
+    }
+  );
 });

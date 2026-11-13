@@ -468,22 +468,29 @@ export abstract class BaseEvaluator {
   /**
    * Dependency attribution for errors raised while calling `provider`.
    *
-   * The label is `provider:model`, and its prefix is a `Provider` value on both
-   * the default and `modelOverride` paths, so those report their real vendor. An
-   * injected `llmProvider` can label itself anything; that reports `custom`
-   * rather than guessing a vendor we never called. The label is always kept as
-   * `model`, so the caller's own identifier is never lost.
+   * The injected `llmProvider` reports `custom` whatever it calls itself (spec
+   * §6): a caller may well label a client of their own `openai:...`, and reading
+   * that prefix would report a vendor we never called. Its label is kept whole
+   * as `model`, so the caller's own identifier is never lost.
+   *
+   * Every other provider is a built-in adapter, labelled `provider:model` with a
+   * `Provider` prefix on both the default and `modelOverride` paths, so those
+   * report their real vendor.
    */
   protected providerContext(provider: LLMProvider): {
     dependency: DependencyId;
     model: string;
   } {
     const label = provider.label;
+    if (provider === this.config.llmProvider) {
+      return { dependency: 'custom', model: label };
+    }
+
     const separator = label.indexOf(':');
     const prefix = separator === -1 ? label : label.slice(0, separator);
 
-    // An unrecognised prefix means a caller-supplied provider, whose vendor is
-    // theirs to know; the label is the only identifier we have, so keep it whole.
+    // An unrecognised prefix names no vendor of ours, so do not guess one; the
+    // label is the only identifier we have, so keep it whole.
     if (!PROVIDER_DEPENDENCIES.has(prefix)) {
       return { dependency: 'custom', model: label };
     }

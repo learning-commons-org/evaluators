@@ -208,13 +208,19 @@ export const FEATURE_COLS = [
 export function featuresToJSON(
   features: SentenceFeatures,
   decimals = 1,
-  castToInt = true
+  castToInt = true,
+  floorValues = false
 ): string {
   const payload: Record<string, number | null> = {};
 
   for (const col of FEATURE_COLS) {
     const value = features[col as keyof SentenceFeatures];
     if (typeof value === 'number') {
+      // Floor the raw value: preliminary rounding can cross integer rubric boundaries.
+      if (floorValues) {
+        payload[col] = Math.floor(value);
+        continue;
+      }
       const rounded = Math.round(value * Math.pow(10, decimals)) / Math.pow(10, decimals);
       payload[col] = castToInt ? Math.round(rounded) : rounded;
     } else {

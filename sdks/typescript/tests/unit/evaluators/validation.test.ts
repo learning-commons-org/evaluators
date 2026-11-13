@@ -330,6 +330,25 @@ describe('providerContext — dependency attribution', () => {
     expect(probe().contextFor(label)).toEqual({ dependency: 'custom', model });
   });
 
+  // §6: the injected llmProvider is custom whatever its label says, so a caller
+  // who names their client after one of our vendors is not reported as that vendor.
+  it.each([
+    'openai:gpt-4o',
+    'google:gemini-3-flash-preview',
+    'anthropic:claude-opus-5',
+    'my-gateway',
+  ])('reports custom for an injected llmProvider labelled %s', (label) => {
+    class InjectedProbe extends Probe {
+      contextForInjected() {
+        return this.providerContext(this.config.llmProvider!);
+      }
+    }
+    const llmProvider = { label, generateStructured: vi.fn(), generateText: vi.fn() };
+    expect(
+      new InjectedProbe({ llmProvider, telemetry: false }).contextForInjected()
+    ).toEqual({ dependency: 'custom', model: label });
+  });
+
   it('does not let a vendor name appear anywhere in the label pass as that vendor', () => {
     // Only the prefix counts — a model id mentioning a vendor must not win.
     expect(probe().contextFor('gateway:openai-compatible')).toEqual({

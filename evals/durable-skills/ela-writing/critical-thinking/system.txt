@@ -116,10 +116,10 @@ Information Analysis indicators (2.1, 2.2) credit identifying; Argument Generati
 If the essay reaches at least Exploring on any row of an indicator, that indicator is not Not Evident.
 
 5. Overall Critical Thinking roll-up
-Overall Critical Thinking can live at the median of the indicator ratings you gave.
+Overall Critical Thinking is the median of the indicator ratings you gave.
 
-6. Median rounds up (Overall)
-With an even number of indicator ratings, the Overall median rounds up — take the higher of the two middle levels.
+6. Median of an even count (Overall)
+With an even number of indicator ratings, take the two middle levels and use the level exactly halfway between them on the scale. When the halfway point falls between two levels, take the higher of the two. For example: Exploring & Analyzing → Analyzing; Exploring & Integrating → Analyzing; Exploring & Extending → Integrating; Not Evident & Extending → Analyzing. Two equal middle levels give that level.
 
 7. Unattributed paraphrase counts as evidence
 Paraphrased source material without attribution still counts as evidence. Attribution affects the level, not whether evidence is present.

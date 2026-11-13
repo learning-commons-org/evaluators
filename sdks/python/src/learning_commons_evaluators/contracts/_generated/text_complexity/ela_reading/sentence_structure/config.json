@@ -38,7 +38,7 @@
       "input": "grade_level",
       "output": "rubric",
       "source_path": "rubric-grade-3.txt",
-      "sha256": "3ddacd7b3c80f1f8e85bfcddd01db945813fcf814d893e719f5ae48babdaf11f",
+      "sha256": "a62c8f64c951b909bb8f3e2b69bec1c794c797dd1cad14d0b8db7939200e8966",
       "condition": { "input": "grade_level", "in": ["3"] },
       "implementation": {
         "python": {
@@ -59,7 +59,7 @@
       "input": "grade_level",
       "output": "rubric",
       "source_path": "rubric-grade-4.txt",
-      "sha256": "851c6afa4cd8a0ff0f599a38e96c96516dc2cccf0a4a7e945c982efebc89b6b7",
+      "sha256": "082c29146c24c654a51658cb97ca49355b90e8961470ffdabcd32d440a1ac733",
       "condition": { "input": "grade_level", "in": ["4"] },
       "implementation": {
         "python": {
@@ -80,7 +80,7 @@
       "input": "grade_level",
       "output": "rubric",
       "source_path": "rubric-grades-5-12.txt",
-      "sha256": "ae8ac191a5c8c0168e3866d0682c01f987a1b583272a0f6674e3881a84dccfab",
+      "sha256": "458bae4c6996aee6eb9f27a82f37d51289b508cec671ba4fdcbf7c88731fb3a2",
       "condition": { "input": "grade_level", "in": ["5", "6", "7", "8", "9", "10", "11", "12"] },
       "implementation": {
         "python": {

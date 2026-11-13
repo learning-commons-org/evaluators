@@ -60,7 +60,6 @@ from learning_commons_evaluators.providers import (
     Message,
     TokenUsage,
     call_with_resampling,
-    provider_context,
     provider_label,
 )
 from learning_commons_evaluators.schemas.evaluator import (
@@ -305,7 +304,7 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         Reports what the answer cost and how long the call that produced it took, which is
         the per-step breakdown telemetry carries.
         """
-        dependency, model = provider_context(provider)
+        dependency, model = self._provider_context(provider)
         schema = self.step_models[step.id]
         temperature = self.effective_temperature(step.temperature)
         if schema is None:
