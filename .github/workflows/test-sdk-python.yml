@@ -74,6 +74,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install . pytest pytest-asyncio
 
+      # The packaging contract itself. The test below hides the SDKs whether or not they
+      # are installed, so this is the step that fails if one returns to the base install.
+      - name: No vendor SDK was installed
+        run: |
+          for dist in openai anthropic google-genai; do
+            if pip show --quiet "$dist" 2>/dev/null; then
+              echo "::error::a plain install brought in $dist"
+              exit 1
+            fi
+          done
+
       - name: Every evaluator without them
         run: python -m pytest tests/unit/test_without_vendor_sdks.py -p no:cacheprovider
 
