@@ -45,10 +45,10 @@ From `sdks/python/`:
 ## Using the SDK before publishing
 
 ```bash
-pip install -e /path/to/evaluators/sdks/python
+pip install -e "/path/to/evaluators/sdks/python[all]"
 ```
 
-Editable install: changes to SDK source apply without reinstalling.
+Editable install: changes to SDK source apply without reinstalling. Name the extras your evaluators need in place of `all`, or none if you inject your own `llm_provider`.
 
 ## Regenerating after a change under `evals/`
 

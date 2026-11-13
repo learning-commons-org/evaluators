@@ -31,16 +31,28 @@ Python SDK for [Learning Commons evaluators](https://docs.learningcommons.org/ev
 ## Dependencies
 
 - Python 3.11+
-- The provider clients ship with the package (`openai`, `anthropic`, `google-genai`), along with `pydantic`, `httpx`, `pillow`, and `textstat`.
+- `pydantic`, `httpx`, `pillow`, and `textstat`, plus the provider clients (`openai`, `anthropic`, `google-genai`), each also available as an extra (see [Installation](#installation)).
 - Credentials are constructor arguments. The SDK reads no provider keys from the environment, so a shell `GOOGLE_API_KEY` leaves `google_api_key` unset. A missing key raises `ConfigurationError` at construction, before any I/O.
 
 ## Installation
 
-Install the SDK:
+Install the SDK with the extra for each provider your evaluators call:
 
 ```bash
-pip install learning-commons-evaluators
+pip install "learning-commons-evaluators[google]"          # one provider
+pip install "learning-commons-evaluators[openai,google]"   # several
+pip install "learning-commons-evaluators[all]"             # every provider
 ```
+
+| Extra | Installs | Evaluators that need it by default |
+|---|---|---|
+| `openai` | `openai` | Revision Accuracy, Revision Actionability, Revision Manageability, Sentence Structure, Strength Acknowledgment, Student Response Specificity, Tone Appropriateness, Vocabulary Complexity, Withholding Answers |
+| `google` | `google-genai` | Background Knowledge Demands, Grade Level Appropriateness, Graphics Accuracy, Graphics Complexity, Meaning Directness, Organizational Structure, Purpose Clarity, Reference Knowledge Demands, Vocabulary Complexity |
+| `anthropic` | `anthropic` | Critical Thinking, Math Standards Alignment |
+
+A `model_override` needs the extra for its provider instead. An evaluator whose provider's SDK is not installed raises `ConfigurationError` at construction, naming the extra to add.
+
+Version 1.x still installs all three provider clients without an extra, so these lines change nothing today. Version 2.0 will install them only through their extras, and the plain `pip install learning-commons-evaluators` will be for [bringing your own provider](#bring-your-own-provider), which needs none.
 
 Pass the key each evaluator's default provider requires ([which keys](https://docs.learningcommons.org/evaluators/getting-started/quickstart#required-api-keys)):
 
@@ -301,7 +313,7 @@ class MyProvider:
 evaluator = ToneAppropriatenessEvaluator(llm_provider=MyProvider())
 ```
 
-- Every LLM step of every evaluator, multi-step ones included, runs on it. No vendor API key is required; one passed anyway is unused. Non-LLM credentials still are: Math Standards Alignment needs `learning_commons_api_key` for the Knowledge Graph.
+- Every LLM step of every evaluator, multi-step ones included, runs on it. No vendor SDK or vendor API key is required; one passed anyway is unused. Non-LLM credentials still are: Math Standards Alignment needs `learning_commons_api_key` for the Knowledge Graph.
 - It cannot be combined with `model_override`, and an object missing any of the three members raises `ConfigurationError` at construction.
 - Evaluators that attach images (the graphics evaluators) also need `supports_attachments = True` on the provider and an `attachments` keyword on `generate_structured`.
 - `evaluation.metadata.model` reports your `label` as given, and a failed call raises the usual `DependencyError` with `dependency="custom"` and your label as `model`, whatever the label says. Telemetry reports it as `custom:<label>`, with the label cut to its first 64 characters, so it is never counted as one of the built-in providers.

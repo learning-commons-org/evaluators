@@ -3,4 +3,4 @@ uvicorn
 jinja2
 python-multipart
 python-dotenv
-learning-commons-evaluators>=1.0.0
+learning-commons-evaluators[all]>=1.0.0
