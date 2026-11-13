@@ -17,6 +17,13 @@ import { createProvider } from '../providers/index.js';
 import type { LLMProvider } from '../providers/index.js';
 
 /**
+ * Longest injected-provider label telemetry sends after `custom:` (spec §3.4),
+ * in characters (code points, as in the Python SDK). The label is the only
+ * caller-written free text in the event.
+ */
+export const TELEMETRY_LABEL_MAX = 64;
+
+/**
  * Supported LLM providers
  */
 export enum Provider {
@@ -463,6 +470,22 @@ export abstract class BaseEvaluator {
    */
   protected getEvaluatorType(): string {
     return this.metadata.id;
+  }
+
+  /**
+   * How telemetry names `provider` (spec §3.4): its label, marked when it was
+   * injected.
+   *
+   * An injected `llmProvider`'s label is the caller's own word, which nothing
+   * here can check, so telemetry reports it as `custom:{label}` and never counts
+   * it as a built-in vendor, whatever it says. The label is cut to
+   * `TELEMETRY_LABEL_MAX` characters, so a long one (a template, a pasted URL)
+   * never reaches the event whole. Decided by identity, like `providerContext`;
+   * results and errors still carry the label as given.
+   */
+  protected telemetryLabel(provider: LLMProvider): string {
+    if (provider !== this.config.llmProvider) return provider.label;
+    return `custom:${Array.from(provider.label).slice(0, TELEMETRY_LABEL_MAX).join('')}`;
   }
 
   /**

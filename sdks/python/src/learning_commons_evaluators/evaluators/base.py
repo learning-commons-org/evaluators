@@ -36,6 +36,10 @@ from learning_commons_evaluators.telemetry import (
     utc_timestamp,
 )
 
+#: Longest injected-provider label telemetry sends after ``custom:`` (§3.4), in
+#: characters. The label is the only caller-written free text in the event.
+TELEMETRY_LABEL_MAX = 64
+
 
 class BaseEvaluator(ABC):
     """Configuration validation, provider construction, telemetry, and the ``evaluate`` contract.
@@ -272,6 +276,20 @@ class BaseEvaluator(ABC):
         return provider_context(provider)
 
     # --- telemetry -----------------------------------------------------------------
+
+    def _telemetry_label(self, provider: LLMProvider) -> str:
+        """How telemetry names ``provider`` (§3.4): its label, marked when it was injected.
+
+        An injected ``llm_provider``'s label is the caller's own word, which nothing here
+        can check, so telemetry reports it as ``custom:{label}`` and never counts it as a
+        built-in vendor, whatever it says. The label is cut to ``TELEMETRY_LABEL_MAX``
+        characters, so a long one (a template, a pasted URL) never reaches the event whole.
+        Decided by identity, like ``_provider_context``; results and errors still carry the
+        label as given.
+        """
+        if provider is self.config.llm_provider:
+            return f"custom:{provider.label[:TELEMETRY_LABEL_MAX]}"
+        return provider.label
 
     @contextmanager
     def _telemetry_run(self, provider: str) -> Iterator[TelemetryRun]:

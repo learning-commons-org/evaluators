@@ -20,7 +20,7 @@ from learning_commons_evaluators import (
 from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
     MathStandardsAlignmentEvaluator,
 )
-from learning_commons_evaluators.evaluators.base import BaseEvaluator
+from learning_commons_evaluators.evaluators.base import TELEMETRY_LABEL_MAX, BaseEvaluator
 from learning_commons_evaluators.providers import ProviderConfig
 from tests.conftest import EventSink
 from tests.unit.conftest import FakeKnowledgeGraph, FakeProvider, ProviderFactory, sample_for
@@ -63,22 +63,32 @@ class TestEveryEvaluatorUsesTheInjectedProvider:
     """Parametrized over the registry, so an evaluator added later cannot build its own."""
 
     @EACH_EVALUATOR
+    @pytest.mark.parametrize(
+        "label", ["acme-gateway", "openai:gpt-4o", "custom:acme", "🙂" * 65, "x" * 200]
+    )
     async def test_every_step_runs_on_it_and_no_adapter_is_built(
-        self, providers: ProviderFactory, event_sink: EventSink, evaluator: type[BaseEvaluator]
+        self,
+        providers: ProviderFactory,
+        event_sink: EventSink,
+        evaluator: type[BaseEvaluator],
+        label: str,
     ) -> None:
-        injected = partner()
+        injected = partner(name=label)
         inputs = fixture_input(evaluator)
         evaluation = await evaluate_with(construct(evaluator, llm_provider=injected), inputs)
 
         assert providers.created == []
-        assert evaluation.metadata.model == "acme-gateway"
+        # The caller gets their label back as given.
+        assert evaluation.metadata.model == label
         [event] = event_sink.events()
         stages = event["metadata"]["stage_details"]
         assert [stage["stage"] for stage in stages] == steps_planned(evaluator, inputs)
         assert len(injected.calls) == len(stages)
-        # Telemetry names the caller's provider by its own label, never a vendor we guessed.
-        assert {stage["provider"] for stage in stages} == {"acme-gateway"}
-        assert event["provider"] == "acme-gateway"
+        # Telemetry marks it (§3.4), so a label naming a vendor is never counted as one, and
+        # marks it whatever it already starts with. The label is capped there, not here.
+        reported = f"custom:{label[:TELEMETRY_LABEL_MAX]}"
+        assert {stage["provider"] for stage in stages} == {reported}
+        assert event["provider"] == reported
 
 
 class TestCredentials:
@@ -173,3 +183,30 @@ class TestAttribution:
             )
         assert exc_info.value.dependency == "custom"
         assert exc_info.value.model == label
+
+    @EACH_EVALUATOR
+    async def test_a_failed_evaluation_still_reports_it_marked(
+        self, providers: ProviderFactory, event_sink: EventSink, evaluator: type[BaseEvaluator]
+    ) -> None:
+        injected = partner(name="openai:gpt-4o", failures=[self.unauthorized()])
+        with pytest.raises(AuthenticationError):
+            await evaluate_with(
+                construct(evaluator, llm_provider=injected), fixture_input(evaluator)
+            )
+        [event] = event_sink.events()
+        assert event["status"] == "error"
+        assert event["provider"] == "custom:openai:gpt-4o"
+
+
+class TestBuiltInAdaptersAreUnmarked:
+    @EACH_EVALUATOR
+    async def test_telemetry_names_them_by_their_own_label(
+        self, providers: ProviderFactory, event_sink: EventSink, evaluator: type[BaseEvaluator]
+    ) -> None:
+        keys = {f"{p.value}_api_key": "k" for p in evaluator.metadata.default_providers}
+        evaluation = await evaluate_with(construct(evaluator, **keys), fixture_input(evaluator))
+        [event] = event_sink.events()
+        labels = {stage["provider"] for stage in event["metadata"]["stage_details"]}
+        assert labels == {fake.label for fake in providers.created if fake.calls}
+        assert not any(label.startswith("custom:") for label in labels)
+        assert evaluation.metadata.model.split("+")[0] in labels
