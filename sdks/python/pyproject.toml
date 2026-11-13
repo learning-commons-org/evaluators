@@ -38,24 +38,8 @@ classifiers = [
 dependencies = [
     "pydantic>=2.0.0,<3",
     "textstat>=0.7.0,<1",
-    # Native provider SDKs (D10): one adapter per SDK under providers/. httpx is what
-    # google-genai transports over and what the error taxonomy reads transport failures
-    # from. openai (since 2.47.0) and anthropic (since 1.0.0) transport over httpx 2,
-    # published as the separate httpx2 package, and earlier releases over httpx; the
-    # classifier reads either, looking httpx2 up only once something has imported it.
-    #
-    # 1.108.1 is the first openai to export `omit`, which the adapter sends for an absent
-    # parameter. 0.77.0 is the first anthropic whose `messages.create` takes
-    # `output_config`, which carries the structured-output format.
-    #
-    # anthropic stays below 2: 2.0 moved the default `anthropic-version` header from
-    # 2023-06-01 to 2026-10-21, and that API version refuses `temperature`, which the
-    # Math Standards Alignment contract pins. Admitting 2.x means deciding what the
-    # adapter sends there, with the live suite run against it.
-    "openai>=1.108.1,<4",
-    "anthropic>=0.77.0,<2",
-    # 1.39.0 is the first to let a client be closed (Client.close, AsyncClient.aclose).
-    "google-genai>=1.39.0,<3",
+    # What the Knowledge Graph client and google-genai transport over, and what the error
+    # taxonomy reads transport failures from. The provider SDKs are extras, below.
     "httpx>=0.27.0,<1",
     # Image inputs (features/image_source.py): reads an attached file's format and
     # dimensions from its header, without decoding pixels, to enforce the contract's
@@ -77,13 +61,26 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# One extra per provider, named by its `Provider` value, so the error for a missing SDK
-# names the extra mechanically. Each repeats its pin from `dependencies` above, where the
-# SDKs still sit so that no 1.x install changes; 2.0 drops them from there (DSCR-2625),
-# leaving the base install for callers who inject their own `llm_provider`. Bump a pin in
-# both places until then.
+# Native provider SDKs (D10), one extra per adapter under providers/, named by its
+# `Provider` value so the error for a missing SDK names the extra mechanically. None is
+# in the base install: a caller who injects their own `llm_provider` needs none of them,
+# and most evaluators call one provider. The caps follow the rule above.
+#
+# openai (since 2.47.0) and anthropic (since 1.0.0) transport over httpx 2, published as
+# the separate httpx2 package, and earlier releases over httpx; the classifier reads
+# either, looking httpx2 up only once something has imported it.
+#
+# 1.108.1 is the first openai to export `omit`, which the adapter sends for an absent
+# parameter. 0.77.0 is the first anthropic whose `messages.create` takes `output_config`,
+# which carries the structured-output format.
+#
+# anthropic stays below 2: 2.0 moved the default `anthropic-version` header from
+# 2023-06-01 to 2026-10-21, and that API version refuses `temperature`, which the Math
+# Standards Alignment contract pins. Admitting 2.x means deciding what the adapter sends
+# there, with the live suite run against it.
 openai = ["openai>=1.108.1,<4"]
 anthropic = ["anthropic>=0.77.0,<2"]
+# 1.39.0 is the first to let a client be closed (Client.close, AsyncClient.aclose).
 google = ["google-genai>=1.39.0,<3"]
 all = ["learning-commons-evaluators[openai,anthropic,google]"]
 dev = [
