@@ -5,8 +5,8 @@ rubric written in terms of percentages and averages. Turning the former into the
 arithmetic, so the contract declares it as preprocessing (``sentence_features``) rather
 than asking a model for it, and this module is that computation.
 
-Every derived value is rounded to one place here and cast to a whole number on the way into
-the prompt, which is the shape the rubric's thresholds are written against.
+The classifier requests unrounded derived values, then floors them directly for integer
+rubric boundaries. The helper defaults retain their previous behavior for other callers.
 """
 
 from __future__ import annotations
@@ -160,9 +160,12 @@ def _length_distribution(word_counts: Sequence[float]) -> dict[str, float]:
     return distribution
 
 
-def add_engineered_features(analysis: Mapping[str, Any]) -> dict[str, Any]:
+def add_engineered_features(
+    analysis: Mapping[str, Any], *, round_values: bool = True
+) -> dict[str, Any]:
     """The analysis plus every feature derived from it, each rounded to one place.
 
+    Set ``round_values=False`` before flooring so rounding cannot cross a rubric boundary.
     Takes the first step's output as a mapping and returns a new one; the counts are copied
     through unchanged, because the classifier prompt asks for several of them alongside the
     ratios (see :data:`FEATURE_COLS`).
@@ -196,24 +199,24 @@ def add_engineered_features(analysis: Mapping[str, Any]) -> dict[str, Any]:
         _ratio(_count(analysis, "num_sophisticated_transitions"), transitions) * 100
     )
 
-    # Deliberately Python's ties-to-even ``round``, not the SDK's half-up ``round_half_up``.
-    # These ratios are rationals over small counts, so they land on exact ties often, and a
-    # tie at ``n.95`` crosses an integer boundary once ``features_to_json`` casts it: 19
-    # transitions over 20 sentences is 0.95, which reaches the prompt as 0 under this rule
-    # and as 1 under the other. This is the arithmetic the notebook and the fixtures were
-    # produced by; unifying it is DSCR-2223, decided once for both SDKs alongside the
-    # truncate-versus-round question it belongs with.
-    features.update({name: round(value, PRECISION) for name, value in derived.items()})
+    # Keep one-decimal rounding for default callers. The sentence-structure evaluator
+    # sets round_values=False so its serializer can floor the unrounded values.
+    features.update(
+        {
+            name: round(value, PRECISION) if round_values else value
+            for name, value in derived.items()
+        }
+    )
     return features
 
 
-def features_to_json(features: Mapping[str, Any]) -> str:
+def features_to_json(features: Mapping[str, Any], *, floor_values: bool = False) -> str:
     """:data:`FEATURE_COLS` as the JSON object bound to ``{sentence_features}``.
 
-    Every value is a whole number: the rubric's thresholds are written in whole percentages
-    and averages, and the fractional place the model would otherwise read invites precision
-    it cannot support. A feature the analysis did not produce is sent as ``null`` rather
-    than zero, so a missing count reads as missing rather than as "none found".
+    ``floor_values=True`` floors the supplied values without preliminary rounding.
+    Supply unrounded features for this mode. The default preserves the legacy behavior
+    of truncating the supplied values to integers.
+    A feature the analysis did not produce is sent as ``null`` rather than zero.
     """
     payload: dict[str, int | None] = {}
     for name in FEATURE_COLS:
@@ -222,9 +225,9 @@ def features_to_json(features: Mapping[str, Any]) -> str:
             payload[name] = None
         elif isinstance(value, int):
             payload[name] = value
+        elif floor_values:
+            payload[name] = math.floor(value)
         else:
-            # Truncated, not rounded: this is the notebook's arithmetic, and the fixtures
-            # and thresholds this evaluator was validated against were produced by it.
             payload[name] = int(value)
     return json.dumps(payload, indent=2)
 

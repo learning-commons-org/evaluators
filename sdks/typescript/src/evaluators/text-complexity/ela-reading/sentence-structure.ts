@@ -81,9 +81,10 @@ export class SentenceStructureEvaluator extends defineMultiStepEvaluator<
     // The contract names the metrics function; the block layout is what the prompt
     // declares, so the two travel together.
     calculateReadabilityMetrics: (text) => formatGroundTruthCounts(String(text)),
-    // Cast to int and single-space, matching the Python implementation's JSON.
+    // Floor unrounded values before serialization, matching the Python evaluator.
+    // TODO: Use an options object for featuresToJSON; floorValues=true ignores decimals and castToInt.
     addEngineeredFeatures: (analysis) =>
-      featuresToJSON(addEngineeredFeatures(analysis as SentenceAnalysis), 1, true),
+      featuresToJSON(addEngineeredFeatures(analysis as SentenceAnalysis), 1, true, true),
   },
   documents: {
     'rubric-grade-3.txt': RUBRIC_GRADE_3,

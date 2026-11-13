@@ -44,7 +44,7 @@
           {
             "role": "system",
             "source_path": "system.txt",
-            "sha256": "4a04db87ac1343c955b0f1a7152b720825e8ce671e2c3e7d41f55d3c7eba5914"
+            "sha256": "c186aba9c6076ab3d86a2421d94fa9672f7b1c71bde89e5534f8034b46e816e5"
           },
           {
             "role": "user",
@@ -93,8 +93,8 @@
   "fixtures": {
     "path": "fixtures.json",
     "tolerance": {
-      "allow_adjacent_levels": true,
-      "notes": "If allow_adjacent_levels is true, predictions within one rubric step of the expected label count as a pass. Not Evident < Exploring < Analyzing < Integrating < Extending."
+      "allow_adjacent_levels": false,
+      "notes": "If allow_adjacent_levels is true, predictions within one rubric step of the expected label count as a pass. Not Evident < Exploring < Analyzing < Integrating < Extending. It is false here because a neighboring level would accept a slide from Integrating back to Extending on the single-source fabricated-citation case, which is the failure that case guards."
     }
   }
 }
