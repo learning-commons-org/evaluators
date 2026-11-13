@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from learning_commons_evaluators.providers.base import Provider
+from learning_commons_evaluators.providers.base import LLMProvider, Provider
 
 
 @dataclass(frozen=True)
@@ -58,6 +58,11 @@ class EvaluatorConfig:
     max_retries: int = 2
     #: ``True`` / ``False`` shorthand, or a :class:`TelemetryOptions`.
     telemetry: bool | TelemetryOptions = True
+    #: *(Draft)* A caller-supplied provider used for every LLM call instead of the built-in
+    #: adapters. It owns its own model and auth, so no vendor key is required alongside it;
+    #: it cannot be combined with ``model_override``, which configures an adapter it bypasses.
+    #: Last, so the fields before it keep their positions for a caller passing them in order.
+    llm_provider: LLMProvider | None = None
 
     def credential(self, canonical_key: str) -> str | None:
         """The value of a canonical credential key (e.g. ``"openai_api_key"``), or ``None``.

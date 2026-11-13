@@ -53,6 +53,12 @@ class TestEvaluatorConfig:
         assert config.max_retries == 2
         assert config.model_override is None
 
+    def test_a_field_added_later_does_not_shift_the_existing_positions(self) -> None:
+        # Positional construction is part of the public dataclass; a new field goes last.
+        config = EvaluatorConfig(None, "o", None, None, None, 0, False)
+        assert (config.openai_api_key, config.max_retries, config.telemetry) == ("o", 0, False)
+        assert config.llm_provider is None
+
 
 class TestConstruction:
     def test_accepts_a_config_object_or_keyword_fields(self, providers: ProviderFactory) -> None:
