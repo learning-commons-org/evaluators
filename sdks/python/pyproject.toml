@@ -55,7 +55,7 @@ dependencies = [
     "openai>=1.108.1,<4",
     "anthropic>=0.77.0,<2",
     # 1.39.0 is the first to let a client be closed (Client.close, AsyncClient.aclose).
-    "google-genai>=1.39.0,<3",
+    "google-genai>=1.39.0,<4",
     "httpx>=0.27.0,<1",
     # Image inputs (features/image_source.py): reads an attached file's format and
     # dimensions from its header, without decoding pixels, to enforce the contract's
