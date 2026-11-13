@@ -20,7 +20,7 @@ from learning_commons_evaluators import (
 from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
     MathStandardsAlignmentEvaluator,
 )
-from learning_commons_evaluators.evaluators.base import BaseEvaluator
+from learning_commons_evaluators.evaluators.base import TELEMETRY_LABEL_MAX, BaseEvaluator
 from learning_commons_evaluators.providers import ProviderConfig
 from tests.conftest import EventSink
 from tests.unit.conftest import FakeKnowledgeGraph, FakeProvider, ProviderFactory, sample_for
@@ -63,7 +63,9 @@ class TestEveryEvaluatorUsesTheInjectedProvider:
     """Parametrized over the registry, so an evaluator added later cannot build its own."""
 
     @EACH_EVALUATOR
-    @pytest.mark.parametrize("label", ["acme-gateway", "openai:gpt-4o", "custom:acme"])
+    @pytest.mark.parametrize(
+        "label", ["acme-gateway", "openai:gpt-4o", "custom:acme", "🙂" * 65, "x" * 200]
+    )
     async def test_every_step_runs_on_it_and_no_adapter_is_built(
         self,
         providers: ProviderFactory,
@@ -83,9 +85,10 @@ class TestEveryEvaluatorUsesTheInjectedProvider:
         assert [stage["stage"] for stage in stages] == steps_planned(evaluator, inputs)
         assert len(injected.calls) == len(stages)
         # Telemetry marks it (§3.4), so a label naming a vendor is never counted as one, and
-        # marks it whatever it already starts with.
-        assert {stage["provider"] for stage in stages} == {f"custom:{label}"}
-        assert event["provider"] == f"custom:{label}"
+        # marks it whatever it already starts with. The label is capped there, not here.
+        reported = f"custom:{label[:TELEMETRY_LABEL_MAX]}"
+        assert {stage["provider"] for stage in stages} == {reported}
+        assert event["provider"] == reported
 
 
 class TestCredentials:

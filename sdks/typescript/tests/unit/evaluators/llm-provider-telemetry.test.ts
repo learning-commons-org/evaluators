@@ -7,6 +7,7 @@ import {
   Jurisdiction,
 } from '../../../src/evaluators/academic-standards-alignment/mathematics/math-standards-alignment.js';
 import type { KnowledgeGraphClient } from '../../../src/knowledge-graph/client.js';
+import { TELEMETRY_LABEL_MAX } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 
 /**
@@ -206,18 +207,20 @@ beforeEach(() => {
 
 describe('telemetry marks an injected llmProvider', () => {
   describe.each(PATHS)('$path', ({ answer, run }) => {
-    it.each(['acme-gateway', 'openai:gpt-4o', 'custom:acme'])(
+    it.each(['acme-gateway', 'openai:gpt-4o', 'custom:acme', '🙂'.repeat(65), 'x'.repeat(200)])(
       'reports %s as custom:<label> and returns it unmarked',
       async (label) => {
         const result = await run(provider(label, answer));
+        // Capped in telemetry only, by code point, so an emoji is never split.
+        const marked = `custom:${Array.from(label).slice(0, TELEMETRY_LABEL_MAX).join('')}`;
 
         expect(built).toEqual([]);
         expect(named(result.metadata.model).every((m) => m === label)).toBe(true);
         const { provider: reported, metadata } = await event();
-        expect(named(reported).every((p) => p === `custom:${label}`)).toBe(true);
+        expect(named(reported).every((p) => p === marked)).toBe(true);
         const stages = metadata?.stage_details ?? [];
         expect(stages.length).toBeGreaterThan(0);
-        expect(stages.every((s) => s.provider === `custom:${label}`)).toBe(true);
+        expect(stages.every((s) => s.provider === marked)).toBe(true);
       },
     );
 
