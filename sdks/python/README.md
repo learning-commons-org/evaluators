@@ -317,14 +317,6 @@ evaluator = ToneAppropriatenessEvaluator(llm_provider=MyProvider())
 - It cannot be combined with `model_override`, and an object missing any of the three members raises `ConfigurationError` at construction.
 - Evaluators that attach images (the graphics evaluators) also need `supports_attachments = True` on the provider and an `attachments` keyword on `generate_structured`.
 - `evaluation.metadata.model` reports your `label` as given, and a failed call raises the usual `DependencyError` with `dependency="custom"` and your label as `model`, whatever the label says. Telemetry reports it as `custom:<label>`, with the label cut to its first 64 characters, so it is never counted as one of the built-in providers.
-- Failures are classified like the built-in ones from structured signals, searched along the `__cause__` chain and never read from message text:
-  - an HTTP status as `status_code`, or a `response` with `status_code` and `headers` (which also carries `Retry-After`);
-  - a timeout or connection error, such as `TimeoutError`, `ConnectionError` or an `httpx` transport error;
-  - a `json.JSONDecodeError` or Pydantic `ValidationError` from reading the model's reply, which becomes an `LLMOutputProcessingError`;
-  - one of the SDK's own errors, such as `RateLimitError`, which is raised as is.
-
-  Anything else becomes a non-retryable `LLMProviderError`.
-- Retrying a dependency failure is your client's job. The evaluator raises a rate-limit, timeout, network or 5xx failure from an injected provider at once, even one marked retryable: `max_retries` reaches only the built-in vendor SDKs' own backoff. What the evaluator does retry is a reply that fails to parse or validate, which it requests again immediately, up to `max_retries` times.
 
 ## More resources
 
