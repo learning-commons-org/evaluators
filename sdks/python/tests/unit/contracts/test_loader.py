@@ -154,7 +154,8 @@ class TestLookups:
         assert step.model.provider is Provider.GOOGLE
         assert step.condition is not None
         assert step.condition.values == ["3", "4"]
-        assert step.temperature == 0
+        # gemini-3.8-flash is sent no temperature (Google's 3.8 guidance), so the step declares null.
+        assert step.temperature is None
 
     def test_unknown_step_names_the_contract(self) -> None:
         with pytest.raises(

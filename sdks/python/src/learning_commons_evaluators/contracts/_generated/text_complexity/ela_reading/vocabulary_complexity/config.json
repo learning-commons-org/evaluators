@@ -85,10 +85,10 @@
       },
       "model": {
         "provider": "openai",
-        "name": "gpt-4o-2024-11-20"
+        "name": "gpt-6-luna"
       },
       "generation": {
-        "temperature": 0
+        "temperature": null
       },
       "parser": {
         "kind": "structured_output"
@@ -139,10 +139,10 @@
       },
       "model": {
         "provider": "google",
-        "name": "gemini-2.5-pro"
+        "name": "gemini-3.8-flash"
       },
       "generation": {
-        "temperature": 0
+        "temperature": null
       },
       "parser": {
         "kind": "structured_output"
@@ -195,10 +195,10 @@
       },
       "model": {
         "provider": "openai",
-        "name": "gpt-4.1-2025-04-14"
+        "name": "gpt-6-luna"
       },
       "generation": {
-        "temperature": 0
+        "temperature": null
       },
       "parser": {
         "kind": "structured_output"

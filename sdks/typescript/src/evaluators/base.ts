@@ -75,8 +75,8 @@ type NormalizedTelemetryOptions = Required<Pick<TelemetryOptions, 'enabled'>> &
  * Two things to know before overriding:
  *
  * - The override is evaluator-wide, not per call site. `VocabularyComplexityEvaluator`
- *   deliberately uses three models (Gemini 2.5 Pro for grade levels 3-4, GPT-4.1 for
- *   5-12, GPT-4o for background knowledge); an override collapses all three.
+ *   deliberately uses two models (Gemini 3.8 Flash for grade levels 3-4, gpt-6-luna for
+ *   5-12 and for background knowledge); an override collapses both.
  * - Every evaluator on `defineSingleStepEvaluator` takes its model from its own contract
  *   (`evals/<domain>/<skill>/<evaluator>/config.json`), so an override diverges from the
  *   shared cross-language config rather than from an SDK default.
