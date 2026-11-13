@@ -889,19 +889,27 @@ name = "learning-commons-evaluators"
 version = "1.2.0"
 source = { editable = "." }
 dependencies = [
-    { name = "anthropic" },
     { name = "attrs" },
-    { name = "google-genai" },
     { name = "httpx" },
-    { name = "openai" },
     { name = "pillow" },
     { name = "pydantic" },
     { name = "textstat" },
 ]
 
 [package.optional-dependencies]
+all = [
+    { name = "anthropic" },
+    { name = "google-genai" },
+    { name = "openai" },
+]
+anthropic = [
+    { name = "anthropic" },
+]
 dev = [
+    { name = "anthropic" },
+    { name = "google-genai" },
     { name = "mypy" },
+    { name = "openai" },
     { name = "openapi-python-client" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -909,15 +917,23 @@ dev = [
     { name = "ruamel-yaml" },
     { name = "ruff" },
 ]
+google = [
+    { name = "google-genai" },
+]
+openai = [
+    { name = "openai" },
+]
 
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", specifier = ">=1.0.0,<2" },
+    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=1.0.0,<2" },
     { name = "attrs", specifier = ">=23.2.0" },
-    { name = "google-genai", specifier = ">=1.39.0,<3" },
+    { name = "google-genai", marker = "extra == 'google'", specifier = ">=1.39.0,<3" },
     { name = "httpx", specifier = ">=0.27.0,<1" },
+    { name = "learning-commons-evaluators", extras = ["all"], marker = "extra == 'dev'" },
+    { name = "learning-commons-evaluators", extras = ["openai", "anthropic", "google"], marker = "extra == 'all'" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.14.0" },
-    { name = "openai", specifier = ">=2.47.0,<4" },
+    { name = "openai", marker = "extra == 'openai'", specifier = ">=2.47.0,<4" },
     { name = "openapi-python-client", marker = "extra == 'dev'", specifier = "==0.29.1" },
     { name = "pillow", specifier = ">=10.1.0,<14" },
     { name = "pydantic", specifier = ">=2.0.0,<3" },
@@ -928,7 +944,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9.0" },
     { name = "textstat", specifier = ">=0.7.0,<1" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["openai", "anthropic", "google", "all", "dev"]
 
 [[package]]
 name = "librt"
