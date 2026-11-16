@@ -110,10 +110,11 @@ jobs:
       - name: ⚡ Run unit tests
         run: npm run test:unit
 
-  # Node's path functions return native separators, so code that writes a path into a file
-  # or compares one with a string can pass on Linux and macOS and still fail on Windows.
+  # Linux and macOS share path separators, line endings and how executables are spawned,
+  # so the Ubuntu jobs above cannot see a difference Windows has. Every step runs even when
+  # an earlier one fails, so one run shows every Windows failure.
   windows:
-    name: 🪟 Windows (generator)
+    name: 🪟 Windows
     runs-on: windows-latest
     defaults:
       run:
@@ -137,9 +138,22 @@ jobs:
       - name: 🧬 Generated schemas match their contracts
         run: npm run generate:schemas:check
 
-      - name: ⚡ Run generator unit tests
+      - name: ⚡ Run unit tests
         if: ${{ !cancelled() }}
-        run: npx vitest run tests/unit/scripts/generate-schema.test.ts
+        run: npm run test:unit
+
+      - name: 🏗️ Build package
+        id: build
+        if: ${{ !cancelled() }}
+        run: npm run build
+
+      - name: 📜 Verify the published declarations
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run verify:dist
+
+      - name: 📦 Verify the published package metadata
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run verify:package
 
   build:
     name: 🏗️ Build (Node ${{ matrix.node-version }})
