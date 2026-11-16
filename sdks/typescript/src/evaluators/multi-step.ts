@@ -17,7 +17,13 @@ import { createPromptRenderers } from '../prompts/create-prompts.js';
 /** A contract's `condition`: the step or entry applies only for these input values. */
 export interface DeclaredCondition {
   input: string;
-  in: string[];
+  /** The contract schema admits numbers here; inputs arrive as strings and are compared as such. */
+  in: Array<string | number>;
+}
+
+/** A condition's values as the strings the caller's inputs are compared against. */
+function conditionValues(condition: DeclaredCondition): string[] {
+  return condition.in.map(String);
 }
 
 /**
@@ -171,7 +177,9 @@ function conditionHolds(
   fields: Record<string, string>,
 ): boolean {
   if (!condition) return true;
-  return condition.in.includes(fields[condition.input]);
+  // Normalised, as requireConditionValues does: a contract writing `[3, 4]` means the
+  // grades a caller passes as '3' and '4'.
+  return conditionValues(condition).includes(fields[condition.input]);
 }
 
 /**
@@ -191,10 +199,12 @@ function canEndRun(
   const condition = steps[index].condition;
   if (!condition) return later.length === 0;
   if (later.some((step) => !step.condition)) return false;
-  return condition.in.some(
+  return conditionValues(condition).some(
     (value) =>
       !later.some(
-        (step) => step.condition?.input === condition.input && step.condition.in.includes(value),
+        (step) =>
+          step.condition?.input === condition.input &&
+          conditionValues(step.condition).includes(value),
       ),
   );
 }
@@ -410,7 +420,10 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
               `every step's condition excludes them.`,
           );
         }
-        if (!last.canEnd) {
+        // A step the conditions alone say is intermediate still ends a run for inputs no
+        // later step covers. That is a result when the step was declared with the output
+        // schema itself, and a gap in the contract when it was not.
+        if (!last.canEnd && last.schema !== outputSchema) {
           throw new ConfigurationError(
             `Step "${last.step.id}" is the last ${contract.evaluator.name} runs for these ` +
               `inputs, but its output is not the result: no later step's condition covers them.`,

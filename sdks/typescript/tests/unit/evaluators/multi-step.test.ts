@@ -681,6 +681,44 @@ describe('defineMultiStepEvaluator — conditional steps', () => {
     expect(calls).toHaveLength(0);
   });
 
+  it('ends on a step declared with the output schema when no later step covers the inputs', async () => {
+    // The same gap, but the unconditional step produces the result itself and the step
+    // after it is a refinement only grade 3 gets. Grade 4 has a result: the first step's.
+    const refined = contract();
+    (refined.steps[1] as { condition?: unknown }).condition = { input: 'grade_level', in: ['3'] };
+    const steps = { ...STEPS, analyse: { ...STEPS.analyse, schema: FINAL_SCHEMA } };
+    const firstModel = refined.steps[0].model.name;
+    RESPONSES[firstModel] = { verdict: 'first verdict', reasoning: 'first' };
+
+    const evaluator = construct(defineFrom(refined, { steps: steps as never }));
+    const result = await evaluator.evaluate({ text: 'a b', grade_level: '4' });
+
+    expect(calls).toHaveLength(1);
+    expect(result.result).toMatchObject({ verdict: 'first verdict' });
+    expect(result.metadata.model).toBe(`${refined.steps[0].model.provider}:${firstModel}`);
+  });
+
+  it.each([
+    ['3', 'gpt-low'],
+    ['5', 'gpt-high'],
+  ])('at grade %s follows conditions the contract writes as numbers', async (grade, model) => {
+    // config.schema.json admits numbers in condition.in; a caller's grade is a string.
+    const numeric = banded();
+    const asNumbers = (condition: { input: string; in: string[] }) =>
+      ({ input: condition.input, in: condition.in.map(Number) }) as never;
+    for (const step of numeric.steps) step.condition = asNumbers(step.condition);
+    for (const entry of numeric.preprocessing) {
+      const conditional = entry as { condition?: { input: string; in: string[] } };
+      if (conditional.condition) conditional.condition = asNumbers(conditional.condition);
+    }
+
+    const evaluator = new (defineBanded(numeric))({ openaiApiKey: 'k' });
+    const result = await evaluator.evaluate({ text: 'a b', grade_level: grade });
+
+    expect(calls.map((c) => c.model)).toEqual([model, model]);
+    expect(result.metadata.model).toBe(`openai:${model}`);
+  });
+
   it('attributes a failure to the step of the band that was running', async () => {
     RESPONSES['gpt-high'] = new Error('high band exploded');
 
