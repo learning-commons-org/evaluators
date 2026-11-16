@@ -110,6 +110,41 @@ jobs:
       - name: ⚡ Run unit tests
         run: npm run test:unit
 
+  # Node's path functions return native separators, so code that writes a path into a file
+  # or compares one with a string can pass on Linux and macOS and still fail on Windows.
+  windows:
+    name: 🪟 Windows (generator)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: sdks/typescript
+    steps:
+      # The runner image defaults to autocrlf=true, which would make every generated file
+      # differ by line endings and hide any other drift.
+      - name: 🔧 Keep LF line endings
+        working-directory: .
+        run: git config --global core.autocrlf false
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v7
+
+      - name: 😻 Setup Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: 📥 Install dependencies
+        uses: bahmutov/npm-install@v1
+        with:
+          working-directory: sdks/typescript
+
+      - name: 🧬 Generated schemas match their contracts
+        run: npm run generate:schemas:check
+
+      - name: ⚡ Run generator unit tests
+        if: ${{ !cancelled() }}
+        run: npx vitest run tests/unit/scripts/generate-schema.test.ts
+
   build:
     name: 🏗️ Build (Node ${{ matrix.node-version }})
     needs: [lint, typecheck, test]
