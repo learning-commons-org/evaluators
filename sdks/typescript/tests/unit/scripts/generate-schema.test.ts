@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { spawnSync, execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -468,15 +468,18 @@ describe('discovery', () => {
 
   it('finds every contract in the repo, and only contracts', () => {
     // Compared against an independent walk rather than a count: the wrong set of paths
-    // with the right length would otherwise pass.
-    const expected = execFileSync(
-      'find',
-      ['evals', '-mindepth', '4', '-maxdepth', '4', '-name', 'config.json'],
-      { cwd: REPO_ROOT, encoding: 'utf-8' },
-    )
-      .trim()
-      .split('\n')
-      .map((p) => resolve(REPO_ROOT, p))
+    // with the right length would otherwise pass. A contract is
+    // evals/<domain>/<modality>/<evaluator>/config.json, the layout the Python generator
+    // globs for too, so a config.json at any other depth fails this.
+    const subdirs = (dir: string) =>
+      readdirSync(dir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => join(dir, entry.name));
+    const expected = subdirs(join(REPO_ROOT, 'evals'))
+      .flatMap(subdirs)
+      .flatMap(subdirs)
+      .map((dir) => join(dir, 'config.json'))
+      .filter((path) => existsSync(path))
       .sort();
 
     expect(discoverContracts()).toEqual(expected);
