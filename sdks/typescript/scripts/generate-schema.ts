@@ -20,7 +20,7 @@
 
 import { parseSchema } from 'json-schema-to-zod';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
-import { resolve, dirname, join, relative } from 'node:path';
+import { resolve, dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -28,6 +28,11 @@ const __dirname = dirname(__filename);
 const SDK_ROOT = resolve(__dirname, '..');
 const SRC_SCHEMAS = join(SDK_ROOT, 'src', 'schemas');
 const EVALS_ROOT = resolve(SDK_ROOT, '..', '..', 'evals');
+
+/** The header path is committed, so it uses `/` whatever separator the OS uses. */
+function sourcePath(schemaPath: string): string {
+  return relative(SDK_ROOT, schemaPath).split(sep).join('/');
+}
 
 /** Written into every generated module, and the only record of which modules are generated. */
 export const GENERATED_MARKER = '// GENERATED — do not edit directly.';
@@ -197,7 +202,7 @@ function renderInputType(
 
   return {
     code: renderInputDeclarations(schema, className),
-    source: relative(SDK_ROOT, schemaPath),
+    source: sourcePath(schemaPath),
   };
 }
 
@@ -245,7 +250,7 @@ export function generateSchemaFile(configPath: string): GeneratedSchema {
   const modelOnly = modelOnlyFields(resolved);
   const zodCode = parseSchema(resolved);
 
-  const relSchemaPath = relative(SDK_ROOT, schemaPath);
+  const relSchemaPath = sourcePath(schemaPath);
   const input = renderInputType(configDir, config, className);
 
   const content = [

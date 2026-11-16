@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { resolve, dirname, join, relative } from 'node:path';
+import { resolve, dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   resolveRefs,
@@ -18,7 +18,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const SDK_ROOT = resolve(__dirname, '../../..');
 const PURPOSE_CONFIG = resolve(__dirname, '../../../../../evals/text-complexity/ela-reading/purpose-clarity/config.json');
 const SCRIPT_PATH = resolve(SDK_ROOT, 'scripts/generate-schema.ts');
-const TSX_BIN = resolve(SDK_ROOT, 'node_modules/.bin/tsx');
+
+const toPosix = (p: string) => p.split(sep).join('/');
+
+// Through node rather than the .bin shim: on Windows the shim is a .cmd, which spawnSync
+// refuses to run without a shell.
+const runScript = (args: string[]) =>
+  spawnSync(process.execPath, ['--import', 'tsx', SCRIPT_PATH, ...args], {
+    cwd: SDK_ROOT,
+    encoding: 'utf-8',
+  });
 
 // --- resolveRefs ---
 
@@ -285,24 +294,18 @@ describe('renderInputDeclarations', () => {
 
 describe('main() CLI', () => {
   it('exits 1 with usage message when no args given', () => {
-    const result = spawnSync(TSX_BIN, [SCRIPT_PATH], { encoding: 'utf-8' });
+    const result = runScript([]);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Usage');
   });
 
   it('--check exits 0 when the committed file matches the contract', () => {
-    const result = spawnSync(TSX_BIN, [SCRIPT_PATH, '--check', PURPOSE_CONFIG], {
-      encoding: 'utf-8',
-    });
+    const result = runScript(['--check', PURPOSE_CONFIG]);
     expect(result.status).toBe(0);
   });
 
   it('--check exits 1 when schema file does not exist', () => {
-    const result = spawnSync(
-      TSX_BIN,
-      [SCRIPT_PATH, '--check', '/nonexistent/config.json'],
-      { encoding: 'utf-8' },
-    );
+    const result = runScript(['--check', '/nonexistent/config.json']);
     expect(result.status).toBe(1);
   });
 });
@@ -349,7 +352,7 @@ describe('generateSchemaFile against real contracts', () => {
       contract('academic-standards-alignment/mathematics/math-standards-alignment'),
     );
 
-    expect(outPath).toContain(
+    expect(toPosix(outPath)).toContain(
       'schemas/academic-standards-alignment/mathematics/math-standards-alignment.ts',
     );
   });
@@ -524,7 +527,7 @@ describe('discovery', () => {
     );
 
     const expected = generatedContracts().map((configPath) =>
-      relative(REPO_ROOT, generateSchemaFile(configPath).outPath),
+      toPosix(relative(REPO_ROOT, generateSchemaFile(configPath).outPath)),
     );
 
     expect([...marked].sort()).toEqual([...expected].sort());
