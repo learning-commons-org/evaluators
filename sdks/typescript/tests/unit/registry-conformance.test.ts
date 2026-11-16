@@ -91,8 +91,15 @@ vi.mock('../../src/providers/index.js', async (importOriginal) => {
           llmCalls.push({ temperature: request.temperature, messages: request.messages, schema: request.schema });
           return {
             // One stub per field the model was asked for, so what an evaluator returns
-            // shows which of them it keeps.
-            data: Object.fromEntries(Object.keys(request.schema?.shape ?? {}).map((field) => [field, `stub ${field}`])),
+            // shows which of them it keeps. A list field gets an empty list: Sentence
+            // Structure's feature computation folds over one between its two steps, and a
+            // string there would stop the run before the step that sets the reported model.
+            data: Object.fromEntries(
+              Object.entries(request.schema?.shape ?? {}).map(([field, type]) => [
+                field,
+                (type as { type?: string } | undefined)?.type === 'array' ? [] : `stub ${field}`,
+              ]),
+            ),
             model: config.model,
             usage: { inputTokens: 1, outputTokens: 1 },
             latencyMs: 1,
@@ -871,10 +878,13 @@ describe('the reported model matches the contract steps that apply', () => {
       !step.condition ||
       (step.condition.input === 'grade_level' && step.condition.in.map(String).includes(grade));
 
-    const expected = config.steps
+    const applicable = config.steps
       .filter(applies)
-      .map((step) => `${step.model.provider}:${step.model.name}`)
-      .join('+');
+      .map((step) => `${step.model.provider}:${step.model.name}`);
+    // Vocabulary Complexity reports every model it called. Sentence Structure comes from
+    // the multi-step factory, whose envelope names one: the step that produced the result.
+    const expected =
+      E.metadata.id === SENTENCE_ID ? applicable[applicable.length - 1] : applicable.join('+');
 
     const result = (await construct(E).evaluate({
       text: 'The storm gathered offshore and the harbour emptied before dusk.',
@@ -891,10 +901,8 @@ describe('every declared preprocessing value reaches the prompt', () => {
   // without changing anything a schema or a hash would notice.
   const withPreprocessing = cases.filter(({ E }) => {
     if (!INVOKE[E.metadata.id]) return false;
-    // Sentence Structure's first stage reads array fields off the model response, and the
-    // shared mock returns `data: {}`, so it throws before any prompt is built. Its
-    // declared libraries (compromise+syllable, raw-loader, custom) have no adapter in
-    // runPreprocessingStep either, so this check could not drive it in any case.
+    // Sentence Structure's declared libraries (compromise+syllable, raw-loader, custom)
+    // have no adapter in runPreprocessingStep, so this check cannot recompute its values.
     if (E.metadata.id === SENTENCE_ID) return false;
     return (contractFor(E.metadata.id).config.preprocessing ?? []).length > 0;
   });

@@ -97,6 +97,15 @@ export class VercelAIProvider implements LLMProvider {
    * Generate structured output using Vercel AI SDK's generateText with output
    */
   async generateStructured<T>(request: LLMRequest<T>): Promise<LLMResponse<T>> {
+    // Before the adapter loads: a setting this vendor cannot take is the caller's
+    // configuration, and dropping it would report a run at an effort that was never sent.
+    if (request.reasoningEffort !== undefined && this.config.type !== 'openai') {
+      throw new ConfigurationError(
+        `reasoningEffort is an OpenAI reasoning-model setting and cannot be sent to ` +
+          `"${this.label}". Remove it, or use an openai model.`,
+      );
+    }
+
     const model = await this.getModel();
     const startTime = Date.now();
 
@@ -114,6 +123,11 @@ export class VercelAIProvider implements LLMProvider {
       maxRetries: this.config.maxRetries ?? 0,
       // maxOutputTokens is the vendor option; `maxTokens` is silently discarded.
       ...(request.maxTokens !== undefined ? { maxOutputTokens: request.maxTokens } : {}),
+      // @ai-sdk/openai reads this as `reasoningEffort` and sends it as `reasoning.effort`.
+      // Omitted when unset so the model's default applies.
+      ...(request.reasoningEffort !== undefined
+        ? { providerOptions: { openai: { reasoningEffort: request.reasoningEffort } } }
+        : {}),
     });
 
     return {

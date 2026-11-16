@@ -262,6 +262,55 @@ class TestRefusesAContractItCannotRun:
         )
         assert evaluator.metadata.id == "demo.area.chain"
 
+    def test_accepts_a_pair_of_steps_per_branch_whose_second_produces_the_output(self) -> None:
+        # Sentence Structure's shape, which "every step after the last unconditional one"
+        # would wrongly reject: each grade band runs its own first step and then its own
+        # second, so the first steps are conditional and still never end a run.
+        low = {"input": "grade_level", "in": ["3"]}
+        high = {"input": "grade_level", "in": ["4", "5"]}
+        raw = contract().model_dump(by_alias=True)
+        notes, rate = raw["steps"]
+        rate["prompt"]["placeholders"]["notes"]["source"] = "steps.notes_high.output"
+        rate_low = json.loads(json.dumps(rate))
+        rate_low["prompt"]["placeholders"]["notes"]["source"] = "steps.notes_low.output"
+        raw["steps"] = [
+            {**notes, "id": "notes_low", "condition": low},
+            {**notes, "id": "notes_high", "condition": high},
+            {**rate_low, "id": "rate_low", "condition": low},
+            {**rate, "id": "rate_high", "condition": high},
+        ]
+        raw["preprocessing"] = [
+            entry
+            if entry["id"] != "shouted"
+            else {
+                **entry,
+                "id": "shouted_high",
+                "input": "steps.notes_high.output",
+                "condition": high,
+            }
+            for entry in raw["preprocessing"]
+        ] + [
+            {
+                **next(e for e in raw["preprocessing"] if e["id"] == "shouted"),
+                "id": "shouted_low",
+                "input": "steps.notes_low.output",
+                "condition": low,
+            }
+        ]
+        models = {"notes_low": None, "notes_high": None, "rate_low": ChainOutput}
+        define(
+            steps=raw["steps"],
+            preprocessing=raw["preprocessing"],
+            step_models={**models, "rate_high": ChainOutput},
+        )
+        # The second step of a pair is what ends the run, so it is still held to the output.
+        with pytest.raises(ValueError, match='Step "rate_high".*can end a run'):
+            define(
+                steps=raw["steps"],
+                preprocessing=raw["preprocessing"],
+                step_models={**models, "rate_high": Notes},
+            )
+
     def test_refuses_an_optional_step(self) -> None:
         raw = contract().model_dump(by_alias=True)
         raw["steps"][0]["optional"] = True
@@ -539,6 +588,30 @@ class TestEnvelope:
             define(steps=raw["steps"])(anthropic_api_key="a", model_override=override)
         [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
         assert "temperature" not in record.getMessage()
+
+    async def test_a_declared_reasoning_effort_is_sent_for_that_step_alone(
+        self, providers: ProviderFactory
+    ) -> None:
+        raw = contract().model_dump(by_alias=True)
+        raw["steps"][0]["generation"] = {"temperature": None, "reasoning_effort": "none"}
+        await define(steps=raw["steps"])(**KEYS).evaluate(**INPUT)
+        notes, rate = providers.calls
+        assert notes["reasoning_effort"] == "none"
+        # The other step declares none, so its provider is called without the keyword.
+        assert rate["reasoning_effort"] is None
+
+    async def test_an_override_does_not_carry_the_reasoning_effort_across(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        raw = contract().model_dump(by_alias=True)
+        raw["steps"][0]["generation"] = {"temperature": None, "reasoning_effort": "none"}
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            evaluator = define(steps=raw["steps"])(anthropic_api_key="a", model_override=override)
+        await evaluator.evaluate(**INPUT)
+        assert [call.get("reasoning_effort") for call in providers.calls] == [None, None]
+        [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert "reasoning effort its contract declares (none) is not sent" in record.getMessage()
 
     async def test_without_an_override_each_step_sends_what_its_contract_pins(
         self, providers: ProviderFactory

@@ -32,6 +32,7 @@ VOCAB = "text_complexity.ela_reading.vocabulary_complexity"
 TONE = "feedback.ela_writing.tone_appropriateness"
 MATH = "academic_standards_alignment.mathematics.math_standards_alignment"
 CRITICAL_THINKING = "durable_skills.ela_writing.critical_thinking"
+SENTENCE_STRUCTURE = "text_complexity.ela_reading.sentence_structure"
 
 
 def registry_ids() -> list[str]:
@@ -180,6 +181,20 @@ class TestLookups:
     def test_temperature_null_is_none(self) -> None:
         step = load_contract(CRITICAL_THINKING).step("evaluate_critical_thinking")
         assert step.temperature is None
+
+    def test_reasoning_effort_is_read_per_step_and_absent_is_none(self) -> None:
+        step = load_contract(SENTENCE_STRUCTURE).step("sentence_analysis_grades_3_4")
+        assert step.reasoning_effort == "none"
+        assert (
+            load_contract(CRITICAL_THINKING).step("evaluate_critical_thinking").reasoning_effort
+            is None
+        )
+
+    def test_reasoning_effort_is_refused_on_a_step_that_is_not_openais(self) -> None:
+        raw = load_contract(SENTENCE_STRUCTURE).model_dump(by_alias=True)
+        raw["steps"][0]["model"] = {"provider": "google", "name": "gemini-3.8-flash"}
+        with pytest.raises(ValueError, match="only an openai step can send"):
+            Contract.model_validate(raw)
 
     def test_required_credentials_skip_optional_steps(self) -> None:
         math = load_contract(MATH)

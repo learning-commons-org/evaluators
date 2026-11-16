@@ -306,14 +306,14 @@ class TestMultiStepReporting:
         stages = event_sink.events()[0]["metadata"]["stage_details"]
         assert stages == [
             {
-                "stage": "sentence_analysis",
-                "provider": "openai:gpt-4o-2024-08-06",
+                "stage": "sentence_analysis_grades_5_12",
+                "provider": "openai:gpt-5.5",
                 "latency_ms": 12,
                 "token_usage": {"input_tokens": 7, "output_tokens": 3},
             },
             {
-                "stage": "classify_complexity",
-                "provider": "openai:gpt-4o-2024-08-06",
+                "stage": "classify_complexity_grades_5_12",
+                "provider": "openai:gpt-5.5",
                 "latency_ms": 12,
                 "token_usage": {"input_tokens": 7, "output_tokens": 3},
             },
@@ -323,9 +323,9 @@ class TestMultiStepReporting:
         self, providers: ProviderFactory, event_sink: EventSink
     ) -> None:
         evaluator = SentenceStructureEvaluator(openai_api_key="k")
-        # Both steps run on one model, so the client they share is what has to fail, and
-        # only on the second call.
-        provider = providers.created[0]
+        # Both of a grade band's steps run on one model, so the client that band shares is
+        # what has to fail, and only on the second call.
+        [provider] = [p for p in providers.created if p.config.model == "gpt-5.5"]
         answer = provider.generate_structured
         calls = 0
 
@@ -342,7 +342,9 @@ class TestMultiStepReporting:
 
         [event] = event_sink.events()
         assert event["status"] == "error"
-        assert [s["stage"] for s in event["metadata"]["stage_details"]] == ["sentence_analysis"]
+        assert [s["stage"] for s in event["metadata"]["stage_details"]] == [
+            "sentence_analysis_grades_5_12"
+        ]
         assert event["token_usage"] == {"input_tokens": 7, "output_tokens": 3}
 
 

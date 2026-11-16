@@ -361,6 +361,48 @@ describe('VercelAIProvider - temperature', () => {
   });
 });
 
+describe('VercelAIProvider - reasoning effort', () => {
+  const schema = z.object({ ok: z.boolean() });
+  const messages = [{ role: 'user' as const, content: 'hi' }];
+
+  it('sends it to OpenAI under the option name the adapter reads', async () => {
+    const { mod, generateText } = await loadProvider();
+    await new mod.VercelAIProvider({ type: 'openai', model: 'gpt-5.5', apiKey: 'k' }).generateStructured({
+      messages,
+      schema,
+      reasoningEffort: 'none',
+    });
+
+    expect(generateText.mock.calls[0][0].providerOptions).toEqual({
+      openai: { reasoningEffort: 'none' },
+    });
+  });
+
+  it('sends no provider options when unset, leaving the model default', async () => {
+    const { mod, generateText } = await loadProvider();
+    await new mod.VercelAIProvider({ type: 'openai', model: 'gpt-5.5', apiKey: 'k' }).generateStructured({
+      messages,
+      schema,
+    });
+
+    expect(generateText.mock.calls[0][0]).not.toHaveProperty('providerOptions');
+  });
+
+  it.each(['anthropic', 'google'] as const)('refuses it for %s rather than dropping it', async (type) => {
+    // Dropped silently, the run would be reported at an effort that was never sent.
+    const { mod, generateText } = await loadProvider();
+    const provider = new mod.VercelAIProvider({ type, model: 'model-x', apiKey: 'k' });
+
+    await expect(
+      provider.generateStructured({ messages, schema, reasoningEffort: 'none' }),
+    ).rejects.toMatchObject({
+      name: 'ConfigurationError',
+      message: expect.stringContaining(`cannot be sent to "${type}:model-x"`),
+    });
+    expect(generateText).not.toHaveBeenCalled();
+  });
+});
+
 describe('VercelAIProvider - request assembly', () => {
   const CONFIG: ProviderConfig = { type: 'openai', model: 'gpt-4o-mini', apiKey: 'k' };
   const schema = z.object({ ok: z.boolean() });

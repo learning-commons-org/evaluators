@@ -102,7 +102,7 @@ class BaseEvaluator(ABC):
                 "Evaluation quality may differ from recommended defaults.%s",
                 self._override_provider.value if self._override_provider else "?",
                 config.model_override.model,
-                self._dropped_temperature_note(),
+                self._dropped_temperature_note() + self._dropped_reasoning_effort_note(),
                 extra={"evaluator": self.metadata.id, "operation": "construct"},
             )
 
@@ -235,6 +235,23 @@ class BaseEvaluator(ABC):
             " default model's are."
         )
 
+    def _dropped_reasoning_effort_note(self) -> str:
+        """What the override warning adds when a declared reasoning effort will not be sent.
+
+        The counterpart of :meth:`_dropped_temperature_note`, and empty for the same reason
+        when the contract declares none.
+        """
+        declared = sorted(
+            {s.reasoning_effort for s in self.contract.steps if s.reasoning_effort is not None}
+        )
+        if not declared:
+            return ""
+        return (
+            f" The reasoning effort its contract declares ({', '.join(declared)}) is not sent"
+            " either, so the override reasons at its own default, which can move its"
+            " results well away from the default model's."
+        )
+
     def effective_temperature(self, declared: float | None) -> float | None:
         """The temperature to send for a step, honouring ``model_override``.
 
@@ -247,6 +264,19 @@ class BaseEvaluator(ABC):
         than degrading it.
         """
         return declared if self.config.model_override is None else None
+
+    def effective_reasoning_effort(self, declared: str | None) -> str | None:
+        """The reasoning effort to send for a step, honouring what replaces its model.
+
+        Dropped under ``model_override`` for the reason temperature is: the value was
+        validated for the model the contract declares, and whether another model accepts
+        it, or even reasons, is that model's own property. Dropped for an injected
+        ``llm_provider`` too: the keyword is OpenAI's, the caller's provider may not take
+        it, and §3 already puts that provider's quality in the caller's hands.
+        """
+        if self.config.model_override is not None or self.config.llm_provider is not None:
+            return None
+        return declared
 
     def _create_configured_provider(self, default: Provider, default_model: str) -> LLMProvider:
         """A provider for one step: the injected ``llm_provider``, or a built-in adapter

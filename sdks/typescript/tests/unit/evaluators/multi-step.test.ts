@@ -9,7 +9,14 @@ import type { LLMProvider } from '../../../src/providers/base.js';
 
 const sent = vi.fn();
 const created: Array<{ type: string; model: string }> = [];
-const calls: Array<{ model: string; system: string; user: string; temperature?: number }> = [];
+const calls: Array<{
+  model: string;
+  system: string;
+  user: string;
+  temperature?: number;
+  /** The whole request, for checks on which keys were sent at all. */
+  request: Record<string, unknown>;
+}> = [];
 
 vi.mock('../../../src/telemetry/client.js', () => ({
   TelemetryClient: class {
@@ -38,6 +45,7 @@ vi.mock('../../../src/providers/index.js', async (importOriginal) => {
               system: request.messages[0].content,
               user: request.messages[1].content,
               temperature: request.temperature,
+              request: request as unknown as Record<string, unknown>,
             });
             const canned = RESPONSES[config.model];
             if (canned instanceof Error) return Promise.reject(canned);
@@ -320,8 +328,8 @@ describe('defineMultiStepEvaluator — contract failures', () => {
   });
 
   it('rejects a non-final step with no schema', () => {
-    // Only the last step may omit one, since its output is the result and is validated
-    // against the definition's outputSchema.
+    // Only a step that can end a run may omit one, since its output is then the result
+    // and is validated against the definition's outputSchema.
     const steps = {
       analyse: { system: 'analyse system', user: 'text={text} counts={counts}' },
       classify: STEPS.classify,
@@ -518,6 +526,250 @@ describe('defineMultiStepEvaluator — contract failures', () => {
     ).rejects.toThrow();
 
     expect(calls).toHaveLength(0);
+  });
+});
+
+/**
+ * One contract carrying two configurations, split on grade: an analyse/classify pair for
+ * grade 3 and another for grades 4 and 5, each pair on its own model. This is the shape
+ * sentence structure's contract has.
+ */
+function banded() {
+  const base = contract();
+  const [analyse, classify] = base.steps;
+  const low = { input: 'grade_level', in: ['3'] };
+  const high = { input: 'grade_level', in: ['4', '5'] };
+  const classifyFor = (band: string, model: string, condition: typeof low) => ({
+    ...classify,
+    id: `classify_${band}`,
+    condition,
+    model: { provider: 'openai', name: model },
+    generation: { temperature: 0.5, reasoning_effort: 'none' },
+    prompt: {
+      placeholders: {
+        ...classify.prompt.placeholders,
+        raw_analysis: { required: true, source: `steps.analyse_${band}.output` },
+      },
+    },
+  });
+  const derivedFor = (band: string, condition: typeof low) => ({
+    ...base.preprocessing[3],
+    id: `derived_${band}`,
+    input: `steps.analyse_${band}.output`,
+    condition,
+  });
+  return {
+    ...base,
+    steps: [
+      { ...analyse, id: 'analyse_low', condition: low, model: { provider: 'openai', name: 'gpt-low' } },
+      { ...analyse, id: 'analyse_high', condition: high, model: { provider: 'openai', name: 'gpt-high' } },
+      classifyFor('low', 'gpt-low', low),
+      classifyFor('high', 'gpt-high', high),
+    ],
+    preprocessing: [
+      ...base.preprocessing.slice(0, 3),
+      derivedFor('low', low),
+      derivedFor('high', high),
+    ],
+  };
+}
+
+type Banded = ReturnType<typeof banded>;
+
+const BANDED_STEPS = {
+  analyse_low: STEPS.analyse,
+  analyse_high: STEPS.analyse,
+  // No schema: each ends the run for its band, so it takes the definition's outputSchema.
+  classify_low: { system: STEPS.classify.system, user: STEPS.classify.user },
+  classify_high: { system: STEPS.classify.system, user: STEPS.classify.user },
+};
+
+function defineBanded(source: Banded = banded(), steps: Record<string, unknown> = BANDED_STEPS) {
+  return defineFrom(source as never, { steps: steps as never });
+}
+
+describe('defineMultiStepEvaluator — conditional steps', () => {
+  beforeEach(() => {
+    RESPONSES['gpt-low'] = { count: 4, verdict: 'low verdict', reasoning: 'low' };
+    RESPONSES['gpt-high'] = { count: 9, verdict: 'high verdict', reasoning: 'high' };
+  });
+
+  it.each([
+    ['3', 'gpt-low', 'low verdict'],
+    ['5', 'gpt-high', 'high verdict'],
+  ])('at grade %s runs only the steps whose condition holds, in declared order', async (grade, model, verdict) => {
+    const evaluator = new (defineBanded())({ openaiApiKey: 'k' });
+    const result = await evaluator.evaluate({ text: 'a b', grade_level: grade });
+
+    expect(calls.map((c) => c.model)).toEqual([model, model]);
+    expect(calls.map((c) => c.system)).toEqual(['analyse system', 'classify system']);
+
+    // The result is the last step that ran, not the last one declared — which for grade 3
+    // is a step that never ran — and the reported model is that step's.
+    expect(result.result).toMatchObject({ verdict });
+    expect(result.metadata.model).toBe(`openai:${model}`);
+
+    const band = model.slice('gpt-'.length);
+    const event = sent.mock.calls[0][0] as {
+      provider: string;
+      metadata?: { stage_details?: Array<{ stage: string; provider: string }> };
+    };
+    expect(event.provider).toBe(`openai:${model}`);
+    expect(event.metadata?.stage_details).toMatchObject([
+      { stage: `analyse_${band}`, provider: `openai:${model}` },
+      { stage: `classify_${band}`, provider: `openai:${model}` },
+    ]);
+  });
+
+  it('reads the step output of the band that ran', async () => {
+    await construct(defineBanded()).evaluate({ text: 'a b', grade_level: '5' });
+
+    // The other band's entry reads a step that did not run, and is not applicable.
+    expect(calls[1].user).toContain('derived=count=9');
+    expect(calls[1].user).toContain('raw={"count":9');
+  });
+
+  it('reports the right model for each of two overlapping evaluations', async () => {
+    // The reported provider is per evaluation; held on the instance, the later call
+    // would overwrite the earlier one's.
+    const evaluator = construct(defineBanded());
+    const [low, high] = await Promise.all([
+      evaluator.evaluate({ text: 'a b', grade_level: '3' }),
+      evaluator.evaluate({ text: 'a b', grade_level: '5' }),
+    ]);
+
+    expect(low.metadata.model).toBe('openai:gpt-low');
+    expect(high.metadata.model).toBe('openai:gpt-high');
+  });
+
+  it('fails an applicable entry that reads a step which did not run', async () => {
+    const crossed = banded();
+    crossed.preprocessing[4].input = 'steps.analyse_low.output';
+
+    await expect(
+      construct(defineBanded(crossed)).evaluate({ text: 'a b', grade_level: '5' }),
+    ).rejects.toThrow(/reads "steps.analyse_low.output", which is not available yet/);
+  });
+
+  it('fails when no step applies to the inputs', async () => {
+    const narrowed = banded();
+    for (const step of narrowed.steps) {
+      if (step.condition.in.includes('4')) step.condition = { input: 'grade_level', in: ['5'] };
+    }
+
+    await expect(
+      construct(defineBanded(narrowed)).evaluate({ text: 'a b', grade_level: '4' }),
+    ).rejects.toMatchObject({
+      name: 'ConfigurationError',
+      message: expect.stringContaining('No step of Thing Evaluator applies'),
+    });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('fails when the run would end on a step whose output is not the result', async () => {
+    // An unconditional step with another declared after it is an intermediate one. Grade 4
+    // runs it and then nothing, so there is no result to return.
+    const gap = contract();
+    (gap.steps[1] as { condition?: unknown }).condition = { input: 'grade_level', in: ['3'] };
+
+    await expect(
+      construct(defineFrom(gap)).evaluate({ text: 'a b', grade_level: '4' }),
+    ).rejects.toMatchObject({
+      name: 'ConfigurationError',
+      message: expect.stringContaining('Step "analyse" is the last'),
+    });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('attributes a failure to the step of the band that was running', async () => {
+    RESPONSES['gpt-high'] = new Error('high band exploded');
+
+    const evaluator = new (defineBanded())({ openaiApiKey: 'k' });
+    await expect(evaluator.evaluate({ text: 'a b', grade_level: '5' })).rejects.toThrow();
+
+    const event = sent.mock.calls[0][0] as { provider?: string };
+    expect(event.provider).toBe('openai:gpt-high');
+  });
+
+  it('rejects a missing schema on a conditional step that a later step always follows', () => {
+    // Every grade analyse_low runs for, classify_low runs for too, so it never ends a run.
+    const steps = { ...BANDED_STEPS, analyse_low: BANDED_STEPS.classify_low };
+
+    expect(() => defineBanded(banded(), steps)).toThrow(/No schema supplied for step "analyse_low"/);
+  });
+
+  it('accepts a missing schema on each conditional step that can end a run', () => {
+    expect(() => defineBanded()).not.toThrow();
+  });
+});
+
+describe('defineMultiStepEvaluator — reasoning effort', () => {
+  beforeEach(() => {
+    RESPONSES['gpt-low'] = { count: 4, verdict: 'low verdict', reasoning: 'low' };
+    RESPONSES['gpt-high'] = { count: 9, verdict: 'high verdict', reasoning: 'high' };
+  });
+
+  it('sends a step its declared reasoning effort, and nothing to a step declaring none', async () => {
+    await construct(defineBanded()).evaluate({ text: 'a b', grade_level: '3' });
+
+    // The analyse steps declare none; the key is absent rather than undefined.
+    expect(calls[0].request).not.toHaveProperty('reasoningEffort');
+    expect(calls[1].request.reasoningEffort).toBe('none');
+  });
+
+  it('withholds it under modelOverride, where the declared model is not what runs', async () => {
+    const evaluator = new (defineBanded())({
+      openaiApiKey: 'k',
+      telemetry: false,
+      modelOverride: { provider: 'openai' as never, model: 'gpt-override' },
+    });
+    await evaluator.evaluate({ text: 'a b', grade_level: '3' });
+
+    expect(calls.map((c) => c.model)).toEqual(['gpt-override', 'gpt-override']);
+    for (const call of calls) expect(call.request).not.toHaveProperty('reasoningEffort');
+    // Temperature is unaffected by the override, as before.
+    expect(calls.map((c) => c.temperature)).toEqual([0, 0.5]);
+  });
+
+  it('withholds it from an injected llmProvider', async () => {
+    const requests: Array<Record<string, unknown>> = [];
+    const llmProvider = {
+      label: 'mine',
+      generateStructured: vi.fn(async (request: Record<string, unknown>) => {
+        requests.push(request);
+        return {
+          data: { count: 4, verdict: 'v', reasoning: 'r' },
+          model: 'mine',
+          usage: { inputTokens: 1, outputTokens: 1 },
+          latencyMs: 1,
+        };
+      }),
+      generateText: vi.fn(),
+    } as unknown as LLMProvider;
+
+    await new (defineBanded())({ llmProvider, telemetry: false }).evaluate({
+      text: 'a b',
+      grade_level: '3',
+    });
+
+    expect(requests).toHaveLength(2);
+    for (const request of requests) expect(request).not.toHaveProperty('reasoningEffort');
+  });
+
+  it('rejects reasoning_effort on a step whose provider is not openai', () => {
+    const wrongVendor = banded();
+    wrongVendor.steps[2].model = { provider: 'google', name: 'gemini-classify' };
+
+    expect(() => defineBanded(wrongVendor)).toThrow(
+      /Step "classify_low" in Thing Evaluator config.json declares generation.reasoning_effort, which only an openai model takes; its model.provider is "google"/,
+    );
+  });
+
+  it('rejects a reasoning_effort the contract schema does not list', () => {
+    const unknown = banded();
+    unknown.steps[2].generation = { temperature: 0.5, reasoning_effort: 'maximal' };
+
+    expect(() => defineBanded(unknown)).toThrow(/unknown generation.reasoning_effort "maximal"/);
   });
 });
 

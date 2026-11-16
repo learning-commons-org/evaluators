@@ -308,9 +308,13 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         dependency, model = self._provider_context(provider)
         schema = self.step_models[step.id]
         temperature = self.effective_temperature(step.temperature)
+        # Passed only when the step declares one, so a provider that predates the keyword,
+        # which is every step of every other contract, is called exactly as before.
+        effort = self.effective_reasoning_effort(step.reasoning_effort)
+        extra: dict[str, Any] = {} if effort is None else {"reasoning_effort": effort}
         if schema is None:
             prose = await call_with_resampling(
-                lambda: provider.generate_text(messages, temperature=temperature),
+                lambda: provider.generate_text(messages, temperature=temperature, **extra),
                 max_retries=self.config.max_retries,
                 dependency=dependency,
                 model=model,
@@ -320,7 +324,9 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             # surrounding blank lines would read as structure it did not intend.
             return prose.text.strip(), prose.usage, prose.latency_ms
         structured = await call_with_resampling(
-            lambda: provider.generate_structured(messages, schema, temperature=temperature),
+            lambda: provider.generate_structured(
+                messages, schema, temperature=temperature, **extra
+            ),
             max_retries=self.config.max_retries,
             dependency=dependency,
             model=model,
@@ -530,13 +536,10 @@ def _check_steps(cls: type[MultiStepEvaluator[Any, Any]], contract: Contract) ->
     # inputs select is the terminal step, and there may be several. Nor every step from the
     # last unconditional one onward, which would reject Vocabulary Complexity — its last
     # unconditional step is background_knowledge, whose prose feeds the next prompt and is
-    # not the result. So: every step after the last unconditional one, and that step itself
-    # only when nothing follows it.
-    last_unconditional = max(
-        (i for i, step in enumerate(contract.steps) if step.condition is None), default=-1
-    )
-    terminal = list(range(last_unconditional + 1, len(contract.steps))) or [last_unconditional]
-    for index in terminal:
+    # not the result. Nor every conditional step after it, which would reject Sentence
+    # Structure — each grade band runs its own analysis step and then its own
+    # classification, so the analysis steps are conditional and still never last.
+    for index in _terminal_steps(contract.steps):
         step = contract.steps[index]
         if cls.step_models[step.id] is not cls.output_model:
             raise ValueError(
@@ -546,6 +549,38 @@ def _check_steps(cls: type[MultiStepEvaluator[Any, Any]], contract: Contract) ->
     # A trailing group of conditional steps that does not cover the input schema's enum
     # still lets a run end on the last unconditional step, which this rule exempts; that
     # case is caught during the evaluation instead.
+
+
+def _terminal_steps(steps: Sequence[Step]) -> list[int]:
+    """The indexes of the steps that can be the last one a run executes.
+
+    An unconditional step ends a run only when nothing is declared after it. A conditional
+    step ends one when, for at least one of the values it runs for, no later step runs: none
+    that is unconditional, and none whose condition on the same input admits that value. A
+    later step conditioned on a different input is taken to run, since nothing here says the
+    two inputs exclude each other; that errs toward not demanding the result of a step that
+    may be followed, and a run that does end elsewhere fails validation of its output.
+    """
+
+    def followed(value: str, source: str, later: Sequence[Step]) -> bool:
+        return any(
+            step.condition is None
+            or step.condition.input != source
+            or value in step.condition.values
+            for step in later
+        )
+
+    terminal = []
+    for index, step in enumerate(steps):
+        later = steps[index + 1 :]
+        if step.condition is None:
+            if not later:
+                terminal.append(index)
+        elif any(
+            not followed(value, step.condition.input, later) for value in step.condition.values
+        ):
+            terminal.append(index)
+    return terminal
 
 
 def _check_placeholder_source(placeholder: str, source: str, name: str, declared: set[str]) -> None:

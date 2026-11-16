@@ -72,6 +72,7 @@ class FakeProvider:
         temperature: float | None = None,
         max_tokens: int | None = None,
         attachments: Sequence[ImageAttachment] = (),
+        reasoning_effort: str | None = None,
     ) -> LLMResponse[Any]:
         self._record(
             {
@@ -79,6 +80,8 @@ class FakeProvider:
                 "schema": schema,
                 "temperature": temperature,
                 "attachments": tuple(attachments),
+                "reasoning_effort": reasoning_effort,
+                "model": self.config.model,
             }
         )
         if self.failures:
@@ -96,10 +99,19 @@ class FakeProvider:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
     ) -> TextGenerationResponse:
         # Recorded alongside the structured calls, with ``schema`` absent, so a test reads
         # one ordered record of everything the evaluator asked for.
-        self._record({"messages": list(messages), "schema": None, "temperature": temperature})
+        self._record(
+            {
+                "messages": list(messages),
+                "schema": None,
+                "temperature": temperature,
+                "reasoning_effort": reasoning_effort,
+                "model": self.config.model,
+            }
+        )
         if self.failures:
             raise self.failures.pop(0)
         return TextGenerationResponse(

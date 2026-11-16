@@ -199,6 +199,10 @@
                 "minimum": 0,
                 "maximum": 1,
                 "description": "Sampling temperature to send, or null to omit the parameter entirely. Prefer an explicit number: the value an evaluator was validated at should be recorded, not inherited from a model default that can change under us. Use null only for models that reject any non-default value -- Claude Opus 4.7 and later return a 400 -- where omitting is the documented approach. A model recommending its default is not grounds for null; write the number out. Required rather than optional so every step records a deliberate choice; an absent key reads as 'nobody considered it'."
+              },
+              "reasoning_effort": {
+                "enum": ["none", "minimal", "low", "medium", "high", "xhigh", "max"],
+                "description": "Reasoning effort to send to an OpenAI reasoning model (the Responses API's reasoning.effort). Omit the key to send nothing and take the model's default. Record the value an evaluator was validated at: on these models the default changes how literally a rubric is applied, so it is not a neutral choice. Only valid on a step whose model.provider is openai; the SDKs refuse it elsewhere rather than drop it silently. Like temperature, it is not carried across a model_override, which replaces the model the value was validated for."
               }
             }
           },

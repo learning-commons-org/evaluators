@@ -130,7 +130,7 @@
       "status": "success",
       "latency_ms": "<masked>",
       "text_length_chars": 159,
-      "provider": "openai:gpt-4o-2024-08-06",
+      "provider": "openai:gpt-5.5",
       "token_usage": {
         "input_tokens": 500,
         "output_tokens": 240
@@ -138,8 +138,8 @@
       "metadata": {
         "stage_details": [
           {
-            "stage": "sentence_analysis",
-            "provider": "openai:gpt-4o-2024-08-06",
+            "stage": "sentence_analysis_grades_5_12",
+            "provider": "openai:gpt-5.5",
             "latency_ms": 900,
             "token_usage": {
               "input_tokens": 250,
@@ -147,8 +147,8 @@
             }
           },
           {
-            "stage": "classify_complexity",
-            "provider": "openai:gpt-4o-2024-08-06",
+            "stage": "classify_complexity_grades_5_12",
+            "provider": "openai:gpt-5.5",
             "latency_ms": 900,
             "token_usage": {
               "input_tokens": 250,
@@ -177,7 +177,7 @@
       "error_code": "RateLimitError",
       "latency_ms": "<masked>",
       "text_length_chars": 159,
-      "provider": "openai:gpt-4o-2024-08-06",
+      "provider": "openai:gpt-5.5",
       "token_usage": {
         "input_tokens": 250,
         "output_tokens": 120
@@ -185,8 +185,8 @@
       "metadata": {
         "stage_details": [
           {
-            "stage": "sentence_analysis",
-            "provider": "openai:gpt-4o-2024-08-06",
+            "stage": "sentence_analysis_grades_5_12",
+            "provider": "openai:gpt-5.5",
             "latency_ms": 900,
             "token_usage": {
               "input_tokens": 250,
