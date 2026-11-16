@@ -119,12 +119,8 @@ jobs:
       run:
         working-directory: sdks/typescript
     steps:
-      # The runner image defaults to autocrlf=true, which would make every generated file
-      # differ by line endings and hide any other drift.
-      - name: 🔧 Keep LF line endings
-        working-directory: .
-        run: git config --global core.autocrlf false
-
+      # The runner keeps the image's default autocrlf=true, as Git for Windows does on a
+      # contributor's machine, so this job sees the line endings they would.
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v7
 
