@@ -288,14 +288,18 @@ class BaseEvaluator(ABC):
         Only google-genai's floor predates its effort parameter; the openai and anthropic
         adapters send theirs as plain request data, which every supported release passes
         through. Only an effort that will be sent is checked, so an override or an injected
-        provider never fails on a vendor SDK it does not use.
+        provider never fails here. And only on a provider in use, the providers
+        :meth:`_validate_sdks` has found installed: an optional step on a vendor no other
+        step uses is not checked, since that vendor's SDK may be absent.
         """
+        in_use = self.providers_in_use
         for step in self.contract.steps:
             effort = self.effective_reasoning_effort(step.reasoning_effort)
             if (
                 effort is not None
                 and step.model is not None
                 and step.model.provider is Provider.GOOGLE
+                and Provider.GOOGLE in in_use
             ):
                 from learning_commons_evaluators.providers.google_genai import (
                     check_reasoning_effort,

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 from collections.abc import Iterator
 from dataclasses import dataclass, field, replace
 from typing import Any
@@ -23,6 +24,7 @@ from learning_commons_evaluators import (
     StandardNotFoundError,
     read_outcome,
 )
+from learning_commons_evaluators.contracts import Contract
 from learning_commons_evaluators.dependencies.knowledge_graph import (
     STANDARD_SEARCH_LIMIT,
     AcademicStandard,
@@ -106,6 +108,21 @@ def built() -> Iterator[list[LoopBoundKnowledgeGraph]]:
 
     with patch.object(KnowledgeGraphClient, "from_config", from_config):
         yield clients
+
+
+class TestReasoningEffortOnAStepNotInUse:
+    def test_an_optional_steps_google_effort_needs_no_google_sdk(self) -> None:
+        # The coarse filter is optional and outside the providers in use, so the installed-SDK
+        # check skips its vendor; the effort check must not import that SDK either.
+        raw = MathStandardsAlignmentEvaluator.contract.model_dump(by_alias=True)
+        [coarse] = [step for step in raw["steps"] if step.get("optional")]
+        coarse["model"] = {"provider": "google", "name": "gemini-3.6-flash"}
+        coarse["generation"] = {"temperature": None, "reasoning_effort": "high"}
+        with (
+            patch.object(MathStandardsAlignmentEvaluator, "contract", Contract.model_validate(raw)),
+            patch.dict(sys.modules, {"google.genai": None}),
+        ):
+            build()
 
 
 def build_from_config() -> MathStandardsAlignmentEvaluator:

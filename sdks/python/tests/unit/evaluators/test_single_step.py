@@ -6,6 +6,7 @@ import asyncio
 import copy
 import io
 import logging
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -1063,13 +1064,27 @@ class TestReasoningEffort:
             evaluator(google_api_key="k")
         assert providers.created == []
 
+    def test_a_missing_google_sdk_is_reported_as_missing_not_as_too_old(
+        self, providers: ProviderFactory
+    ) -> None:
+        # The installed-SDK check runs first, so the effort check never imports a package
+        # that is not there. ``None`` in ``sys.modules`` makes importing it fail as it would.
+        evaluator = define(steps=[_with_effort("high", "google", "gemini-3.5-flash")])
+        with (
+            patch("learning_commons_evaluators.evaluators.base.sdk_installed", return_value=False),
+            patch.dict(sys.modules, {"google.genai": None}),
+            pytest.raises(ConfigurationError, match=r"learning-commons-evaluators\[google\]"),
+        ):
+            evaluator(google_api_key="k")
+
     def test_an_override_skips_the_google_sdk_check(
         self, providers: ProviderFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         from google.genai import types
 
-        # The effort is not sent under an override, so the SDK that cannot send it is moot.
+        # The effort is not sent under an override, so the SDK that cannot send it is moot,
+        # even when the override is to the same vendor and its SDK is the one in use.
         monkeypatch.delattr(types, "ThinkingLevel", raising=False)
-        override = ModelOverride(provider=Provider.OPENAI, model="gpt-5.5")
+        override = ModelOverride(provider=Provider.GOOGLE, model="gemini-3.6-flash")
         evaluator = define(steps=[_with_effort("high", "google", "gemini-3.5-flash")])
-        evaluator(openai_api_key="o", model_override=override)
+        evaluator(google_api_key="g", model_override=override)
