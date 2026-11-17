@@ -576,21 +576,6 @@ export abstract class BaseEvaluator {
   }
 
   /**
-   * Say once, at construction, that an override drops the reasoning efforts its contract
-   * declares. Silent when it declares none, so it never claims to drop what is not there.
-   */
-  protected warnDroppedReasoningEfforts(declared: ReadonlyArray<string | undefined>): void {
-    if (!this.config.modelOverride) return;
-    const values = [...new Set(declared.filter((e) => e !== undefined))].sort();
-    if (values.length === 0) return;
-    this.logger.warn(
-      `The reasoning effort its contract declares (${values.join(', ')}) is not sent under ` +
-        'modelOverride, so the override reasons at its own default, which can move its ' +
-        "results well away from the default model's."
-    );
-  }
-
-  /**
    * Create an LLM provider, honouring llmProvider then modelOverride if set.
    * An injected llmProvider wins outright and is returned as-is. Otherwise, when
    * override is active, the key for the override provider is resolved from the

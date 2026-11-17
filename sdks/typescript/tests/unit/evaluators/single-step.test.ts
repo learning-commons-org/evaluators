@@ -200,19 +200,15 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
       expect(lastRequest()).not.toHaveProperty('reasoningEffort');
     });
 
-    it('drops it under modelOverride and warns once that it did', async () => {
-      const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    it('drops it under modelOverride', async () => {
       const evaluator = new (define(effortStep('high')))({
         anthropicApiKey: 'k',
         telemetry: false,
-        logger,
         modelOverride: { provider: Provider.Anthropic, model: 'claude-opus-5-5' },
       });
       await evaluator.evaluate(INPUT);
 
       expect(lastRequest()).not.toHaveProperty('reasoningEffort');
-      const notes = logger.warn.mock.calls.map(([m]) => String(m)).filter((m) => m.includes('reasoning effort'));
-      expect(notes).toEqual([expect.stringContaining('declares (high) is not sent under modelOverride')]);
     });
 
     it('does not hand it to an injected llmProvider', async () => {

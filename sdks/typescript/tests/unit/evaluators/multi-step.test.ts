@@ -272,7 +272,6 @@ describe('defineMultiStepEvaluator', () => {
       if (classify) Object.assign(source.steps[1].generation, { reasoning_effort: classify });
       return source;
     }
-    const quietLogger = () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() });
 
     it('sends each step only the effort it declares', async () => {
       await construct(defineFrom(withEfforts('none'))).evaluate({ text: 'a b', grade_level: '3' });
@@ -287,34 +286,16 @@ describe('defineMultiStepEvaluator', () => {
       expect(calls.every((c) => !('reasoningEffort' in c))).toBe(true);
     });
 
-    it('drops every effort under modelOverride, and says so once at construction', async () => {
-      const logger = quietLogger();
+    it('drops every effort under modelOverride', async () => {
       const Klass = defineFrom(withEfforts('none', 'low'));
       const evaluator = new Klass({
         anthropicApiKey: 'k',
         telemetry: false,
-        logger,
         modelOverride: { provider: 'anthropic' as never, model: 'claude-opus-5-5' },
       });
       await evaluator.evaluate({ text: 'a b', grade_level: '3' });
 
       expect(calls.every((c) => !('reasoningEffort' in c))).toBe(true);
-      const warnings = logger.warn.mock.calls.map(([message]) => message as string);
-      expect(warnings.filter((m) => m.includes('reasoning effort'))).toEqual([
-        expect.stringContaining('declares (low, none) is not sent under modelOverride'),
-      ]);
-    });
-
-    it('does not warn about an effort under modelOverride when none is declared', () => {
-      const logger = quietLogger();
-      new (define())({
-        anthropicApiKey: 'k',
-        telemetry: false,
-        logger,
-        modelOverride: { provider: 'anthropic' as never, model: 'claude-opus-5-5' },
-      });
-
-      expect(logger.warn.mock.calls.some(([m]) => String(m).includes('reasoning effort'))).toBe(false);
     });
 
     it('does not hand an injected llmProvider the effort', async () => {

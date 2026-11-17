@@ -22,7 +22,6 @@ from learning_commons_evaluators.providers import (
     create_provider,
     provider_context,
 )
-from learning_commons_evaluators.providers.factory import check_reasoning_effort
 from learning_commons_evaluators.schemas.evaluator import EvaluationResult
 from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
 from learning_commons_evaluators.telemetry import (
@@ -271,13 +270,23 @@ class BaseEvaluator(ABC):
     def _check_reasoning_effort_support(self) -> None:
         """Refuse at construction a reasoning effort the installed vendor SDK cannot send.
 
-        Only an effort that will be sent is checked, so an override or an injected provider
-        never fails on a vendor SDK it does not use.
+        Only google-genai's floor predates its effort parameter; the openai and anthropic
+        adapters send theirs as plain request data, which every supported release passes
+        through. Only an effort that will be sent is checked, so an override or an injected
+        provider never fails on a vendor SDK it does not use.
         """
         for step in self.contract.steps:
             effort = self.effective_reasoning_effort(step.reasoning_effort)
-            if effort is not None and step.model is not None:
-                check_reasoning_effort(step.model.provider, effort)
+            if (
+                effort is not None
+                and step.model is not None
+                and step.model.provider is Provider.GOOGLE
+            ):
+                from learning_commons_evaluators.providers.google_genai import (
+                    check_reasoning_effort,
+                )
+
+                check_reasoning_effort(effort)
 
     def effective_temperature(self, declared: float | None) -> float | None:
         """The temperature to send for a step, honouring ``model_override``.

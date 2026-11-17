@@ -293,7 +293,6 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
       // The envelope reports one model. With every step on one it is exact; when they
       // differ it names the last, which is the step that produced the result.
       this.provider = this.providers.get(STEPS[STEPS.length - 1].id)!;
-      this.warnDroppedReasoningEfforts(RENDERERS.map((r) => r.reasoningEffort));
     }
 
     private keyFor(vendor: Provider, config: BaseEvaluatorConfig): string | undefined {

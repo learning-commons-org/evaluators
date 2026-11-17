@@ -308,7 +308,6 @@ export function defineSingleStepEvaluator<
     constructor(config: BaseEvaluatorConfig) {
       super(config);
       this.provider = this.createConfiguredProvider(VENDOR, STEP.model.name, this.keyFor(VENDOR, config));
-      this.warnDroppedReasoningEfforts([REASONING_EFFORT]);
       // Refused here, not at call time: a provider that ignores attachments would otherwise
       // judge the claim with no image and return a confident verdict about nothing.
       if (ATTACHMENTS.length > 0 && !this.provider.supportsAttachments) {
