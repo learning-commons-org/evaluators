@@ -15,9 +15,11 @@ from learning_commons_evaluators import (
     PurposeClarityEvaluator,
     TelemetryOptions,
     ToneAppropriatenessEvaluator,
+    VocabularyComplexityEvaluator,
 )
 from learning_commons_evaluators.evaluators.base import BaseEvaluator
-from tests.unit.conftest import ProviderFactory
+from learning_commons_evaluators.providers import ProviderConfig
+from tests.unit.conftest import FakeProvider, ProviderFactory, sample_for
 from tests.unit.evaluators.test_single_step import contract as demo_contract
 from tests.unit.evaluators.test_single_step import define as define_demo
 
@@ -201,3 +203,57 @@ class TestModelOverride:
         with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
             PurposeClarityEvaluator(google_api_key="k")
         assert not [r for r in caplog.records if r.levelno == logging.WARNING]
+
+
+class TestVendorSDKs:
+    """A built-in adapter's vendor SDK is checked at construction, like its key."""
+
+    @pytest.fixture
+    def installed(self, monkeypatch: pytest.MonkeyPatch) -> set[Provider]:
+        """The providers whose SDK counts as installed; none until a test adds some."""
+        present: set[Provider] = set()
+        monkeypatch.setattr(
+            "learning_commons_evaluators.evaluators.base.sdk_installed", present.__contains__
+        )
+        return present
+
+    def test_a_missing_sdk_names_the_evaluator_and_the_extra(
+        self, providers: ProviderFactory, installed: set[Provider]
+    ) -> None:
+        with pytest.raises(ConfigurationError) as exc_info:
+            PurposeClarityEvaluator(google_api_key="k")
+        assert str(exc_info.value) == (
+            "Purpose Clarity Evaluator needs the google-genai package, which is not installed. "
+            'Install it with: pip install "learning-commons-evaluators[google]"'
+        )
+
+    def test_every_missing_sdk_is_named_at_once(
+        self, providers: ProviderFactory, installed: set[Provider]
+    ) -> None:
+        with pytest.raises(ConfigurationError, match=r"\[openai,google\]"):
+            VocabularyComplexityEvaluator(openai_api_key="o", google_api_key="g")
+        installed.add(Provider.OPENAI)
+        with pytest.raises(ConfigurationError, match=r"needs the google-genai package.*\[google\]"):
+            VocabularyComplexityEvaluator(openai_api_key="o", google_api_key="g")
+
+    def test_it_is_checked_before_the_keys(
+        self, providers: ProviderFactory, installed: set[Provider]
+    ) -> None:
+        # Installing comes before configuring, so the first error is the one to fix first.
+        with pytest.raises(ConfigurationError, match="google-genai"):
+            PurposeClarityEvaluator()
+
+    def test_an_override_needs_its_own_providers_sdk_instead(
+        self, providers: ProviderFactory, installed: set[Provider]
+    ) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-haiku-4-5-20251001")
+        with pytest.raises(ConfigurationError, match=r"\[anthropic\]"):
+            PurposeClarityEvaluator(anthropic_api_key="a", model_override=override)
+        installed.add(Provider.ANTHROPIC)
+        PurposeClarityEvaluator(anthropic_api_key="a", model_override=override)
+
+    def test_an_injected_provider_needs_none(
+        self, providers: ProviderFactory, installed: set[Provider]
+    ) -> None:
+        injected = FakeProvider(ProviderConfig(type=Provider.OPENAI, model="m"), sample_for)
+        VocabularyComplexityEvaluator(llm_provider=injected)
