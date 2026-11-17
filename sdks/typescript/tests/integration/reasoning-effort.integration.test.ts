@@ -33,7 +33,7 @@ const DEFS = CONFIG_SCHEMA.$defs;
 
 /** One model per provider, its provider's values from the schema, and those it refuses. */
 const CASES = {
-  openai: { key: 'OPENAI_API_KEY', model: 'gpt-5.5', efforts: DEFS.ReasoningEffortOpenAI.enum, refused: ['minimal'] },
+  openai: { key: 'OPENAI_API_KEY', model: 'gpt-5.5', efforts: DEFS.ReasoningEffortOpenAI.enum, refused: ['minimal', 'max'] },
   anthropic: { key: 'ANTHROPIC_API_KEY', model: 'claude-haiku-5-5', efforts: DEFS.ReasoningEffortAnthropic.enum, refused: [] },
   google: { key: 'GOOGLE_API_KEY', model: 'gemini-3.6-flash', efforts: DEFS.ReasoningEffortGoogle.enum, refused: [] },
 } as const;
@@ -61,7 +61,8 @@ for (const [type, { key, model, efforts, refused }] of Object.entries(CASES)) {
             reasoningEffort: effort,
           });
           if (!answers) {
-            await expect(call).rejects.toThrow(/effort|reasoning|thinking/i);
+            // The refusal names the value, so it is this value being refused and not, say, the key.
+            await expect(call).rejects.toThrow(`'${effort}'`);
             return;
           }
           expect((await call).data.total).toBe(5);

@@ -40,7 +40,7 @@ _DEFS = json.loads(
 
 #: One model per provider, its provider's values from the schema, and those it refuses.
 CASES: dict[Provider, tuple[str, list[str], set[str]]] = {
-    Provider.OPENAI: ("gpt-5.5", _DEFS["ReasoningEffortOpenAI"]["enum"], {"minimal"}),
+    Provider.OPENAI: ("gpt-5.5", _DEFS["ReasoningEffortOpenAI"]["enum"], {"minimal", "max"}),
     Provider.ANTHROPIC: ("claude-haiku-5-5", _DEFS["ReasoningEffortAnthropic"]["enum"], set()),
     Provider.GOOGLE: ("gemini-3.6-flash", _DEFS["ReasoningEffortGoogle"]["enum"], set()),
 }
@@ -75,7 +75,8 @@ async def test_the_model_takes_or_refuses_each_effort(
         ProviderConfig(type=provider, model=CASES[provider][0], api_key=key, max_retries=0)
     )
     if not answers:
-        with pytest.raises(Exception, match="(?i)effort|reasoning|thinking"):
+        # The refusal names the value, so it is this value being refused and not, say, the key.
+        with pytest.raises(Exception, match=f"'{effort}'"):
             await adapter.generate_structured(MESSAGES, _Sum, reasoning_effort=effort)
         return
     response = await adapter.generate_structured(MESSAGES, _Sum, reasoning_effort=effort)
