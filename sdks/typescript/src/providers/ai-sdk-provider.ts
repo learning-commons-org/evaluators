@@ -42,19 +42,6 @@ import type {
   ProviderConfig,
 } from './base.js';
 
-/** The first `@ai-sdk/openai` that accepts `reasoningEffort: 'max'`; earlier ones reject it. */
-export const OPENAI_MAX_EFFORT_SINCE = '4.0.11';
-
-/** Whether dotted release `version` is at or after `minimum`, by its numeric parts. */
-function atLeast(version: string, minimum: string): boolean {
-  const parts = (v: string) => v.split(/[.+-]/).slice(0, 3).map(Number);
-  const [a, b] = [parts(version), parts(minimum)];
-  for (let i = 0; i < 3; i++) {
-    if (a[i] !== b[i]) return a[i] > b[i];
-  }
-  return true;
-}
-
 /**
  * A reasoning effort as the vendor adapter's own option, sent as the vendor's parameter
  * unchanged. Not the AI SDK's provider-neutral `reasoning` option, which maps some values to
@@ -140,7 +127,7 @@ export class VercelAIProvider implements LLMProvider {
    * Generate structured output using Vercel AI SDK's generateText with output
    */
   async generateStructured<T>(request: LLMRequest<T>): Promise<LLMResponse<T>> {
-    const model = await this.getModel(request.reasoningEffort);
+    const model = await this.getModel();
     const startTime = Date.now();
 
     const systemMsg = request.messages.find((m) => m.role === 'system');
@@ -215,28 +202,18 @@ export class VercelAIProvider implements LLMProvider {
    * statically resolving the uninstalled providers at build time — without them,
    * bundling fails with "Module not found: Can't resolve '@ai-sdk/...'" even
    * though the import is guarded at runtime.
-   *
-   * `reasoningEffort` is checked against the installed adapter here, where it is loaded,
-   * so an effort it cannot send fails before any request and names the release that can.
    */
-  private async getModel(reasoningEffort?: string) {
+  private async getModel() {
     const apiKey = this.config.apiKey;
 
     switch (this.config.type) {
       case 'openai': {
-        const adapter = await import(
+        const { createOpenAI } = await import(
           /* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ '@ai-sdk/openai'
         ).catch((error: unknown) => {
           throw adapterImportError(error, 'OpenAI', '@ai-sdk/openai');
         });
-        if (reasoningEffort === 'max' && !atLeast(adapter.VERSION, OPENAI_MAX_EFFORT_SINCE)) {
-          throw new ConfigurationError(
-            `Reasoning effort "max" cannot be sent by the installed @ai-sdk/openai ${adapter.VERSION}. ` +
-              `Upgrade to @ai-sdk/openai ${OPENAI_MAX_EFFORT_SINCE} or later: ` +
-              `npm install @ai-sdk/openai@^${OPENAI_MAX_EFFORT_SINCE}`
-          );
-        }
-        return adapter.createOpenAI(apiKey ? { apiKey } : {})(this.model);
+        return createOpenAI(apiKey ? { apiKey } : {})(this.model);
       }
       case 'anthropic': {
         const { createAnthropic } = await import(

@@ -202,7 +202,7 @@
               },
               "reasoning_effort": {
                 "type": "string",
-                "description": "How much the model reasons before it answers, in the step provider's own terms: OpenAI's reasoning.effort, Anthropic's output_config.effort, Google's thinking_config.thinking_level. Which values are valid depends on model.provider (see $defs/ReasoningEffort); which of those a given model accepts is the vendor's to say, and a value the model refuses fails the call rather than being swapped for a neighbour. Omit the key to send nothing and leave the model at its own default -- which is not the same as \"none\", an OpenAI value that turns reasoning off. Record the value an evaluator was validated at: a reasoning model's default changes how literally it applies a rubric, so it is not a neutral choice. Like temperature, it is not carried across a model_override, which replaces the model the value was validated for."
+                "description": "How much the model reasons before it answers, in the step provider's own terms: OpenAI's reasoning.effort, Anthropic's output_config.effort, Google's thinking_config.thinking_level. Which values are valid depends on model.provider (see $defs/ReasoningEffortOpenAI, ReasoningEffortAnthropic and ReasoningEffortGoogle); which of those a given model accepts is the vendor's to say, and a value the model refuses fails the call rather than being swapped for a neighbour. Omit the key to send nothing and leave the model at its own default -- which is not the same as \"none\", an OpenAI value that turns reasoning off. Record the value an evaluator was validated at: a reasoning model's default changes how literally it applies a rubric, so it is not a neutral choice. Like temperature, it is not carried across a model_override, which replaces the model the value was validated for."
               }
             }
           },
@@ -246,15 +246,15 @@
           },
           {
             "if": { "required": ["model"], "properties": { "model": { "properties": { "provider": { "const": "openai" } } } } },
-            "then": { "properties": { "generation": { "properties": { "reasoning_effort": { "$ref": "#/$defs/ReasoningEffort/openai" } } } } }
+            "then": { "properties": { "generation": { "properties": { "reasoning_effort": { "$ref": "#/$defs/ReasoningEffortOpenAI" } } } } }
           },
           {
             "if": { "required": ["model"], "properties": { "model": { "properties": { "provider": { "const": "anthropic" } } } } },
-            "then": { "properties": { "generation": { "properties": { "reasoning_effort": { "$ref": "#/$defs/ReasoningEffort/anthropic" } } } } }
+            "then": { "properties": { "generation": { "properties": { "reasoning_effort": { "$ref": "#/$defs/ReasoningEffortAnthropic" } } } } }
           },
           {
             "if": { "required": ["model"], "properties": { "model": { "properties": { "provider": { "const": "google" } } } } },
-            "then": { "properties": { "generation": { "properties": { "reasoning_effort": { "$ref": "#/$defs/ReasoningEffort/google" } } } } }
+            "then": { "properties": { "generation": { "properties": { "reasoning_effort": { "$ref": "#/$defs/ReasoningEffortGoogle" } } } } }
           }
         ]
       }
@@ -287,11 +287,17 @@
         }
       }
     },
-    "ReasoningEffort": {
-      "description": "The generation.reasoning_effort values each provider defines. The union of these lists is every value an SDK accepts; the per-provider list is what a step on that provider may declare.",
-      "openai": { "enum": ["none", "minimal", "low", "medium", "high", "xhigh", "max"] },
-      "anthropic": { "enum": ["low", "medium", "high", "xhigh", "max"] },
-      "google": { "enum": ["minimal", "low", "medium", "high"] }
+    "ReasoningEffortOpenAI": {
+      "description": "The generation.reasoning_effort values an openai step may declare.",
+      "enum": ["none", "minimal", "low", "medium", "high", "xhigh", "max"]
+    },
+    "ReasoningEffortAnthropic": {
+      "description": "The generation.reasoning_effort values an anthropic step may declare.",
+      "enum": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "ReasoningEffortGoogle": {
+      "description": "The generation.reasoning_effort values a google step may declare.",
+      "enum": ["minimal", "low", "medium", "high"]
     }
   }
 }

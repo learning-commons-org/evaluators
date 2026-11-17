@@ -20,7 +20,7 @@ const buildModel = (provider: string) =>
   vi.fn((model: string) => ({ provider, model }));
 
 async function loadProvider(
-  opts: { failImports?: AdapterName[]; brokenImports?: AdapterName[]; openaiVersion?: string } = {},
+  opts: { failImports?: AdapterName[]; brokenImports?: AdapterName[] } = {},
 ) {
   vi.resetModules();
 
@@ -52,10 +52,7 @@ async function loadProvider(
     // transitive dependency. Not the caller's setup.
     vi.doMock('@ai-sdk/openai', () => { throw new SyntaxError('Unexpected token in adapter'); });
   } else {
-    vi.doMock('@ai-sdk/openai', () => ({
-      createOpenAI,
-      ...(opts.openaiVersion !== undefined ? { VERSION: opts.openaiVersion } : {}),
-    }));
+    vi.doMock('@ai-sdk/openai', () => ({ createOpenAI }));
   }
 
   if (fails('anthropic')) {
@@ -361,43 +358,6 @@ describe('VercelAIProvider - temperature', () => {
 
     await provider.generateStructured({ messages, schema, temperature: 0 });
     expect(generateText.mock.calls[2][0].temperature).toBe(0);
-  });
-});
-
-describe('VercelAIProvider - reasoning effort', () => {
-  const schema = z.object({ ok: z.boolean() });
-  const messages = [{ role: 'user' as const, content: 'hi' }];
-
-  it('refuses max on an @ai-sdk/openai that predates it, naming the release that has it', async () => {
-    const { mod, generateText } = await loadProvider({ openaiVersion: '4.0.10' });
-    const provider = new mod.VercelAIProvider({ type: 'openai', model: 'gpt-5.5', apiKey: 'k' });
-    const call = provider.generateStructured({ messages, schema, reasoningEffort: 'max' });
-    // By name: the module is reloaded per test, so its error class is not this file's.
-    await expect(call).rejects.toMatchObject({
-      name: 'ConfigurationError',
-      message: expect.stringMatching(/@ai-sdk\/openai 4\.0\.10.*4\.0\.11 or later/),
-    });
-    expect(generateText).not.toHaveBeenCalled();
-  });
-
-  it.each(['4.0.11', '4.1.0', '5.0.0'])('sends max on @ai-sdk/openai %s', async (version) => {
-    const { mod, generateText } = await loadProvider({ openaiVersion: version });
-    await new mod.VercelAIProvider({ type: 'openai', model: 'gpt-5.5', apiKey: 'k' }).generateStructured({
-      messages,
-      schema,
-      reasoningEffort: 'max',
-    });
-    expect(generateText.mock.calls[0][0].providerOptions.openai.reasoningEffort).toBe('max');
-  });
-
-  it('checks the adapter version only for max', async () => {
-    const { mod, generateText } = await loadProvider({ openaiVersion: '4.0.0' });
-    await new mod.VercelAIProvider({ type: 'openai', model: 'gpt-5.5', apiKey: 'k' }).generateStructured({
-      messages,
-      schema,
-      reasoningEffort: 'xhigh',
-    });
-    expect(generateText).toHaveBeenCalledOnce();
   });
 });
 

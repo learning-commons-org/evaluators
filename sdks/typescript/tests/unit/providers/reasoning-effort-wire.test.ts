@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { z } from 'zod';
-import { VERSION as OPENAI_ADAPTER_VERSION } from '@ai-sdk/openai';
-import { ConfigurationError } from '../../../src/errors.js';
-import { OPENAI_MAX_EFFORT_SINCE, createProvider } from '../../../src/providers/ai-sdk-provider.js';
+import { createProvider } from '../../../src/providers/ai-sdk-provider.js';
 import type { ProviderConfig } from '../../../src/providers/base.js';
 import CONFIG_SCHEMA from '../../../../../evals/_schemas/config.schema.json';
 
@@ -18,8 +16,12 @@ const MESSAGES = [
   { role: 'user' as const, content: 'Grade this.' },
 ];
 
-const { openai, anthropic, google } = CONFIG_SCHEMA.$defs.ReasoningEffort;
-const [OPENAI_EFFORTS, ANTHROPIC_EFFORTS, GOOGLE_EFFORTS] = [openai.enum, anthropic.enum, google.enum];
+const { ReasoningEffortOpenAI, ReasoningEffortAnthropic, ReasoningEffortGoogle } = CONFIG_SCHEMA.$defs;
+const [OPENAI_EFFORTS, ANTHROPIC_EFFORTS, GOOGLE_EFFORTS] = [
+  ReasoningEffortOpenAI.enum,
+  ReasoningEffortAnthropic.enum,
+  ReasoningEffortGoogle.enum,
+];
 
 const TEXT = '{"score": 3}';
 const REPLIES: Record<'openai' | 'anthropic' | 'google', unknown> = {
@@ -77,12 +79,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** Whether the installed `@ai-sdk/openai` can send `max`, by its numeric release parts. */
-const OPENAI_SENDS_MAX = ((v: string, min: string) => {
-  const [a, b] = [v, min].map((x) => x.split('.').map(Number));
-  return a[0] !== b[0] ? a[0] > b[0] : a[1] !== b[1] ? a[1] > b[1] : a[2] >= b[2];
-})(OPENAI_ADAPTER_VERSION, OPENAI_MAX_EFFORT_SINCE);
-
 /** The JSON body of the one request the call made. */
 function sentBody(): Record<string, unknown> {
   expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -104,14 +100,7 @@ describe('reasoning effort on the wire', () => {
     // The models Sentence Structure runs on, and a released reasoning model.
     for (const model of ['gpt-5.5', 'gpt-6-luna']) {
       it.each(OPENAI_EFFORTS)(`${model}: sends %s as reasoning.effort and nothing else`, async (effort) => {
-        const call = provider('openai', model).generateStructured({ messages: MESSAGES, schema: SCHEMA, reasoningEffort: effort });
-        // Below OPENAI_MAX_EFFORT_SINCE the adapter rejects `max`; the SDK says so first.
-        if (effort === 'max' && !OPENAI_SENDS_MAX) {
-          await expect(call).rejects.toThrow(ConfigurationError);
-          expect(fetchMock).not.toHaveBeenCalled();
-          return;
-        }
-        await call;
+        await provider('openai', model).generateStructured({ messages: MESSAGES, schema: SCHEMA, reasoningEffort: effort });
         expect(sentBody().reasoning).toEqual({ effort });
       });
     }

@@ -5,14 +5,16 @@ from __future__ import annotations
 import copy
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from checks.eval_notebook import reasoning_effort_problem  # noqa: E402
+from checks.eval_notebook import EvalNotebook, reasoning_effort_problem  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = json.loads((ROOT / "evals/_schemas/config.schema.json").read_text())
@@ -70,7 +72,12 @@ class ReasoningEffortSchema(unittest.TestCase):
 
     def test_the_lists_match_the_schema(self) -> None:
         declared = {
-            provider: SCHEMA["$defs"]["ReasoningEffort"][provider]["enum"] for provider in ACCEPTED
+            provider: SCHEMA["$defs"][f"ReasoningEffort{name}"]["enum"]
+            for provider, name in (
+                ("openai", "OpenAI"),
+                ("anthropic", "Anthropic"),
+                ("google", "Google"),
+            )
         }
         self.assertEqual(declared, ACCEPTED)
 
@@ -98,6 +105,44 @@ class NotebookReadsReasoningEffort(unittest.TestCase):
         assert problem is not None
         self.assertIn("step_1, step_2", problem)
         self.assertNotIn("step_0", problem)
+
+
+class EvalNotebookReportsIt(unittest.TestCase):
+    """The rule wired into the check itself, against a config and notebook on disk."""
+
+    def _violations(self, notebook_code: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            config = {
+                "steps": [
+                    {
+                        "id": "rate",
+                        "prompt": {"messages": [{"role": "user", "source_path": "user.txt"}]},
+                        "generation": {"temperature": None, "reasoning_effort": "none"},
+                    }
+                ]
+            }
+            cfg_path = Path(tmp, "config.json")
+            cfg_path.write_text(json.dumps(config))
+            nb_path = Path(tmp, "example_notebook.ipynb")
+            cell = {"cell_type": "code", "source": [notebook_code]}
+            nb_path.write_text(json.dumps({"cells": [cell]}))
+            # A temporary evaluator is not git-tracked, so the check is pointed at it directly.
+            with (
+                patch("checks.eval_notebook.evaluator_configs", return_value=[str(cfg_path)]),
+                patch("checks.eval_notebook.tracked_files", return_value=[str(nb_path)]),
+            ):
+                result = EvalNotebook().run(fix=False)
+            return [v.message for v in result.violations]
+
+    LOADS = 'config = json.load(open("config.json"))\nprompt = open(m["source_path"]).read()\n'
+
+    def test_a_notebook_that_ignores_a_declared_effort_is_reported(self) -> None:
+        [message] = self._violations(self.LOADS)
+        self.assertIn("never reads generation.reasoning_effort", message)
+        self.assertIn("rate", message)
+
+    def test_a_notebook_that_reads_it_passes(self) -> None:
+        self.assertEqual(self._violations(self.LOADS + 'effort = gen["reasoning_effort"]\n'), [])
 
 
 if __name__ == "__main__":

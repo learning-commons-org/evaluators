@@ -56,12 +56,12 @@ IMAGE = ImageAttachment(data=PNG, media_type="image/png", position="before_text"
 
 #: The reasoning efforts config.schema.json admits per provider, read from it, each of which
 #: must reach the wire unchanged through the installed vendor SDK, the lowest one included.
-_EFFORTS = json.loads(
+_DEFS = json.loads(
     (Path(__file__).resolve().parents[5] / "evals/_schemas/config.schema.json").read_text()
-)["$defs"]["ReasoningEffort"]
-OPENAI_EFFORTS: list[str] = _EFFORTS["openai"]["enum"]
-ANTHROPIC_EFFORTS: list[str] = _EFFORTS["anthropic"]["enum"]
-GOOGLE_EFFORTS: list[str] = _EFFORTS["google"]["enum"]
+)["$defs"]
+OPENAI_EFFORTS: list[str] = _DEFS["ReasoningEffortOpenAI"]["enum"]
+ANTHROPIC_EFFORTS: list[str] = _DEFS["ReasoningEffortAnthropic"]["enum"]
+GOOGLE_EFFORTS: list[str] = _DEFS["ReasoningEffortGoogle"]["enum"]
 
 
 class _Wire:

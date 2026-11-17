@@ -2,16 +2,19 @@
 
 Skipped unless ``RUN_INTEGRATION_TESTS=1`` and the provider's key is set. The unit wire tests
 show each value reaches the request; these show the vendor takes that request, effort and
-structured output together, on a current model. Which of its provider's values a model
-accepts is the model's own property, so each case states what this model does: answers, or
-refuses with an error the caller sees. A value the model refuses must never be dropped or
+structured output together, on a current model. The values are read from the schema, so a
+value added there is sent here too. Which of them a model accepts is the model's own
+property, so each provider names the values its model refuses with an error the caller
+sees; it answers the rest. A value the model refuses must never be dropped or
 swapped for a neighbour, so a refusal that turns into an answer fails here too. The
 TypeScript SDK's ``reasoning-effort.integration.test.ts`` holds the same table.
 """
 
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -31,29 +34,19 @@ MESSAGES: list[Message] = [
     {"role": "user", "content": "What is 2 + 3?"},
 ]
 
-#: One model per provider and, for each value its provider admits, whether it answers.
-CASES: dict[Provider, tuple[str, dict[str, bool]]] = {
-    Provider.OPENAI: (
-        "gpt-5.5",
-        {
-            "none": True,
-            "minimal": False,
-            "low": True,
-            "medium": True,
-            "high": True,
-            "xhigh": True,
-            "max": True,
-        },
-    ),
-    Provider.ANTHROPIC: (
-        "claude-haiku-5-5",
-        {"low": True, "medium": True, "high": True, "xhigh": True, "max": True},
-    ),
-    Provider.GOOGLE: (
-        "gemini-3.6-flash",
-        {"minimal": True, "low": True, "medium": True, "high": True},
-    ),
+_DEFS = json.loads(
+    (Path(__file__).resolve().parents[4] / "evals/_schemas/config.schema.json").read_text()
+)["$defs"]
+
+#: One model per provider, its provider's values from the schema, and those it refuses.
+CASES: dict[Provider, tuple[str, list[str], set[str]]] = {
+    Provider.OPENAI: ("gpt-5.5", _DEFS["ReasoningEffortOpenAI"]["enum"], {"minimal"}),
+    Provider.ANTHROPIC: ("claude-haiku-5-5", _DEFS["ReasoningEffortAnthropic"]["enum"], set()),
+    Provider.GOOGLE: ("gemini-3.6-flash", _DEFS["ReasoningEffortGoogle"]["enum"], set()),
 }
+# A refused value the schema no longer lists would never be sent, so it must be one of them.
+assert all(refused <= set(efforts) for _, efforts, refused in CASES.values())
+
 KEY_ENV = {
     Provider.OPENAI: "OPENAI_API_KEY",
     Provider.ANTHROPIC: "ANTHROPIC_API_KEY",
@@ -64,9 +57,11 @@ KEY_ENV = {
 @pytest.mark.parametrize(
     ("provider", "effort", "answers"),
     [
-        pytest.param(provider, effort, answers, id=f"{provider.value}-{model}-{effort}")
-        for provider, (model, efforts) in CASES.items()
-        for effort, answers in efforts.items()
+        pytest.param(
+            provider, effort, effort not in refused, id=f"{provider.value}-{model}-{effort}"
+        )
+        for provider, (model, efforts, refused) in CASES.items()
+        for effort in efforts
     ],
 )
 async def test_the_model_takes_or_refuses_each_effort(
