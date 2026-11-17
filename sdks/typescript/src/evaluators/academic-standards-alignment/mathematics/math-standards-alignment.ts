@@ -1,12 +1,6 @@
 import pLimit from 'p-limit';
-import {
-  BaseEvaluator,
-  Provider,
-  declaredReasoningEffort,
-  withReasoningEffort,
-  type BaseEvaluatorConfig,
-} from '../../base.js';
-import type { LLMProvider, ReasoningEffort } from '../../../providers/index.js';
+import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../../base.js';
+import type { LLMProvider } from '../../../providers/index.js';
 import {
   BatchedLCEvaluationSchema,
   CoarseFilterSchema,
@@ -208,8 +202,6 @@ const DETAIL_MODEL: string = STEP.model.name;
 const TEMPERATURE: number | null = STEP.generation.temperature;
 const COARSE_MODEL: string = COARSE_STEP.model.name;
 const COARSE_TEMPERATURE: number | null = COARSE_STEP.generation.temperature;
-const REASONING_EFFORT = declaredReasoningEffort(STEP, CONFIG.evaluator.name);
-const COARSE_REASONING_EFFORT = declaredReasoningEffort(COARSE_STEP, CONFIG.evaluator.name);
 const KG_SUBJECT = 'Mathematics';
 /**
  * Above this many question/standard pairs, evaluateByGradeLevel warns. A grade level can carry
@@ -259,7 +251,6 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
   private readonly kgClient: KnowledgeGraphClient;
   private readonly detailProvider: LLMProvider;
   private readonly coarseProvider: LLMProvider;
-  private readonly coarseReasoningEffort: ReasoningEffort | undefined;
   // Instance-wide so concurrent evaluateItems calls share one budget.
   private readonly llmLimit: ReturnType<typeof pLimit>;
 
@@ -282,12 +273,6 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
       config.coarseFilterModel ?? COARSE_MODEL,
       config.anthropicApiKey,
     );
-    // A caller's coarseFilterModel replaces the declared model as an override does, so the
-    // effort declared for that model is not sent to it either.
-    this.coarseReasoningEffort = config.coarseFilterModel
-      ? undefined
-      : this.effectiveReasoningEffort(COARSE_REASONING_EFFORT);
-    this.warnDroppedReasoningEfforts([REASONING_EFFORT, COARSE_REASONING_EFFORT]);
   }
 
   // -------------------------------------------------------------------------
@@ -662,7 +647,6 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         ],
         schema: BatchedLCEvaluationSchema,
         temperature: TEMPERATURE,
-        ...withReasoningEffort(this.effectiveReasoningEffort(REASONING_EFFORT)),
       });
 
       const { evaluations } = response.data;
@@ -826,7 +810,6 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         ],
         schema: CoarseFilterSchema,
         temperature: COARSE_TEMPERATURE,
-        ...withReasoningEffort(this.coarseReasoningEffort),
       });
 
       const relevant = new Set<string>();

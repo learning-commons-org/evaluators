@@ -31,9 +31,6 @@ from learning_commons_evaluators.dependencies.knowledge_graph import (
     StandardMatch,
 )
 from learning_commons_evaluators.errors import KnowledgeGraphError, RateLimitError
-from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics import (
-    math_standards_alignment as msa,
-)
 from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
     BatchedLCEvaluation,
     LCEvaluation,
@@ -43,7 +40,6 @@ from learning_commons_evaluators.schemas.kg_taxonomy import AcademicSubject, Gra
 from tests.unit.conftest import (
     DEFAULT_STANDARD,
     LEARNING_COMPONENTS,
-    NOT_PASSED,
     STANDARD_UUID,
     STATEMENT_CODE,
     FakeKnowledgeGraph,
@@ -819,21 +815,6 @@ class TestEvaluate:
             assert f"{position}. [{identifier}] {description}" in prompt
         assert call["temperature"] == 0
         assert call["schema"] is BatchedLCEvaluation
-        # The contract declares no reasoning effort, so the keyword is not passed at all.
-        assert call["reasoning_effort"] is NOT_PASSED
-
-    async def test_it_sends_a_reasoning_effort_the_step_declares(
-        self, providers: ProviderFactory
-    ) -> None:
-        assert msa.STEP.generation is not None
-        generation = msa.STEP.generation.model_copy(update={"reasoning_effort": "high"})
-        step = msa.STEP.model_copy(update={"generation": generation})
-        with patch.object(msa, "STEP", step):
-            await build().evaluate_by_code(
-                question=QUESTION, statement_code=STATEMENT_CODE, grade_level="3"
-            )
-        [call] = providers.calls
-        assert call["reasoning_effort"] == "high"
 
 
 class TestStandardsWithNothingToJudge:

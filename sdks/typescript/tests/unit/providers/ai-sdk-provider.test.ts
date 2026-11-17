@@ -371,9 +371,7 @@ describe('VercelAIProvider - reasoning effort', () => {
   it('sends nothing for the adapter when no effort is given', async () => {
     const { mod, generateText } = await loadProvider();
     await new mod.VercelAIProvider({ type: 'openai', model: 'gpt-5.5', apiKey: 'k' }).generateStructured({ messages, schema });
-    await new mod.VercelAIProvider({ type: 'openai', model: 'gpt-5.5', apiKey: 'k' }).generateText(messages);
     expect(generateText.mock.calls[0][0]).not.toHaveProperty('providerOptions');
-    expect(generateText.mock.calls[1][0]).not.toHaveProperty('providerOptions');
   });
 
   it.each([
@@ -384,18 +382,18 @@ describe('VercelAIProvider - reasoning effort', () => {
     const { mod, generateText } = await loadProvider();
     const provider = new mod.VercelAIProvider({ type, model: 'm', apiKey: 'k' });
     await provider.generateStructured({ messages, schema, reasoningEffort: 'high' });
-    await provider.generateText(messages, null, 'high');
     expect(generateText.mock.calls[0][0].providerOptions).toEqual(expected);
-    expect(generateText.mock.calls[1][0].providerOptions).toEqual(expected);
   });
 
   it('refuses max on an @ai-sdk/openai that predates it, naming the release that has it', async () => {
     const { mod, generateText } = await loadProvider({ openaiVersion: '4.0.10' });
     const provider = new mod.VercelAIProvider({ type: 'openai', model: 'gpt-5.5', apiKey: 'k' });
     const call = provider.generateStructured({ messages, schema, reasoningEffort: 'max' });
-    await expect(call).rejects.toThrow(/@ai-sdk\/openai 4\.0\.10.*4\.0\.11 or later/);
     // By name: the module is reloaded per test, so its error class is not this file's.
-    await expect(provider.generateText(messages, null, 'max')).rejects.toMatchObject({ name: 'ConfigurationError' });
+    await expect(call).rejects.toMatchObject({
+      name: 'ConfigurationError',
+      message: expect.stringMatching(/@ai-sdk\/openai 4\.0\.10.*4\.0\.11 or later/),
+    });
     expect(generateText).not.toHaveBeenCalled();
   });
 

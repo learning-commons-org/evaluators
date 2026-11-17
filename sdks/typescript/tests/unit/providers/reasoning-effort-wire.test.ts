@@ -120,11 +120,6 @@ describe('reasoning effort on the wire', () => {
       await provider('openai', 'gpt-5.5').generateStructured({ messages: MESSAGES, schema: SCHEMA });
       expect(sentBody()).not.toHaveProperty('reasoning');
     });
-
-    it('sends an effort from generateText', async () => {
-      await provider('openai', 'gpt-5.5').generateText(MESSAGES, null, 'low');
-      expect(sentBody().reasoning).toEqual({ effort: 'low' });
-    });
   });
 
   describe('anthropic', () => {

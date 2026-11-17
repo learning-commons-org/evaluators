@@ -104,14 +104,9 @@ export interface LLMProvider {
 
   /**
    * Generate plain text from LLM. `null` sends no temperature; omitting the
-   * argument falls back to `ProviderConfig.temperature`. `reasoningEffort` is as on
-   * {@link LLMRequest.reasoningEffort}.
+   * argument falls back to `ProviderConfig.temperature`.
    */
-  generateText(
-    messages: Message[],
-    temperature?: number | null,
-    reasoningEffort?: ReasoningEffort
-  ): Promise<TextGenerationResponse>;
+  generateText(messages: Message[], temperature?: number | null): Promise<TextGenerationResponse>;
 }
 
 /**

@@ -177,10 +177,9 @@ export class VercelAIProvider implements LLMProvider {
    */
   async generateText(
     messages: Message[],
-    temperature?: number | null,
-    reasoningEffort?: ReasoningEffort
+    temperature?: number | null
   ): Promise<import('./base.js').TextGenerationResponse> {
-    const model = await this.getModel(reasoningEffort);
+    const model = await this.getModel();
     const startTime = Date.now();
 
     const systemMsg = messages.find((m) => m.role === 'system');
@@ -196,7 +195,6 @@ export class VercelAIProvider implements LLMProvider {
       messages: nonSystemMessages,
       ...(effectiveTemperature != null ? { temperature: effectiveTemperature } : {}),
       maxRetries: this.config.maxRetries ?? 0,
-      ...reasoningOptions(this.config.type, reasoningEffort),
     });
 
     return {
