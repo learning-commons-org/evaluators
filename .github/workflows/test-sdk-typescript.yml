@@ -111,8 +111,8 @@ jobs:
         run: npm run test:unit
 
   # Linux and macOS share path separators, line endings and how executables are spawned,
-  # so the Ubuntu jobs above cannot see a difference Windows has. Every step runs even when
-  # an earlier one fails, so one run shows every Windows failure.
+  # so the Ubuntu jobs above cannot see a difference Windows has. Once dependencies install,
+  # every check runs even when an earlier one fails, so one run shows every Windows failure.
   windows:
     name: 🪟 Windows
     runs-on: windows-latest
@@ -131,6 +131,7 @@ jobs:
           node-version: 22
 
       - name: 📥 Install dependencies
+        id: install
         uses: bahmutov/npm-install@v1
         with:
           working-directory: sdks/typescript
@@ -139,12 +140,12 @@ jobs:
         run: npm run generate:schemas:check
 
       - name: ⚡ Run unit tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run test:unit
 
       - name: 🏗️ Build package
         id: build
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run build
 
       - name: 📜 Verify the published declarations
