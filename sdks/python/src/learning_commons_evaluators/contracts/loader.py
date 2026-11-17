@@ -97,21 +97,17 @@ class ModelSpec(_ContractModel):
     alias: str | None = None
 
 
-#: Every value ``generation.reasoning_effort`` takes for some provider. Which of them a step
-#: may declare depends on its provider, and ``config.schema.json`` is what says so.
-ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"]
-
-
 class Generation(_ContractModel):
     """``temperature`` is ``None`` when the parameter must be omitted entirely.
 
     ``reasoning_effort`` is ``None`` when the contract omits the key, which sends nothing and
     leaves the model at its own default. That is not the value ``"none"``, which is sent and
-    turns an OpenAI model's reasoning off.
+    turns an OpenAI model's reasoning off. Which values a step may declare is
+    ``config.schema.json``'s rule, checked on the registry.
     """
 
     temperature: float | None = None
-    reasoning_effort: ReasoningEffort | None = None
+    reasoning_effort: str | None = None
 
 
 class Parser(_ContractModel):
@@ -148,7 +144,7 @@ class Step(_ContractModel):
         return self.generation.temperature if self.generation is not None else None
 
     @property
-    def reasoning_effort(self) -> ReasoningEffort | None:
+    def reasoning_effort(self) -> str | None:
         return self.generation.reasoning_effort if self.generation is not None else None
 
 
@@ -381,7 +377,6 @@ __all__ = [
     "PostTransform",
     "Preprocessing",
     "Prompt",
-    "ReasoningEffort",
     "PromptMessage",
     "Step",
     "contract_path",

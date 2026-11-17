@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import { createProvider } from '../../src/providers/ai-sdk-provider.js';
-import type { ReasoningEffort } from '../../src/providers/base.js';
 
 /**
  * Every reasoning effort config.schema.json admits, sent to a real model of each provider.
@@ -60,7 +59,7 @@ for (const [type, { key, model, efforts }] of Object.entries(CASES)) {
           const call = provider.generateStructured({
             messages: MESSAGES,
             schema: SCHEMA,
-            reasoningEffort: effort as ReasoningEffort,
+            reasoningEffort: effort,
           });
           if (!answers) {
             await expect(call).rejects.toThrow(/effort|reasoning|thinking/i);

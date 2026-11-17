@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib
 import json
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -53,11 +54,14 @@ MESSAGES: list[Message] = [
 ]
 IMAGE = ImageAttachment(data=PNG, media_type="image/png", position="before_text")
 
-#: The reasoning efforts config.schema.json admits per provider, each of which must reach the
-#: wire unchanged through the installed vendor SDK, the lowest supported release included.
-OPENAI_EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh", "max"]
-ANTHROPIC_EFFORTS = ["low", "medium", "high", "xhigh", "max"]
-GOOGLE_EFFORTS = ["minimal", "low", "medium", "high"]
+#: The reasoning efforts config.schema.json admits per provider, read from it, each of which
+#: must reach the wire unchanged through the installed vendor SDK, the lowest one included.
+_EFFORTS = json.loads(
+    (Path(__file__).resolve().parents[5] / "evals/_schemas/config.schema.json").read_text()
+)["$defs"]["ReasoningEffort"]
+OPENAI_EFFORTS: list[str] = _EFFORTS["openai"]["enum"]
+ANTHROPIC_EFFORTS: list[str] = _EFFORTS["anthropic"]["enum"]
+GOOGLE_EFFORTS: list[str] = _EFFORTS["google"]["enum"]
 
 
 class _Wire:

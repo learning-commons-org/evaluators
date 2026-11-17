@@ -3,12 +3,13 @@ import { z } from 'zod';
 import { VERSION as OPENAI_ADAPTER_VERSION } from '@ai-sdk/openai';
 import { ConfigurationError } from '../../../src/errors.js';
 import { OPENAI_MAX_EFFORT_SINCE, createProvider } from '../../../src/providers/ai-sdk-provider.js';
-import type { ProviderConfig, ReasoningEffort } from '../../../src/providers/base.js';
+import type { ProviderConfig } from '../../../src/providers/base.js';
+import CONFIG_SCHEMA from '../../../../../evals/_schemas/config.schema.json';
 
 /**
  * A reasoning effort through the real `ai` package and the real vendor adapters, with only
  * `fetch` replaced: what reaches the wire is what each installed adapter actually sends.
- * The values are config.schema.json's per-provider lists.
+ * The values are config.schema.json's per-provider lists, read from it.
  */
 
 const SCHEMA = z.object({ score: z.number() });
@@ -17,9 +18,8 @@ const MESSAGES = [
   { role: 'user' as const, content: 'Grade this.' },
 ];
 
-const OPENAI_EFFORTS: ReasoningEffort[] = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
-const ANTHROPIC_EFFORTS: ReasoningEffort[] = ['low', 'medium', 'high', 'xhigh', 'max'];
-const GOOGLE_EFFORTS: ReasoningEffort[] = ['minimal', 'low', 'medium', 'high'];
+const { openai, anthropic, google } = CONFIG_SCHEMA.$defs.ReasoningEffort;
+const [OPENAI_EFFORTS, ANTHROPIC_EFFORTS, GOOGLE_EFFORTS] = [openai.enum, anthropic.enum, google.enum];
 
 const TEXT = '{"score": 3}';
 const REPLIES: Record<'openai' | 'anthropic' | 'google', unknown> = {

@@ -333,12 +333,6 @@ describe('defineMultiStepEvaluator', () => {
         expect(request).not.toHaveProperty('reasoningEffort');
       }
     });
-
-    it('refuses an effort no provider defines when the class is defined', () => {
-      expect(() => defineFrom(withEfforts('default'))).toThrow(
-        /Step "analyse" in Thing Evaluator config\.json declares an unknown generation\.reasoning_effort "default"/,
-      );
-    });
   });
 
   it('returns the last step output as the result', async () => {

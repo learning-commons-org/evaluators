@@ -368,23 +368,6 @@ describe('VercelAIProvider - reasoning effort', () => {
   const schema = z.object({ ok: z.boolean() });
   const messages = [{ role: 'user' as const, content: 'hi' }];
 
-  it('sends nothing for the adapter when no effort is given', async () => {
-    const { mod, generateText } = await loadProvider();
-    await new mod.VercelAIProvider({ type: 'openai', model: 'gpt-5.5', apiKey: 'k' }).generateStructured({ messages, schema });
-    expect(generateText.mock.calls[0][0]).not.toHaveProperty('providerOptions');
-  });
-
-  it.each([
-    ['openai', { openai: { reasoningEffort: 'high', reasoningSummary: null, forceReasoning: true } }],
-    ['anthropic', { anthropic: { effort: 'high' } }],
-    ['google', { google: { thinkingConfig: { thinkingLevel: 'high' } } }],
-  ] as const)('passes a %s effort as that adapter\'s own option', async (type, expected) => {
-    const { mod, generateText } = await loadProvider();
-    const provider = new mod.VercelAIProvider({ type, model: 'm', apiKey: 'k' });
-    await provider.generateStructured({ messages, schema, reasoningEffort: 'high' });
-    expect(generateText.mock.calls[0][0].providerOptions).toEqual(expected);
-  });
-
   it('refuses max on an @ai-sdk/openai that predates it, naming the release that has it', async () => {
     const { mod, generateText } = await loadProvider({ openaiVersion: '4.0.10' });
     const provider = new mod.VercelAIProvider({ type: 'openai', model: 'gpt-5.5', apiKey: 'k' });

@@ -30,15 +30,6 @@ export interface ImageAttachment {
 }
 
 /**
- * Every value a contract's `generation.reasoning_effort` takes for some provider. Which of
- * them a step may declare depends on its provider, and `config.schema.json` is what says so;
- * which of those a given model accepts is the vendor's to say.
- */
-export const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
-
-export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
-
-/**
  * Request configuration for structured LLM generation
  */
 export interface LLMRequest<T> {
@@ -54,9 +45,10 @@ export interface LLMRequest<T> {
    * Anthropic's `effort`, Google's `thinkingLevel`. Absent sends nothing and leaves the
    * model at its default, which is not the same as `'none'`. An evaluator sets it only for
    * a step that declares one, and only on the model its contract declares: never under
-   * `modelOverride` or for an injected `llmProvider`.
+   * `modelOverride` or for an injected `llmProvider`. Which values each vendor takes is
+   * `config.schema.json`'s rule.
    */
-  reasoningEffort?: ReasoningEffort;
+  reasoningEffort?: string;
 }
 
 /**

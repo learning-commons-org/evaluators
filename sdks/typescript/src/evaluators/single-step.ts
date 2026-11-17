@@ -8,7 +8,6 @@ import { runPreprocessingStep } from '../features/preprocessing.js';
 import {
   BaseEvaluator,
   Provider,
-  declaredReasoningEffort,
   withReasoningEffort,
   type BaseEvaluatorConfig,
   type EvaluatorMetadata,
@@ -258,7 +257,7 @@ export function defineSingleStepEvaluator<
   const STEP = stepFor(contract);
   const VENDOR = vendorOf(STEP, contract.evaluator.name);
   const ATTACHMENTS = attachmentsOf(STEP, inputSchema, contract.evaluator.name);
-  const REASONING_EFFORT = declaredReasoningEffort(STEP, contract.evaluator.name);
+  const REASONING_EFFORT = STEP.generation?.reasoning_effort;
   const PREPROCESSING = contract.preprocessing ?? [];
   // With model-only fields, the model fills in `responseSchema` and the caller receives
   // only the fields `outputSchema` names.

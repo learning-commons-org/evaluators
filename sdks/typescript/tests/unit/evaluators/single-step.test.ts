@@ -221,10 +221,6 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
 
       expect(vi.mocked(provider.generateStructured).mock.calls[0][0]).not.toHaveProperty('reasoningEffort');
     });
-
-    it('refuses an unknown effort when the class is defined', () => {
-      expect(() => define(effortStep('turbo'))).toThrow(/unknown generation\.reasoning_effort "turbo"/);
-    });
   });
 
   it('renders an integer input as its decimal text', async () => {

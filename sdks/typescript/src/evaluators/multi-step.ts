@@ -7,7 +7,6 @@ import { runPreprocessingStep, type PreprocessingImplementation } from '../featu
 import {
   BaseEvaluator,
   Provider,
-  declaredReasoningEffort,
   withReasoningEffort,
   type BaseEvaluatorConfig,
   type EvaluatorMetadata,
@@ -224,7 +223,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
     return {
       step,
       vendor: vendorOf(step.model.provider, contract.evaluator.name),
-      reasoningEffort: declaredReasoningEffort(step, contract.evaluator.name),
+      reasoningEffort: step.generation?.reasoning_effort,
       schema,
       prompts: createPromptRenderers(
         parts.system,

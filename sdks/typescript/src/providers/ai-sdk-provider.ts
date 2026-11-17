@@ -40,7 +40,6 @@ import type {
   LLMResponse,
   Message,
   ProviderConfig,
-  ReasoningEffort,
 } from './base.js';
 
 /** The first `@ai-sdk/openai` that accepts `reasoningEffort: 'max'`; earlier ones reject it. */
@@ -67,7 +66,7 @@ function atLeast(version: string, minimum: string): boolean {
  */
 function reasoningOptions(
   type: ProviderConfig['type'],
-  effort: ReasoningEffort | undefined
+  effort: string | undefined
 ): { providerOptions?: Record<string, Record<string, string | boolean | null | Record<string, string>>> } {
   if (effort === undefined) return {};
   switch (type) {
@@ -220,7 +219,7 @@ export class VercelAIProvider implements LLMProvider {
    * `reasoningEffort` is checked against the installed adapter here, where it is loaded,
    * so an effort it cannot send fails before any request and names the release that can.
    */
-  private async getModel(reasoningEffort?: ReasoningEffort) {
+  private async getModel(reasoningEffort?: string) {
     const apiKey = this.config.apiKey;
 
     switch (this.config.type) {

@@ -15,36 +15,12 @@ import { createLogger, LogLevel, type Logger } from '../logger.js';
 import { configFieldFor } from './credentials.js';
 import { createProvider } from '../providers/index.js';
 import type { LLMProvider } from '../providers/index.js';
-import { REASONING_EFFORTS, type ReasoningEffort } from '../providers/base.js';
-
-/**
- * The reasoning effort a contract step declares, narrowed to a value the SDK knows.
- *
- * Read at load, so a contract naming an unknown value fails before any evaluation. Which
- * values a step's provider admits is `config.schema.json`'s rule, checked on the registry.
- */
-export function declaredReasoningEffort(
-  step: { id: string; generation?: { temperature?: number | null; reasoning_effort?: string } },
-  evaluatorName: string,
-): ReasoningEffort | undefined {
-  const effort = step.generation?.reasoning_effort;
-  if (effort === undefined) return undefined;
-  if (!(REASONING_EFFORTS as readonly string[]).includes(effort)) {
-    throw new Error(
-      `Step "${step.id}" in ${evaluatorName} config.json declares an unknown ` +
-        `generation.reasoning_effort "${effort}". Supported: ${REASONING_EFFORTS.join(', ')}.`,
-    );
-  }
-  return effort as ReasoningEffort;
-}
 
 /**
  * The request field for an effort, or nothing: left off rather than set to undefined, so a
  * provider sees no key it was never meant to get.
  */
-export function withReasoningEffort(
-  effort: ReasoningEffort | undefined,
-): { reasoningEffort?: ReasoningEffort } {
+export function withReasoningEffort(effort: string | undefined): { reasoningEffort?: string } {
   return effort === undefined ? {} : { reasoningEffort: effort };
 }
 
@@ -595,9 +571,7 @@ export abstract class BaseEvaluator {
    * model's own property. Dropped for an injected `llmProvider` too: the value is in the
    * declared vendor's terms, and the caller's provider may not take it.
    */
-  protected effectiveReasoningEffort(
-    declared: ReasoningEffort | undefined,
-  ): ReasoningEffort | undefined {
+  protected effectiveReasoningEffort(declared: string | undefined): string | undefined {
     return this.config.modelOverride || this.config.llmProvider ? undefined : declared;
   }
 
@@ -605,9 +579,7 @@ export abstract class BaseEvaluator {
    * Say once, at construction, that an override drops the reasoning efforts its contract
    * declares. Silent when it declares none, so it never claims to drop what is not there.
    */
-  protected warnDroppedReasoningEfforts(
-    declared: ReadonlyArray<ReasoningEffort | undefined>,
-  ): void {
+  protected warnDroppedReasoningEfforts(declared: ReadonlyArray<string | undefined>): void {
     if (!this.config.modelOverride) return;
     const values = [...new Set(declared.filter((e) => e !== undefined))].sort();
     if (values.length === 0) return;
