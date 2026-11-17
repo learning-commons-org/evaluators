@@ -682,7 +682,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 
       stageDetails.push({
         stage: STEP.id,
-        provider: this.detailProvider.label,
+        provider: this.telemetryLabel(this.detailProvider),
         latency_ms: response.latencyMs,
         token_usage: tokenUsage,
       });
@@ -704,7 +704,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         status: 'success',
         latencyMs,
         textLength: question.length,
-        provider: this.detailProvider.label,
+        provider: this.telemetryLabel(this.detailProvider),
         tokenUsage,
         metadata: { stage_details: stageDetails },
       }).catch(() => undefined);
@@ -728,7 +728,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
         status: 'error',
         latencyMs,
         textLength: question.length,
-        provider: this.detailProvider.label,
+        provider: this.telemetryLabel(this.detailProvider),
         tokenUsage,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         metadata: stageDetails.length > 0 ? { stage_details: stageDetails } : undefined,
