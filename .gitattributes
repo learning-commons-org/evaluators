@@ -1,3 +1,7 @@
+# LF in every checkout, including Windows with autocrlf=true. Generated files are checked
+# byte for byte against \n output, prompts are sha256-pinned, and code splits on \n.
+* text=auto eol=lf
+
 # Machine-generated / capture-synced paths: GitHub shows "Generated" in PRs
 # (diff collapsed by default, expandable; omitted from language stats).
 #   contracts/_generated/**, schemas/<family>/<subject>/**
@@ -10,8 +14,6 @@
 # The schema modules are listed one by one because generated and hand-written ones share
 # a directory during the migration; a glob would collapse the hand-written ones too. A
 # unit test keeps this list equal to the set of modules carrying the GENERATED marker.
-# They are eol=lf because generate:schemas:check compares them byte for byte with the
-# generator's \n output, which a CRLF checkout (Git for Windows' default) would never match.
 # The Python ones are globbed: hand-written schema modules live directly under schemas/,
 # generated ones only in its nested <family>/<subject>/ packages.
 sdks/python/src/learning_commons_evaluators/contracts/_generated/** linguist-generated=true
@@ -19,21 +21,21 @@ sdks/python/src/learning_commons_evaluators/schemas/*/** linguist-generated=true
 sdks/python/src/learning_commons_evaluators/dependencies/_generated/knowledge_graph/** linguist-generated=true
 sdks/python/openapi/knowledge-graph.yaml linguist-generated=true
 sdks/typescript/src/knowledge-graph/kg-api.d.ts linguist-generated=true
-sdks/typescript/src/schemas/durable-skills/ela-writing/critical-thinking.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/graphics/ela/graphics-complexity.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/graphics/math/graphics-accuracy.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/feedback/ela-writing/revision-accuracy.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/feedback/ela-writing/revision-actionability.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/feedback/ela-writing/revision-manageability.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/feedback/ela-writing/strength-acknowledgment.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/feedback/ela-writing/student-response-specificity.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/feedback/ela-writing/tone-appropriateness.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/feedback/ela-writing/withholding-answers.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/text-complexity/ela-reading/background-knowledge-demands.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/text-complexity/ela-reading/grade-level-appropriateness.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/text-complexity/ela-reading/meaning-directness.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/text-complexity/ela-reading/organizational-structure.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/text-complexity/ela-reading/purpose-clarity.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/text-complexity/ela-reading/reference-knowledge-demands.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/text-complexity/ela-reading/sentence-structure.ts linguist-generated=true eol=lf
-sdks/typescript/src/schemas/text-complexity/ela-reading/vocabulary-complexity.ts linguist-generated=true eol=lf
+sdks/typescript/src/schemas/durable-skills/ela-writing/critical-thinking.ts linguist-generated=true
+sdks/typescript/src/schemas/graphics/ela/graphics-complexity.ts linguist-generated=true
+sdks/typescript/src/schemas/graphics/math/graphics-accuracy.ts linguist-generated=true
+sdks/typescript/src/schemas/feedback/ela-writing/revision-accuracy.ts linguist-generated=true
+sdks/typescript/src/schemas/feedback/ela-writing/revision-actionability.ts linguist-generated=true
+sdks/typescript/src/schemas/feedback/ela-writing/revision-manageability.ts linguist-generated=true
+sdks/typescript/src/schemas/feedback/ela-writing/strength-acknowledgment.ts linguist-generated=true
+sdks/typescript/src/schemas/feedback/ela-writing/student-response-specificity.ts linguist-generated=true
+sdks/typescript/src/schemas/feedback/ela-writing/tone-appropriateness.ts linguist-generated=true
+sdks/typescript/src/schemas/feedback/ela-writing/withholding-answers.ts linguist-generated=true
+sdks/typescript/src/schemas/text-complexity/ela-reading/background-knowledge-demands.ts linguist-generated=true
+sdks/typescript/src/schemas/text-complexity/ela-reading/grade-level-appropriateness.ts linguist-generated=true
+sdks/typescript/src/schemas/text-complexity/ela-reading/meaning-directness.ts linguist-generated=true
+sdks/typescript/src/schemas/text-complexity/ela-reading/organizational-structure.ts linguist-generated=true
+sdks/typescript/src/schemas/text-complexity/ela-reading/purpose-clarity.ts linguist-generated=true
+sdks/typescript/src/schemas/text-complexity/ela-reading/reference-knowledge-demands.ts linguist-generated=true
+sdks/typescript/src/schemas/text-complexity/ela-reading/sentence-structure.ts linguist-generated=true
+sdks/typescript/src/schemas/text-complexity/ela-reading/vocabulary-complexity.ts linguist-generated=true
