@@ -12,7 +12,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -40,6 +40,12 @@ function npm(args, cwd) {
   return run(process.execPath, [process.env.npm_execpath, ...args], cwd);
 }
 
+// By name from ROOT, where pack() writes it: GNU tar, first on PATH in Git Bash, reads the
+// `C:` of an absolute Windows path as a remote host.
+function tar(flags, tarball, ...members) {
+  return run('tar', [...flags, basename(tarball), ...members], ROOT);
+}
+
 /** Pack once; every check reads or installs this exact artifact. */
 function pack() {
   const out = npm(['pack', '--silent'], ROOT).trim().split('\n').pop();
@@ -55,7 +61,7 @@ function pack() {
  */
 function tarballPaths(tarball) {
   return new Set(
-    run('tar', ['tzf', tarball], ROOT)
+    tar(['tzf'], tarball)
       .split('\n')
       .map((l) => l.trim().replace(/^package\//, ''))
       .filter(Boolean),
@@ -146,7 +152,7 @@ function checkSubpathStubs(tarball, shipped) {
       continue;
     }
     // Read it out of the tarball too, so a stub that ships but points nowhere is caught.
-    const stub = JSON.parse(run('tar', ['xzOf', tarball, `package/${stubPath}`], ROOT));
+    const stub = JSON.parse(tar(['xzOf'], tarball, `package/${stubPath}`));
     if (!stub.main) {
       missing.push(`${sub}: shipped stub declares no "main"`);
       continue;
