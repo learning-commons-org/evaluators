@@ -33,9 +33,16 @@ function run(cmd, args, cwd) {
   return execFileSync(cmd, args, { cwd, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
+// npm's own CLI script, set by `npm run`. Spawning `npm` directly fails on Windows, where it
+// is a .cmd that execFileSync will not run without a shell.
+function npm(args, cwd) {
+  if (!process.env.npm_execpath) throw new Error('Run this through `npm run verify:package`.');
+  return run(process.execPath, [process.env.npm_execpath, ...args], cwd);
+}
+
 /** Pack once; every check reads or installs this exact artifact. */
 function pack() {
-  const out = run('npm', ['pack', '--silent'], ROOT).trim().split('\n').pop();
+  const out = npm(['pack', '--silent'], ROOT).trim().split('\n').pop();
   return join(ROOT, out);
 }
 
@@ -92,7 +99,7 @@ function checkPeerFloorsInstall(tarball) {
   const dir = mkdtempSync(join(tmpdir(), 'verify-floors-'));
   try {
     writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'f', private: true }) + '\n');
-    run('npm', ['install', '--silent', tarball, ...floors], dir);
+    npm(['install', '--silent', tarball, ...floors], dir);
     pass('declared peer floors install together', floors.join(' '));
   } catch (e) {
     const out = `${e.stdout ?? ''}${e.stderr ?? ''}`;
@@ -197,7 +204,7 @@ function checkRuntimeLoads(tarball) {
   try {
     writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'l', private: true }) + '\n');
     // The peers the artifacts actually import at load time.
-    run('npm', ['install', '--silent', tarball, 'ai', 'zod'], dir);
+    npm(['install', '--silent', tarball, 'ai', 'zod'], dir);
 
     writeFileSync(
       join(dir, 'load.cjs'),

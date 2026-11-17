@@ -28,9 +28,11 @@ const ENTRIES = ['dist/index.d.ts', 'dist/batch/index.d.ts'];
  * The repo's own compiler, not whatever `npx tsc` resolves to.
  *
  * Going through `npx` can pick up a global install or fetch a different version, which would
- * let this pass or fail for reasons unrelated to the declarations under test.
+ * let this pass or fail for reasons unrelated to the declarations under test. It is run with
+ * node rather than through the .bin shim, which on Windows is a .cmd that execFileSync will
+ * not run without a shell.
  */
-const TSC = join(TS_ROOT, 'node_modules/.bin/tsc');
+const TSC = join(TS_ROOT, 'node_modules/typescript/bin/tsc');
 
 function read(entry: string): string {
   const path = join(TS_ROOT, entry);
@@ -75,7 +77,7 @@ describe('the published declarations typecheck on their own', () => {
     // tsc exits non-zero on any error, so the assertion is that this does not throw.
     try {
       expect(() =>
-        execFileSync(TSC, ['-p', project], { cwd: TS_ROOT, stdio: 'pipe', encoding: 'utf-8' }),
+        execFileSync(process.execPath, [TSC, '-p', project], { cwd: TS_ROOT, stdio: 'pipe', encoding: 'utf-8' }),
       ).not.toThrow();
     } finally {
       rmSync(project, { force: true });
