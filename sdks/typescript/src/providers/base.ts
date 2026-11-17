@@ -30,6 +30,15 @@ export interface ImageAttachment {
 }
 
 /**
+ * Every value a contract's `generation.reasoning_effort` takes for some provider. Which of
+ * them a step may declare depends on its provider, and `config.schema.json` is what says so;
+ * which of those a given model accepts is the vendor's to say.
+ */
+export const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
+
+export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
+
+/**
  * Request configuration for structured LLM generation
  */
 export interface LLMRequest<T> {
@@ -40,6 +49,14 @@ export interface LLMRequest<T> {
   maxTokens?: number;
   /** Images for the final user turn, in array order, each before or after its text as its `position` says. */
   attachments?: readonly ImageAttachment[];
+  /**
+   * How much the model reasons, in the vendor's own terms: OpenAI's `reasoning.effort`,
+   * Anthropic's `effort`, Google's `thinkingLevel`. Absent sends nothing and leaves the
+   * model at its default, which is not the same as `'none'`. An evaluator sets it only for
+   * a step that declares one, and only on the model its contract declares: never under
+   * `modelOverride` or for an injected `llmProvider`.
+   */
+  reasoningEffort?: ReasoningEffort;
 }
 
 /**
@@ -87,9 +104,14 @@ export interface LLMProvider {
 
   /**
    * Generate plain text from LLM. `null` sends no temperature; omitting the
-   * argument falls back to `ProviderConfig.temperature`.
+   * argument falls back to `ProviderConfig.temperature`. `reasoningEffort` is as on
+   * {@link LLMRequest.reasoningEffort}.
    */
-  generateText(messages: Message[], temperature?: number | null): Promise<TextGenerationResponse>;
+  generateText(
+    messages: Message[],
+    temperature?: number | null,
+    reasoningEffort?: ReasoningEffort
+  ): Promise<TextGenerationResponse>;
 }
 
 /**

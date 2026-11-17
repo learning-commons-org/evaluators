@@ -8,6 +8,8 @@ import { runPreprocessingStep } from '../features/preprocessing.js';
 import {
   BaseEvaluator,
   Provider,
+  declaredReasoningEffort,
+  withReasoningEffort,
   type BaseEvaluatorConfig,
   type EvaluatorMetadata,
 } from './base.js';
@@ -34,7 +36,7 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
   steps: Array<{
     id: string;
     model: { provider: string; name: string };
-    generation?: { temperature?: number | null };
+    generation?: { temperature?: number | null; reasoning_effort?: string };
     prompt: { placeholders: Record<string, { source?: string } | undefined> };
     required_credentials?: string[];
     optional?: boolean;
@@ -256,6 +258,7 @@ export function defineSingleStepEvaluator<
   const STEP = stepFor(contract);
   const VENDOR = vendorOf(STEP, contract.evaluator.name);
   const ATTACHMENTS = attachmentsOf(STEP, inputSchema, contract.evaluator.name);
+  const REASONING_EFFORT = declaredReasoningEffort(STEP, contract.evaluator.name);
   const PREPROCESSING = contract.preprocessing ?? [];
   // With model-only fields, the model fills in `responseSchema` and the caller receives
   // only the fields `outputSchema` names.
@@ -306,6 +309,7 @@ export function defineSingleStepEvaluator<
     constructor(config: BaseEvaluatorConfig) {
       super(config);
       this.provider = this.createConfiguredProvider(VENDOR, STEP.model.name, this.keyFor(VENDOR, config));
+      this.warnDroppedReasoningEfforts([REASONING_EFFORT]);
       // Refused here, not at call time: a provider that ignores attachments would otherwise
       // judge the claim with no image and return a confident verdict about nothing.
       if (ATTACHMENTS.length > 0 && !this.provider.supportsAttachments) {
@@ -409,6 +413,7 @@ export function defineSingleStepEvaluator<
           ...(attachments.length ? { attachments } : {}),
           schema: SENT_SCHEMA,
           temperature: STEP.generation?.temperature,
+          ...withReasoningEffort(this.effectiveReasoningEffort(REASONING_EFFORT)),
         });
         const data = RETURNED_FIELDS
           ? (Object.fromEntries(

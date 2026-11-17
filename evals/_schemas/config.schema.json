@@ -199,6 +199,10 @@
                 "minimum": 0,
                 "maximum": 1,
                 "description": "Sampling temperature to send, or null to omit the parameter entirely. Prefer an explicit number: the value an evaluator was validated at should be recorded, not inherited from a model default that can change under us. Use null only for models that reject any non-default value -- Claude Opus 4.7 and later return a 400 -- where omitting is the documented approach. A model recommending its default is not grounds for null; write the number out. Required rather than optional so every step records a deliberate choice; an absent key reads as 'nobody considered it'."
+              },
+              "reasoning_effort": {
+                "type": "string",
+                "description": "How much the model reasons before it answers, in the step provider's own terms: OpenAI's reasoning.effort, Anthropic's output_config.effort, Google's thinking_config.thinking_level. Which values are valid depends on model.provider (see $defs/ReasoningEffort); which of those a given model accepts is the vendor's to say, and a value the model refuses fails the call rather than being swapped for a neighbour. Omit the key to send nothing and leave the model at its own default -- which is not the same as \"none\", an OpenAI value that turns reasoning off. Record the value an evaluator was validated at: a reasoning model's default changes how literally it applies a rubric, so it is not a neutral choice. Like temperature, it is not carried across a model_override, which replaces the model the value was validated for."
               }
             }
           },
@@ -239,6 +243,18 @@
           {
             "if": { "properties": { "type": { "const": "llm" } } },
             "then": { "required": ["prompt", "model", "parser", "generation"] }
+          },
+          {
+            "if": { "required": ["model"], "properties": { "model": { "properties": { "provider": { "const": "openai" } } } } },
+            "then": { "properties": { "generation": { "properties": { "reasoning_effort": { "$ref": "#/$defs/ReasoningEffort/openai" } } } } }
+          },
+          {
+            "if": { "required": ["model"], "properties": { "model": { "properties": { "provider": { "const": "anthropic" } } } } },
+            "then": { "properties": { "generation": { "properties": { "reasoning_effort": { "$ref": "#/$defs/ReasoningEffort/anthropic" } } } } }
+          },
+          {
+            "if": { "required": ["model"], "properties": { "model": { "properties": { "provider": { "const": "google" } } } } },
+            "then": { "properties": { "generation": { "properties": { "reasoning_effort": { "$ref": "#/$defs/ReasoningEffort/google" } } } } }
           }
         ]
       }
@@ -270,6 +286,12 @@
           "description": "This step/preprocessing entry only applies when the named input's value is one of these."
         }
       }
+    },
+    "ReasoningEffort": {
+      "description": "The generation.reasoning_effort values each provider defines. The union of these lists is every value an SDK accepts; the per-provider list is what a step on that provider may declare.",
+      "openai": { "enum": ["none", "minimal", "low", "medium", "high", "xhigh", "max"] },
+      "anthropic": { "enum": ["low", "medium", "high", "xhigh", "max"] },
+      "google": { "enum": ["minimal", "low", "medium", "high"] }
     }
   }
 }

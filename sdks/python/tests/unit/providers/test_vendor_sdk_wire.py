@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from learning_commons_evaluators.errors import (
     AuthenticationError,
+    ConfigurationError,
     DependencyId,
     LLMOutputProcessingError,
     NetworkError,
@@ -30,7 +31,10 @@ from learning_commons_evaluators.providers.anthropic_sdk import (
     DEFAULT_MAX_TOKENS,
     AnthropicProvider,
 )
-from learning_commons_evaluators.providers.google_genai import GoogleProvider
+from learning_commons_evaluators.providers.google_genai import (
+    THINKING_LEVEL_SINCE,
+    GoogleProvider,
+)
 from learning_commons_evaluators.providers.openai_sdk import OpenAIProvider
 
 PNG = b"\x89PNG\r\n\x1a\nfake"
@@ -48,6 +52,12 @@ MESSAGES: list[Message] = [
     {"role": "user", "content": "Grade this."},
 ]
 IMAGE = ImageAttachment(data=PNG, media_type="image/png", position="before_text")
+
+#: The reasoning efforts config.schema.json admits per provider, each of which must reach the
+#: wire unchanged through the installed vendor SDK, the lowest supported release included.
+OPENAI_EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh", "max"]
+ANTHROPIC_EFFORTS = ["low", "medium", "high", "xhigh", "max"]
+GOOGLE_EFFORTS = ["minimal", "low", "medium", "high"]
 
 
 class _Wire:
@@ -152,6 +162,22 @@ class TestOpenAI:
         assert wire.sent["temperature"] == 0.0
         assert wire.sent["max_output_tokens"] == 50
 
+    @pytest.mark.parametrize("effort", OPENAI_EFFORTS)
+    async def test_a_reasoning_effort_is_sent_as_reasoning_effort(self, effort: str) -> None:
+        adapter, wire = _openai(body=_openai_body())
+        await adapter.generate_structured(MESSAGES, _Verdict, reasoning_effort=effort)
+        assert wire.sent["reasoning"] == {"effort": effort}
+
+    async def test_no_reasoning_effort_sends_no_reasoning(self) -> None:
+        adapter, wire = _openai(body=_openai_body())
+        await adapter.generate_structured(MESSAGES, _Verdict)
+        assert "reasoning" not in wire.sent
+
+    async def test_generate_text_sends_a_reasoning_effort(self) -> None:
+        adapter, wire = _openai(body=_openai_body(text="hello"))
+        await adapter.generate_text(MESSAGES, reasoning_effort="low")
+        assert wire.sent["reasoning"] == {"effort": "low"}
+
     async def test_a_completion_cut_off_at_the_limit_is_truncated(self) -> None:
         body = _openai_body(text='{"score": 3, "rea', status="incomplete")
         body["incomplete_details"] = {"reason": "max_output_tokens"}
@@ -232,6 +258,26 @@ class TestAnthropic:
         assert wire.sent["temperature"] == 0.0
         assert wire.sent["max_tokens"] == 50
 
+    @pytest.mark.parametrize("effort", ANTHROPIC_EFFORTS)
+    async def test_a_reasoning_effort_shares_output_config_with_the_format(
+        self, effort: str
+    ) -> None:
+        adapter, wire = _anthropic(body=_anthropic_body())
+        await adapter.generate_structured(MESSAGES, _Verdict, reasoning_effort=effort)
+        output_config = wire.sent["output_config"]
+        assert output_config["effort"] == effort
+        assert output_config["format"]["type"] == "json_schema"
+
+    async def test_no_reasoning_effort_sends_no_effort(self) -> None:
+        adapter, wire = _anthropic(body=_anthropic_body())
+        await adapter.generate_structured(MESSAGES, _Verdict)
+        assert "effort" not in wire.sent["output_config"]
+
+    async def test_generate_text_sends_a_reasoning_effort(self) -> None:
+        adapter, wire = _anthropic(body=_anthropic_body(text="hello"))
+        await adapter.generate_text(MESSAGES, reasoning_effort="low")
+        assert wire.sent["output_config"] == {"effort": "low"}
+
     async def test_a_completion_cut_off_at_the_limit_is_truncated(self) -> None:
         body = _anthropic_body(text='{"score": 3, "rea', stop_reason="max_tokens")
         adapter, _ = _anthropic(body=body)
@@ -284,6 +330,23 @@ def _google(status: int = 200, body: Any = None, **headers: str) -> tuple[Google
     return GoogleProvider(_config(Provider.GOOGLE), client=client), wire
 
 
+def _google_can_send(effort: str) -> bool:
+    """Whether the installed google-genai has this thinking level (1.51.0 LOW and HIGH,
+    1.56.0 all four)."""
+    from google.genai import types
+
+    levels = getattr(types, "ThinkingLevel", None)
+    return levels is not None and effort.upper() in levels.__members__
+
+
+def _thinking_level(wire: _Wire) -> str:
+    # The SDK sends ``thinkingConfig``'s own keys unconverted, as ``thinking_level``; the API
+    # takes either spelling.
+    thinking = wire.sent["generationConfig"]["thinkingConfig"]
+    assert len(thinking) == 1
+    return str(thinking.get("thinkingLevel") or thinking.get("thinking_level"))
+
+
 class TestGoogle:
     async def test_structured_request_and_response(self) -> None:
         adapter, wire = _google(body=_google_body())
@@ -303,6 +366,45 @@ class TestGoogle:
         await adapter.generate_structured(MESSAGES, _Verdict, temperature=0.0, max_tokens=50)
         assert wire.sent["generationConfig"]["temperature"] == 0.0
         assert wire.sent["generationConfig"]["maxOutputTokens"] == 50
+
+    @pytest.mark.parametrize("effort", GOOGLE_EFFORTS)
+    async def test_a_reasoning_effort_is_sent_as_thinking_level(self, effort: str) -> None:
+        # Below THINKING_LEVEL_SINCE the installed SDK cannot send it, and the adapter says
+        # so before any request; the lowest-vendor-SDKs job runs that branch.
+        adapter, wire = _google(body=_google_body())
+        if not _google_can_send(effort):
+            with pytest.raises(ConfigurationError, match=f"google-genai {THINKING_LEVEL_SINCE}"):
+                await adapter.generate_structured(MESSAGES, _Verdict, reasoning_effort=effort)
+            assert wire.bodies == []
+            return
+        await adapter.generate_structured(MESSAGES, _Verdict, reasoning_effort=effort)
+        assert _thinking_level(wire) == effort.upper()
+
+    async def test_an_sdk_without_the_level_refuses_before_any_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from google.genai import types
+
+        # Whatever is installed, as a release that predates thinking_level.
+        monkeypatch.delattr(types, "ThinkingLevel", raising=False)
+        adapter, wire = _google(body=_google_body())
+        with pytest.raises(ConfigurationError, match=f"google-genai {THINKING_LEVEL_SINCE}"):
+            await adapter.generate_structured(MESSAGES, _Verdict, reasoning_effort="high")
+        assert wire.bodies == []
+
+    async def test_no_reasoning_effort_sends_no_thinking_config(self) -> None:
+        adapter, wire = _google(body=_google_body())
+        await adapter.generate_structured(MESSAGES, _Verdict)
+        assert "thinkingConfig" not in wire.sent["generationConfig"]
+
+    async def test_generate_text_sends_a_reasoning_effort(self) -> None:
+        adapter, wire = _google(body=_google_body(text="hello"))
+        if not _google_can_send("low"):
+            with pytest.raises(ConfigurationError):
+                await adapter.generate_text(MESSAGES, reasoning_effort="low")
+            return
+        await adapter.generate_text(MESSAGES, reasoning_effort="low")
+        assert _thinking_level(wire) == "LOW"
 
     async def test_a_completion_cut_off_at_the_limit_is_truncated(self) -> None:
         body = _google_body(text='{"score": 3, "rea', finish="MAX_TOKENS")

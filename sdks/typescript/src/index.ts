@@ -53,6 +53,7 @@ export type {
   TextGenerationResponse,
   Message,
   ProviderConfig,
+  ReasoningEffort,
 } from './providers/index.js';
 
 // Sentence structure exports

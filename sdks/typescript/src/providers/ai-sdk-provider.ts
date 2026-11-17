@@ -40,7 +40,51 @@ import type {
   LLMResponse,
   Message,
   ProviderConfig,
+  ReasoningEffort,
 } from './base.js';
+
+/** The first `@ai-sdk/openai` that accepts `reasoningEffort: 'max'`; earlier ones reject it. */
+export const OPENAI_MAX_EFFORT_SINCE = '4.0.11';
+
+/** Whether dotted release `version` is at or after `minimum`, by its numeric parts. */
+function atLeast(version: string, minimum: string): boolean {
+  const parts = (v: string) => v.split(/[.+-]/).slice(0, 3).map(Number);
+  const [a, b] = [parts(version), parts(minimum)];
+  for (let i = 0; i < 3; i++) {
+    if (a[i] !== b[i]) return a[i] > b[i];
+  }
+  return true;
+}
+
+/**
+ * A reasoning effort as the vendor adapter's own option, sent as the vendor's parameter
+ * unchanged. Not the AI SDK's provider-neutral `reasoning` option, which maps some values to
+ * neighbours (Anthropic `minimal` to `low`) where the contract's value is the validated one.
+ *
+ * For OpenAI, `reasoningSummary: null` stops the adapter adding a `detailed` summary request
+ * the Python SDK does not send, and `forceReasoning` stops it dropping the effort for a model
+ * id its release does not list as reasoning (4.0.0 does not list `gpt-6-*`).
+ */
+function reasoningOptions(
+  type: ProviderConfig['type'],
+  effort: ReasoningEffort | undefined
+): { providerOptions?: Record<string, Record<string, string | boolean | null | Record<string, string>>> } {
+  if (effort === undefined) return {};
+  switch (type) {
+    case 'openai':
+      return {
+        providerOptions: {
+          openai: { reasoningEffort: effort, reasoningSummary: null, forceReasoning: true },
+        },
+      };
+    case 'anthropic':
+      return { providerOptions: { anthropic: { effort } } };
+    case 'google':
+      return { providerOptions: { google: { thinkingConfig: { thinkingLevel: effort } } } };
+    default:
+      return {};
+  }
+}
 
 /**
  * Place attachments on the final user turn, before or after its text as each one's
@@ -97,7 +141,7 @@ export class VercelAIProvider implements LLMProvider {
    * Generate structured output using Vercel AI SDK's generateText with output
    */
   async generateStructured<T>(request: LLMRequest<T>): Promise<LLMResponse<T>> {
-    const model = await this.getModel();
+    const model = await this.getModel(request.reasoningEffort);
     const startTime = Date.now();
 
     const systemMsg = request.messages.find((m) => m.role === 'system');
@@ -114,6 +158,7 @@ export class VercelAIProvider implements LLMProvider {
       maxRetries: this.config.maxRetries ?? 0,
       // maxOutputTokens is the vendor option; `maxTokens` is silently discarded.
       ...(request.maxTokens !== undefined ? { maxOutputTokens: request.maxTokens } : {}),
+      ...reasoningOptions(this.config.type, request.reasoningEffort),
     });
 
     return {
@@ -132,9 +177,10 @@ export class VercelAIProvider implements LLMProvider {
    */
   async generateText(
     messages: Message[],
-    temperature?: number | null
+    temperature?: number | null,
+    reasoningEffort?: ReasoningEffort
   ): Promise<import('./base.js').TextGenerationResponse> {
-    const model = await this.getModel();
+    const model = await this.getModel(reasoningEffort);
     const startTime = Date.now();
 
     const systemMsg = messages.find((m) => m.role === 'system');
@@ -150,6 +196,7 @@ export class VercelAIProvider implements LLMProvider {
       messages: nonSystemMessages,
       ...(effectiveTemperature != null ? { temperature: effectiveTemperature } : {}),
       maxRetries: this.config.maxRetries ?? 0,
+      ...reasoningOptions(this.config.type, reasoningEffort),
     });
 
     return {
@@ -171,18 +218,28 @@ export class VercelAIProvider implements LLMProvider {
    * statically resolving the uninstalled providers at build time — without them,
    * bundling fails with "Module not found: Can't resolve '@ai-sdk/...'" even
    * though the import is guarded at runtime.
+   *
+   * `reasoningEffort` is checked against the installed adapter here, where it is loaded,
+   * so an effort it cannot send fails before any request and names the release that can.
    */
-  private async getModel() {
+  private async getModel(reasoningEffort?: ReasoningEffort) {
     const apiKey = this.config.apiKey;
 
     switch (this.config.type) {
       case 'openai': {
-        const { createOpenAI } = await import(
+        const adapter = await import(
           /* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ '@ai-sdk/openai'
         ).catch((error: unknown) => {
           throw adapterImportError(error, 'OpenAI', '@ai-sdk/openai');
         });
-        return createOpenAI(apiKey ? { apiKey } : {})(this.model);
+        if (reasoningEffort === 'max' && !atLeast(adapter.VERSION, OPENAI_MAX_EFFORT_SINCE)) {
+          throw new ConfigurationError(
+            `Reasoning effort "max" cannot be sent by the installed @ai-sdk/openai ${adapter.VERSION}. ` +
+              `Upgrade to @ai-sdk/openai ${OPENAI_MAX_EFFORT_SINCE} or later: ` +
+              `npm install @ai-sdk/openai@^${OPENAI_MAX_EFFORT_SINCE}`
+          );
+        }
+        return adapter.createOpenAI(apiKey ? { apiKey } : {})(this.model);
       }
       case 'anthropic': {
         const { createAnthropic } = await import(

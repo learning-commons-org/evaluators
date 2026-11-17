@@ -116,6 +116,9 @@ describe('VocabularyComplexityEvaluator - Evaluation Flow', () => {
       // Verify both providers were called
       expect(mockBackgroundProvider.generateText).toHaveBeenCalledTimes(1);
       expect(mockComplexityProvider.generateStructured).toHaveBeenCalledTimes(1);
+      // The contract declares no reasoning effort, so none reaches either provider.
+      expect(vi.mocked(mockBackgroundProvider.generateText).mock.calls[0][2]).toBeUndefined();
+      expect(vi.mocked(mockComplexityProvider.generateStructured).mock.calls[0][0]).not.toHaveProperty('reasoningEffort');
 
       // Verify background knowledge call
       const bgCall = vi.mocked(mockBackgroundProvider.generateText).mock.calls[0];

@@ -22,6 +22,7 @@ from learning_commons_evaluators.providers import (
     create_provider,
     provider_context,
 )
+from learning_commons_evaluators.providers.factory import check_reasoning_effort
 from learning_commons_evaluators.schemas.evaluator import EvaluationResult
 from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
 from learning_commons_evaluators.telemetry import (
@@ -76,6 +77,7 @@ class BaseEvaluator(ABC):
         self._validate_llm_provider(config)
         self._override_provider = self._validate_model_override(config.model_override)
         self._validate_credentials()
+        self._check_reasoning_effort_support()
 
         telemetry = config.telemetry_options
         # Disabled means disabled: no client, so nothing is built, queued, or sent, and the
@@ -102,7 +104,7 @@ class BaseEvaluator(ABC):
                 "Evaluation quality may differ from recommended defaults.%s",
                 self._override_provider.value if self._override_provider else "?",
                 config.model_override.model,
-                self._dropped_temperature_note(),
+                self._dropped_temperature_note() + self._dropped_reasoning_effort_note(),
                 extra={"evaluator": self.metadata.id, "operation": "construct"},
             )
 
@@ -234,6 +236,48 @@ class BaseEvaluator(ABC):
             " provider's default sampling and its results are not reproducible the way the"
             " default model's are."
         )
+
+    def _dropped_reasoning_effort_note(self) -> str:
+        """What the override warning adds when a declared reasoning effort will not be sent.
+
+        The counterpart of :meth:`_dropped_temperature_note`, and empty for the same reason
+        when the contract declares none.
+        """
+        declared = sorted(
+            {s.reasoning_effort for s in self.contract.steps if s.reasoning_effort is not None}
+        )
+        if not declared:
+            return ""
+        return (
+            f" The reasoning effort its contract declares ({', '.join(declared)}) is not sent"
+            " either, so the override reasons at its own default, which can move its results"
+            " well away from the default model's."
+        )
+
+    def effective_reasoning_effort(self, declared: str | None) -> str | None:
+        """The reasoning effort to send for a step, honouring what replaces its model.
+
+        Dropped under ``model_override`` for the reason temperature is: the value was
+        validated for the model the contract declares, and which values another model
+        accepts, or whether it reasons at all, is that model's own property. Dropped for an
+        injected ``llm_provider`` too: the value is in the declared vendor's own terms, the
+        caller's provider may not take it, and §3 puts that provider's quality in the
+        caller's hands.
+        """
+        if self.config.model_override is not None or self.config.llm_provider is not None:
+            return None
+        return declared
+
+    def _check_reasoning_effort_support(self) -> None:
+        """Refuse at construction a reasoning effort the installed vendor SDK cannot send.
+
+        Only an effort that will be sent is checked, so an override or an injected provider
+        never fails on a vendor SDK it does not use.
+        """
+        for step in self.contract.steps:
+            effort = self.effective_reasoning_effort(step.reasoning_effort)
+            if effort is not None and step.model is not None:
+                check_reasoning_effort(step.model.provider, effort)
 
     def effective_temperature(self, declared: float | None) -> float | None:
         """The temperature to send for a step, honouring ``model_override``.

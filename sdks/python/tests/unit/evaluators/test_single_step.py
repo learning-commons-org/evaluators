@@ -36,7 +36,7 @@ from learning_commons_evaluators.evaluators.single_step import (
 from learning_commons_evaluators.features import image_source
 from learning_commons_evaluators.features.image_source import ImageBounds
 from learning_commons_evaluators.providers import LLMResponse, ProviderConfig, TokenUsage
-from tests.unit.conftest import FakeProvider, ProviderFactory
+from tests.unit.conftest import NOT_PASSED, FakeProvider, ProviderFactory
 
 STABLE_ID = "11111111-1111-1111-1111-111111111111"
 
@@ -993,3 +993,83 @@ class TestPrepareInputs:
             await self.define(refuse)(google_api_key="k").evaluate(**INPUT)
         assert providers.calls == []
         assert "Thing evaluation failed" in caplog.text
+
+
+def _with_effort(effort: str, provider: str = "openai", name: str = "gpt-5.5") -> dict[str, Any]:
+    """The test contract's one step, on ``provider`` and declaring ``effort``."""
+    [step] = contract().model_dump(by_alias=True)["steps"]
+    step["model"] = {"provider": provider, "name": name}
+    step["generation"] = {"temperature": None, "reasoning_effort": effort}
+    return step
+
+
+class TestReasoningEffort:
+    async def test_sends_the_reasoning_effort_the_contract_declares(
+        self, providers: ProviderFactory
+    ) -> None:
+        await define(steps=[_with_effort("none")])(openai_api_key="o").evaluate(**INPUT)
+        assert providers.last.calls[0]["reasoning_effort"] == "none"
+
+    async def test_passes_no_keyword_when_the_contract_declares_none(
+        self, providers: ProviderFactory
+    ) -> None:
+        # Not even ``None``: a provider written before the keyword existed must still work.
+        await define()(google_api_key="k").evaluate(**INPUT)
+        assert providers.last.calls[0]["reasoning_effort"] is NOT_PASSED
+
+    async def test_an_override_does_not_carry_the_contracts_reasoning_effort_across(
+        self, providers: ProviderFactory
+    ) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        evaluator = define(steps=[_with_effort("none")])(
+            anthropic_api_key="a", model_override=override
+        )
+        await evaluator.evaluate(**INPUT)
+        assert providers.last.calls[0]["reasoning_effort"] is NOT_PASSED
+
+    def test_the_override_warning_says_the_declared_reasoning_effort_is_not_sent(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            define(steps=[_with_effort("low")])(anthropic_api_key="a", model_override=override)
+        [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert "reasoning effort its contract declares (low) is not sent" in record.getMessage()
+
+    def test_the_override_warning_claims_nothing_when_the_contract_declares_none(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            define()(anthropic_api_key="a", model_override=override)
+        [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert "reasoning effort" not in record.getMessage()
+
+    async def test_an_injected_provider_is_not_handed_the_reasoning_effort(self) -> None:
+        injected = FakeProvider(ProviderConfig(type=Provider.OPENAI, model="mine"), _verdict)
+        evaluator = define(steps=[_with_effort("none")])(llm_provider=injected)
+        await evaluator.evaluate(**INPUT)
+        assert injected.calls[0]["reasoning_effort"] is NOT_PASSED
+
+    def test_an_effort_the_installed_google_sdk_cannot_send_fails_at_construction(
+        self, providers: ProviderFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from google.genai import types
+
+        # As google-genai releases before thinking_level have it.
+        monkeypatch.delattr(types, "ThinkingLevel", raising=False)
+        evaluator = define(steps=[_with_effort("high", "google", "gemini-3.5-flash")])
+        with pytest.raises(ConfigurationError, match=r"google-genai 1\.56\.0 or later"):
+            evaluator(google_api_key="k")
+        assert providers.created == []
+
+    def test_an_override_skips_the_google_sdk_check(
+        self, providers: ProviderFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from google.genai import types
+
+        # The effort is not sent under an override, so the SDK that cannot send it is moot.
+        monkeypatch.delattr(types, "ThinkingLevel", raising=False)
+        override = ModelOverride(provider=Provider.OPENAI, model="gpt-5.5")
+        evaluator = define(steps=[_with_effort("high", "google", "gemini-3.5-flash")])
+        evaluator(openai_api_key="o", model_override=override)

@@ -10,7 +10,13 @@ import {
   getUserPrompt,
 } from '../../../prompts/vocabulary-complexity/index.js';
 import type { EvaluationResult } from '../../../schemas/index.js';
-import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../../base.js';
+import {
+  BaseEvaluator,
+  Provider,
+  declaredReasoningEffort,
+  withReasoningEffort,
+  type BaseEvaluatorConfig,
+} from '../../base.js';
 import { validateInputs } from '../../inputs.js';
 import { requireStep } from '../../single-step.js';
 import { requireConditionValues, requirePreprocessing } from '../../multi-step.js';
@@ -79,6 +85,10 @@ const OTHER_GRADES_STEP = requireStep(
 /** The grades the grades-3-4 branch declares, so the routing follows the contract. */
 const GRADES_34 = requireConditionValues(GRADES_34_STEP, CONFIG.evaluator.name);
 
+const BACKGROUND_EFFORT = declaredReasoningEffort(BACKGROUND_STEP, CONFIG.evaluator.name);
+const GRADES_34_EFFORT = declaredReasoningEffort(GRADES_34_STEP, CONFIG.evaluator.name);
+const OTHER_GRADES_EFFORT = declaredReasoningEffort(OTHER_GRADES_STEP, CONFIG.evaluator.name);
+
 /**
  * The grades whose prompt binds `{fk_score}`, from the preprocessing entry's own condition
  * rather than assumed to match the step's — the contract states them separately.
@@ -129,6 +139,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     this.backgroundKnowledgeProvider = this.createConfiguredProvider(
       Provider.OpenAI, BACKGROUND_STEP.model.name, config.openaiApiKey
     );
+    this.warnDroppedReasoningEfforts([BACKGROUND_EFFORT, GRADES_34_EFFORT, OTHER_GRADES_EFFORT]);
   }
 
   /**
@@ -317,6 +328,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     const response = await this.backgroundKnowledgeProvider.generateText(
       [{ role: 'user', content: prompt }],
       BACKGROUND_STEP.generation.temperature,
+      this.effectiveReasoningEffort(BACKGROUND_EFFORT),
     );
 
     return {
@@ -355,6 +367,11 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
       temperature: GRADES_34.includes(gradeLevel)
         ? GRADES_34_STEP.generation.temperature
         : OTHER_GRADES_STEP.generation.temperature,
+      ...withReasoningEffort(
+        this.effectiveReasoningEffort(
+          GRADES_34.includes(gradeLevel) ? GRADES_34_EFFORT : OTHER_GRADES_EFFORT,
+        ),
+      ),
     });
 
     return {

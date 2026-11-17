@@ -18,7 +18,7 @@ import CONFIG from '../../../../../evals/academic-standards-alignment/mathematic
  */
 
 const created: Array<{ type: string; model: string }> = [];
-const calls: Array<{ model: string; temperature?: number; user: string }> = [];
+const calls: Array<{ model: string; temperature?: number; user: string; reasoningEffort?: string }> = [];
 
 /**
  * What the coarse filter says about the standard under test. `true` sends it on to be
@@ -45,11 +45,13 @@ vi.mock('../../../src/providers/index.js', async (importOriginal) => {
           (req: {
             messages: Array<{ role: string; content: string }>;
             temperature?: number;
+            reasoningEffort?: string;
           }) => {
             calls.push({
               model: config.model,
               temperature: req.temperature,
               user: req.messages.find((m) => m.role === 'user')?.content ?? '',
+              ...('reasoningEffort' in req ? { reasoningEffort: req.reasoningEffort } : {}),
             });
 
             // The coarse filter and the detail step take different shapes; the coarse
@@ -153,6 +155,8 @@ describe('MathStandardsAlignmentEvaluator — contract bindings', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].model).toBe(DETAIL_STEP.model.name);
     expect(calls[0].temperature).toBe(DETAIL_STEP.generation.temperature);
+    // The contract declares no reasoning effort, so the key is not sent at all.
+    expect(calls[0]).not.toHaveProperty('reasoningEffort');
   });
 
   it('sends the coarse filter step its own declared temperature', async () => {

@@ -9,7 +9,13 @@ import type { LLMProvider } from '../../../src/providers/base.js';
 
 const sent = vi.fn();
 const created: Array<{ type: string; model: string }> = [];
-const calls: Array<{ model: string; system: string; user: string; temperature?: number }> = [];
+const calls: Array<{
+  model: string;
+  system: string;
+  user: string;
+  temperature?: number;
+  reasoningEffort?: string;
+}> = [];
 
 vi.mock('../../../src/telemetry/client.js', () => ({
   TelemetryClient: class {
@@ -32,12 +38,15 @@ vi.mock('../../../src/providers/index.js', async (importOriginal) => {
           (request: {
             messages: Array<{ role: string; content: string }>;
             temperature?: number;
+            reasoningEffort?: string;
           }) => {
             calls.push({
               model: config.model,
               system: request.messages[0].content,
               user: request.messages[1].content,
               temperature: request.temperature,
+              // Recorded only when present, so a test can tell "absent" from undefined.
+              ...('reasoningEffort' in request ? { reasoningEffort: request.reasoningEffort } : {}),
             });
             const canned = RESPONSES[config.model];
             if (canned instanceof Error) return Promise.reject(canned);
@@ -254,6 +263,82 @@ describe('defineMultiStepEvaluator', () => {
     await construct(define()).evaluate({ text: 'a b', grade_level: '3' });
 
     expect(calls.map((c) => c.temperature)).toEqual([0, 0.5]);
+  });
+
+  describe('reasoning effort', () => {
+    function withEfforts(analyse?: string, classify?: string) {
+      const source = contract();
+      if (analyse) Object.assign(source.steps[0].generation, { reasoning_effort: analyse });
+      if (classify) Object.assign(source.steps[1].generation, { reasoning_effort: classify });
+      return source;
+    }
+    const quietLogger = () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() });
+
+    it('sends each step only the effort it declares', async () => {
+      await construct(defineFrom(withEfforts('none'))).evaluate({ text: 'a b', grade_level: '3' });
+
+      expect(calls[0].reasoningEffort).toBe('none');
+      expect(calls[1]).not.toHaveProperty('reasoningEffort');
+    });
+
+    it('leaves the key off every request when the contract declares none', async () => {
+      await construct(define()).evaluate({ text: 'a b', grade_level: '3' });
+
+      expect(calls.every((c) => !('reasoningEffort' in c))).toBe(true);
+    });
+
+    it('drops every effort under modelOverride, and says so once at construction', async () => {
+      const logger = quietLogger();
+      const Klass = defineFrom(withEfforts('none', 'low'));
+      const evaluator = new Klass({
+        anthropicApiKey: 'k',
+        telemetry: false,
+        logger,
+        modelOverride: { provider: 'anthropic' as never, model: 'claude-opus-5-5' },
+      });
+      await evaluator.evaluate({ text: 'a b', grade_level: '3' });
+
+      expect(calls.every((c) => !('reasoningEffort' in c))).toBe(true);
+      const warnings = logger.warn.mock.calls.map(([message]) => message as string);
+      expect(warnings.filter((m) => m.includes('reasoning effort'))).toEqual([
+        expect.stringContaining('declares (low, none) is not sent under modelOverride'),
+      ]);
+    });
+
+    it('does not warn about an effort under modelOverride when none is declared', () => {
+      const logger = quietLogger();
+      new (define())({
+        anthropicApiKey: 'k',
+        telemetry: false,
+        logger,
+        modelOverride: { provider: 'anthropic' as never, model: 'claude-opus-5-5' },
+      });
+
+      expect(logger.warn.mock.calls.some(([m]) => String(m).includes('reasoning effort'))).toBe(false);
+    });
+
+    it('does not hand an injected llmProvider the effort', async () => {
+      const generateStructured = vi.fn().mockResolvedValue({
+        data: { count: 2, verdict: 'clear', reasoning: 'because' },
+        model: 'mine',
+        usage: { inputTokens: 1, outputTokens: 1 },
+        latencyMs: 1,
+      });
+      const llmProvider = { label: 'mine', generateStructured, generateText: vi.fn() };
+      const Klass = defineFrom(withEfforts('none', 'low'));
+      await new Klass({ telemetry: false, llmProvider }).evaluate({ text: 'a b', grade_level: '3' });
+
+      expect(generateStructured).toHaveBeenCalledTimes(2);
+      for (const [request] of generateStructured.mock.calls) {
+        expect(request).not.toHaveProperty('reasoningEffort');
+      }
+    });
+
+    it('refuses an effort no provider defines when the class is defined', () => {
+      expect(() => defineFrom(withEfforts('default'))).toThrow(
+        /Step "analyse" in Thing Evaluator config\.json declares an unknown generation\.reasoning_effort "default"/,
+      );
+    });
   });
 
   it('returns the last step output as the result', async () => {

@@ -438,6 +438,10 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
 
                 messages = self._render_messages(request.question, components)
 
+                # Passed only when the step declares one, as in the single-step base.
+                effort = self.effective_reasoning_effort(STEP.reasoning_effort)
+                extra: dict[str, Any] = {} if effort is None else {"reasoning_effort": effort}
+
                 async def judge() -> tuple[
                     LLMResponse[BatchedLCEvaluation], list[LearningComponentResult]
                 ]:
@@ -452,6 +456,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
                         messages,
                         BatchedLCEvaluation,
                         temperature=self.effective_temperature(STEP.temperature),
+                        **extra,
                     )
                     return answer, self._verified(components, answer.data, statement_code)
 

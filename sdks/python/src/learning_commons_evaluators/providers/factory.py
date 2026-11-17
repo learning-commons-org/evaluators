@@ -33,4 +33,21 @@ def create_provider(config: ProviderConfig) -> LLMProvider:
     )
 
 
-__all__ = ["create_provider"]
+def check_reasoning_effort(provider: Provider, effort: str) -> None:
+    """Refuse, before any call, a declared effort the installed vendor SDK cannot send.
+
+    Only google-genai's floor predates its effort parameter. The openai and anthropic
+    adapters send theirs as plain request data, which every supported release passes
+    through, so there is nothing to check for them.
+
+    :raises ConfigurationError: naming the vendor SDK release to upgrade to.
+    """
+    if provider is Provider.GOOGLE:
+        from learning_commons_evaluators.providers.google_genai import (
+            check_reasoning_effort as check_google,
+        )
+
+        check_google(effort)
+
+
+__all__ = ["check_reasoning_effort", "create_provider"]
