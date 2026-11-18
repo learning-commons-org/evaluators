@@ -17,7 +17,7 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SDK_ROOT = resolve(__dirname, '../../..');
 const PURPOSE_CONFIG = resolve(__dirname, '../../../../../evals/text-complexity/ela-reading/purpose-clarity/config.json');
-const SCRIPT_PATH = resolve(SDK_ROOT, 'scripts/generate-schema.ts');
+const SCRIPT_PATH = resolve(SDK_ROOT, 'scripts/generate-schema-cli.ts');
 
 const toPosix = (p: string) => p.split(sep).join('/');
 

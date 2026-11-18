@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * Generates Zod schemas from evaluator config.json + output_schema.json files.
  *
@@ -6,10 +5,10 @@
  * This script resolves internal $refs, converts to Zod, and writes a typed TypeScript
  * file to src/schemas/{domain}/{skill}/{evaluator}.ts, derived from the evaluator id.
  *
- * Usage:
- *   tsx scripts/generate-schema.ts --all                  every already-generated module
- *   tsx scripts/generate-schema.ts <config.json> [...]     named contracts
- *   tsx scripts/generate-schema.ts --check <...>            verify instead of write
+ * Usage (through the CLI entry, scripts/generate-schema-cli.ts):
+ *   tsx scripts/generate-schema-cli.ts --all                  every already-generated module
+ *   tsx scripts/generate-schema-cli.ts <config.json> [...]     named contracts
+ *   tsx scripts/generate-schema-cli.ts --check <...>            verify instead of write
  *
  * The --check flag exits 1 if any generated file is out of sync (for CI).
  *
@@ -308,8 +307,7 @@ export function generatedContracts(): string[] {
   });
 }
 
-function main(): void {
-  const args = process.argv.slice(2);
+export function main(args: string[]): void {
   const checkMode = args.includes('--check');
   const allMode = args.includes('--all');
   const named = args.filter((a) => a !== '--check' && a !== '--all');
@@ -322,7 +320,7 @@ function main(): void {
   const configPaths = allMode ? generatedContracts() : named;
 
   if (configPaths.length === 0) {
-    console.error('Usage: generate-schema.ts [--check] (--all | <config.json> [...])');
+    console.error('Usage: generate-schema-cli.ts [--check] (--all | <config.json> [...])');
     process.exit(1);
   }
 
@@ -357,9 +355,4 @@ function main(): void {
   }
 
   if (hasErrors) process.exit(1);
-}
-
-// Only run when executed directly, not when imported by tests.
-if (fileURLToPath(import.meta.url) === process.argv[1]) {
-  main();
 }
