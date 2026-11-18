@@ -9,7 +9,13 @@ import { z } from 'zod';
 
 /** Step 1's raw sentence analysis, as the model returns it. */
 export const SentenceAnalysisSchema = z.object({
-  reasoning: z.string().describe('Step-by-step reasoning for the analysis'),
+  // Not "step-by-step reasoning": Anthropic refuses a schema that asks for that
+  // (stop_reason "refusal", category "reasoning_extraction") on Sonnet and Opus.
+  reasoning: z
+    .string()
+    .describe(
+      'A short sentence-by-sentence breakdown of the text: for each sentence, its type and the clauses, phrases, and transitions it contains, one sentence per line.',
+    ),
 
   // Foundational
   num_sentences: z.number().int().describe('Total number of sentences in the text'),
