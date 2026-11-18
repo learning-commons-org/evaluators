@@ -576,6 +576,24 @@ export abstract class BaseEvaluator {
   }
 
   /**
+   * Refuse a contract that declares `generation.reasoning_effort`, for an evaluator that
+   * does not send one yet. Running without it would evaluate at the model's default effort,
+   * which the contract does not describe, and an SDK that does send it would return
+   * different results for the same contract.
+   */
+  protected refuseReasoningEffort(
+    steps: ReadonlyArray<{ id: string; generation?: { temperature?: number | null; reasoning_effort?: string } }>,
+  ): void {
+    const declaring = steps.filter((step) => step.generation?.reasoning_effort !== undefined).map((step) => step.id);
+    if (declaring.length > 0) {
+      throw new ConfigurationError(
+        `${this.metadata.name} does not support generation.reasoning_effort yet; ` +
+          `its config.json declares one for ${declaring.join(', ')}.`
+      );
+    }
+  }
+
+  /**
    * Create an LLM provider, honouring llmProvider then modelOverride if set.
    * An injected llmProvider wins outright and is returned as-is. Otherwise, when
    * override is active, the key for the override provider is resolved from the

@@ -112,8 +112,33 @@ def built() -> Iterator[list[LoopBoundKnowledgeGraph]]:
         yield clients
 
 
+class TestRefusesAReasoningEffort:
+    """This evaluator does not send an effort yet, so a contract declaring one is refused."""
+
+    @pytest.mark.parametrize("step_id", [STEP.id, "coarse_filter"])
+    def test_an_effort_on_any_step_is_refused_at_construction(self, step_id: str) -> None:
+        raw = MathStandardsAlignmentEvaluator.contract.model_dump(by_alias=True)
+        [step] = [s for s in raw["steps"] if s["id"] == step_id]
+        step["generation"] = {"temperature": None, "reasoning_effort": "low"}
+        refused = f"does not support generation.reasoning_effort yet; .* {step_id}"
+        with (
+            patch.object(MathStandardsAlignmentEvaluator, "contract", Contract.model_validate(raw)),
+            pytest.raises(ConfigurationError, match=refused),
+        ):
+            build()
+
+
 class TestReasoningEffortOnAnOptionalStep:
-    """The coarse filter is optional and never runs, so its declared effort is never checked."""
+    """The coarse filter is optional and never runs, so its declared effort is never checked.
+
+    This is the base's rule, tested through the one evaluator with an optional step. That
+    evaluator refuses any effort until it sends one, so the refusal is lifted here.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _as_if_efforts_were_sent(self) -> Iterator[None]:
+        with patch.object(MathStandardsAlignmentEvaluator, "_refuse_reasoning_effort"):
+            yield
 
     @staticmethod
     def _contract(*, main_on_google: bool) -> Contract:

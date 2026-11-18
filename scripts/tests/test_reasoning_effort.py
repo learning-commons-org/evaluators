@@ -1,4 +1,5 @@
-"""generation.reasoning_effort: each provider admits its own values, and notebooks must read it."""
+"""generation.reasoning_effort: each provider admits its own values, a step declaring one sets
+temperature to null, and notebooks must read it."""
 
 from __future__ import annotations
 
@@ -31,12 +32,16 @@ ACCEPTED = {
 EVERY_VALUE = sorted({value for values in ACCEPTED.values() for value in values})
 
 
-def _errors(provider: str, effort: str | None) -> list[str]:
+def _errors(provider: str, effort: str | None, temperature: float | None = None) -> list[str]:
+    """Validation errors for the base contract's step on ``provider``.
+
+    With an effort, the temperature defaults to null, which the schema requires next to one.
+    """
     config = copy.deepcopy(CONFIG)
     step = config["steps"][0]
     step["model"]["provider"] = provider
     if effort is not None:
-        step["generation"]["reasoning_effort"] = effort
+        step["generation"] = {"temperature": temperature, "reasoning_effort": effort}
     return [e.message for e in Draft202012Validator(SCHEMA).iter_errors(config)]
 
 
@@ -64,6 +69,22 @@ class ReasoningEffortSchema(unittest.TestCase):
         for provider in ACCEPTED:
             with self.subTest(provider=provider):
                 self.assertEqual(len(_errors(provider, "default")), 1)
+
+    def test_an_effort_requires_a_null_temperature_on_every_provider(self) -> None:
+        for provider, accepted in ACCEPTED.items():
+            for temperature in (0, 0.5, 1):
+                with self.subTest(provider=provider, temperature=temperature):
+                    errors = _errors(provider, accepted[0], temperature)
+                    self.assertEqual(len(errors), 1)
+                    self.assertIn("is not of type 'null'", errors[0])
+            with self.subTest(provider=provider, temperature=None):
+                self.assertEqual(_errors(provider, accepted[0], None), [])
+
+    def test_a_temperature_without_an_effort_is_still_allowed(self) -> None:
+        self.assertEqual(CONFIG["steps"][0]["generation"]["temperature"], 1)
+        for provider in ACCEPTED:
+            with self.subTest(provider=provider):
+                self.assertEqual(_errors(provider, None), [])
 
     def test_null_is_not_a_second_spelling_of_omitted(self) -> None:
         config = copy.deepcopy(CONFIG)

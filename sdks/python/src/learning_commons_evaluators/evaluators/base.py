@@ -305,6 +305,20 @@ class BaseEvaluator(ABC):
 
                 check_reasoning_effort(effort)
 
+    def _refuse_reasoning_effort(self) -> None:
+        """Refuse a contract that declares ``generation.reasoning_effort``.
+
+        For an evaluator that does not send one yet. Running without it would evaluate at
+        the model's default effort, which the contract does not describe, and another SDK
+        that does send it would return different results for the same contract.
+        """
+        declaring = [step.id for step in self.contract.steps if step.reasoning_effort is not None]
+        if declaring:
+            raise ConfigurationError(
+                f"{self.metadata.name} does not support generation.reasoning_effort yet; "
+                f"its config.json declares one for {', '.join(declaring)}."
+            )
+
     def effective_temperature(self, declared: float | None) -> float | None:
         """The temperature to send for a step, honouring ``model_override``.
 

@@ -193,6 +193,8 @@
             "type": "object",
             "additionalProperties": false,
             "required": ["temperature"],
+            "if": { "required": ["reasoning_effort"] },
+            "then": { "properties": { "temperature": { "type": "null" } } },
             "properties": {
               "temperature": {
                 "type": ["number", "null"],
@@ -202,7 +204,7 @@
               },
               "reasoning_effort": {
                 "type": "string",
-                "description": "How much the model reasons before it answers, in the step provider's own terms: OpenAI's reasoning.effort, Anthropic's output_config.effort, Google's thinking_config.thinking_level. Which values are valid depends on model.provider (see $defs/ReasoningEffortOpenAI, ReasoningEffortAnthropic and ReasoningEffortGoogle); which of those a given model accepts is the vendor's to say, and a value the model refuses fails the call rather than being swapped for a neighbour. Omit the key to send nothing and leave the model at its own default -- which is not the same as \"none\", an OpenAI value that turns reasoning off. Record the value an evaluator was validated at: a reasoning model's default changes how literally it applies a rubric, so it is not a neutral choice. Like temperature, it is not carried across a model_override, which replaces the model the value was validated for."
+                "description": "How much the model reasons before it answers, in the step provider's own terms: OpenAI's reasoning.effort, Anthropic's output_config.effort, Google's thinking_config.thinking_level. Which values are valid depends on model.provider (see $defs/ReasoningEffortOpenAI, ReasoningEffortAnthropic and ReasoningEffortGoogle); which of those a given model accepts is the vendor's to say, and a value the model refuses fails the call rather than being swapped for a neighbour. Omit the key to send nothing and leave the model at its own default -- which is not the same as \"none\", an OpenAI value that turns reasoning off. Record the value an evaluator was validated at: a reasoning model's default changes how literally it applies a rubric, so it is not a neutral choice. Like temperature, it is not carried across a model_override, which replaces the model the value was validated for. A step that declares one must set temperature to null: the vendors' reasoning modes refuse or ignore a sampling temperature, and the SDKs would otherwise disagree on whether it is sent."
               }
             }
           },

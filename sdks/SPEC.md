@@ -397,7 +397,7 @@ A definition MUST specify:
 | Input schema | Every accepted input by canonical name, with bounds (§4.1) and accepted grade tokens |
 | Output schema | The `result` shape (§5.2), field by field |
 | Preprocessing | Derived-input entries (§10.4), each with its computation and any `required_credentials` |
-| Steps | Ordered LLM steps; per step: model (`provider` + immutable model ID, §10.2), prompt, temperature (`null` = omit the parameter, for providers that do not accept one), reasoning effort (optional, in the step provider's own terms; absent = send nothing and take the model's default; not sent under a model override or to a caller-supplied provider), `optional` flag, and `required_credentials` |
+| Steps | Ordered LLM steps; per step: model (`provider` + immutable model ID, §10.2), prompt, temperature (`null` = omit the parameter, for providers that do not accept one), reasoning effort (optional, in the step provider's own terms; absent = send nothing and take the model's default; a step declaring one sets temperature to `null`; not sent under a model override or to a caller-supplied provider), `optional` flag, and `required_credentials` |
 
 `required_credentials` sit on steps and preprocessing entries — not on the evaluator — so requirements narrow correctly: an `optional` step's credential is demanded only when a caller opts into that step. LLM key requirements are derived from the steps' providers, never declared separately (§3.1).
 
