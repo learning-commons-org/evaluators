@@ -91,6 +91,7 @@ class AnthropicProvider:
         temperature: float | None,
         max_tokens: int | None,
         attachments: Sequence[ImageAttachment] = (),
+        reasoning_effort: str | None = None,
     ) -> dict[str, Any]:
         from anthropic import omit
 
@@ -122,6 +123,11 @@ class AnthropicProvider:
         # travels in the body. None sends nothing (config.schema.json's ``null``).
         if temperature is not None:
             request["extra_body"] = {"temperature": temperature}
+        # ``output_config`` also carries the structured-output format, which
+        # ``generate_structured`` adds to this same object. Unset sends nothing, which leaves
+        # the model at its default effort.
+        if reasoning_effort is not None:
+            request["output_config"] = {"effort": reasoning_effort}
         return request
 
     @staticmethod
@@ -140,11 +146,12 @@ class AnthropicProvider:
         temperature: float | None = None,
         max_tokens: int | None = None,
         attachments: Sequence[ImageAttachment] = (),
+        reasoning_effort: str | None = None,
     ) -> LLMResponse[T]:
         from anthropic import transform_schema
 
         start = time.perf_counter()
-        request = self._request(messages, temperature, max_tokens, attachments)
+        request = self._request(messages, temperature, max_tokens, attachments, reasoning_effort)
         # The JSON output format ``messages.parse`` would send, sent through ``create`` so
         # the stop reason can be read before the text is validated: ``parse`` validates
         # inside the call, and cut-off JSON would surface as a schema error instead.
@@ -152,10 +159,9 @@ class AnthropicProvider:
             "type": "json_schema",
             "schema": transform_schema(TypeAdapter(schema).json_schema()),
         }
+        request["output_config"] = {**request.get("output_config", {}), "format": output_format}
         async with self._session() as client:
-            message = await client.messages.create(
-                output_config={"format": output_format}, **request
-            )
+            message = await client.messages.create(**request)
         stop_reason = getattr(message, "stop_reason", None)
         if stop_reason == "max_tokens":
             raise truncated_output(
@@ -182,11 +188,14 @@ class AnthropicProvider:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
     ) -> TextGenerationResponse:
         start = time.perf_counter()
         async with self._session() as client:
             message = await client.messages.create(
-                **self._request(messages, temperature, max_tokens)
+                **self._request(
+                    messages, temperature, max_tokens, reasoning_effort=reasoning_effort
+                )
             )
         text = "".join(
             getattr(block, "text", "") for block in message.content if block.type == "text"

@@ -7,6 +7,7 @@ import { runPreprocessingStep, type PreprocessingImplementation } from '../featu
 import {
   BaseEvaluator,
   Provider,
+  withReasoningEffort,
   type BaseEvaluatorConfig,
   type EvaluatorMetadata,
 } from './base.js';
@@ -45,7 +46,7 @@ export interface MultiStepContract extends CredentialDeclaringConfig {
   steps: Array<{
     id: string;
     model: { provider: string; name: string };
-    generation?: { temperature?: number };
+    generation?: { temperature?: number; reasoning_effort?: string };
     prompt: { placeholders: Record<string, DeclaredPlaceholder | undefined> };
     required_credentials?: string[];
   }>;
@@ -222,6 +223,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
     return {
       step,
       vendor: vendorOf(step.model.provider, contract.evaluator.name),
+      reasoningEffort: step.generation?.reasoning_effort,
       schema,
       prompts: createPromptRenderers(
         parts.system,
@@ -326,7 +328,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
         const stepOutputs = new Map<string, unknown>();
         const preprocessed = new Map<string, string>();
 
-        for (const { step, schema, prompts } of RENDERERS) {
+        for (const { step, schema, prompts, reasoningEffort } of RENDERERS) {
           const promptInputs: Record<string, string> = {};
           for (const [name, placeholder] of Object.entries(step.prompt.placeholders)) {
             // A key present but undefined is an artefact of the contract's inferred type,
@@ -354,6 +356,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
             ],
             schema,
             temperature: step.generation?.temperature,
+            ...withReasoningEffort(this.effectiveReasoningEffort(reasoningEffort)),
           });
 
           stepOutputs.set(step.id, response.data);

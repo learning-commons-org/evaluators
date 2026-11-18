@@ -8,6 +8,7 @@ import { runPreprocessingStep } from '../features/preprocessing.js';
 import {
   BaseEvaluator,
   Provider,
+  withReasoningEffort,
   type BaseEvaluatorConfig,
   type EvaluatorMetadata,
 } from './base.js';
@@ -34,7 +35,7 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
   steps: Array<{
     id: string;
     model: { provider: string; name: string };
-    generation?: { temperature?: number | null };
+    generation?: { temperature?: number | null; reasoning_effort?: string };
     prompt: { placeholders: Record<string, { source?: string } | undefined> };
     required_credentials?: string[];
     optional?: boolean;
@@ -256,6 +257,7 @@ export function defineSingleStepEvaluator<
   const STEP = stepFor(contract);
   const VENDOR = vendorOf(STEP, contract.evaluator.name);
   const ATTACHMENTS = attachmentsOf(STEP, inputSchema, contract.evaluator.name);
+  const REASONING_EFFORT = STEP.generation?.reasoning_effort;
   const PREPROCESSING = contract.preprocessing ?? [];
   // With model-only fields, the model fills in `responseSchema` and the caller receives
   // only the fields `outputSchema` names.
@@ -409,6 +411,7 @@ export function defineSingleStepEvaluator<
           ...(attachments.length ? { attachments } : {}),
           schema: SENT_SCHEMA,
           temperature: STEP.generation?.temperature,
+          ...withReasoningEffort(this.effectiveReasoningEffort(REASONING_EFFORT)),
         });
         const data = RETURNED_FIELDS
           ? (Object.fromEntries(
