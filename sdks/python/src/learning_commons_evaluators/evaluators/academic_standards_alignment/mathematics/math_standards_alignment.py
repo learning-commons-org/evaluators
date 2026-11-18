@@ -310,6 +310,7 @@ class MathStandardsAlignmentEvaluator(BaseEvaluator):
         # below whether an injected dependency already satisfies one.
         self._injected_knowledge_graph = knowledge_graph
         super().__init__(config, **fields)
+        self._refuse_reasoning_effort()
         self.provider: LLMProvider = self._create_configured_provider(_MODEL.provider, _MODEL.name)
 
     @asynccontextmanager

@@ -39,6 +39,10 @@ from learning_commons_evaluators.schemas.kg_taxonomy import (
     GradeLevel,
 )
 
+#: What a fake records for a keyword its caller left out, so a test can tell "not passed" from
+#: an explicit ``None``.
+NOT_PASSED: Any = object()
+
 
 @dataclass
 class FakeProvider:
@@ -72,7 +76,7 @@ class FakeProvider:
         temperature: float | None = None,
         max_tokens: int | None = None,
         attachments: Sequence[ImageAttachment] = (),
-        reasoning_effort: str | None = None,
+        reasoning_effort: Any = NOT_PASSED,
     ) -> LLMResponse[Any]:
         self._record(
             {
@@ -99,7 +103,7 @@ class FakeProvider:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
-        reasoning_effort: str | None = None,
+        reasoning_effort: Any = NOT_PASSED,
     ) -> TextGenerationResponse:
         # Recorded alongside the structured calls, with ``schema`` absent, so a test reads
         # one ordered record of everything the evaluator asked for.

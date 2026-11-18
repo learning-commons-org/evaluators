@@ -190,12 +190,6 @@ class TestLookups:
             is None
         )
 
-    def test_reasoning_effort_is_refused_on_a_step_that_is_not_openais(self) -> None:
-        raw = load_contract(SENTENCE_STRUCTURE).model_dump(by_alias=True)
-        raw["steps"][0]["model"] = {"provider": "google", "name": "gemini-3.8-flash"}
-        with pytest.raises(ValueError, match="only an openai step can send"):
-            Contract.model_validate(raw)
-
     def test_required_credentials_skip_optional_steps(self) -> None:
         math = load_contract(MATH)
         assert math.required_credentials == ["learning_commons_api_key"]

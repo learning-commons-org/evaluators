@@ -1,5 +1,5 @@
 import type { ZodType } from 'zod';
-import { REASONING_EFFORTS, type LLMProvider, type ReasoningEffort } from '../providers/base.js';
+import type { LLMProvider } from '../providers/base.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import type { StageDetail } from '../telemetry/index.js';
 import { ConfigurationError, EvaluatorError, wrapProviderError } from '../errors.js';
@@ -7,6 +7,7 @@ import { runPreprocessingStep, type PreprocessingImplementation } from '../featu
 import {
   BaseEvaluator,
   Provider,
+  withReasoningEffort,
   type BaseEvaluatorConfig,
   type EvaluatorMetadata,
 } from './base.js';
@@ -51,10 +52,6 @@ export interface MultiStepContract extends CredentialDeclaringConfig {
   steps: Array<{
     id: string;
     model: { provider: string; name: string };
-    /**
-     * `reasoning_effort` is typed as the contract JSON infers it, a plain string; the
-     * factory narrows it to {@link ReasoningEffort} at load.
-     */
     generation?: { temperature?: number | null; reasoning_effort?: string };
     /** The step runs only for these input values. Absent means it always runs. */
     condition?: DeclaredCondition;
@@ -210,35 +207,6 @@ function canEndRun(
 }
 
 /**
- * The reasoning effort a step declares, checked against what can honour it.
- *
- * Only OpenAI's reasoning models take the parameter, and a contract declaring it elsewhere
- * records a setting that was never sent. Failing at load keeps that from passing for a
- * validated configuration.
- */
-function declaredReasoningEffort(
-  step: MultiStepContract['steps'][number],
-  vendor: Provider,
-  evaluatorName: string,
-): ReasoningEffort | undefined {
-  const effort = step.generation?.reasoning_effort;
-  if (effort === undefined) return undefined;
-  if (vendor !== Provider.OpenAI) {
-    throw new Error(
-      `Step "${step.id}" in ${evaluatorName} config.json declares generation.reasoning_effort, ` +
-        `which only an openai model takes; its model.provider is "${step.model.provider}".`,
-    );
-  }
-  if (!(REASONING_EFFORTS as readonly string[]).includes(effort)) {
-    throw new Error(
-      `Step "${step.id}" in ${evaluatorName} config.json declares an unknown ` +
-        `generation.reasoning_effort "${effort}". Supported: ${REASONING_EFFORTS.join(', ')}.`,
-    );
-  }
-  return effort as ReasoningEffort;
-}
-
-/**
  * Builds the evaluator class for a contract with more than one model call.
  *
  * Steps run in declared order, skipping any whose `condition` does not hold for the
@@ -301,7 +269,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
       vendor,
       canEnd,
       schema: parts.schema,
-      reasoningEffort: declaredReasoningEffort(step, vendor, contract.evaluator.name),
+      reasoningEffort: step.generation?.reasoning_effort,
       prompts: createPromptRenderers(
         parts.system,
         parts.user,
@@ -349,12 +317,6 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
     static readonly metadata = METADATA;
 
     private readonly providers = new Map<string, LLMProvider>();
-    /**
-     * Whether each step runs on the model its contract declares. A `modelOverride` or an
-     * injected `llmProvider` replaces that model, and with it the one thing a declared
-     * reasoning effort was validated against.
-     */
-    private readonly runsDeclaredModels: boolean;
 
     constructor(config: BaseEvaluatorConfig) {
       super(config);
@@ -372,7 +334,6 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
         }
         this.providers.set(step.id, provider);
       }
-      this.runsDeclaredModels = !this.config.modelOverride && !this.config.llmProvider;
     }
 
     private keyFor(vendor: Provider, config: BaseEvaluatorConfig): string | undefined {
@@ -471,12 +432,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
             ],
             schema,
             temperature: step.generation?.temperature,
-            // Sent only to the model it was validated on. The key is left off rather than
-            // set to undefined, so a caller's own provider sees no parameter it never
-            // asked for.
-            ...(this.runsDeclaredModels && renderer.reasoningEffort !== undefined
-              ? { reasoningEffort: renderer.reasoningEffort }
-              : {}),
+            ...withReasoningEffort(this.effectiveReasoningEffort(renderer.reasoningEffort)),
           });
 
           stepOutputs.set(step.id, response.data);

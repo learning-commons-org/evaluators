@@ -193,6 +193,8 @@
             "type": "object",
             "additionalProperties": false,
             "required": ["temperature"],
+            "if": { "required": ["reasoning_effort"] },
+            "then": { "properties": { "temperature": { "type": "null" } } },
             "properties": {
               "temperature": {
                 "type": ["number", "null"],
@@ -201,8 +203,8 @@
                 "description": "Sampling temperature to send, or null to omit the parameter entirely. Prefer an explicit number: the value an evaluator was validated at should be recorded, not inherited from a model default that can change under us. Use null only for models that reject any non-default value -- Claude Opus 4.7 and later return a 400 -- where omitting is the documented approach. A model recommending its default is not grounds for null; write the number out. Required rather than optional so every step records a deliberate choice; an absent key reads as 'nobody considered it'."
               },
               "reasoning_effort": {
-                "enum": ["none", "minimal", "low", "medium", "high", "xhigh", "max"],
-                "description": "Reasoning effort to send to an OpenAI reasoning model (the Responses API's reasoning.effort). Omit the key to send nothing and take the model's default. Record the value an evaluator was validated at: on these models the default changes how literally a rubric is applied, so it is not a neutral choice. Only valid on a step whose model.provider is openai; the SDKs refuse it elsewhere rather than drop it silently. Like temperature, it is not carried across a model_override, which replaces the model the value was validated for."
+                "type": "string",
+                "description": "How much the model reasons before it answers, in the step provider's own terms: OpenAI's reasoning.effort, Anthropic's output_config.effort, Google's thinking_config.thinking_level. Which values are valid depends on model.provider (see $defs/ReasoningEffortOpenAI, ReasoningEffortAnthropic and ReasoningEffortGoogle); which of those a given model accepts is the vendor's to say, and a value the model refuses fails the call rather than being swapped for a neighbour. Omit the key to send nothing and leave the model at its own default -- which is not the same as \"none\", an OpenAI value that turns reasoning off. Record the value an evaluator was validated at: a reasoning model's default changes how literally it applies a rubric, so it is not a neutral choice. Like temperature, it is not carried across a model_override, which replaces the model the value was validated for. A step that declares one must set temperature to null: the vendors' reasoning modes refuse or ignore a sampling temperature, and the SDKs would otherwise disagree on whether it is sent."
               }
             }
           },
@@ -243,6 +245,18 @@
           {
             "if": { "properties": { "type": { "const": "llm" } } },
             "then": { "required": ["prompt", "model", "parser", "generation"] }
+          },
+          {
+            "if": { "required": ["model"], "properties": { "model": { "properties": { "provider": { "const": "openai" } } } } },
+            "then": { "properties": { "generation": { "properties": { "reasoning_effort": { "$ref": "#/$defs/ReasoningEffortOpenAI" } } } } }
+          },
+          {
+            "if": { "required": ["model"], "properties": { "model": { "properties": { "provider": { "const": "anthropic" } } } } },
+            "then": { "properties": { "generation": { "properties": { "reasoning_effort": { "$ref": "#/$defs/ReasoningEffortAnthropic" } } } } }
+          },
+          {
+            "if": { "required": ["model"], "properties": { "model": { "properties": { "provider": { "const": "google" } } } } },
+            "then": { "properties": { "generation": { "properties": { "reasoning_effort": { "$ref": "#/$defs/ReasoningEffortGoogle" } } } } }
           }
         ]
       }
@@ -274,6 +288,18 @@
           "description": "This step/preprocessing entry only applies when the named input's value is one of these."
         }
       }
+    },
+    "ReasoningEffortOpenAI": {
+      "description": "The generation.reasoning_effort values an openai step may declare.",
+      "enum": ["none", "minimal", "low", "medium", "high", "xhigh", "max"]
+    },
+    "ReasoningEffortAnthropic": {
+      "description": "The generation.reasoning_effort values an anthropic step may declare.",
+      "enum": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "ReasoningEffortGoogle": {
+      "description": "The generation.reasoning_effort values a google step may declare.",
+      "enum": ["minimal", "low", "medium", "high"]
     }
   }
 }

@@ -15,7 +15,7 @@ from importlib import resources
 from importlib.resources.abc import Traversable
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from learning_commons_evaluators.providers.base import Provider
 
@@ -97,19 +97,17 @@ class ModelSpec(_ContractModel):
     alias: str | None = None
 
 
-#: The values ``generation.reasoning_effort`` may take, as the contract schema lists them.
-ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"]
-
-
 class Generation(_ContractModel):
     """``temperature`` is ``None`` when the parameter must be omitted entirely.
 
-    ``reasoning_effort`` is ``None`` when the contract declares none, which sends nothing
-    and leaves the model at its own default.
+    ``reasoning_effort`` is ``None`` when the contract omits the key, which sends nothing and
+    leaves the model at its own default. That is not the value ``"none"``, which is sent and
+    turns an OpenAI model's reasoning off. Which values a step may declare is
+    ``config.schema.json``'s rule, checked on the registry.
     """
 
     temperature: float | None = None
-    reasoning_effort: ReasoningEffort | None = None
+    reasoning_effort: str | None = None
 
 
 class Parser(_ContractModel):
@@ -146,21 +144,8 @@ class Step(_ContractModel):
         return self.generation.temperature if self.generation is not None else None
 
     @property
-    def reasoning_effort(self) -> ReasoningEffort | None:
+    def reasoning_effort(self) -> str | None:
         return self.generation.reasoning_effort if self.generation is not None else None
-
-    @model_validator(mode="after")
-    def _reasoning_effort_is_openais(self) -> Step:
-        # The setting is OpenAI's ``reasoning.effort``. On another vendor's step it would be
-        # dropped on the way out, and the contract would record a setting that never ran.
-        if self.reasoning_effort is not None and (
-            self.model is None or self.model.provider is not Provider.OPENAI
-        ):
-            raise ValueError(
-                f'Step "{self.id}" declares generation.reasoning_effort, which only an '
-                "openai step can send."
-            )
-        return self
 
 
 class PostTransform(_ContractModel):

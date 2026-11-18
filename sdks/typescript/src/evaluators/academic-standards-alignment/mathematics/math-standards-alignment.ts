@@ -256,6 +256,7 @@ export class MathStandardsAlignmentEvaluator extends BaseEvaluator {
 
   constructor(config: MathStandardsAlignmentEvaluatorConfig) {
     super(config);
+    this.refuseReasoningEffort(CONFIG.steps);
 
     this.kgClient =
       config._kgClient ??

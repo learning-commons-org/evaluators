@@ -16,6 +16,7 @@ const calls: Array<{
   temperature?: number;
   /** The whole request, for checks on which keys were sent at all. */
   request: Record<string, unknown>;
+  reasoningEffort?: string;
 }> = [];
 
 vi.mock('../../../src/telemetry/client.js', () => ({
@@ -39,6 +40,7 @@ vi.mock('../../../src/providers/index.js', async (importOriginal) => {
           (request: {
             messages: Array<{ role: string; content: string }>;
             temperature?: number;
+            reasoningEffort?: string;
           }) => {
             calls.push({
               model: config.model,
@@ -46,6 +48,8 @@ vi.mock('../../../src/providers/index.js', async (importOriginal) => {
               user: request.messages[1].content,
               temperature: request.temperature,
               request: request as unknown as Record<string, unknown>,
+              // Recorded only when present, so a test can tell "absent" from undefined.
+              ...('reasoningEffort' in request ? { reasoningEffort: request.reasoningEffort } : {}),
             });
             const canned = RESPONSES[config.model];
             if (canned instanceof Error) return Promise.reject(canned);
@@ -262,6 +266,57 @@ describe('defineMultiStepEvaluator', () => {
     await construct(define()).evaluate({ text: 'a b', grade_level: '3' });
 
     expect(calls.map((c) => c.temperature)).toEqual([0, 0.5]);
+  });
+
+  describe('reasoning effort', () => {
+    function withEfforts(analyse?: string, classify?: string) {
+      const source = contract();
+      if (analyse) Object.assign(source.steps[0].generation, { reasoning_effort: analyse });
+      if (classify) Object.assign(source.steps[1].generation, { reasoning_effort: classify });
+      return source;
+    }
+
+    it('sends each step only the effort it declares', async () => {
+      await construct(defineFrom(withEfforts('none'))).evaluate({ text: 'a b', grade_level: '3' });
+
+      expect(calls[0].reasoningEffort).toBe('none');
+      expect(calls[1]).not.toHaveProperty('reasoningEffort');
+    });
+
+    it('leaves the key off every request when the contract declares none', async () => {
+      await construct(define()).evaluate({ text: 'a b', grade_level: '3' });
+
+      expect(calls.every((c) => !('reasoningEffort' in c))).toBe(true);
+    });
+
+    it('drops every effort under modelOverride', async () => {
+      const Klass = defineFrom(withEfforts('none', 'low'));
+      const evaluator = new Klass({
+        anthropicApiKey: 'k',
+        telemetry: false,
+        modelOverride: { provider: 'anthropic' as never, model: 'claude-opus-5-5' },
+      });
+      await evaluator.evaluate({ text: 'a b', grade_level: '3' });
+
+      expect(calls.every((c) => !('reasoningEffort' in c))).toBe(true);
+    });
+
+    it('does not hand an injected llmProvider the effort', async () => {
+      const generateStructured = vi.fn().mockResolvedValue({
+        data: { count: 2, verdict: 'clear', reasoning: 'because' },
+        model: 'mine',
+        usage: { inputTokens: 1, outputTokens: 1 },
+        latencyMs: 1,
+      });
+      const llmProvider = { label: 'mine', generateStructured, generateText: vi.fn() };
+      const Klass = defineFrom(withEfforts('none', 'low'));
+      await new Klass({ telemetry: false, llmProvider }).evaluate({ text: 'a b', grade_level: '3' });
+
+      expect(generateStructured).toHaveBeenCalledTimes(2);
+      for (const [request] of generateStructured.mock.calls) {
+        expect(request).not.toHaveProperty('reasoningEffort');
+      }
+    });
   });
 
   it('returns the last step output as the result', async () => {
@@ -792,22 +847,6 @@ describe('defineMultiStepEvaluator — reasoning effort', () => {
 
     expect(requests).toHaveLength(2);
     for (const request of requests) expect(request).not.toHaveProperty('reasoningEffort');
-  });
-
-  it('rejects reasoning_effort on a step whose provider is not openai', () => {
-    const wrongVendor = banded();
-    wrongVendor.steps[2].model = { provider: 'google', name: 'gemini-classify' };
-
-    expect(() => defineBanded(wrongVendor)).toThrow(
-      /Step "classify_low" in Thing Evaluator config.json declares generation.reasoning_effort, which only an openai model takes; its model.provider is "google"/,
-    );
-  });
-
-  it('rejects a reasoning_effort the contract schema does not list', () => {
-    const unknown = banded();
-    unknown.steps[2].generation = { temperature: 0.5, reasoning_effort: 'maximal' };
-
-    expect(() => defineBanded(unknown)).toThrow(/unknown generation.reasoning_effort "maximal"/);
   });
 });
 

@@ -50,8 +50,6 @@ class OpenAIProvider:
     """``LLMProvider`` for OpenAI models."""
 
     supports_attachments = True
-    #: ``reasoning_effort`` is accepted, and sent as the Responses API's ``reasoning.effort``.
-    supports_reasoning_effort = True
 
     def __init__(self, config: ProviderConfig, *, client: AsyncOpenAI | None = None) -> None:
         model, api_key = require_config(config, Provider.OPENAI)
@@ -110,8 +108,8 @@ class OpenAIProvider:
             # models require that.
             "temperature": temperature if temperature is not None else omit,
             "max_output_tokens": max_tokens if max_tokens is not None else omit,
-            # Sent only when a contract declares one: a model that does not reason rejects
-            # the parameter, and omitting it is what leaves a reasoning model at its default.
+            # Omitted when unset, which leaves a reasoning model at its default; a model that
+            # does not reason rejects the parameter.
             "reasoning": {"effort": reasoning_effort} if reasoning_effort is not None else omit,
         }
 

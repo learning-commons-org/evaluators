@@ -205,7 +205,7 @@
       },
       "model": {
         "provider": "openai",
-        "name": "gpt-5.5"
+        "name": "gpt-5.5-2026-04-23"
       },
       "generation": {
         "temperature": null,
@@ -303,7 +303,7 @@
       },
       "model": {
         "provider": "openai",
-        "name": "gpt-5.5"
+        "name": "gpt-5.5-2026-04-23"
       },
       "generation": {
         "temperature": null,

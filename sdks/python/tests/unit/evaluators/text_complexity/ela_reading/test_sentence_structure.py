@@ -24,11 +24,11 @@ from learning_commons_evaluators.features import (
     compute_ground_truth_counts,
     features_to_json,
 )
-from tests.unit.conftest import ProviderFactory, sample_for
+from tests.unit.conftest import NOT_PASSED, ProviderFactory, sample_for
 
 TEXT = "The cat sat on the mat. It was sleeping quietly in the warm afternoon sun."
 #: What a grade 5 run reports: the grades 5-12 pair's model.
-MODEL = "openai:gpt-5.5"
+MODEL = "openai:gpt-5.5-2026-04-23"
 
 #: What the fake analysis step returns, so the derived features are predictable.
 ANALYSIS = SentenceAnalysis.model_validate(
@@ -80,7 +80,7 @@ def test_metadata_is_the_contracts() -> None:
 async def test_one_client_per_grade_bands_model(providers: ProviderFactory) -> None:
     await SentenceStructureEvaluator(openai_api_key="o").evaluate(text=TEXT, grade_level=5)
     # Two steps per band on one model each, so a client for each band and no more.
-    assert sorted(p.config.model for p in providers.created) == ["gpt-5.5", "gpt-6-luna"]
+    assert sorted(p.config.model for p in providers.created) == ["gpt-5.5-2026-04-23", "gpt-6-luna"]
     assert [c["schema"] for c in providers.calls] == [SentenceAnalysis, SentenceStructureOutput]
 
 
@@ -89,8 +89,8 @@ async def test_one_client_per_grade_bands_model(providers: ProviderFactory) -> N
     [
         (3, "grades_3_4", "gpt-6-luna"),
         (4, "grades_3_4", "gpt-6-luna"),
-        (5, "grades_5_12", "gpt-5.5"),
-        (12, "grades_5_12", "gpt-5.5"),
+        (5, "grades_5_12", "gpt-5.5-2026-04-23"),
+        (12, "grades_5_12", "gpt-5.5-2026-04-23"),
     ],
 )
 async def test_a_grade_runs_its_own_bands_pair_of_steps_on_that_bands_model(
@@ -131,19 +131,19 @@ async def test_an_override_does_not_carry_the_reasoning_effort_across(
     evaluator = SentenceStructureEvaluator(openai_api_key="o", model_override=override)
     await evaluator.evaluate(text=TEXT, grade_level=5)
     assert [c["model"] for c in providers.calls] == ["gpt-4.1", "gpt-4.1"]
-    assert [c["reasoning_effort"] for c in providers.calls] == [None, None]
+    assert [c["reasoning_effort"] for c in providers.calls] == [NOT_PASSED, NOT_PASSED]
 
 
 async def test_an_injected_provider_is_not_handed_the_reasoning_effort() -> None:
-    # The keyword is OpenAI's; a caller's own provider may not take it, and what that
-    # provider does with a prompt is already the caller's to answer for.
+    # The value is in the declared vendor's terms; a caller's own provider may not take it,
+    # and what that provider does with a prompt is already the caller's to answer for.
     from learning_commons_evaluators.providers import ProviderConfig
     from tests.unit.conftest import FakeProvider
 
     injected = FakeProvider(ProviderConfig(type=Provider.OPENAI, model="m"), scripted)
     evaluator = SentenceStructureEvaluator(llm_provider=injected, telemetry=False)
     await evaluator.evaluate(text=TEXT, grade_level=3)
-    assert [c["reasoning_effort"] for c in injected.calls] == [None, None]
+    assert [c["reasoning_effort"] for c in injected.calls] == [NOT_PASSED, NOT_PASSED]
 
 
 async def test_the_analysis_step_reads_the_textstat_counts(providers: ProviderFactory) -> None:

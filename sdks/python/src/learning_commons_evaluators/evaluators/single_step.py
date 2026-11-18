@@ -324,9 +324,12 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
 
                 messages = self._render_messages(values, validated)
                 attachments = await self._load_attachments(validated)
-                # Passed only when there are some, so a text-only provider is never handed a
-                # parameter it may not declare.
+                # Each passed only when there is one, so a provider is never handed a parameter
+                # it may not declare.
                 extra: dict[str, Any] = {"attachments": attachments} if attachments else {}
+                effort = self.effective_reasoning_effort(self._step.reasoning_effort)
+                if effort is not None:
+                    extra["reasoning_effort"] = effort
                 dependency, model = self._provider_context(self.provider)
                 assert self._step.model is not None
                 response = await call_with_resampling(

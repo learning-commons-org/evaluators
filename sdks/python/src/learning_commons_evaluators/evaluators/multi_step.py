@@ -308,8 +308,8 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         dependency, model = self._provider_context(provider)
         schema = self.step_models[step.id]
         temperature = self.effective_temperature(step.temperature)
-        # Passed only when the step declares one, so a provider that predates the keyword,
-        # which is every step of every other contract, is called exactly as before.
+        # Passed only when the step declares one, so a provider without the keyword is
+        # called as before.
         effort = self.effective_reasoning_effort(step.reasoning_effort)
         extra: dict[str, Any] = {} if effort is None else {"reasoning_effort": effort}
         if schema is None:

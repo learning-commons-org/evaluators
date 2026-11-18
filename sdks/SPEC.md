@@ -41,7 +41,7 @@ Every rule in this spec derives from one of these. When the spec is silent, deci
 
 7. **Sensitive data stays in the process.** Raw user-supplied input MUST NOT appear in telemetry, and appears in logs only at `DEBUG`; credentials and key fragments MUST NOT appear on any surface, ever. In-process error objects carry full diagnostic detail (§6.4). Model outputs, scores, and reasoning are product data and MAY be logged and reported.
 
-8. **Determinism is declared.** Models are pinned to immutable versions and temperatures declared; behavior changes only through deliberate registry updates (§10).
+8. **Determinism is declared.** Models are pinned to immutable versions, and temperatures and reasoning efforts declared; behavior changes only through deliberate registry updates (§10).
 
 9. **Every unit is in the name.** Quantity fields carry a unit suffix (`_ms`, `_chars`, `_tokens`). The default unit for durations is milliseconds (`_ms`); any other unit is an explicit, documented exception.
 
@@ -397,7 +397,7 @@ A definition MUST specify:
 | Input schema | Every accepted input by canonical name, with bounds (§4.1) and accepted grade tokens |
 | Output schema | The `result` shape (§5.2), field by field |
 | Preprocessing | Derived-input entries (§10.4), each with its computation and any `required_credentials` |
-| Steps | Ordered LLM steps; per step: model (`provider` + immutable model ID, §10.2), prompt, temperature (`null` = omit the parameter, for providers that do not accept one), `optional` flag, and `required_credentials` |
+| Steps | Ordered LLM steps; per step: model (`provider` + immutable model ID, §10.2), prompt, temperature (`null` = omit the parameter, for providers that do not accept one), reasoning effort (optional, in the step provider's own terms; absent = send nothing and take the model's default; a step declaring one sets temperature to `null`; not sent under a model override or to a caller-supplied provider), `optional` flag, and `required_credentials` |
 
 `required_credentials` sit on steps and preprocessing entries — not on the evaluator — so requirements narrow correctly: an `optional` step's credential is demanded only when a caller opts into that step. LLM key requirements are derived from the steps' providers, never declared separately (§3.1).
 
@@ -472,7 +472,7 @@ Cross-SDK behavior is verified by shared, language-neutral fixture files (per-ev
 Applies to non-Draft spec surfaces and Stable evaluators; Draft content and Experimental evaluators are exempt. Breaking is judged from the **user's** point of view:
 
 - **Non-breaking:** adding fields to results, events, or config; adding evaluators, error subclasses, or capabilities; widening accepted inputs; improving error messages within §4.1's same-facts rule.
-- **Breaking (major bump + deprecation):** removing or renaming any public name; changing a field's type, unit, or semantics; narrowing accepted inputs; changing a registry definition's models, steps, or temperature in a way that changes evaluation results.
+- **Breaking (major bump + deprecation):** removing or renaming any public name; changing a field's type, unit, or semantics; narrowing accepted inputs; changing a registry definition's models, steps, temperature, or reasoning effort in a way that changes evaluation results.
 - Consumers of results, events, and registry data MUST treat unknown fields as forward-compatible (ignore, don't fail).
 
 **Deprecation:** a renamed or removed surface keeps a working, warning-emitting alias for at least one minor release of every affected SDK.

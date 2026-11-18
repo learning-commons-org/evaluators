@@ -106,12 +106,13 @@ class LLMProvider(Protocol):
     provider at construction, and passes ``attachments`` only to one that declares it, and
     only when there are some.
 
-    Reasoning effort is opt-in the same way. A contract step that declares
-    ``generation.reasoning_effort`` is an OpenAI step, and the evaluator passes a
-    ``reasoning_effort`` keyword to :meth:`generate_structured` or :meth:`generate_text` for
-    that step alone, and only when the contract's own model is what runs: not under
-    ``model_override``, and not to an injected ``llm_provider``. No other call carries the
-    keyword, so an implementation without it conforms unchanged.
+    Reasoning effort is opt-in the same way. The built-in adapters accept a
+    ``reasoning_effort`` keyword on :meth:`generate_structured` and :meth:`generate_text`,
+    the value a contract step declares in its provider's own terms, and send it as that
+    vendor's parameter. An evaluator passes it only for a step that declares one, and only to
+    the adapter for the model the contract declares: not under ``model_override``, and never
+    to an injected ``llm_provider``. So an implementation without the keyword conforms
+    unchanged.
 
     The built-in adapters build a vendor client for each call and close it before the call
     returns, so an adapter holds no connection between calls and has nothing to release.

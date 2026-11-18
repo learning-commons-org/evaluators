@@ -26,7 +26,8 @@ from learning_commons_evaluators import (
 )
 from learning_commons_evaluators.contracts.loader import Contract
 from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator, as_prompt_text
-from tests.unit.conftest import ProviderFactory
+from learning_commons_evaluators.providers import ProviderConfig
+from tests.unit.conftest import NOT_PASSED, FakeProvider, ProviderFactory
 
 STABLE_ID = "22222222-2222-2222-2222-222222222222"
 
@@ -589,30 +590,6 @@ class TestEnvelope:
         [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
         assert "temperature" not in record.getMessage()
 
-    async def test_a_declared_reasoning_effort_is_sent_for_that_step_alone(
-        self, providers: ProviderFactory
-    ) -> None:
-        raw = contract().model_dump(by_alias=True)
-        raw["steps"][0]["generation"] = {"temperature": None, "reasoning_effort": "none"}
-        await define(steps=raw["steps"])(**KEYS).evaluate(**INPUT)
-        notes, rate = providers.calls
-        assert notes["reasoning_effort"] == "none"
-        # The other step declares none, so its provider is called without the keyword.
-        assert rate["reasoning_effort"] is None
-
-    async def test_an_override_does_not_carry_the_reasoning_effort_across(
-        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        raw = contract().model_dump(by_alias=True)
-        raw["steps"][0]["generation"] = {"temperature": None, "reasoning_effort": "none"}
-        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
-        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
-            evaluator = define(steps=raw["steps"])(anthropic_api_key="a", model_override=override)
-        await evaluator.evaluate(**INPUT)
-        assert [call.get("reasoning_effort") for call in providers.calls] == [None, None]
-        [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
-        assert "reasoning effort its contract declares (none) is not sent" in record.getMessage()
-
     async def test_without_an_override_each_step_sends_what_its_contract_pins(
         self, providers: ProviderFactory
     ) -> None:
@@ -800,3 +777,68 @@ class TestStepOutputText:
 
     def test_a_boolean_is_not_mistaken_for_a_number(self) -> None:
         assert as_prompt_text({"ok": True, "no": False}) == '{"ok":true,"no":false}'
+
+
+class TestReasoningEffort:
+    """Each step sends the effort it declares, on the prose and the structured path alike."""
+
+    @staticmethod
+    def _steps(
+        notes: str | None, rate: str | None, *, rate_on_openai: bool = False
+    ) -> list[dict[str, Any]]:
+        steps = contract().model_dump(by_alias=True)["steps"]
+        for step, effort in zip(steps, (notes, rate), strict=True):
+            if effort is not None:
+                step["generation"] = {"temperature": None, "reasoning_effort": effort}
+        if rate_on_openai:
+            # Off google, so the routing under test does not depend on whether the installed
+            # google-genai can send a thinking level.
+            steps[1]["model"] = {"provider": "openai", "name": "gpt-5.5"}
+        return steps
+
+    async def test_each_step_sends_only_its_own_declared_effort(
+        self, providers: ProviderFactory
+    ) -> None:
+        # ``notes`` is a prose step, ``rate`` a structured one.
+        await define(steps=self._steps("none", None))(**KEYS).evaluate(**INPUT)
+        assert [call["reasoning_effort"] for call in providers.calls] == ["none", NOT_PASSED]
+
+        providers.calls.clear()
+        await define(steps=self._steps(None, "low", rate_on_openai=True))(**KEYS).evaluate(**INPUT)
+        assert [call["reasoning_effort"] for call in providers.calls] == [NOT_PASSED, "low"]
+
+    async def test_an_override_drops_every_steps_effort(self, providers: ProviderFactory) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        evaluator = define(steps=self._steps("none", "low"))(
+            anthropic_api_key="a", model_override=override
+        )
+        await evaluator.evaluate(**INPUT)
+        assert [call["reasoning_effort"] for call in providers.calls] == [NOT_PASSED, NOT_PASSED]
+
+    def test_the_override_warning_lists_each_declared_effort_once(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            define(steps=self._steps("none", "low"))(anthropic_api_key="a", model_override=override)
+        [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert "reasoning effort its contract declares (low, none) is not sent" in (
+            record.getMessage()
+        )
+
+    async def test_an_injected_provider_is_not_handed_any_effort(self) -> None:
+        injected = FakeProvider(ProviderConfig(type=Provider.OPENAI, model="mine"), _verdict)
+        evaluator = define(steps=self._steps("none", "low"))(llm_provider=injected)
+        await evaluator.evaluate(**INPUT)
+        assert [call["reasoning_effort"] for call in injected.calls] == [NOT_PASSED, NOT_PASSED]
+
+    def test_a_google_effort_the_installed_sdk_cannot_send_fails_at_construction(
+        self, providers: ProviderFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from google.genai import types
+
+        monkeypatch.delattr(types, "ThinkingLevel", raising=False)
+        with pytest.raises(ConfigurationError, match="google-genai"):
+            define(steps=self._steps(None, "low"))(**KEYS)
+        # An openai step's effort needs no check: its SDK passes request data through.
+        define(steps=self._steps("none", None))(**KEYS)

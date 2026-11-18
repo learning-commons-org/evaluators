@@ -307,13 +307,13 @@ class TestMultiStepReporting:
         assert stages == [
             {
                 "stage": "sentence_analysis_grades_5_12",
-                "provider": "openai:gpt-5.5",
+                "provider": "openai:gpt-5.5-2026-04-23",
                 "latency_ms": 12,
                 "token_usage": {"input_tokens": 7, "output_tokens": 3},
             },
             {
                 "stage": "classify_complexity_grades_5_12",
-                "provider": "openai:gpt-5.5",
+                "provider": "openai:gpt-5.5-2026-04-23",
                 "latency_ms": 12,
                 "token_usage": {"input_tokens": 7, "output_tokens": 3},
             },
@@ -325,7 +325,7 @@ class TestMultiStepReporting:
         evaluator = SentenceStructureEvaluator(openai_api_key="k")
         # Both of a grade band's steps run on one model, so the client that band shares is
         # what has to fail, and only on the second call.
-        [provider] = [p for p in providers.created if p.config.model == "gpt-5.5"]
+        [provider] = [p for p in providers.created if p.config.model == "gpt-5.5-2026-04-23"]
         answer = provider.generate_structured
         calls = 0
 

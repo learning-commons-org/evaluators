@@ -407,7 +407,7 @@ describe('SentenceStructureEvaluator - grade bands', () => {
 
   it.each([
     ['3', 'grades_3_4', 'openai:gpt-6-luna'],
-    ['7', 'grades_5_12', 'openai:gpt-5.5'],
+    ['7', 'grades_5_12', 'openai:gpt-5.5-2026-04-23'],
   ] as const)('grade %s runs the two %s steps on %s', async (grade, band, model) => {
     const evaluator = new SentenceStructureEvaluator({ openaiApiKey: 'k', telemetry: false });
     const providers = providersOf(evaluator);

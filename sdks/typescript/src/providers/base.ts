@@ -30,14 +30,6 @@ export interface ImageAttachment {
 }
 
 /**
- * The reasoning efforts a contract may declare, as `config.schema.json` lists them. Which
- * of them a given model accepts is the vendor's to say, not checked here.
- */
-export const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
-
-export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
-
-/**
  * Request configuration for structured LLM generation
  */
 export interface LLMRequest<T> {
@@ -49,12 +41,14 @@ export interface LLMRequest<T> {
   /** Images for the final user turn, in array order, each before or after its text as its `position` says. */
   attachments?: readonly ImageAttachment[];
   /**
-   * Reasoning effort for an OpenAI reasoning model (the Responses API's `reasoning.effort`).
-   * Absent sends nothing and takes the model's default. No other vendor has the parameter:
-   * the built-in adapters refuse it rather than drop it, and an evaluator sends it only to
-   * the model its contract validated it on.
+   * How much the model reasons, in the vendor's own terms: OpenAI's `reasoning.effort`,
+   * Anthropic's `effort`, Google's `thinkingLevel`. Absent sends nothing and leaves the
+   * model at its default, which is not the same as `'none'`. An evaluator sets it only for
+   * a step that declares one, and only on the model its contract declares: never under
+   * `modelOverride` or for an injected `llmProvider`. Which values each vendor takes is
+   * `config.schema.json`'s rule.
    */
-  reasoningEffort?: ReasoningEffort;
+  reasoningEffort?: string;
 }
 
 /**
