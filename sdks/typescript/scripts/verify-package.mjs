@@ -34,10 +34,14 @@ function run(cmd, args, cwd) {
 }
 
 // npm's own CLI script, set by `npm run`. Spawning `npm` directly fails on Windows, where it
-// is a .cmd that execFileSync will not run without a shell.
+// is a .cmd that execFileSync will not run without a shell. Under pnpm or yarn the variable
+// names their CLI instead, whose `pack` and `install` behave differently.
 function npm(args, cwd) {
-  if (!process.env.npm_execpath) throw new Error('Run this through `npm run verify:package`.');
-  return run(process.execPath, [process.env.npm_execpath, ...args], cwd);
+  const cli = process.env.npm_execpath;
+  if (!cli || !/^npm-cli\.js$/.test(basename(cli))) {
+    throw new Error('Run this through `npm run verify:package`.');
+  }
+  return run(process.execPath, [cli, ...args], cwd);
 }
 
 // By name from ROOT, where pack() writes it: GNU tar, first on PATH in Git Bash, reads the
@@ -46,9 +50,13 @@ function tar(flags, tarball, ...members) {
   return run('tar', [...flags, basename(tarball), ...members], ROOT);
 }
 
-/** Pack once; every check reads or installs this exact artifact. */
+/**
+ * Pack once; every check reads or installs this exact artifact. The destination is explicit
+ * because a `pack-destination` in the user's .npmrc would write it elsewhere while npm still
+ * prints only the file name, leaving the checks to read whatever tarball is in ROOT.
+ */
 function pack() {
-  const out = npm(['pack', '--silent'], ROOT).trim().split('\n').pop();
+  const out = npm(['pack', '--silent', '--pack-destination', ROOT], ROOT).trim().split('\n').pop();
   return join(ROOT, out);
 }
 

@@ -3,7 +3,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 
 /**
  * The published declaration file, checked against a real build.
@@ -30,9 +31,14 @@ const ENTRIES = ['dist/index.d.ts', 'dist/batch/index.d.ts'];
  * Going through `npx` can pick up a global install or fetch a different version, which would
  * let this pass or fail for reasons unrelated to the declarations under test. It is run with
  * node rather than through the .bin shim, which on Windows is a .cmd that execFileSync will
- * not run without a shell.
+ * not run without a shell. The path comes from TypeScript's own `bin` entry, wherever the
+ * package is installed.
  */
-const TSC = join(TS_ROOT, 'node_modules/typescript/bin/tsc');
+const TS_MANIFEST = createRequire(import.meta.url).resolve('typescript/package.json');
+const TSC = join(
+  dirname(TS_MANIFEST),
+  (JSON.parse(readFileSync(TS_MANIFEST, 'utf-8')) as { bin: { tsc: string } }).bin.tsc,
+);
 
 function read(entry: string): string {
   const path = join(TS_ROOT, entry);
