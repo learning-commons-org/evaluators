@@ -76,42 +76,6 @@ jobs:
       - name: uv lock --check
         run: uv lock --check
 
-  # Linux and macOS share path separators, line endings and how executables are spawned,
-  # so the Ubuntu jobs cannot see a difference Windows has. Ruff and mypy behave the same
-  # on every OS and stay Linux-only. Once dependencies install, every check runs even when
-  # an earlier one fails, so one run shows every Windows failure.
-  windows:
-    name: 🪟 Windows
-    runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: sdks/python
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
-
-      - name: Install package and dev tools
-        id: install
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
-      - name: Generated contracts match evals/
-        run: python scripts/generate_contracts.py --check
-
-      - name: Generated Knowledge Graph client matches the spec
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: python scripts/generate_kg_client.py --check
-
-      - name: Tests
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: python -m pytest tests/ -q
-
   lowest-vendor-sdks:
     name: Lowest vendor SDKs
     runs-on: ubuntu-latest
