@@ -871,10 +871,12 @@ describe('the reported model matches the contract steps that apply', () => {
       !step.condition ||
       (step.condition.input === 'grade_level' && step.condition.in.map(String).includes(grade));
 
-    const expected = config.steps
-      .filter(applies)
-      .map((step) => `${step.model.provider}:${step.model.name}`)
-      .join('+');
+    // Steps that share a model report it once, in run order (SPEC §3.4).
+    const expected = [
+      ...new Set(
+        config.steps.filter(applies).map((step) => `${step.model.provider}:${step.model.name}`),
+      ),
+    ].join('+');
 
     const result = (await construct(E).evaluate({
       text: 'The storm gathered offshore and the harbour emptied before dusk.',
