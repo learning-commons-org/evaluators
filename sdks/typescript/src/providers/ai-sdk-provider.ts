@@ -43,6 +43,36 @@ import type {
 } from './base.js';
 
 /**
+ * A reasoning effort as the vendor adapter's own option, sent as the vendor's parameter
+ * unchanged. Not the AI SDK's provider-neutral `reasoning` option, which maps some values to
+ * neighbours (Anthropic `minimal` to `low`) where the contract's value is the validated one.
+ *
+ * For OpenAI, `reasoningSummary: null` stops the adapter adding a `detailed` summary request
+ * the Python SDK does not send, and `forceReasoning` stops it dropping the effort for a model
+ * id its release does not list as reasoning (4.0.0 does not list `gpt-6-*`).
+ */
+function reasoningOptions(
+  type: ProviderConfig['type'],
+  effort: string | undefined
+): { providerOptions?: Record<string, Record<string, string | boolean | null | Record<string, string>>> } {
+  if (effort === undefined) return {};
+  switch (type) {
+    case 'openai':
+      return {
+        providerOptions: {
+          openai: { reasoningEffort: effort, reasoningSummary: null, forceReasoning: true },
+        },
+      };
+    case 'anthropic':
+      return { providerOptions: { anthropic: { effort } } };
+    case 'google':
+      return { providerOptions: { google: { thinkingConfig: { thinkingLevel: effort } } } };
+    default:
+      return {};
+  }
+}
+
+/**
  * Place attachments on the final user turn, before or after its text as each one's
  * `position` says, in array order, as the AI SDK's content parts. Each image travels as a
  * `file` part — bytes plus media type, the one inline form every vendor adapter accepts
@@ -114,6 +144,7 @@ export class VercelAIProvider implements LLMProvider {
       maxRetries: this.config.maxRetries ?? 0,
       // maxOutputTokens is the vendor option; `maxTokens` is silently discarded.
       ...(request.maxTokens !== undefined ? { maxOutputTokens: request.maxTokens } : {}),
+      ...reasoningOptions(this.config.type, request.reasoningEffort),
     });
 
     return {

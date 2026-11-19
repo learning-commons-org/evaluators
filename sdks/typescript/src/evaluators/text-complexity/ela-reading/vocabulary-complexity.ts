@@ -117,6 +117,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
 
   constructor(config: BaseEvaluatorConfig) {
     super(config);
+    this.refuseReasoningEffort(CONFIG.steps);
 
     this.grades34ComplexityProvider = this.createConfiguredProvider(
       Provider.Google, GRADES_34_STEP.model.name, config.googleApiKey

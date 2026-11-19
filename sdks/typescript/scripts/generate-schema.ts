@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * Generates Zod schemas from evaluator config.json + output_schema.json files.
  *
@@ -6,10 +5,10 @@
  * This script resolves internal $refs, converts to Zod, and writes a typed TypeScript
  * file to src/schemas/{domain}/{skill}/{evaluator}.ts, derived from the evaluator id.
  *
- * Usage:
- *   tsx scripts/generate-schema.ts --all                  every already-generated module
- *   tsx scripts/generate-schema.ts <config.json> [...]     named contracts
- *   tsx scripts/generate-schema.ts --check <...>            verify instead of write
+ * Usage (through the CLI entry, scripts/generate-schema-cli.ts):
+ *   tsx scripts/generate-schema-cli.ts --all                  every already-generated module
+ *   tsx scripts/generate-schema-cli.ts <config.json> [...]     named contracts
+ *   tsx scripts/generate-schema-cli.ts --check <...>            verify instead of write
  *
  * The --check flag exits 1 if any generated file is out of sync (for CI).
  *
@@ -20,7 +19,7 @@
 
 import { parseSchema } from 'json-schema-to-zod';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
-import { resolve, dirname, join, relative } from 'node:path';
+import { resolve, dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -28,6 +27,11 @@ const __dirname = dirname(__filename);
 const SDK_ROOT = resolve(__dirname, '..');
 const SRC_SCHEMAS = join(SDK_ROOT, 'src', 'schemas');
 const EVALS_ROOT = resolve(SDK_ROOT, '..', '..', 'evals');
+
+/** The header path is committed, so it uses `/` whatever separator the OS uses. */
+function sourcePath(schemaPath: string): string {
+  return relative(SDK_ROOT, schemaPath).split(sep).join('/');
+}
 
 /** Written into every generated module, and the only record of which modules are generated. */
 export const GENERATED_MARKER = '// GENERATED — do not edit directly.';
@@ -197,7 +201,7 @@ function renderInputType(
 
   return {
     code: renderInputDeclarations(schema, className),
-    source: relative(SDK_ROOT, schemaPath),
+    source: sourcePath(schemaPath),
   };
 }
 
@@ -245,7 +249,7 @@ export function generateSchemaFile(configPath: string): GeneratedSchema {
   const modelOnly = modelOnlyFields(resolved);
   const zodCode = parseSchema(resolved);
 
-  const relSchemaPath = relative(SDK_ROOT, schemaPath);
+  const relSchemaPath = sourcePath(schemaPath);
   const input = renderInputType(configDir, config, className);
 
   const content = [
@@ -303,8 +307,7 @@ export function generatedContracts(): string[] {
   });
 }
 
-function main(): void {
-  const args = process.argv.slice(2);
+export function main(args: string[]): void {
   const checkMode = args.includes('--check');
   const allMode = args.includes('--all');
   const named = args.filter((a) => a !== '--check' && a !== '--all');
@@ -317,7 +320,7 @@ function main(): void {
   const configPaths = allMode ? generatedContracts() : named;
 
   if (configPaths.length === 0) {
-    console.error('Usage: generate-schema.ts [--check] (--all | <config.json> [...])');
+    console.error('Usage: generate-schema-cli.ts [--check] (--all | <config.json> [...])');
     process.exit(1);
   }
 
@@ -352,9 +355,4 @@ function main(): void {
   }
 
   if (hasErrors) process.exit(1);
-}
-
-// Only run when executed directly, not when imported by tests.
-if (fileURLToPath(import.meta.url) === process.argv[1]) {
-  main();
 }

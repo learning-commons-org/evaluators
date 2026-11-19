@@ -1,3 +1,8 @@
+# LF in every checkout, including Windows with autocrlf=true. Generated files are checked
+# byte for byte against \n output, prompts are sha256-pinned, and code splits on \n.
+# `git add` also converts CRLF to LF; a file that must keep its exact bytes needs `-text`.
+* text=auto eol=lf
+
 # Machine-generated / capture-synced paths: GitHub shows "Generated" in PRs
 # (diff collapsed by default, expandable; omitted from language stats).
 #   contracts/_generated/**, schemas/<family>/<subject>/**

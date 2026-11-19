@@ -22,6 +22,7 @@ from learning_commons_evaluators.providers import (
     create_provider,
     provider_context,
 )
+from learning_commons_evaluators.providers.factory import missing_sdk_error, sdk_installed
 from learning_commons_evaluators.schemas.evaluator import EvaluationResult
 from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
 from learning_commons_evaluators.telemetry import (
@@ -50,8 +51,9 @@ class BaseEvaluator(ABC):
         evaluator = PurposeClarityEvaluator(EvaluatorConfig(google_api_key="..."))
 
     :raises ConfigurationError: for a malformed ``model_override``, an ``llm_provider`` that
-        does not implement :class:`LLMProvider` or is combined with ``model_override``, or a
-        missing credential the evaluator's contract requires (§3.1), before any I/O.
+        does not implement :class:`LLMProvider` or is combined with ``model_override``, a
+        vendor SDK a built-in adapter needs that is not installed, or a missing credential
+        the evaluator's contract requires (§3.1), before any I/O.
     """
 
     #: The registry contract the evaluator is built from; set by the concrete class.
@@ -75,7 +77,9 @@ class BaseEvaluator(ABC):
 
         self._validate_llm_provider(config)
         self._override_provider = self._validate_model_override(config.model_override)
+        self._validate_sdks()
         self._validate_credentials()
+        self._check_reasoning_effort_support()
 
         telemetry = config.telemetry_options
         # Disabled means disabled: no client, so nothing is built, queued, or sent, and the
@@ -102,7 +106,7 @@ class BaseEvaluator(ABC):
                 "Evaluation quality may differ from recommended defaults.%s",
                 self._override_provider.value if self._override_provider else "?",
                 config.model_override.model,
-                self._dropped_temperature_note(),
+                self._dropped_temperature_note() + self._dropped_reasoning_effort_note(),
                 extra={"evaluator": self.metadata.id, "operation": "construct"},
             )
 
@@ -167,6 +171,18 @@ class BaseEvaluator(ABC):
         if self._override_provider is not None:
             return (self._override_provider,)
         return self.metadata.default_providers
+
+    def _validate_sdks(self) -> None:
+        """Every vendor SDK this instance's built-in adapters import is installed.
+
+        Checked at construction like a missing key, and for all providers at once, so an
+        install without the right extra fails before any I/O naming everything to add,
+        rather than with a bare ``ImportError`` from inside the first evaluation. An
+        injected ``llm_provider`` uses no built-in adapter, so it needs no vendor SDK.
+        """
+        missing = [provider for provider in self.providers_in_use if not sdk_installed(provider)]
+        if missing:
+            raise missing_sdk_error(missing, self.metadata.name)
 
     def _credentials_satisfied_by_injection(self) -> frozenset[str]:
         """Credentials an injected dependency already carries, so the config need not.
@@ -234,6 +250,74 @@ class BaseEvaluator(ABC):
             " provider's default sampling and its results are not reproducible the way the"
             " default model's are."
         )
+
+    def _dropped_reasoning_effort_note(self) -> str:
+        """What the override warning adds when a declared reasoning effort will not be sent.
+
+        The counterpart of :meth:`_dropped_temperature_note`, and empty for the same reason
+        when the contract declares none.
+        """
+        declared = sorted(
+            {s.reasoning_effort for s in self.contract.steps if s.reasoning_effort is not None}
+        )
+        if not declared:
+            return ""
+        return (
+            f" The reasoning effort its contract declares ({', '.join(declared)}) is not sent"
+            " either, so the override reasons at its own default, which can move its results"
+            " well away from the default model's."
+        )
+
+    def effective_reasoning_effort(self, declared: str | None) -> str | None:
+        """The reasoning effort to send for a step, honouring what replaces its model.
+
+        Dropped under ``model_override`` for the reason temperature is: the value was
+        validated for the model the contract declares, and which values another model
+        accepts, or whether it reasons at all, is that model's own property. Dropped for an
+        injected ``llm_provider`` too: the value is in the declared vendor's own terms, the
+        caller's provider may not take it, and §3 puts that provider's quality in the
+        caller's hands.
+        """
+        if self.config.model_override is not None or self.config.llm_provider is not None:
+            return None
+        return declared
+
+    def _check_reasoning_effort_support(self) -> None:
+        """Refuse at construction a reasoning effort the installed vendor SDK cannot send.
+
+        Only google-genai's floor predates its effort parameter; the openai and anthropic
+        adapters send theirs as plain request data, which every supported release passes
+        through. Only an effort that will be sent is checked, so an override or an injected
+        provider never fails here. Optional steps are skipped: no evaluator runs one, and
+        their vendor may be outside the providers :meth:`_validate_sdks` has found installed.
+        """
+        for step in self.contract.steps:
+            effort = self.effective_reasoning_effort(step.reasoning_effort)
+            if (
+                effort is not None
+                and not step.optional
+                and step.model is not None
+                and step.model.provider is Provider.GOOGLE
+            ):
+                from learning_commons_evaluators.providers.google_genai import (
+                    check_reasoning_effort,
+                )
+
+                check_reasoning_effort(effort)
+
+    def _refuse_reasoning_effort(self) -> None:
+        """Refuse a contract that declares ``generation.reasoning_effort``.
+
+        For an evaluator that does not send one yet. Running without it would evaluate at
+        the model's default effort, which the contract does not describe, and another SDK
+        that does send it would return different results for the same contract.
+        """
+        declaring = [step.id for step in self.contract.steps if step.reasoning_effort is not None]
+        if declaring:
+            raise ConfigurationError(
+                f"{self.metadata.name} does not support generation.reasoning_effort yet; "
+                f"its config.json declares one for {', '.join(declaring)}."
+            )
 
     def effective_temperature(self, declared: float | None) -> float | None:
         """The temperature to send for a step, honouring ``model_override``.
