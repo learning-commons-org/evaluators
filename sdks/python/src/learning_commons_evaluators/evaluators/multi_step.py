@@ -308,9 +308,13 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         dependency, model = self._provider_context(provider)
         schema = self.step_models[step.id]
         temperature = self.effective_temperature(step.temperature)
+        # Passed only when the step declares one, so a provider without the keyword is
+        # called as before.
+        effort = self.effective_reasoning_effort(step.reasoning_effort)
+        extra: dict[str, Any] = {} if effort is None else {"reasoning_effort": effort}
         if schema is None:
             prose = await call_with_resampling(
-                lambda: provider.generate_text(messages, temperature=temperature),
+                lambda: provider.generate_text(messages, temperature=temperature, **extra),
                 max_retries=self.config.max_retries,
                 dependency=dependency,
                 model=model,
@@ -320,7 +324,9 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
             # surrounding blank lines would read as structure it did not intend.
             return prose.text.strip(), prose.usage, prose.latency_ms
         structured = await call_with_resampling(
-            lambda: provider.generate_structured(messages, schema, temperature=temperature),
+            lambda: provider.generate_structured(
+                messages, schema, temperature=temperature, **extra
+            ),
             max_retries=self.config.max_retries,
             dependency=dependency,
             model=model,
