@@ -218,6 +218,30 @@ class LLMProviderError(DependencyError):
         super().__init__(message, False, dependency=dependency, **options)
 
 
+class LLMRefusalError(LLMProviderError):
+    """The LLM provider answered, and its answer was that it will not serve the request.
+
+    A refusal is the provider's decision about the request, not a malformed completion, so
+    it is a dependency failure rather than an output one, and it is never retryable: the
+    same request is refused again, and each refused call is billed. ``category`` is the
+    provider's own label for why (for example Anthropic's ``reasoning_extraction``) and
+    ``explanation`` its wording; both are ``None`` when the provider gave none.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        dependency: DependencyId,
+        category: str | None = None,
+        explanation: str | None = None,
+        **options: Unpack[DependencyErrorOptions],
+    ) -> None:
+        super().__init__(message, dependency=dependency, **options)
+        self.category: str | None = category
+        self.explanation: str | None = explanation
+
+
 class KnowledgeGraphError(DependencyError):
     """Catch-all for Knowledge Graph failures not mapped above. Retryable iff 5xx."""
 
@@ -664,6 +688,7 @@ __all__ = [
     "KnowledgeGraphError",
     "LLMOutputProcessingError",
     "LLMProviderError",
+    "LLMRefusalError",
     "NetworkError",
     "RateLimitError",
     "RequestTimeoutError",

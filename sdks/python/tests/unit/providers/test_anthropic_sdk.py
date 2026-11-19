@@ -11,7 +11,11 @@ from anthropic import omit, transform_schema
 from pydantic import BaseModel, TypeAdapter
 from pydantic import ValidationError as PydanticValidationError
 
-from learning_commons_evaluators.errors import LLMOutputProcessingError
+from learning_commons_evaluators.errors import (
+    LLMOutputProcessingError,
+    LLMProviderError,
+    LLMRefusalError,
+)
 from learning_commons_evaluators.providers import Message, Provider, ProviderConfig
 from learning_commons_evaluators.providers.anthropic_sdk import (
     DEFAULT_MAX_TOKENS,
@@ -31,16 +35,24 @@ MESSAGES: list[Message] = [
 
 USAGE = SimpleNamespace(input_tokens=5, output_tokens=9)
 
+REFUSAL_DETAILS = SimpleNamespace(
+    type="refusal", category="reasoning_extraction", explanation="This request was blocked."
+)
+
 
 def _client(
     parsed: BaseModel | None = None,
     content: list[Any] | None = None,
     stop_reason: str = "end_turn",
+    **extra: Any,
 ) -> Any:
-    """A fake whose ``messages.create`` returns ``content``, or ``parsed`` as its JSON text."""
+    """A fake whose ``messages.create`` returns ``content``, or ``parsed`` as its JSON text.
+
+    ``extra`` sets further attributes on the returned message, such as ``stop_details``.
+    """
     if content is None and parsed is not None:
         content = [SimpleNamespace(type="text", text=parsed.model_dump_json())]
-    result = SimpleNamespace(content=content or [], usage=USAGE, stop_reason=stop_reason)
+    result = SimpleNamespace(content=content or [], usage=USAGE, stop_reason=stop_reason, **extra)
     return SimpleNamespace(messages=SimpleNamespace(create=AsyncMock(return_value=result)))
 
 
@@ -91,10 +103,53 @@ class TestGenerateStructured:
         await _adapter(client).generate_structured(MESSAGES[1:], _Verdict)
         assert client.messages.create.await_args.kwargs["system"] is omit
 
-    async def test_a_refusal_with_no_text_is_an_output_processing_error(self) -> None:
-        client = _client(stop_reason="refusal")
-        with pytest.raises(LLMOutputProcessingError, match="refusal") as exc_info:
+    async def test_a_refusal_raises_the_refusal_error_with_the_providers_reason(self) -> None:
+        client = _client(
+            stop_reason="refusal",
+            stop_details=REFUSAL_DETAILS,
+            _request_id="req_123",
+        )
+        with pytest.raises(LLMRefusalError) as exc_info:
             await _adapter(client).generate_structured(MESSAGES, _Verdict)
+        error = exc_info.value
+        assert str(error) == (
+            "anthropic:claude-haiku-4-5-20251001 refused the request (reasoning_extraction). "
+            "The provider declined it, so sending the same request again will not help; "
+            "use another model or provider."
+        )
+        assert error.category == "reasoning_extraction"
+        assert error.explanation == "This request was blocked."
+        assert error.dependency == "anthropic"
+        assert error.model == "claude-haiku-4-5-20251001"
+        assert error.request_id == "req_123"
+        # Refused again if resent, and billed each time.
+        assert error.retryable is False
+        # Callers already catching the provider catch-all keep catching it.
+        assert isinstance(error, LLMProviderError)
+        assert not isinstance(error, LLMOutputProcessingError)
+
+    async def test_a_refusal_without_stop_details_still_raises_the_refusal_error(self) -> None:
+        # Older models and SDK releases stop with ``refusal`` and say nothing more.
+        with pytest.raises(LLMRefusalError) as exc_info:
+            await _adapter(_client(stop_reason="refusal")).generate_structured(MESSAGES, _Verdict)
+        error = exc_info.value
+        assert str(error).startswith(
+            "anthropic:claude-haiku-4-5-20251001 refused the request. The provider declined it"
+        )
+        assert error.category is None
+        assert error.explanation is None
+        assert error.request_id is None
+
+    async def test_a_refusal_that_left_partial_text_is_still_a_refusal(self) -> None:
+        # The stop reason decides, so cut-off text is not handed to the schema.
+        content = [SimpleNamespace(type="text", text='{"aligned": tr')]
+        client = _client(content=content, stop_reason="refusal", stop_details=REFUSAL_DETAILS)
+        with pytest.raises(LLMRefusalError):
+            await _adapter(client).generate_structured(MESSAGES, _Verdict)
+
+    async def test_an_empty_completion_that_is_not_a_refusal_is_an_output_error(self) -> None:
+        with pytest.raises(LLMOutputProcessingError, match="end_turn") as exc_info:
+            await _adapter(_client()).generate_structured(MESSAGES, _Verdict)
         assert exc_info.value.retryable is True
 
     async def test_schema_invalid_text_raises_pydantic_for_the_boundary_to_classify(self) -> None:
@@ -121,6 +176,12 @@ class TestGenerateStructured:
 
 
 class TestGenerateText:
+    async def test_a_refusal_raises_the_refusal_error(self) -> None:
+        client = _client(stop_reason="refusal", stop_details=REFUSAL_DETAILS)
+        with pytest.raises(LLMRefusalError) as exc_info:
+            await _adapter(client).generate_text(MESSAGES)
+        assert exc_info.value.category == "reasoning_extraction"
+
     async def test_concatenates_text_blocks_only(self) -> None:
         content = [
             SimpleNamespace(type="text", text="Hello, "),

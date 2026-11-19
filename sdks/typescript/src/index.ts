@@ -21,9 +21,11 @@ export {
   NetworkError,
   RequestTimeoutError,
   LLMProviderError,
+  LLMRefusalError,
   KnowledgeGraphError,
   type DependencyId,
   type DependencyErrorOptions,
+  type LLMRefusalErrorOptions,
 } from './errors.js';
 
 // Knowledge Graph

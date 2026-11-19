@@ -12,6 +12,7 @@ from learning_commons_evaluators.errors import (
     AuthenticationError,
     ConfigurationError,
     LLMOutputProcessingError,
+    LLMRefusalError,
     NetworkError,
 )
 from learning_commons_evaluators.providers import call_with_resampling
@@ -64,6 +65,16 @@ async def test_a_failure_marked_not_retryable_is_raised_without_resampling() -> 
     with pytest.raises(LLMOutputProcessingError) as exc_info:
         await call_with_resampling(call, max_retries=2, dependency="anthropic")
     assert exc_info.value is truncated
+    assert call.calls == 1
+
+
+async def test_a_refusal_is_raised_without_resampling() -> None:
+    # The provider would refuse the same request again, and bill each attempt.
+    refusal = LLMRefusalError("refused", dependency="anthropic", category="reasoning_extraction")
+    call = _Flaky([refusal])
+    with pytest.raises(LLMRefusalError) as exc_info:
+        await call_with_resampling(call, max_retries=2, dependency="anthropic")
+    assert exc_info.value is refusal
     assert call.calls == 1
 
 

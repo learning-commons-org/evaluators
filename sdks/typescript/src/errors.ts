@@ -172,6 +172,52 @@ export class LLMProviderError extends DependencyError {
   }
 }
 
+export interface LLMRefusalErrorOptions extends DependencyErrorOptions {
+  /** The provider's own label for why it refused, e.g. Anthropic's `reasoning_extraction`. */
+  category?: string | null;
+  /** The provider's wording for the refusal. */
+  explanation?: string | null;
+}
+
+/**
+ * The LLM provider answered, and its answer was that it will not serve the request.
+ *
+ * A refusal is the provider's decision about the request, not a malformed
+ * completion, so it is a dependency failure rather than an output one, and it is
+ * never retryable: the same request is refused again, and each refused call is
+ * billed. `category` and `explanation` are the provider's, passed through
+ * unchanged; both are `null` when the provider gave none.
+ */
+export class LLMRefusalError extends LLMProviderError {
+  readonly category: string | null;
+  readonly explanation: string | null;
+
+  constructor(message: string, options: LLMRefusalErrorOptions) {
+    super(message, options);
+    this.name = 'LLMRefusalError';
+    this.category = options.category ?? null;
+    this.explanation = options.explanation ?? null;
+  }
+}
+
+/**
+ * The error for a call the provider answered by declining to serve it.
+ *
+ * `label` is the provider's `type:model` label. The message names the category so
+ * the failure is diagnosable without reading the fields.
+ */
+export function refused(
+  label: string,
+  options: LLMRefusalErrorOptions
+): LLMRefusalError {
+  const suffix = options.category ? ` (${options.category})` : '';
+  return new LLMRefusalError(
+    `${label} refused the request${suffix}. The provider declined it, so sending the ` +
+      'same request again will not help; use another model or provider.',
+    options
+  );
+}
+
 /** Catch-all for Knowledge Graph failures not mapped above. Retryable iff 5xx. */
 export class KnowledgeGraphError extends DependencyError {
   constructor(message: string, options: Omit<DependencyErrorOptions, 'dependency'> = {}) {

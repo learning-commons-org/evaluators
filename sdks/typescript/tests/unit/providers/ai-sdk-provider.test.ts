@@ -239,6 +239,104 @@ describe('VercelAIProvider - generateStructured', () => {
   });
 });
 
+describe('VercelAIProvider - refusals', () => {
+  /**
+   * What the AI SDK returns when Anthropic refuses: the `content-filter` finish reason,
+   * the stop details under provider metadata, and an `output` getter that throws.
+   */
+  const refusedResult = (stopDetails?: Record<string, unknown>) => ({
+    finishReason: 'content-filter',
+    text: '',
+    usage: { inputTokens: 10, outputTokens: 0 },
+    providerMetadata: { anthropic: stopDetails ? { stopDetails } : {} },
+    response: { headers: { 'request-id': 'req_123' } },
+    get output(): never {
+      throw new Error('No output generated.');
+    },
+  });
+  const details = {
+    type: 'refusal',
+    category: 'reasoning_extraction',
+    explanation: 'This request was blocked.',
+  };
+  const request = {
+    messages: [{ role: 'user' as const, content: 'hi' }],
+    schema: z.object({ ok: z.boolean() }),
+  };
+
+  it('raises LLMRefusalError with the provider\'s reason for a structured call', async () => {
+    const ctx = await loadProvider();
+    ctx.generateText.mockResolvedValueOnce(refusedResult(details));
+    const provider = new ctx.mod.VercelAIProvider({ type: 'anthropic', model: 'claude-opus-5-5' });
+
+    const error = await provider.generateStructured(request).catch((e: unknown) => e);
+
+    expect(error).toMatchObject({
+      name: 'LLMRefusalError',
+      message:
+        'anthropic:claude-opus-5-5 refused the request (reasoning_extraction). ' +
+        'The provider declined it, so sending the same request again will not help; ' +
+        'use another model or provider.',
+      category: 'reasoning_extraction',
+      explanation: 'This request was blocked.',
+      dependency: 'anthropic',
+      model: 'claude-opus-5-5',
+      requestId: 'req_123',
+      // Refused again if resent, and billed each time.
+      retryable: false,
+    });
+  });
+
+  it('is still an LLMProviderError, so existing handlers keep catching it', async () => {
+    const ctx = await loadProvider();
+    ctx.generateText.mockResolvedValueOnce(refusedResult(details));
+    const { LLMProviderError, LLMRefusalError } = await import('../../../src/errors.js');
+    const provider = new ctx.mod.VercelAIProvider({ type: 'anthropic', model: 'claude-opus-5-5' });
+
+    const error = await provider.generateStructured(request).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(LLMRefusalError);
+    expect(error).toBeInstanceOf(LLMProviderError);
+  });
+
+  it('raises it without a category when the provider gave no stop details', async () => {
+    const ctx = await loadProvider();
+    ctx.generateText.mockResolvedValueOnce(refusedResult());
+    const provider = new ctx.mod.VercelAIProvider({ type: 'anthropic', model: 'claude-opus-5-5' });
+
+    const error = await provider.generateStructured(request).catch((e: unknown) => e);
+
+    expect(error).toMatchObject({ name: 'LLMRefusalError', category: null, explanation: null });
+    expect((error as Error).message).toMatch(
+      /^anthropic:claude-opus-5-5 refused the request\. The provider declined it/
+    );
+  });
+
+  it('raises it for a plain-text call', async () => {
+    const ctx = await loadProvider();
+    ctx.generateText.mockResolvedValueOnce(refusedResult(details));
+    const provider = new ctx.mod.VercelAIProvider({ type: 'anthropic', model: 'claude-opus-5-5' });
+
+    const error = await provider
+      .generateText([{ role: 'user', content: 'hi' }])
+      .catch((e: unknown) => e);
+
+    expect(error).toMatchObject({ name: 'LLMRefusalError', category: 'reasoning_extraction' });
+  });
+
+  it('leaves another provider\'s content-filter stop as it was', async () => {
+    // Only Anthropic's refusal is mapped; other vendors keep today's behaviour.
+    const ctx = await loadProvider();
+    ctx.generateText.mockResolvedValueOnce(refusedResult());
+    const provider = new ctx.mod.VercelAIProvider({ type: 'openai', model: 'gpt-4o-mini' });
+
+    const error = await provider.generateStructured(request).catch((e: unknown) => e);
+
+    expect((error as Error).name).not.toBe('LLMRefusalError');
+    expect((error as Error).message).toBe('No output generated.');
+  });
+});
+
 describe('createProvider', () => {
   it('returns the custom provider instance when type is custom', async () => {
     const { mod } = await loadProvider();
