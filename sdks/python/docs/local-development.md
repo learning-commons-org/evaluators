@@ -148,8 +148,10 @@ Generated schema modules start with `# GENERATED — do not edit directly.` and 
        input_model = SentenceStructureInput
        output_model = SentenceStructureOutput
        step_models = {
-           "sentence_analysis": SentenceAnalysis,
-           "classify_complexity": SentenceStructureOutput,
+           "sentence_analysis_grades_3_4": SentenceAnalysis,
+           "sentence_analysis_grades_5_12": SentenceAnalysis,
+           "classify_complexity_grades_3_4": SentenceStructureOutput,
+           "classify_complexity_grades_5_12": SentenceStructureOutput,
        }
        computations = {"compute_ground_truth_counts": compute_ground_truth_counts, ...}
    ```
