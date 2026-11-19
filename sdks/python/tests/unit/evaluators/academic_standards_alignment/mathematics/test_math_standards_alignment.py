@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 from collections.abc import Iterator
 from dataclasses import dataclass, field, replace
 from typing import Any
@@ -20,9 +21,11 @@ from learning_commons_evaluators import (
     ConfigurationError,
     InputValidationError,
     LLMOutputProcessingError,
+    Provider,
     StandardNotFoundError,
     read_outcome,
 )
+from learning_commons_evaluators.contracts import Contract
 from learning_commons_evaluators.dependencies.knowledge_graph import (
     STANDARD_SEARCH_LIMIT,
     AcademicStandard,
@@ -32,6 +35,7 @@ from learning_commons_evaluators.dependencies.knowledge_graph import (
 )
 from learning_commons_evaluators.errors import KnowledgeGraphError, RateLimitError
 from learning_commons_evaluators.evaluators.academic_standards_alignment.mathematics.math_standards_alignment import (
+    STEP,
     BatchedLCEvaluation,
     LCEvaluation,
     MathStandardsAlignmentEvaluator,
@@ -106,6 +110,78 @@ def built() -> Iterator[list[LoopBoundKnowledgeGraph]]:
 
     with patch.object(KnowledgeGraphClient, "from_config", from_config):
         yield clients
+
+
+class TestRefusesAReasoningEffort:
+    """This evaluator does not send an effort yet, so a contract declaring one is refused."""
+
+    @pytest.mark.parametrize("step_id", [STEP.id, "coarse_filter"])
+    def test_an_effort_on_any_step_is_refused_at_construction(self, step_id: str) -> None:
+        raw = MathStandardsAlignmentEvaluator.contract.model_dump(by_alias=True)
+        [step] = [s for s in raw["steps"] if s["id"] == step_id]
+        step["generation"] = {"temperature": None, "reasoning_effort": "low"}
+        refused = f"does not support generation.reasoning_effort yet; .* {step_id}"
+        with (
+            patch.object(MathStandardsAlignmentEvaluator, "contract", Contract.model_validate(raw)),
+            pytest.raises(ConfigurationError, match=refused),
+        ):
+            build()
+
+
+class TestReasoningEffortOnAnOptionalStep:
+    """The coarse filter is optional and never runs, so its declared effort is never checked.
+
+    This is the base's rule, tested through the one evaluator with an optional step. That
+    evaluator refuses any effort until it sends one, so the refusal is lifted here.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _as_if_efforts_were_sent(self) -> Iterator[None]:
+        with patch.object(MathStandardsAlignmentEvaluator, "_refuse_reasoning_effort"):
+            yield
+
+    @staticmethod
+    def _contract(*, main_on_google: bool) -> Contract:
+        raw = MathStandardsAlignmentEvaluator.contract.model_dump(by_alias=True)
+        [coarse] = [step for step in raw["steps"] if step.get("optional")]
+        coarse["model"] = {"provider": "google", "name": "gemini-3.6-flash"}
+        coarse["generation"] = {"temperature": None, "reasoning_effort": "high"}
+        if main_on_google:
+            [main] = [step for step in raw["steps"] if step["id"] == STEP.id]
+            main["model"] = {"provider": "google", "name": "gemini-3.6-flash"}
+        return Contract.model_validate(raw)
+
+    def test_it_needs_no_google_sdk_when_no_step_in_use_is_on_google(self) -> None:
+        # The installed-SDK check skips the optional step's vendor, so this one must not
+        # import it either.
+        with (
+            patch.object(
+                MathStandardsAlignmentEvaluator, "contract", self._contract(main_on_google=False)
+            ),
+            patch.dict(sys.modules, {"google.genai": None}),
+        ):
+            build()
+
+    def test_it_is_not_refused_on_an_old_google_sdk_a_step_in_use_shares(
+        self, providers: ProviderFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The step in use on google, declaring no effort, puts google among the providers in
+        # use; the optional step's effort still never runs, so an old SDK is fine.
+        from google.genai import types
+
+        monkeypatch.delattr(types, "ThinkingLevel", raising=False)
+        on_google = replace(
+            MathStandardsAlignmentEvaluator.metadata, default_providers=(Provider.GOOGLE,)
+        )
+        with (
+            patch.object(
+                MathStandardsAlignmentEvaluator, "contract", self._contract(main_on_google=True)
+            ),
+            patch.object(MathStandardsAlignmentEvaluator, "metadata", on_google),
+        ):
+            MathStandardsAlignmentEvaluator(
+                google_api_key="test-key", knowledge_graph=FakeKnowledgeGraph()
+            )
 
 
 def build_from_config() -> MathStandardsAlignmentEvaluator:

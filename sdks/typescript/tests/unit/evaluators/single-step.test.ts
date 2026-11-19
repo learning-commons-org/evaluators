@@ -11,6 +11,7 @@ import {
 } from '../../../src/errors.js';
 import type { LLMProvider, LLMResponse } from '../../../src/providers/base.js';
 import { runPreprocessingStep } from '../../../src/features/preprocessing.js';
+import { createProvider } from '../../../src/providers/index.js';
 
 const sent = vi.fn();
 const created: Array<{ type: string; model: string; apiKey?: string }> = [];
@@ -168,6 +169,54 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
     await new (define())({ llmProvider: provider, telemetry: false }).evaluate(INPUT);
 
     expect(vi.mocked(provider.generateStructured).mock.calls[0][0].temperature).toBe(0.5);
+  });
+
+  describe('reasoning effort', () => {
+    const effortStep = (effort: string) => ({
+      steps: [
+        {
+          id: 'evaluate_thing',
+          model: { provider: 'openai', name: 'gpt-5.5' },
+          generation: { temperature: null, reasoning_effort: effort },
+          prompt: { placeholders: { text: {}, grade_level: {}, fk_score: {} } },
+        },
+      ],
+    });
+    /** The request the last built-in provider was sent. */
+    const lastRequest = () => {
+      const provider = vi.mocked(createProvider).mock.results.at(-1)!.value as LLMProvider;
+      return vi.mocked(provider.generateStructured).mock.calls[0][0];
+    };
+
+    it('sends the reasoning effort the step declares to its own model', async () => {
+      await new (define(effortStep('none')))({ openaiApiKey: 'k', telemetry: false }).evaluate(INPUT);
+
+      expect(lastRequest().reasoningEffort).toBe('none');
+    });
+
+    it('leaves the key off when the step declares none', async () => {
+      await new (define())({ googleApiKey: 'k', telemetry: false }).evaluate(INPUT);
+
+      expect(lastRequest()).not.toHaveProperty('reasoningEffort');
+    });
+
+    it('drops it under modelOverride', async () => {
+      const evaluator = new (define(effortStep('high')))({
+        anthropicApiKey: 'k',
+        telemetry: false,
+        modelOverride: { provider: Provider.Anthropic, model: 'claude-opus-5-5' },
+      });
+      await evaluator.evaluate(INPUT);
+
+      expect(lastRequest()).not.toHaveProperty('reasoningEffort');
+    });
+
+    it('does not hand it to an injected llmProvider', async () => {
+      const provider = fakeProvider();
+      await new (define(effortStep('none')))({ llmProvider: provider, telemetry: false }).evaluate(INPUT);
+
+      expect(vi.mocked(provider.generateStructured).mock.calls[0][0]).not.toHaveProperty('reasoningEffort');
+    });
   });
 
   it('renders an integer input as its decimal text', async () => {
