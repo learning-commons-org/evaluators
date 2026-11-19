@@ -177,6 +177,52 @@ jobs:
       - name: ⚡ Run unit tests
         run: npm run test:unit
 
+  # Linux and macOS share path separators, line endings and how executables are spawned,
+  # so the Ubuntu jobs above cannot see a difference Windows has. Once dependencies install,
+  # every check runs even when an earlier one fails, so one run shows every Windows failure.
+  windows:
+    name: 🪟 Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: sdks/typescript
+    steps:
+      # The runner keeps the image's default autocrlf=true, as Git for Windows does on a
+      # contributor's machine, so this job sees the line endings they would.
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v7
+
+      - name: 😻 Setup Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: 📥 Install dependencies
+        id: install
+        uses: bahmutov/npm-install@v1
+        with:
+          working-directory: sdks/typescript
+
+      - name: 🧬 Generated schemas match their contracts
+        run: npm run generate:schemas:check
+
+      - name: ⚡ Run unit tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run test:unit
+
+      - name: 🏗️ Build package
+        id: build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run build
+
+      - name: 📜 Verify the published declarations
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run verify:dist
+
+      - name: 📦 Verify the published package metadata
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run verify:package
+
   build:
     name: 🏗️ Build (Node ${{ matrix.node-version }})
     needs: [lint, typecheck, test]
