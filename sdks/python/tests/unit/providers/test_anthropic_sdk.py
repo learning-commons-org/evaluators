@@ -115,7 +115,7 @@ class TestGenerateStructured:
             await _adapter(client).generate_structured(MESSAGES, _Verdict, temperature=temperature)
         assert str(exc_info.value) == (
             "anthropic:claude-haiku-4-5-20251001 stopped at "
-            f"max_tokens={DEFAULT_MAX_TOKENS} before its structured output was complete."
+            f"max_tokens={DEFAULT_MAX_TOKENS} before its output was complete."
         )
         assert exc_info.value.retryable is retryable
 
@@ -130,3 +130,31 @@ class TestGenerateText:
         response = await _adapter(_client(content=content)).generate_text(MESSAGES)
         assert response.text == "Hello, world."
         assert response.usage.input_tokens == 5
+
+    async def test_sends_the_cap_as_max_tokens(self) -> None:
+        client = _client(content=[SimpleNamespace(type="text", text="Done.")])
+        await _adapter(client).generate_text(MESSAGES, max_tokens=700)
+        assert client.messages.create.await_args.kwargs["max_tokens"] == 700
+
+    @pytest.mark.parametrize(
+        ("temperature", "retryable"), [(0.0, False), (None, True), (0.7, True)]
+    )
+    async def test_a_max_tokens_stop_is_truncated_rather_than_returned(
+        self, temperature: float | None, retryable: bool
+    ) -> None:
+        content = [SimpleNamespace(type="text", text="The text assumes the reader kno")]
+        client = _client(content=content, stop_reason="max_tokens")
+        with pytest.raises(LLMOutputProcessingError) as exc_info:
+            await _adapter(client).generate_text(MESSAGES, temperature=temperature, max_tokens=700)
+        assert str(exc_info.value) == (
+            "anthropic:claude-haiku-4-5-20251001 stopped at max_tokens=700 before its output "
+            "was complete."
+        )
+        assert exc_info.value.retryable is retryable
+
+    async def test_a_max_tokens_stop_under_the_default_names_the_default(self) -> None:
+        client = _client(
+            content=[SimpleNamespace(type="text", text="Cut")], stop_reason="max_tokens"
+        )
+        with pytest.raises(LLMOutputProcessingError, match=f"max_tokens={DEFAULT_MAX_TOKENS}"):
+            await _adapter(client).generate_text(MESSAGES)

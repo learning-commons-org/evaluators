@@ -97,12 +97,14 @@ def truncated_output(
     At temperature 0 the same request stops at the same place, so resampling it would only
     repeat the cost; it is raised as not retryable. At any other temperature, or with none
     sent (the model's default), a resample may come back shorter, so it is retryable as
-    before. Each adapter raises this from the vendor's own stop signal, before it parses
-    the text, because cut-off JSON would otherwise surface as a schema error.
+    before. Each adapter raises this from the vendor's own stop signal: for structured
+    output before it parses the text, because cut-off JSON would otherwise surface as a
+    schema error, and for prose because cut-off text would otherwise be returned as if it
+    were the whole answer.
     """
     limit = f"max_tokens={max_tokens}" if max_tokens is not None else "its output limit"
     return LLMOutputProcessingError(
-        f"{label} stopped at {limit} before its structured output was complete.",
+        f"{label} stopped at {limit} before its output was complete.",
         retryable=temperature != 0,
     )
 

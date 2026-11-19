@@ -106,7 +106,9 @@ class BaseEvaluator(ABC):
                 "Evaluation quality may differ from recommended defaults.%s",
                 self._override_provider.value if self._override_provider else "?",
                 config.model_override.model,
-                self._dropped_temperature_note() + self._dropped_reasoning_effort_note(),
+                self._dropped_temperature_note()
+                + self._dropped_reasoning_effort_note()
+                + self._dropped_max_output_tokens_note(),
                 extra={"evaluator": self.metadata.id, "operation": "construct"},
             )
 
@@ -267,6 +269,36 @@ class BaseEvaluator(ABC):
             " either, so the override reasons at its own default, which can move its results"
             " well away from the default model's."
         )
+
+    def _dropped_max_output_tokens_note(self) -> str:
+        """What the override warning adds when a declared output cap will not be sent.
+
+        The counterpart of :meth:`_dropped_temperature_note`, and empty for the same reason
+        when the contract declares none.
+        """
+        declared = sorted(
+            {s.max_output_tokens for s in self.contract.steps if s.max_output_tokens is not None}
+        )
+        if not declared:
+            return ""
+        return (
+            f" The output cap its contract declares ({', '.join(str(n) for n in declared)}"
+            " tokens) is not sent either, so a runaway generation runs to the provider's own"
+            " limit or the request timeout."
+        )
+
+    def effective_max_output_tokens(self, declared: int | None) -> int | None:
+        """The output cap to send for a step, honouring what replaces its model.
+
+        Dropped under ``model_override`` and for an injected ``llm_provider`` by the rule
+        :meth:`effective_reasoning_effort` follows: the cap was sized for the model the
+        contract declares, and how many tokens another model needs, reasoning tokens
+        included, is that model's own property. A cap too small for the override would cut
+        off every answer rather than only a runaway one.
+        """
+        if self.config.model_override is not None or self.config.llm_provider is not None:
+            return None
+        return declared
 
     def effective_reasoning_effort(self, declared: str | None) -> str | None:
         """The reasoning effort to send for a step, honouring what replaces its model.

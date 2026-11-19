@@ -1,5 +1,5 @@
-import { generateText as aiGenerateText, Output } from 'ai';
-import { ConfigurationError } from '../errors.js';
+import { generateText as aiGenerateText, NoObjectGeneratedError, Output } from 'ai';
+import { ConfigurationError, LLMOutputProcessingError } from '../errors.js';
 
 /** Node's resolution codes for "that package is not there", ESM and CJS. */
 const NOT_INSTALLED = new Set(['ERR_MODULE_NOT_FOUND', 'MODULE_NOT_FOUND']);
@@ -40,7 +40,32 @@ import type {
   LLMResponse,
   Message,
   ProviderConfig,
+  TextGenerationOptions,
+  TextGenerationResponse,
 } from './base.js';
+
+/**
+ * The error for a completion that stopped at the output limit before it was complete,
+ * worded as the Python SDK words it.
+ *
+ * At temperature 0 the same request stops at the same place, so it is not retryable. At any
+ * other temperature, or with none sent (the model's default), a resample may come back
+ * shorter, so it is.
+ */
+function truncatedOutput(
+  label: string,
+  temperature: number | null | undefined,
+  maxTokens: number | undefined,
+  cause?: unknown
+): LLMOutputProcessingError {
+  const limit = maxTokens !== undefined ? `max_tokens=${maxTokens}` : 'its output limit';
+  return new LLMOutputProcessingError(
+    `${label} stopped at ${limit} before its output was complete.`,
+    null,
+    cause,
+    { retryable: temperature !== 0 }
+  );
+}
 
 /**
  * A reasoning effort as the vendor adapter's own option, sent as the vendor's parameter
@@ -133,19 +158,36 @@ export class VercelAIProvider implements LLMProvider {
     const systemMsg = request.messages.find((m) => m.role === 'system');
     const nonSystemMessages = request.messages.filter((m) => m.role !== 'system');
 
-    const { output, usage } = await aiGenerateText({
-      model,
-      ...(systemMsg ? { system: systemMsg.content } : {}),
-      messages: withAttachments(nonSystemMessages, request.attachments),
-      output: Output.object({ schema: request.schema }),
-      // A null temperature means "send nothing" — see config.schema.json for
-      // which models require that.
-      ...(request.temperature != null ? { temperature: request.temperature } : {}),
-      maxRetries: this.config.maxRetries ?? 0,
-      // maxOutputTokens is the vendor option; `maxTokens` is silently discarded.
-      ...(request.maxTokens !== undefined ? { maxOutputTokens: request.maxTokens } : {}),
-      ...reasoningOptions(this.config.type, request.reasoningEffort),
-    });
+    const messages = withAttachments(nonSystemMessages, request.attachments);
+
+    let result;
+    try {
+      result = await aiGenerateText({
+        model,
+        ...(systemMsg ? { system: systemMsg.content } : {}),
+        messages,
+        output: Output.object({ schema: request.schema }),
+        // A null temperature means "send nothing" — see config.schema.json for
+        // which models require that.
+        ...(request.temperature != null ? { temperature: request.temperature } : {}),
+        maxRetries: this.config.maxRetries ?? 0,
+        // maxOutputTokens is the vendor option; `maxTokens` is silently discarded.
+        ...(request.maxTokens !== undefined ? { maxOutputTokens: request.maxTokens } : {}),
+        ...reasoningOptions(this.config.type, request.reasoningEffort),
+      });
+    } catch (error) {
+      // Cut-off JSON fails to parse inside the call; its finish reason says why, so it is
+      // reported as truncated rather than as a schema failure.
+      if (NoObjectGeneratedError.isInstance(error) && error.finishReason === 'length') {
+        throw truncatedOutput(this.label, request.temperature, request.maxTokens, error);
+      }
+      throw error;
+    }
+    // Read before the output, which is absent when the cut-off left no text at all.
+    if (result.finishReason === 'length') {
+      throw truncatedOutput(this.label, request.temperature, request.maxTokens);
+    }
+    const { output, usage } = result;
 
     return {
       data: output as T,
@@ -163,8 +205,9 @@ export class VercelAIProvider implements LLMProvider {
    */
   async generateText(
     messages: Message[],
-    temperature?: number | null
-  ): Promise<import('./base.js').TextGenerationResponse> {
+    temperature?: number | null,
+    options: TextGenerationOptions = {}
+  ): Promise<TextGenerationResponse> {
     const model = await this.getModel();
     const startTime = Date.now();
 
@@ -175,13 +218,18 @@ export class VercelAIProvider implements LLMProvider {
     const effectiveTemperature =
       temperature === undefined ? this.config.temperature : temperature;
 
-    const { text, usage } = await aiGenerateText({
+    const { text, usage, finishReason } = await aiGenerateText({
       model,
       ...(systemMsg ? { system: systemMsg.content } : {}),
       messages: nonSystemMessages,
       ...(effectiveTemperature != null ? { temperature: effectiveTemperature } : {}),
       maxRetries: this.config.maxRetries ?? 0,
+      ...(options.maxTokens !== undefined ? { maxOutputTokens: options.maxTokens } : {}),
     });
+    // Cut-off prose would otherwise be returned as if it were the whole answer.
+    if (finishReason === 'length') {
+      throw truncatedOutput(this.label, effectiveTemperature, options.maxTokens);
+    }
 
     return {
       text,

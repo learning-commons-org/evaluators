@@ -114,8 +114,7 @@ class TestGenerateStructured:
                 MESSAGES, _Verdict, temperature=temperature, max_tokens=256
             )
         assert str(exc_info.value) == (
-            "openai:gpt-4o-2024-11-20 stopped at max_tokens=256 before its structured "
-            "output was complete."
+            "openai:gpt-4o-2024-11-20 stopped at max_tokens=256 before its output was complete."
         )
         assert exc_info.value.retryable is retryable
         raw = client.responses.with_raw_response.parse.return_value
@@ -144,3 +143,39 @@ class TestGenerateText:
         assert kwargs["instructions"] == "You grade things."
         assert kwargs["temperature"] == 0.0
         assert "text_format" not in kwargs
+
+    async def test_sends_the_cap_as_max_output_tokens(self) -> None:
+        client = _client(text="Done.")
+        await _adapter(client).generate_text(MESSAGES, max_tokens=700)
+        assert client.responses.create.await_args.kwargs["max_output_tokens"] == 700
+
+    @pytest.mark.parametrize(
+        ("temperature", "retryable"), [(0.0, False), (None, True), (0.7, True)]
+    )
+    async def test_an_incomplete_max_output_tokens_response_is_truncated_rather_than_returned(
+        self, temperature: float | None, retryable: bool
+    ) -> None:
+        client = _client()
+        client.responses.create.return_value = SimpleNamespace(
+            output_text="The text assumes the reader kno",
+            usage=SimpleNamespace(input_tokens=11, output_tokens=700),
+            status="incomplete",
+            incomplete_details=SimpleNamespace(reason="max_output_tokens"),
+        )
+        with pytest.raises(LLMOutputProcessingError) as exc_info:
+            await _adapter(client).generate_text(MESSAGES, temperature=temperature, max_tokens=700)
+        assert str(exc_info.value) == (
+            "openai:gpt-4o-2024-11-20 stopped at max_tokens=700 before its output was complete."
+        )
+        assert exc_info.value.retryable is retryable
+
+    async def test_an_incomplete_response_for_another_reason_is_returned_as_before(self) -> None:
+        # Only the output limit is a cut-off this adapter reports; it does not invent others.
+        client = _client()
+        client.responses.create.return_value = SimpleNamespace(
+            output_text="Partial.",
+            usage=SimpleNamespace(input_tokens=1, output_tokens=1),
+            incomplete_details=SimpleNamespace(reason="content_filter"),
+        )
+        response = await _adapter(client).generate_text(MESSAGES)
+        assert response.text == "Partial."

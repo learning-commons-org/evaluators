@@ -176,6 +176,11 @@ class OpenAIProvider:
                     messages, temperature, max_tokens, reasoning_effort=reasoning_effort
                 )
             )
+        # A completion cut off at the output limit is incomplete, and its text would read as
+        # the whole answer.
+        details = getattr(response, "incomplete_details", None)
+        if getattr(details, "reason", None) == "max_output_tokens":
+            raise truncated_output(self.label, temperature=temperature, max_tokens=max_tokens)
         return TextGenerationResponse(
             text=response.output_text,
             usage=self._usage(response),

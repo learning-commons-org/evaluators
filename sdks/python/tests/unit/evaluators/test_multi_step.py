@@ -793,3 +793,51 @@ class TestReasoningEffort:
             define(steps=self._steps(None, "low"))(**KEYS)
         # An openai step's effort needs no check: its SDK passes request data through.
         define(steps=self._steps("none", None))(**KEYS)
+
+
+class TestMaxOutputTokens:
+    """Each step sends the cap it declares, on the prose and the structured path alike."""
+
+    @staticmethod
+    def _steps(notes: int | None, rate: int | None) -> list[dict[str, Any]]:
+        steps = contract().model_dump(by_alias=True)["steps"]
+        for step, cap in zip(steps, (notes, rate), strict=True):
+            if cap is not None:
+                step["generation"] = {**step["generation"], "max_output_tokens": cap}
+        return steps
+
+    async def test_each_step_sends_only_its_own_declared_cap(
+        self, providers: ProviderFactory
+    ) -> None:
+        # ``notes`` is a prose step, ``rate`` a structured one.
+        await define(steps=self._steps(2000, None))(**KEYS).evaluate(**INPUT)
+        assert [call["max_tokens"] for call in providers.calls] == [2000, NOT_PASSED]
+
+        providers.calls.clear()
+        await define(steps=self._steps(None, 800))(**KEYS).evaluate(**INPUT)
+        assert [call["max_tokens"] for call in providers.calls] == [NOT_PASSED, 800]
+
+    async def test_an_override_drops_every_steps_cap(self, providers: ProviderFactory) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        evaluator = define(steps=self._steps(2000, 800))(
+            anthropic_api_key="a", model_override=override
+        )
+        await evaluator.evaluate(**INPUT)
+        assert [call["max_tokens"] for call in providers.calls] == [NOT_PASSED, NOT_PASSED]
+
+    def test_the_override_warning_lists_each_declared_cap_once(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            define(steps=self._steps(2000, 800))(anthropic_api_key="a", model_override=override)
+        [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert "output cap its contract declares (800, 2000 tokens) is not sent" in (
+            record.getMessage()
+        )
+
+    async def test_an_injected_provider_is_not_handed_any_cap(self) -> None:
+        injected = FakeProvider(ProviderConfig(type=Provider.OPENAI, model="mine"), _verdict)
+        evaluator = define(steps=self._steps(2000, 800))(llm_provider=injected)
+        await evaluator.evaluate(**INPUT)
+        assert [call["max_tokens"] for call in injected.calls] == [NOT_PASSED, NOT_PASSED]

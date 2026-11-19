@@ -7,6 +7,7 @@ import { runPreprocessingStep, type PreprocessingImplementation } from '../featu
 import {
   BaseEvaluator,
   Provider,
+  withMaxTokens,
   withReasoningEffort,
   type BaseEvaluatorConfig,
   type EvaluatorMetadata,
@@ -46,7 +47,7 @@ export interface MultiStepContract extends CredentialDeclaringConfig {
   steps: Array<{
     id: string;
     model: { provider: string; name: string };
-    generation?: { temperature?: number; reasoning_effort?: string };
+    generation?: { temperature?: number; reasoning_effort?: string; max_output_tokens?: number };
     prompt: { placeholders: Record<string, DeclaredPlaceholder | undefined> };
     required_credentials?: string[];
   }>;
@@ -224,6 +225,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
       step,
       vendor: vendorOf(step.model.provider, contract.evaluator.name),
       reasoningEffort: step.generation?.reasoning_effort,
+      maxOutputTokens: step.generation?.max_output_tokens,
       schema,
       prompts: createPromptRenderers(
         parts.system,
@@ -328,7 +330,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
         const stepOutputs = new Map<string, unknown>();
         const preprocessed = new Map<string, string>();
 
-        for (const { step, schema, prompts, reasoningEffort } of RENDERERS) {
+        for (const { step, schema, prompts, reasoningEffort, maxOutputTokens } of RENDERERS) {
           const promptInputs: Record<string, string> = {};
           for (const [name, placeholder] of Object.entries(step.prompt.placeholders)) {
             // A key present but undefined is an artefact of the contract's inferred type,
@@ -357,6 +359,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
             schema,
             temperature: step.generation?.temperature,
             ...withReasoningEffort(this.effectiveReasoningEffort(reasoningEffort)),
+            ...withMaxTokens(this.effectiveMaxOutputTokens(maxOutputTokens)),
           });
 
           stepOutputs.set(step.id, response.data);

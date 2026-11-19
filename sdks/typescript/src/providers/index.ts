@@ -3,6 +3,7 @@ export type {
   LLMRequest,
   LLMResponse,
   TextGenerationResponse,
+  TextGenerationOptions,
   Message,
   ImageAttachment,
   ImageMediaType,
