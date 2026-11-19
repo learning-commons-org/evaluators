@@ -881,10 +881,13 @@ describe('the reported model matches the contract steps that apply', () => {
     const applicable = config.steps
       .filter(applies)
       .map((step) => `${step.model.provider}:${step.model.name}`);
-    // Vocabulary Complexity reports every model it called. Sentence Structure comes from
-    // the multi-step factory, whose envelope names one: the step that produced the result.
+    // Vocabulary Complexity reports every model it called: steps that share a model report
+    // it once, in run order (SPEC §3.4). Sentence Structure comes from the multi-step
+    // factory, whose envelope names one: the step that produced the result.
     const expected =
-      E.metadata.id === SENTENCE_ID ? applicable[applicable.length - 1] : applicable.join('+');
+      E.metadata.id === SENTENCE_ID
+        ? applicable[applicable.length - 1]
+        : [...new Set(applicable)].join('+');
 
     const result = (await construct(E).evaluate({
       text: 'The storm gathered offshore and the harbour emptied before dusk.',
