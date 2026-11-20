@@ -10,7 +10,7 @@ import {
   getUserPrompt,
 } from '../../../prompts/vocabulary-complexity/index.js';
 import type { EvaluationResult } from '../../../schemas/index.js';
-import { BaseEvaluator, Provider, type BaseEvaluatorConfig } from '../../base.js';
+import { BaseEvaluator, Provider, withMaxTokens, type BaseEvaluatorConfig } from '../../base.js';
 import { validateInputs } from '../../inputs.js';
 import { requireStep } from '../../single-step.js';
 import { requireConditionValues, requirePreprocessing } from '../../multi-step.js';
@@ -75,6 +75,15 @@ const OTHER_GRADES_STEP = requireStep(
   'vocab_complexity_other_grades',
   CONFIG.evaluator.name,
 );
+
+/**
+ * A step's declared `generation.max_output_tokens`, or undefined when it declares none. Read
+ * through a widened type because the JSON import's inferred type has the key only once
+ * `config.json` sets one.
+ */
+function declaredMaxOutputTokens(step: { generation: object }): number | undefined {
+  return (step.generation as { max_output_tokens?: number }).max_output_tokens;
+}
 
 /** The grades the grades-3-4 branch declares, so the routing follows the contract. */
 const GRADES_34 = requireConditionValues(GRADES_34_STEP, CONFIG.evaluator.name);
@@ -318,9 +327,13 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
   ): Promise<{ knowledge: BackgroundKnowledge; usage: { inputTokens: number; outputTokens: number }; latencyMs: number }> {
     const prompt = getBackgroundKnowledgePrompt(text, gradeLevel);
 
+    // The options argument is passed only when there is a cap, so a provider that takes
+    // two arguments is called as before.
+    const cap = this.effectiveMaxOutputTokens(declaredMaxOutputTokens(BACKGROUND_STEP));
     const response = await this.backgroundKnowledgeProvider.generateText(
       [{ role: 'user', content: prompt }],
       BACKGROUND_STEP.generation.temperature,
+      ...(cap === undefined ? [] : [{ maxTokens: cap }]),
     );
 
     return {
@@ -349,6 +362,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
     const userPrompt = getUserPrompt(text, gradeLevel, backgroundKnowledge, fkLevel);
 
     const provider = this.complexityProviderFor(gradeLevel);
+    const step = GRADES_34.includes(gradeLevel) ? GRADES_34_STEP : OTHER_GRADES_STEP;
 
     const response = await provider.generateStructured({
       messages: [
@@ -356,9 +370,8 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
         { role: 'user', content: userPrompt },
       ],
       schema: VocabularyComplexityOutputSchema,
-      temperature: GRADES_34.includes(gradeLevel)
-        ? GRADES_34_STEP.generation.temperature
-        : OTHER_GRADES_STEP.generation.temperature,
+      temperature: step.generation.temperature,
+      ...withMaxTokens(this.effectiveMaxOutputTokens(declaredMaxOutputTokens(step))),
     });
 
     return {

@@ -115,8 +115,7 @@ class TestGenerateStructured:
         with pytest.raises(LLMOutputProcessingError) as exc_info:
             await _adapter(client).generate_structured(MESSAGES, _Verdict, temperature=temperature)
         assert str(exc_info.value) == (
-            "google:gemini-3.6-flash stopped at its output limit before its structured "
-            "output was complete."
+            "google:gemini-3.6-flash stopped at its output limit before its output was complete."
         )
         assert exc_info.value.retryable is retryable
 
@@ -129,6 +128,35 @@ class TestGenerateText:
         config = client.aio.models.generate_content.await_args.kwargs["config"]
         assert config.response_mime_type is None
         assert config.response_json_schema is None
+
+    async def test_sends_the_cap_as_max_output_tokens(self) -> None:
+        client = _client(text="Done.")
+        await _adapter(client).generate_text(MESSAGES, max_tokens=700)
+        config = client.aio.models.generate_content.await_args.kwargs["config"]
+        assert config.max_output_tokens == 700
+
+    @pytest.mark.parametrize(
+        ("temperature", "retryable"), [(0.0, False), (None, True), (0.7, True)]
+    )
+    async def test_a_max_tokens_finish_is_truncated_rather_than_returned(
+        self, temperature: float | None, retryable: bool
+    ) -> None:
+        finish = SimpleNamespace(value="MAX_TOKENS")
+        client = _client(
+            text="The text assumes the reader kno",
+            candidates=[SimpleNamespace(finish_reason=finish)],
+        )
+        with pytest.raises(LLMOutputProcessingError) as exc_info:
+            await _adapter(client).generate_text(MESSAGES, temperature=temperature, max_tokens=700)
+        assert str(exc_info.value) == (
+            "google:gemini-3.6-flash stopped at max_tokens=700 before its output was complete."
+        )
+        assert exc_info.value.retryable is retryable
+
+    async def test_a_normal_finish_returns_the_text(self) -> None:
+        client = _client(text="Whole.", candidates=[SimpleNamespace(finish_reason="STOP")])
+        response = await _adapter(client).generate_text(MESSAGES)
+        assert response.text == "Whole."
 
 
 def test_max_retries_becomes_total_attempts_on_the_real_client() -> None:

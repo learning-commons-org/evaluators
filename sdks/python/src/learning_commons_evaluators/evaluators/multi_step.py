@@ -308,10 +308,15 @@ class MultiStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
         dependency, model = self._provider_context(provider)
         schema = self.step_models[step.id]
         temperature = self.effective_temperature(step.temperature)
-        # Passed only when the step declares one, so a provider without the keyword is
+        # Each passed only when the step declares one, so a provider without the keyword is
         # called as before.
+        extra: dict[str, Any] = {}
         effort = self.effective_reasoning_effort(step.reasoning_effort)
-        extra: dict[str, Any] = {} if effort is None else {"reasoning_effort": effort}
+        if effort is not None:
+            extra["reasoning_effort"] = effort
+        cap = self.effective_max_output_tokens(step.max_output_tokens)
+        if cap is not None:
+            extra["max_tokens"] = cap
         if schema is None:
             prose = await call_with_resampling(
                 lambda: provider.generate_text(messages, temperature=temperature, **extra),
