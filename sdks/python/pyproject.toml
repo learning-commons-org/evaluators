@@ -100,7 +100,7 @@ dev = [
     # `make generate-kg-client` / `make check-kg-client`. Pinned exactly: the generator's
     # output is committed, so a version bump is a large reviewable diff rather than a
     # surprise stale-client failure on someone else's PR.
-    "openapi-python-client==0.29.1",
+    "openapi-python-client==0.30.0",
     # Reads the vendored OpenAPI spec for the taxonomy drift check in the same script.
     # Declared rather than leaned on as a transitive dependency of the generator above.
     "ruamel.yaml>=0.18,<1",
