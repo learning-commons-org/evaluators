@@ -14,16 +14,11 @@ ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = json.loads((ROOT / "evals/_schemas/config.schema.json").read_text())
 #: A real single-step contract, so the cases run against a step the schema already accepts.
 CONFIG = json.loads(
-    (
-        ROOT
-        / "evals/text-complexity/ela-reading/grade-level-appropriateness/config.json"
-    ).read_text()
+    (ROOT / "evals/text-complexity/ela-reading/grade-level-appropriateness/config.json").read_text()
 )
 #: A real multi-step contract, whose prose step uses generate_text.
 MULTI_STEP = json.loads(
-    (
-        ROOT / "evals/text-complexity/ela-reading/vocabulary-complexity/config.json"
-    ).read_text()
+    (ROOT / "evals/text-complexity/ela-reading/vocabulary-complexity/config.json").read_text()
 )
 
 _ABSENT = object()
@@ -74,14 +69,8 @@ class MaxOutputTokensSchema(unittest.TestCase):
         config = copy.deepcopy(CONFIG)
         step = config["steps"][0]
         step["model"]["provider"] = "openai"
-        step["generation"] = {
-            "temperature": None,
-            "reasoning_effort": "low",
-            "max_output_tokens": 8000,
-        }
-        self.assertEqual(
-            [e.message for e in Draft202012Validator(SCHEMA).iter_errors(config)], []
-        )
+        step["generation"] = {"temperature": None, "reasoning_effort": "low", "max_output_tokens": 8000}
+        self.assertEqual([e.message for e in Draft202012Validator(SCHEMA).iter_errors(config)], [])
 
     def test_the_registry_declares_a_cap_on_exactly_these_steps(self) -> None:
         # Each value was sized for its step's model from that step's own runs, so adding or
