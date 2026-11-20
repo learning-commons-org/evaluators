@@ -29,6 +29,20 @@ import type { SentenceStructureInput } from '../../../schemas/text-complexity/el
 
 export type { SentenceStructureInput };
 
+// One set of prompts per stage, shared by both grade bands: the contract pins the same
+// files for each, and declaring them once keeps the bands from drifting apart here.
+const ANALYSIS_STEP = {
+  system: ANALYSIS_SYSTEM,
+  user: ANALYSIS_USER,
+  schema: SentenceAnalysisSchema,
+};
+
+// Each classify step ends the run for its band, so its schema is `outputSchema` below.
+const CLASSIFY_STEP = {
+  system: COMPLEXITY_SYSTEM,
+  user: COMPLEXITY_USER,
+};
+
 /**
  * Evaluates sentence structure complexity of a text.
  *
@@ -36,6 +50,12 @@ export type { SentenceStructureInput };
  * counts grammatical features, and the second classifies complexity against the rubric for
  * the grade. Which rubric that is, the order the steps run in, and the fact that the second
  * step reads the first one's output are all read from `config.json`.
+ *
+ * The contract holds two evaluators, split by grade, because each was validated on its own
+ * model: grades 3–4 run on gpt-6-luna and grades 5–12 on gpt-5.5, both at reasoning effort
+ * `none`. It declares the pair of steps once per band, each conditioned on the grade, so a
+ * given grade runs exactly one analysis step and one classify step. The prompts and schemas
+ * are the same across the bands; only the model differs.
  *
  * The two computations below are supplied in code because the contract declares them as
  * `custom` — it names the function rather than describing it — and are keyed by the name it
@@ -66,16 +86,10 @@ export class SentenceStructureEvaluator extends defineMultiStepEvaluator<
   inputSchema: INPUT_SCHEMA,
   outputSchema: SentenceStructureOutputSchema,
   steps: {
-    sentence_analysis: {
-      system: ANALYSIS_SYSTEM,
-      user: ANALYSIS_USER,
-      schema: SentenceAnalysisSchema,
-    },
-    // The final step's output is the result, so its schema is `outputSchema` above.
-    classify_complexity: {
-      system: COMPLEXITY_SYSTEM,
-      user: COMPLEXITY_USER,
-    },
+    sentence_analysis_grades_3_4: ANALYSIS_STEP,
+    sentence_analysis_grades_5_12: ANALYSIS_STEP,
+    classify_complexity_grades_3_4: CLASSIFY_STEP,
+    classify_complexity_grades_5_12: CLASSIFY_STEP,
   },
   computations: {
     // The contract names the metrics function; the block layout is what the prompt
