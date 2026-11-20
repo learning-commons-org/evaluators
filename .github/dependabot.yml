@@ -25,7 +25,9 @@ updates:
           - "minor"
           - "patch"
 
-  - package-ecosystem: "pip"
+  # uv, not pip: the pip updater edits pyproject.toml and leaves uv.lock stale, so every
+  # Python PR failed the "uv.lock is current" check until someone ran `uv lock` by hand.
+  - package-ecosystem: "uv"
     directory: "/sdks/python"
     schedule:
       interval: "weekly"
@@ -35,7 +37,7 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
-      - "pip"
+      - "python:uv"
     commit-message:
       prefix: "chore: "
     # Runtime dependencies are capped at their next major in pyproject.toml; a major bump
