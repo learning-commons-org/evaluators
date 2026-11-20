@@ -1,4 +1,4 @@
-"""generation.max_output_tokens: an optional positive integer, with no null spelling."""
+"""generation.max_output_tokens: an optional integer from 1 to 20,000, with no null spelling."""
 
 from __future__ import annotations
 
@@ -40,10 +40,19 @@ class MaxOutputTokensSchema(unittest.TestCase):
         self.assertEqual(_errors(config=MULTI_STEP), [])
 
     def test_a_positive_integer_is_accepted(self) -> None:
-        for cap in (1, 4096, 128000):
+        for cap in (1, 4096, 20000):
             with self.subTest(cap=cap):
                 self.assertEqual(_errors(cap), [])
                 self.assertEqual(_errors(cap, MULTI_STEP), [])
+
+    def test_above_the_ceiling_is_refused(self) -> None:
+        # One ceiling for every provider. A vendor client refuses a non-streaming call that
+        # asks for more than about 21,000 tokens, so a larger cap would fail every call there.
+        for cap in (20001, 128000):
+            with self.subTest(cap=cap):
+                errors = _errors(cap)
+                self.assertEqual(len(errors), 1)
+                self.assertIn("greater than the maximum of 20000", errors[0])
 
     def test_zero_and_negatives_are_refused(self) -> None:
         for cap in (0, -1, -4096):
