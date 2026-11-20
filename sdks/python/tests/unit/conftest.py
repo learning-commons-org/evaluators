@@ -86,6 +86,7 @@ class FakeProvider:
                 "attachments": tuple(attachments),
                 "reasoning_effort": reasoning_effort,
                 "max_tokens": max_tokens,
+                "model": self.config.model,
             }
         )
         if self.failures:
@@ -114,6 +115,7 @@ class FakeProvider:
                 "temperature": temperature,
                 "reasoning_effort": reasoning_effort,
                 "max_tokens": max_tokens,
+                "model": self.config.model,
             }
         )
         if self.failures:
