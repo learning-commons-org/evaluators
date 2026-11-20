@@ -122,6 +122,16 @@ async def test_every_step_sends_the_reasoning_effort_it_was_validated_at(
     assert [c["temperature"] for c in providers.calls] == [None, None]
 
 
+@pytest.mark.parametrize(("grade", "caps"), [(3, [8000, 2000]), (5, [12000, 2000])])
+async def test_every_step_sends_its_declared_output_cap(
+    providers: ProviderFactory, grade: int, caps: list[int]
+) -> None:
+    # The analysis step is the one that has run away; a cap makes that fail fast instead
+    # of generating until the request times out.
+    await SentenceStructureEvaluator(openai_api_key="o").evaluate(text=TEXT, grade_level=grade)
+    assert [c["max_tokens"] for c in providers.calls] == caps
+
+
 async def test_an_override_does_not_carry_the_reasoning_effort_across(
     providers: ProviderFactory,
 ) -> None:

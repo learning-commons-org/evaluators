@@ -86,6 +86,15 @@ class TestGradeSelectsTheBranch:
         await VocabularyComplexityEvaluator(**KEYS).evaluate(text=TEXT, grade_level=7)
         assert len(providers.calls) == 2
 
+    @pytest.mark.parametrize(("grade", "caps"), [(4, [2000, 12000]), (7, [2000, 4000])])
+    async def test_every_step_sends_its_declared_output_cap(
+        self, providers: ProviderFactory, grade: int, caps: list[int]
+    ) -> None:
+        # The grades 3-4 rating step thinks before it answers, and thinking tokens count
+        # against the cap, so its cap is the largest.
+        await VocabularyComplexityEvaluator(**KEYS).evaluate(text=TEXT, grade_level=grade)
+        assert [c["max_tokens"] for c in providers.calls] == caps
+
     @pytest.mark.parametrize("grade", [2, 13])
     async def test_rejects_grades_outside_the_declared_enum(
         self, providers: ProviderFactory, grade: int
