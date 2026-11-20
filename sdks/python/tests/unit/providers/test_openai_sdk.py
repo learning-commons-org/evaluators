@@ -84,6 +84,16 @@ class TestGenerateStructured:
         assert kwargs["temperature"] is omit
         assert kwargs["max_output_tokens"] is omit
 
+    async def test_sends_a_declared_reasoning_effort_and_omits_an_absent_one(self) -> None:
+        client = _client(parsed=_Verdict(score=1, reasoning="r"))
+        await _adapter(client).generate_structured(MESSAGES, _Verdict, reasoning_effort="none")
+        kwargs = client.responses.with_raw_response.parse.await_args.kwargs
+        assert kwargs["reasoning"] == {"effort": "none"}
+        # A model that does not reason rejects the parameter, so nothing is sent unasked.
+        await _adapter(client).generate_structured(MESSAGES, _Verdict)
+        kwargs = client.responses.with_raw_response.parse.await_args.kwargs
+        assert kwargs["reasoning"] is omit
+
     async def test_omits_instructions_without_a_system_message(self) -> None:
         client = _client(parsed=_Verdict(score=1, reasoning="r"))
         await _adapter(client).generate_structured(MESSAGES[1:], _Verdict, max_tokens=256)
@@ -144,3 +154,11 @@ class TestGenerateText:
         assert kwargs["instructions"] == "You grade things."
         assert kwargs["temperature"] == 0.0
         assert "text_format" not in kwargs
+
+
+async def test_generate_text_sends_a_declared_reasoning_effort() -> None:
+    client = _client(text="prose")
+    await _adapter(client).generate_text(MESSAGES, reasoning_effort="low")
+    assert client.responses.create.await_args.kwargs["reasoning"] == {"effort": "low"}
+    await _adapter(client).generate_text(MESSAGES)
+    assert client.responses.create.await_args.kwargs["reasoning"] is omit

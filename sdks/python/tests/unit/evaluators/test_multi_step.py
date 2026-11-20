@@ -263,6 +263,55 @@ class TestRefusesAContractItCannotRun:
         )
         assert evaluator.metadata.id == "demo.area.chain"
 
+    def test_accepts_a_pair_of_steps_per_branch_whose_second_produces_the_output(self) -> None:
+        # Sentence Structure's shape, which "every step after the last unconditional one"
+        # would wrongly reject: each grade band runs its own first step and then its own
+        # second, so the first steps are conditional and still never end a run.
+        low = {"input": "grade_level", "in": ["3"]}
+        high = {"input": "grade_level", "in": ["4", "5"]}
+        raw = contract().model_dump(by_alias=True)
+        notes, rate = raw["steps"]
+        rate["prompt"]["placeholders"]["notes"]["source"] = "steps.notes_high.output"
+        rate_low = json.loads(json.dumps(rate))
+        rate_low["prompt"]["placeholders"]["notes"]["source"] = "steps.notes_low.output"
+        raw["steps"] = [
+            {**notes, "id": "notes_low", "condition": low},
+            {**notes, "id": "notes_high", "condition": high},
+            {**rate_low, "id": "rate_low", "condition": low},
+            {**rate, "id": "rate_high", "condition": high},
+        ]
+        raw["preprocessing"] = [
+            entry
+            if entry["id"] != "shouted"
+            else {
+                **entry,
+                "id": "shouted_high",
+                "input": "steps.notes_high.output",
+                "condition": high,
+            }
+            for entry in raw["preprocessing"]
+        ] + [
+            {
+                **next(e for e in raw["preprocessing"] if e["id"] == "shouted"),
+                "id": "shouted_low",
+                "input": "steps.notes_low.output",
+                "condition": low,
+            }
+        ]
+        models = {"notes_low": None, "notes_high": None, "rate_low": ChainOutput}
+        define(
+            steps=raw["steps"],
+            preprocessing=raw["preprocessing"],
+            step_models={**models, "rate_high": ChainOutput},
+        )
+        # The second step of a pair is what ends the run, so it is still held to the output.
+        with pytest.raises(ValueError, match='Step "rate_high".*can end a run'):
+            define(
+                steps=raw["steps"],
+                preprocessing=raw["preprocessing"],
+                step_models={**models, "rate_high": Notes},
+            )
+
     def test_refuses_an_optional_step(self) -> None:
         raw = contract().model_dump(by_alias=True)
         raw["steps"][0]["optional"] = True
