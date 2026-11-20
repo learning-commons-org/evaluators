@@ -85,6 +85,7 @@ class FakeProvider:
                 "temperature": temperature,
                 "attachments": tuple(attachments),
                 "reasoning_effort": reasoning_effort,
+                "model": self.config.model,
             }
         )
         if self.failures:
@@ -112,6 +113,7 @@ class FakeProvider:
                 "schema": None,
                 "temperature": temperature,
                 "reasoning_effort": reasoning_effort,
+                "model": self.config.model,
             }
         )
         if self.failures:

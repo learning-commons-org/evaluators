@@ -1,8 +1,8 @@
 import type { ZodType } from 'zod';
-import type { LLMProvider } from '../providers/index.js';
+import type { LLMProvider } from '../providers/base.js';
 import type { EvaluationResult } from '../schemas/index.js';
 import type { StageDetail } from '../telemetry/index.js';
-import { EvaluatorError, wrapProviderError } from '../errors.js';
+import { ConfigurationError, EvaluatorError, wrapProviderError } from '../errors.js';
 import { runPreprocessingStep, type PreprocessingImplementation } from '../features/preprocessing.js';
 import {
   BaseEvaluator,
@@ -18,7 +18,13 @@ import { createPromptRenderers } from '../prompts/create-prompts.js';
 /** A contract's `condition`: the step or entry applies only for these input values. */
 export interface DeclaredCondition {
   input: string;
-  in: string[];
+  /** The contract schema admits numbers here; inputs arrive as strings and are compared as such. */
+  in: Array<string | number>;
+}
+
+/** A condition's values as the strings the caller's inputs are compared against. */
+function conditionValues(condition: DeclaredCondition): string[] {
+  return condition.in.map(String);
 }
 
 /**
@@ -46,7 +52,9 @@ export interface MultiStepContract extends CredentialDeclaringConfig {
   steps: Array<{
     id: string;
     model: { provider: string; name: string };
-    generation?: { temperature?: number; reasoning_effort?: string };
+    generation?: { temperature?: number | null; reasoning_effort?: string };
+    /** The step runs only for these input values. Absent means it always runs. */
+    condition?: DeclaredCondition;
     prompt: { placeholders: Record<string, DeclaredPlaceholder | undefined> };
     required_credentials?: string[];
   }>;
@@ -65,8 +73,10 @@ export interface MultiStepContract extends CredentialDeclaringConfig {
 /**
  * One declared step's prompts, and the schema its own output is validated against.
  *
- * `schema` is required for every step but the last, whose output is the evaluator's result
- * and so is validated against the definition's `outputSchema`.
+ * The last step to run produces the evaluator's result, so that step's output is validated
+ * against the definition's `outputSchema` and it may omit `schema`. Every step that runs
+ * before it needs its own, which makes `schema` required wherever the contract's conditions
+ * leave a later step still to run.
  */
 export interface StepArtifacts {
   system: string;
@@ -77,7 +87,7 @@ export interface StepArtifacts {
 export interface MultiStepDefinition<TResult> {
   contract: MultiStepContract;
   inputSchema: DeclaredInputSchema;
-  /** The final step's schema — what `evaluate()` resolves to. */
+  /** The schema of whichever step ends the run — what `evaluate()` resolves to. */
   outputSchema: ZodType<TResult>;
   /** Prompts and per-step schema, keyed by the step id the contract declares. */
   steps: Record<string, StepArtifacts>;
@@ -164,13 +174,44 @@ function conditionHolds(
   fields: Record<string, string>,
 ): boolean {
   if (!condition) return true;
-  return condition.in.includes(fields[condition.input]);
+  // Normalised, as requireConditionValues does: a contract writing `[3, 4]` means the
+  // grades a caller passes as '3' and '4'.
+  return conditionValues(condition).includes(fields[condition.input]);
+}
+
+/**
+ * Whether the step at `index` can be the last one to run.
+ *
+ * Read off the conditions alone, so it can be decided at load: an unconditional step ends a
+ * run only when nothing is declared after it, and a conditional step ends one when some
+ * value it runs for is a value no later step runs for. A later step conditioned on a
+ * different input is not counted as running, because nothing here says the two inputs
+ * move together.
+ */
+function canEndRun(
+  steps: ReadonlyArray<{ condition?: DeclaredCondition }>,
+  index: number,
+): boolean {
+  const later = steps.slice(index + 1);
+  const condition = steps[index].condition;
+  if (!condition) return later.length === 0;
+  if (later.some((step) => !step.condition)) return false;
+  return conditionValues(condition).some(
+    (value) =>
+      !later.some(
+        (step) =>
+          step.condition?.input === condition.input &&
+          conditionValues(step.condition).includes(value),
+      ),
+  );
 }
 
 /**
  * Builds the evaluator class for a contract with more than one model call.
  *
- * Steps run in declared order. A step's placeholders are resolved from the sources the
+ * Steps run in declared order, skipping any whose `condition` does not hold for the
+ * inputs — which is how one contract carries more than one validated configuration, each
+ * with its own models. The output of the last step that ran is the result. A step's placeholders are resolved from the sources the
  * contract names, and any preprocessing they depend on runs first — including preprocessing
  * that reads an earlier step's output, which is what makes the ordering a consequence of the
  * contract rather than of the order someone wrote the code in.
@@ -211,20 +252,24 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
       );
     }
 
-    const isFinal = index === STEPS.length - 1;
-    const schema = isFinal ? outputSchema : parts.schema;
-    if (!schema) {
+    // A step that never ends a run always hands its output to a later one, so there is
+    // no schema it could fall back on.
+    const canEnd = canEndRun(STEPS, index);
+    if (!canEnd && !parts.schema) {
       throw new Error(
         `No schema supplied for step "${step.id}" declared by ${contract.evaluator.name}. ` +
-          `Only the final step may omit one, taking the definition's outputSchema.`,
+          `Only a step that can end a run may omit one, taking the definition's outputSchema.`,
       );
     }
 
+    const vendor = vendorOf(step.model.provider, contract.evaluator.name);
+
     return {
       step,
-      vendor: vendorOf(step.model.provider, contract.evaluator.name),
+      vendor,
+      canEnd,
+      schema: parts.schema,
       reasoningEffort: step.generation?.reasoning_effort,
-      schema,
       prompts: createPromptRenderers(
         parts.system,
         parts.user,
@@ -271,7 +316,6 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
   return class MultiStepEvaluator extends BaseEvaluator {
     static readonly metadata = METADATA;
 
-    protected provider: LLMProvider;
     private readonly providers = new Map<string, LLMProvider>();
 
     constructor(config: BaseEvaluatorConfig) {
@@ -290,9 +334,6 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
         }
         this.providers.set(step.id, provider);
       }
-      // The envelope reports one model. With every step on one it is exact; when they
-      // differ it names the last, which is the step that produced the result.
-      this.provider = this.providers.get(STEPS[STEPS.length - 1].id)!;
     }
 
     private keyFor(vendor: Provider, config: BaseEvaluatorConfig): string | undefined {
@@ -309,6 +350,8 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
       let gradeLevel = '';
       const startTime = Date.now();
       const stageDetails: StageDetail[] = [];
+      // Outside the try so a failure can be attributed to the step that was running.
+      let running: typeof RENDERERS = [];
 
       try {
         // Inside the try so a validation failure is telemetered as an error event,
@@ -325,10 +368,43 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
           textLength: text.length,
         });
 
+        // Conditions read only the inputs, so which steps run — and which of them is
+        // last — is known before the first call.
+        running = RENDERERS.filter((r) => conditionHolds(r.step.condition, fields));
+        const last = running[running.length - 1];
+
+        // Both are contract gaps, and both would otherwise surface as a result that is
+        // missing or is an intermediate step's output.
+        if (!last) {
+          throw new ConfigurationError(
+            `No step of ${contract.evaluator.name} applies to these inputs; ` +
+              `every step's condition excludes them.`,
+          );
+        }
+        // A step the conditions alone say is intermediate still ends a run for inputs no
+        // later step covers. That is a result when the step was declared with the output
+        // schema itself, and a gap in the contract when it was not.
+        if (!last.canEnd && last.schema !== outputSchema) {
+          throw new ConfigurationError(
+            `Step "${last.step.id}" is the last ${contract.evaluator.name} runs for these ` +
+              `inputs, but its output is not the result: no later step's condition covers them.`,
+          );
+        }
+
         const stepOutputs = new Map<string, unknown>();
         const preprocessed = new Map<string, string>();
 
-        for (const { step, schema, prompts, reasoningEffort } of RENDERERS) {
+        for (const renderer of running) {
+          const { step, prompts } = renderer;
+          // The step that ends the run produces the result, whatever schema it carries.
+          const schema = renderer === last ? outputSchema : renderer.schema;
+          if (!schema) {
+            throw new ConfigurationError(
+              `No schema supplied for step "${step.id}" declared by ${contract.evaluator.name}, ` +
+                `which does not end the run for these inputs.`,
+            );
+          }
+
           const promptInputs: Record<string, string> = {};
           for (const [name, placeholder] of Object.entries(step.prompt.placeholders)) {
             // A key present but undefined is an artefact of the contract's inferred type,
@@ -356,7 +432,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
             ],
             schema,
             temperature: step.generation?.temperature,
-            ...withReasoningEffort(this.effectiveReasoningEffort(reasoningEffort)),
+            ...withReasoningEffort(this.effectiveReasoningEffort(renderer.reasoningEffort)),
           });
 
           stepOutputs.set(step.id, response.data);
@@ -377,13 +453,17 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
           output_tokens: stageDetails.reduce((s, d) => s + (d.token_usage?.output_tokens ?? 0), 0),
         };
 
-        const finalOutput = stepOutputs.get(STEPS[STEPS.length - 1].id) as TResult;
+        const finalOutput = stepOutputs.get(last.step.id) as TResult;
+        // The envelope reports one model: that of the step that produced the result. Held
+        // per evaluation rather than on the instance, because which step that is depends
+        // on the inputs and evaluations may overlap.
+        const resultProvider = this.providers.get(last.step.id)!;
 
         const result: EvaluationResult<TResult> = {
           evaluator: METADATA.id,
           result: finalOutput,
           metadata: {
-            model: this.provider.label,
+            model: resultProvider.label,
             processingTimeMs: latencyMs,
             tokenUsage: {
               inputTokens: tokenUsage.input_tokens,
@@ -397,7 +477,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
           latencyMs,
           textLength: text.length,
           gradeLevel,
-          provider: this.telemetryLabel(this.provider),
+          provider: this.telemetryLabel(resultProvider),
           tokenUsage,
           metadata: { stage_details: stageDetails },
         }).catch(() => undefined);
@@ -416,11 +496,15 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
       } catch (error) {
         const latencyMs = Date.now() - startTime;
 
-        // The step that was running is the one after the last completed stage. Attributing
-        // to `this.provider` instead would name the final step's provider, which is the
-        // wrong vendor whenever the steps do not share one.
-        const failedStep = STEPS[Math.min(stageDetails.length, STEPS.length - 1)];
-        const failedProvider = this.providers.get(failedStep.id) ?? this.provider;
+        // The step that was running is the one after the last completed stage, counted
+        // among the steps this evaluation runs. Attributing to the final step instead
+        // would name the wrong vendor whenever the steps do not share one. A failure
+        // before the steps were chosen — invalid input — has no step to name, so it falls
+        // back to the first declared.
+        const failedStep = (
+          running[Math.min(stageDetails.length, running.length - 1)] ?? RENDERERS[0]
+        ).step;
+        const failedProvider = this.providers.get(failedStep.id)!;
 
         this.logger.error(`${LABEL} evaluation failed`, {
           evaluator: METADATA.id,
