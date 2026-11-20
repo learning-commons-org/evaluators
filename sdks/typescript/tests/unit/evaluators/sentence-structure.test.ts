@@ -441,7 +441,7 @@ describe('SentenceStructureEvaluator - grade bands', () => {
   });
 
   it.each([
-    { grade: '3', caps: [8000, 2000] },
+    { grade: '3', caps: [12000, 2000] },
     { grade: '7', caps: [12000, 2000] },
   ] as const)('sends each step its declared output cap at grade $grade', async ({ grade, caps }) => {
     // The analysis step is the one that has run away; a cap makes that fail fast.

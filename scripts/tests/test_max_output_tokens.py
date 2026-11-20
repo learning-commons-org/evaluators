@@ -94,7 +94,7 @@ class MaxOutputTokensSchema(unittest.TestCase):
         self.assertEqual(
             declared,
             {
-                "sentence-structure/sentence_analysis_grades_3_4": 8000,
+                "sentence-structure/sentence_analysis_grades_3_4": 12000,
                 "sentence-structure/sentence_analysis_grades_5_12": 12000,
                 "sentence-structure/classify_complexity_grades_3_4": 2000,
                 "sentence-structure/classify_complexity_grades_5_12": 2000,

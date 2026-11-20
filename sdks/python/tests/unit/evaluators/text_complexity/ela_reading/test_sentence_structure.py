@@ -122,7 +122,7 @@ async def test_every_step_sends_the_reasoning_effort_it_was_validated_at(
     assert [c["temperature"] for c in providers.calls] == [None, None]
 
 
-@pytest.mark.parametrize(("grade", "caps"), [(3, [8000, 2000]), (5, [12000, 2000])])
+@pytest.mark.parametrize(("grade", "caps"), [(3, [12000, 2000]), (5, [12000, 2000])])
 async def test_every_step_sends_its_declared_output_cap(
     providers: ProviderFactory, grade: int, caps: list[int]
 ) -> None:

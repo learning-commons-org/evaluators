@@ -169,7 +169,7 @@
       "generation": {
         "temperature": null,
         "reasoning_effort": "none",
-        "max_output_tokens": 8000
+        "max_output_tokens": 12000
       },
       "parser": {
         "kind": "structured_output"
