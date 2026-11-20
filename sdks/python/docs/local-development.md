@@ -45,10 +45,10 @@ From `sdks/python/`:
 ## Using the SDK before publishing
 
 ```bash
-pip install -e /path/to/evaluators/sdks/python
+pip install -e "/path/to/evaluators/sdks/python[all]"
 ```
 
-Editable install: changes to SDK source apply without reinstalling.
+Editable install: changes to SDK source apply without reinstalling. Name the extras your evaluators need in place of `all`, or none if you inject your own `llm_provider`.
 
 ## Regenerating after a change under `evals/`
 
@@ -60,6 +60,15 @@ make check-generated     # verify the committed files match evals/ (CI runs this
 ```
 
 The generator (`scripts/generate_contracts.py`) checks each prompt and rubric file against the `sha256` its `config.json` declares and refuses to bundle one that drifted. Commit the registry change together with the regenerated files; `.gitattributes` marks them `linguist-generated=true` so GitHub collapses them in review.
+
+## Updating `uv.lock`
+
+`uv.lock` records the resolved dependencies for `pyproject.toml`. After changing a dependency or an extra in `pyproject.toml`, regenerate it and commit both together:
+
+```bash
+uv lock           # update uv.lock to match pyproject.toml, keeping existing versions
+uv lock --check   # verify it is current (CI runs this)
+```
 
 ## Regenerating the Knowledge Graph client
 
@@ -139,8 +148,10 @@ Generated schema modules start with `# GENERATED — do not edit directly.` and 
        input_model = SentenceStructureInput
        output_model = SentenceStructureOutput
        step_models = {
-           "sentence_analysis": SentenceAnalysis,
-           "classify_complexity": SentenceStructureOutput,
+           "sentence_analysis_grades_3_4": SentenceAnalysis,
+           "sentence_analysis_grades_5_12": SentenceAnalysis,
+           "classify_complexity_grades_3_4": SentenceStructureOutput,
+           "classify_complexity_grades_5_12": SentenceStructureOutput,
        }
        computations = {"compute_ground_truth_counts": compute_ground_truth_counts, ...}
    ```

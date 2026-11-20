@@ -110,6 +110,119 @@ jobs:
       - name: ⚡ Run unit tests
         run: npm run test:unit
 
+  # The unit tests above run on the lockfile's versions. These run them on each end of the
+  # range a caller may install for the AI SDK and its vendor adapters, as package.json's
+  # peerDependencies declare it: the lower bound, and the newest release below the cap. The
+  # Python SDK's `Lowest vendor SDKs` and `Verify` jobs cover the same two ends for its SDKs.
+  vendor-sdk-bounds:
+    name: ⚡ Vendor SDKs at their ${{ matrix.bound }} versions
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/typescript
+    strategy:
+      fail-fast: false
+      matrix:
+        bound: [lowest, newest]
+    steps:
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v7
+
+      # The oldest Node the package supports, from `engines`, so the oldest adapters run on
+      # the oldest runtime a caller may have.
+      - name: 🔢 Read the oldest supported Node
+        id: node
+        run: node -e "console.log('version=' + require('./package.json').engines.node.match(/\d+\.\d+\.\d+/)[0])" >> "$GITHUB_OUTPUT"
+
+      - name: 😻 Setup Node.js ${{ steps.node.outputs.version }}
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+
+      - name: 📥 Install dependencies
+        uses: bahmutov/npm-install@v1
+        with:
+          working-directory: sdks/typescript
+
+      # Read from package.json so the job tests whatever the ranges say, and pinned to exact
+      # versions: given a range, npm can settle the whole tree on an older major than the
+      # range's newest. --no-save leaves the lockfile alone.
+      - name: 📌 Install each AI SDK package at its ${{ matrix.bound }} version
+        env:
+          BOUND: ${{ matrix.bound }}
+        run: |
+          node -e "
+            const { execFileSync } = require('node:child_process');
+            const peers = require('./package.json').peerDependencies;
+            for (const [name, range] of Object.entries(peers)) {
+              if (!/^(ai|@ai-sdk\/.+)$/.test(name)) continue;
+              const versions = [].concat(JSON.parse(execFileSync('npm', ['view', name + '@' + range, 'version', '--json'])));
+              const low = range.match(/^>=(\S+) </)[1];
+              console.log(name + '@' + (process.env.BOUND === 'lowest' ? low : versions.at(-1)));
+            }
+          " > "$RUNNER_TEMP/pins"
+          cat "$RUNNER_TEMP/pins"
+          test "$(wc -l < "$RUNNER_TEMP/pins")" -eq 4
+          xargs npm install --no-save < "$RUNNER_TEMP/pins"
+          # The run is only meaningful on the versions it claims, so a drift fails here.
+          node -e "
+            for (const pin of require('node:fs').readFileSync(process.argv[1], 'utf8').trim().split('\n')) {
+              const at = pin.lastIndexOf('@');
+              const installed = require('./node_modules/' + pin.slice(0, at) + '/package.json').version;
+              console.log(pin.slice(0, at), installed);
+              if (installed !== pin.slice(at + 1)) throw new Error(pin + ' was asked for, ' + installed + ' installed');
+            }
+          " "$RUNNER_TEMP/pins"
+
+      - name: ⚡ Run unit tests
+        run: npm run test:unit
+
+  # Linux and macOS share path separators, line endings and how executables are spawned,
+  # so the Ubuntu jobs above cannot see a difference Windows has. Once dependencies install,
+  # every check runs even when an earlier one fails, so one run shows every Windows failure.
+  windows:
+    name: 🪟 Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: sdks/typescript
+    steps:
+      # The runner keeps the image's default autocrlf=true, as Git for Windows does on a
+      # contributor's machine, so this job sees the line endings they would.
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v7
+
+      - name: 😻 Setup Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: 📥 Install dependencies
+        id: install
+        uses: bahmutov/npm-install@v1
+        with:
+          working-directory: sdks/typescript
+
+      - name: 🧬 Generated schemas match their contracts
+        run: npm run generate:schemas:check
+
+      - name: ⚡ Run unit tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run test:unit
+
+      - name: 🏗️ Build package
+        id: build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run build
+
+      - name: 📜 Verify the published declarations
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run verify:dist
+
+      - name: 📦 Verify the published package metadata
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run verify:package
+
   build:
     name: 🏗️ Build (Node ${{ matrix.node-version }})
     needs: [lint, typecheck, test]

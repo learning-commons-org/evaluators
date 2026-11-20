@@ -97,6 +97,7 @@ class OracleProvider:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
     ) -> LLMResponse[Any]:
         self.calls.next()
         return LLMResponse(
@@ -112,6 +113,7 @@ class OracleProvider:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
     ) -> TextGenerationResponse:
         self.calls.next()
         return TextGenerationResponse(text="prose", usage=USAGE, latency_ms=STAGE_LATENCY_MS)

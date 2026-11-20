@@ -80,6 +80,7 @@ class OpenAIProvider:
         temperature: float | None,
         max_tokens: int | None,
         attachments: Sequence[ImageAttachment] = (),
+        reasoning_effort: str | None = None,
     ) -> dict[str, Any]:
         from openai import omit
 
@@ -107,6 +108,9 @@ class OpenAIProvider:
             # models require that.
             "temperature": temperature if temperature is not None else omit,
             "max_output_tokens": max_tokens if max_tokens is not None else omit,
+            # Omitted when unset, which leaves a reasoning model at its default; a model that
+            # does not reason rejects the parameter.
+            "reasoning": {"effort": reasoning_effort} if reasoning_effort is not None else omit,
         }
 
     @staticmethod
@@ -125,6 +129,7 @@ class OpenAIProvider:
         temperature: float | None = None,
         max_tokens: int | None = None,
         attachments: Sequence[ImageAttachment] = (),
+        reasoning_effort: str | None = None,
     ) -> LLMResponse[T]:
         start = time.perf_counter()
         async with self._session() as client:
@@ -132,7 +137,8 @@ class OpenAIProvider:
             # from its status before ``parse`` validates the cut-off JSON, which would
             # surface as a schema error instead.
             raw = await client.responses.with_raw_response.parse(
-                text_format=schema, **self._request(messages, temperature, max_tokens, attachments)
+                text_format=schema,
+                **self._request(messages, temperature, max_tokens, attachments, reasoning_effort),
             )
             # The async client's raw form is a LegacyAPIResponse: the body is already read,
             # and ``parse`` is synchronous.
@@ -161,11 +167,14 @@ class OpenAIProvider:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
     ) -> TextGenerationResponse:
         start = time.perf_counter()
         async with self._session() as client:
             response = await client.responses.create(
-                **self._request(messages, temperature, max_tokens)
+                **self._request(
+                    messages, temperature, max_tokens, reasoning_effort=reasoning_effort
+                )
             )
         return TextGenerationResponse(
             text=response.output_text,

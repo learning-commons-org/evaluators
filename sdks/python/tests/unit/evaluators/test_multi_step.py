@@ -26,7 +26,8 @@ from learning_commons_evaluators import (
 )
 from learning_commons_evaluators.contracts.loader import Contract
 from learning_commons_evaluators.evaluators.multi_step import MultiStepEvaluator, as_prompt_text
-from tests.unit.conftest import ProviderFactory
+from learning_commons_evaluators.providers import ProviderConfig
+from tests.unit.conftest import NOT_PASSED, FakeProvider, ProviderFactory
 
 STABLE_ID = "22222222-2222-2222-2222-222222222222"
 
@@ -261,6 +262,55 @@ class TestRefusesAContractItCannotRun:
             step_models={"notes": None, "rate_low": ChainOutput, "rate": ChainOutput},
         )
         assert evaluator.metadata.id == "demo.area.chain"
+
+    def test_accepts_a_pair_of_steps_per_branch_whose_second_produces_the_output(self) -> None:
+        # Sentence Structure's shape, which "every step after the last unconditional one"
+        # would wrongly reject: each grade band runs its own first step and then its own
+        # second, so the first steps are conditional and still never end a run.
+        low = {"input": "grade_level", "in": ["3"]}
+        high = {"input": "grade_level", "in": ["4", "5"]}
+        raw = contract().model_dump(by_alias=True)
+        notes, rate = raw["steps"]
+        rate["prompt"]["placeholders"]["notes"]["source"] = "steps.notes_high.output"
+        rate_low = json.loads(json.dumps(rate))
+        rate_low["prompt"]["placeholders"]["notes"]["source"] = "steps.notes_low.output"
+        raw["steps"] = [
+            {**notes, "id": "notes_low", "condition": low},
+            {**notes, "id": "notes_high", "condition": high},
+            {**rate_low, "id": "rate_low", "condition": low},
+            {**rate, "id": "rate_high", "condition": high},
+        ]
+        raw["preprocessing"] = [
+            entry
+            if entry["id"] != "shouted"
+            else {
+                **entry,
+                "id": "shouted_high",
+                "input": "steps.notes_high.output",
+                "condition": high,
+            }
+            for entry in raw["preprocessing"]
+        ] + [
+            {
+                **next(e for e in raw["preprocessing"] if e["id"] == "shouted"),
+                "id": "shouted_low",
+                "input": "steps.notes_low.output",
+                "condition": low,
+            }
+        ]
+        models = {"notes_low": None, "notes_high": None, "rate_low": ChainOutput}
+        define(
+            steps=raw["steps"],
+            preprocessing=raw["preprocessing"],
+            step_models={**models, "rate_high": ChainOutput},
+        )
+        # The second step of a pair is what ends the run, so it is still held to the output.
+        with pytest.raises(ValueError, match='Step "rate_high".*can end a run'):
+            define(
+                steps=raw["steps"],
+                preprocessing=raw["preprocessing"],
+                step_models={**models, "rate_high": Notes},
+            )
 
     def test_refuses_an_optional_step(self) -> None:
         raw = contract().model_dump(by_alias=True)
@@ -727,3 +777,68 @@ class TestStepOutputText:
 
     def test_a_boolean_is_not_mistaken_for_a_number(self) -> None:
         assert as_prompt_text({"ok": True, "no": False}) == '{"ok":true,"no":false}'
+
+
+class TestReasoningEffort:
+    """Each step sends the effort it declares, on the prose and the structured path alike."""
+
+    @staticmethod
+    def _steps(
+        notes: str | None, rate: str | None, *, rate_on_openai: bool = False
+    ) -> list[dict[str, Any]]:
+        steps = contract().model_dump(by_alias=True)["steps"]
+        for step, effort in zip(steps, (notes, rate), strict=True):
+            if effort is not None:
+                step["generation"] = {"temperature": None, "reasoning_effort": effort}
+        if rate_on_openai:
+            # Off google, so the routing under test does not depend on whether the installed
+            # google-genai can send a thinking level.
+            steps[1]["model"] = {"provider": "openai", "name": "gpt-5.5"}
+        return steps
+
+    async def test_each_step_sends_only_its_own_declared_effort(
+        self, providers: ProviderFactory
+    ) -> None:
+        # ``notes`` is a prose step, ``rate`` a structured one.
+        await define(steps=self._steps("none", None))(**KEYS).evaluate(**INPUT)
+        assert [call["reasoning_effort"] for call in providers.calls] == ["none", NOT_PASSED]
+
+        providers.calls.clear()
+        await define(steps=self._steps(None, "low", rate_on_openai=True))(**KEYS).evaluate(**INPUT)
+        assert [call["reasoning_effort"] for call in providers.calls] == [NOT_PASSED, "low"]
+
+    async def test_an_override_drops_every_steps_effort(self, providers: ProviderFactory) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        evaluator = define(steps=self._steps("none", "low"))(
+            anthropic_api_key="a", model_override=override
+        )
+        await evaluator.evaluate(**INPUT)
+        assert [call["reasoning_effort"] for call in providers.calls] == [NOT_PASSED, NOT_PASSED]
+
+    def test_the_override_warning_lists_each_declared_effort_once(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            define(steps=self._steps("none", "low"))(anthropic_api_key="a", model_override=override)
+        [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert "reasoning effort its contract declares (low, none) is not sent" in (
+            record.getMessage()
+        )
+
+    async def test_an_injected_provider_is_not_handed_any_effort(self) -> None:
+        injected = FakeProvider(ProviderConfig(type=Provider.OPENAI, model="mine"), _verdict)
+        evaluator = define(steps=self._steps("none", "low"))(llm_provider=injected)
+        await evaluator.evaluate(**INPUT)
+        assert [call["reasoning_effort"] for call in injected.calls] == [NOT_PASSED, NOT_PASSED]
+
+    def test_a_google_effort_the_installed_sdk_cannot_send_fails_at_construction(
+        self, providers: ProviderFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from google.genai import types
+
+        monkeypatch.delattr(types, "ThinkingLevel", raising=False)
+        with pytest.raises(ConfigurationError, match="google-genai"):
+            define(steps=self._steps(None, "low"))(**KEYS)
+        # An openai step's effort needs no check: its SDK passes request data through.
+        define(steps=self._steps("none", None))(**KEYS)

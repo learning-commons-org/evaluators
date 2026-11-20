@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel
 
+from learning_commons_evaluators.errors import ConfigurationError
 from learning_commons_evaluators.providers._common import (
     around_text,
     elapsed_ms,
@@ -49,6 +50,33 @@ T = TypeVar("T", bound=BaseModel)
 
 # Gemini's turn roles; the protocol's ``assistant`` is Gemini's ``model``.
 _ROLES = {"user": "user", "assistant": "model"}
+
+#: The first google-genai whose ``ThinkingLevel`` has every level config.schema.json admits
+#: for Google. 1.51.0 added ``thinking_level`` with LOW and HIGH; 1.56.0 added MINIMAL and
+#: MEDIUM.
+THINKING_LEVEL_SINCE = "1.56.0"
+
+
+def check_reasoning_effort(effort: str) -> None:
+    """Refuse an effort the installed google-genai cannot send, naming the release that can.
+
+    The package's floor predates ``thinking_level``, and its config models reject a key
+    they do not declare, so an older install would fail every call. Checked against the
+    installed ``ThinkingLevel`` rather than a version number, so it holds for any release.
+    """
+    from google.genai import types
+
+    levels = getattr(types, "ThinkingLevel", None)
+    if levels is not None and effort.upper() in levels.__members__:
+        return
+    from importlib.metadata import version
+
+    raise ConfigurationError(
+        f'Reasoning effort "{effort}" cannot be sent as thinking_level by the installed '
+        f"google-genai {version('google-genai')}. Upgrade to google-genai "
+        f"{THINKING_LEVEL_SINCE} or later, the first release with every thinking level: "
+        f'pip install "google-genai>={THINKING_LEVEL_SINCE}"'
+    )
 
 
 class GoogleProvider:
@@ -102,6 +130,7 @@ class GoogleProvider:
         max_tokens: int | None,
         schema: type[BaseModel] | None,
         attachments: Sequence[ImageAttachment] = (),
+        reasoning_effort: str | None = None,
     ) -> dict[str, Any]:
         from google.genai import types
 
@@ -114,6 +143,10 @@ class GoogleProvider:
             config["temperature"] = temperature
         if max_tokens is not None:
             config["max_output_tokens"] = max_tokens
+        # Unset sends nothing, which leaves the model at its default thinking.
+        if reasoning_effort is not None:
+            check_reasoning_effort(reasoning_effort)
+            config["thinking_config"] = {"thinking_level": reasoning_effort}
         if schema is not None:
             config["response_mime_type"] = "application/json"
             config["response_json_schema"] = schema.model_json_schema()
@@ -154,12 +187,14 @@ class GoogleProvider:
         temperature: float | None = None,
         max_tokens: int | None = None,
         attachments: Sequence[ImageAttachment] = (),
+        reasoning_effort: str | None = None,
     ) -> LLMResponse[T]:
         start = time.perf_counter()
+        request = self._request(
+            messages, temperature, max_tokens, schema, attachments, reasoning_effort
+        )
         async with self._session() as client:
-            response = await client.aio.models.generate_content(
-                **self._request(messages, temperature, max_tokens, schema, attachments)
-            )
+            response = await client.aio.models.generate_content(**request)
         # The SDK only populates ``parsed`` for its own ``response_schema`` path; with a raw
         # JSON schema the text is the payload, and the model validates it.
         parsed = response.parsed
@@ -191,12 +226,14 @@ class GoogleProvider:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
     ) -> TextGenerationResponse:
         start = time.perf_counter()
+        request = self._request(
+            messages, temperature, max_tokens, None, reasoning_effort=reasoning_effort
+        )
         async with self._session() as client:
-            response = await client.aio.models.generate_content(
-                **self._request(messages, temperature, max_tokens, None)
-            )
+            response = await client.aio.models.generate_content(**request)
         return TextGenerationResponse(
             text=response.text or "",
             usage=self._usage(response),
@@ -204,4 +241,4 @@ class GoogleProvider:
         )
 
 
-__all__ = ["GoogleProvider"]
+__all__ = ["GoogleProvider", "THINKING_LEVEL_SINCE", "check_reasoning_effort"]

@@ -8,7 +8,8 @@ are skipped.
 
 This is a lightweight heuristic: it confirms the notebook's code references
 config.json and loads the prompt files (by the `source_path` loader pattern, or
-by naming each prompt file). It does not execute the notebook.
+by naming each prompt file), and that it reads `reasoning_effort` when a step
+declares one. It does not execute the notebook.
 """
 
 from __future__ import annotations
@@ -17,6 +18,25 @@ import json
 import os
 
 from .base import Check, Result, Violation, evaluator_configs, load_json, tracked_files
+
+
+def reasoning_effort_problem(config: dict, src: str) -> str | None:
+    """Why a notebook would run a step at a reasoning effort other than the declared one.
+
+    A client built without the declared effort runs at the model's default, which moves
+    results without any error, so a config that declares one needs a notebook that reads it.
+    """
+    declaring = [
+        step.get("id", "?")
+        for step in config.get("steps", [])
+        if "reasoning_effort" in (step.get("generation") or {})
+    ]
+    if not declaring or "reasoning_effort" in src:
+        return None
+    return (
+        f"never reads generation.reasoning_effort, which config.json declares for "
+        f"{', '.join(declaring)}; the notebook would run at the model's default"
+    )
 
 
 class EvalNotebook(Check):
@@ -64,6 +84,9 @@ class EvalNotebook(Check):
                 result.violations.append(
                     Violation(nb_path, "does not load the prompt files from disk (no source_path loader nor prompt filenames)")
                 )
+            problem = reasoning_effort_problem(config, src)
+            if problem:
+                result.violations.append(Violation(nb_path, problem))
 
     @staticmethod
     def _code_source(nb_path: str) -> str | None:

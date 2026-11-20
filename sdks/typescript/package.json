@@ -48,8 +48,8 @@
     "src/batch/README.md"
   ],
   "scripts": {
-    "generate:schemas": "tsx scripts/generate-schema.ts --all",
-    "generate:schemas:check": "tsx scripts/generate-schema.ts --all --check",
+    "generate:schemas": "tsx scripts/generate-schema-cli.ts --all",
+    "generate:schemas:check": "tsx scripts/generate-schema-cli.ts --all --check",
     "generate:kg-types": "openapi-typescript https://docs.learningcommons.org/api-reference/knowledge-graph-api/openapi.yaml -o src/knowledge-graph/kg-api.d.ts",
     "build": "tsup",
     "verify:dist": "vitest run tests/declarations",
@@ -131,7 +131,7 @@
     "json-schema-to-zod": "^2.8.1",
     "openapi-typescript": "^7.13.0",
     "publint": "^0.3.24",
-    "tsup": "^8.0.1",
+    "tsup": "^9.0.0",
     "tsx": "^4.21.0",
     "typescript": "^5.3.3",
     "vitest": "^4.0.17",

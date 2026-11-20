@@ -117,6 +117,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
 
   constructor(config: BaseEvaluatorConfig) {
     super(config);
+    this.refuseReasoningEffort(CONFIG.steps);
 
     this.grades34ComplexityProvider = this.createConfiguredProvider(
       Provider.Google, GRADES_34_STEP.model.name, config.googleApiKey
@@ -159,12 +160,15 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
       validateInputs(input, INPUT_SCHEMA);
       ({ text, grade_level: gradeLevel } = input);
 
-      // When override is active all providers resolve to the same model — show a single label.
+      // One model reports one label (SPEC §3.4): under an override, or when the grade's
+      // complexity step runs the same model as background knowledge.
       const complexityProvider = this.complexityProviderFor(gradeLevel);
-      const modelLabel = this.config.modelOverride
+      const sameModel =
+        Boolean(this.config.modelOverride) || complexityProvider.label === backgroundProviderLabel;
+      const modelLabel = sameModel
         ? backgroundProviderLabel
         : `${backgroundProviderLabel}+${complexityProvider.label}`;
-      telemetryModelLabel = this.config.modelOverride
+      telemetryModelLabel = sameModel
         ? backgroundTelemetryLabel
         : `${backgroundTelemetryLabel}+${this.telemetryLabel(complexityProvider)}`;
 
@@ -333,7 +337,7 @@ export class VocabularyComplexityEvaluator extends BaseEvaluator {
    * Stage 2: Evaluate vocabulary complexity
    *
    * Uses the Qual Text Complexity rubric (SAP) and background knowledge to evaluate vocabulary complexity.
-   * Grades 3-4 use Gemini 2.5 Pro; grade levels 5-12 use GPT-4.1.
+   * Grades 3-4 use Gemini 3.8 Flash; grade levels 5-12 use gpt-6-luna.
    */
   private async evaluateComplexity(
     text: string,

@@ -40,6 +40,15 @@ export interface LLMRequest<T> {
   maxTokens?: number;
   /** Images for the final user turn, in array order, each before or after its text as its `position` says. */
   attachments?: readonly ImageAttachment[];
+  /**
+   * How much the model reasons, in the vendor's own terms: OpenAI's `reasoning.effort`,
+   * Anthropic's `effort`, Google's `thinkingLevel`. Absent sends nothing and leaves the
+   * model at its default, which is not the same as `'none'`. An evaluator sets it only for
+   * a step that declares one, and only on the model its contract declares: never under
+   * `modelOverride` or for an injected `llmProvider`. Which values each vendor takes is
+   * `config.schema.json`'s rule.
+   */
+  reasoningEffort?: string;
 }
 
 /**

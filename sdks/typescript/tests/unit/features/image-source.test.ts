@@ -116,7 +116,8 @@ describe('loadImage', () => {
     await expect(loadImage('f', dir, BOUNDS)).rejects.toThrow(/is not a regular file/);
   });
 
-  it('refuses a FIFO without blocking on it', async () => {
+  // Windows has no FIFOs; Git for Windows' mkfifo only emulates one.
+  it.skipIf(process.platform === 'win32')('refuses a FIFO without blocking on it', async () => {
     const fifo = join(dir, 'pipe.png');
     execFileSync('mkfifo', [fifo]);
     // With a blocking open this would hang until a writer appeared; the test timeout would fail it.

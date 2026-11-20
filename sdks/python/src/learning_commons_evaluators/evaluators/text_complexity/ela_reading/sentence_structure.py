@@ -6,6 +6,11 @@ complexity against the rubric for the grade, reading ratios derived from those c
 than the counts themselves. Which rubric that is, and the fact that the second step's
 features come from the first step's output, are both read from ``config.json``.
 
+Grades 3-4 and grades 5-12 are two evaluators in one contract: each has its own rubric and
+validation data, and so its own model. The contract therefore declares the pair of steps
+once per grade band, under conditions on ``grade_level``, and a run executes the pair its
+grade selects. The prompts and the schemas are the same for both bands.
+
 The intermediate analysis has no schema in the registry — ``config.json`` declares an
 ``output_schema`` for the evaluator, not one per step — so :class:`SentenceAnalysis` below
 is the SDK's own statement of what the first step returns. Its field descriptions reach the
@@ -34,7 +39,7 @@ from learning_commons_evaluators.schemas.text_complexity.ela_reading.sentence_st
 
 
 class SentenceAnalysis(BaseModel):
-    """What the ``sentence_analysis`` step returns: one pass of grammatical counting.
+    """What a ``sentence_analysis`` step returns: one pass of grammatical counting.
 
     Strict, like the generated output models: a key the model invents is a sign it answered
     a different question, and every ratio the next step reads is derived from these counts.
@@ -149,8 +154,10 @@ class SentenceStructureEvaluator(
     input_model = SentenceStructureInput
     output_model = SentenceStructureOutput
     step_models = {
-        "sentence_analysis": SentenceAnalysis,
-        "classify_complexity": SentenceStructureOutput,
+        "sentence_analysis_grades_3_4": SentenceAnalysis,
+        "sentence_analysis_grades_5_12": SentenceAnalysis,
+        "classify_complexity_grades_3_4": SentenceStructureOutput,
+        "classify_complexity_grades_5_12": SentenceStructureOutput,
     }
     computations = {
         # Keyed by the function name each entry declares under implementation.python, so a

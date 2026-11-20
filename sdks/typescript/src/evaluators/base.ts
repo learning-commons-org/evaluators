@@ -17,6 +17,14 @@ import { createProvider } from '../providers/index.js';
 import type { LLMProvider } from '../providers/index.js';
 
 /**
+ * The request field for an effort, or nothing: left off rather than set to undefined, so a
+ * provider sees no key it was never meant to get.
+ */
+export function withReasoningEffort(effort: string | undefined): { reasoningEffort?: string } {
+  return effort === undefined ? {} : { reasoningEffort: effort };
+}
+
+/**
  * Longest injected-provider label telemetry sends after `custom:` (spec §3.4),
  * in characters (code points, as in the Python SDK). The label is the only
  * caller-written free text in the event.
@@ -75,8 +83,8 @@ type NormalizedTelemetryOptions = Required<Pick<TelemetryOptions, 'enabled'>> &
  * Two things to know before overriding:
  *
  * - The override is evaluator-wide, not per call site. `VocabularyComplexityEvaluator`
- *   deliberately uses three models (Gemini 2.5 Pro for grade levels 3-4, GPT-4.1 for
- *   5-12, GPT-4o for background knowledge); an override collapses all three.
+ *   deliberately uses two models (Gemini 3.8 Flash for grade levels 3-4, gpt-6-luna for
+ *   5-12 and for background knowledge); an override collapses both.
  * - Every evaluator on `defineSingleStepEvaluator` takes its model from its own contract
  *   (`evals/<domain>/<skill>/<evaluator>/config.json`), so an override diverges from the
  *   shared cross-language config rather than from an SDK default.
@@ -551,6 +559,36 @@ export abstract class BaseEvaluator {
 
       throw new InputValidationError(
         `Invalid grade level "${gradeLevel}". Supported grade levels for this evaluator: ${validList}`
+      );
+    }
+  }
+
+  /**
+   * The reasoning effort to send for a step whose contract declares `declared`.
+   *
+   * Dropped under `modelOverride`: the value was validated for the model the contract
+   * declares, and which values another model accepts, or whether it reasons at all, is that
+   * model's own property. Dropped for an injected `llmProvider` too: the value is in the
+   * declared vendor's terms, and the caller's provider may not take it.
+   */
+  protected effectiveReasoningEffort(declared: string | undefined): string | undefined {
+    return this.config.modelOverride || this.config.llmProvider ? undefined : declared;
+  }
+
+  /**
+   * Refuse a contract that declares `generation.reasoning_effort`, for an evaluator that
+   * does not send one yet. Running without it would evaluate at the model's default effort,
+   * which the contract does not describe, and an SDK that does send it would return
+   * different results for the same contract.
+   */
+  protected refuseReasoningEffort(
+    steps: ReadonlyArray<{ id: string; generation?: { temperature?: number | null; reasoning_effort?: string } }>,
+  ): void {
+    const declaring = steps.filter((step) => step.generation?.reasoning_effort !== undefined).map((step) => step.id);
+    if (declaring.length > 0) {
+      throw new ConfigurationError(
+        `${this.metadata.name} does not support generation.reasoning_effort yet; ` +
+          `its config.json declares one for ${declaring.join(', ')}.`
       );
     }
   }
