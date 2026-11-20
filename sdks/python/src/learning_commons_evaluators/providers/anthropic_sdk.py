@@ -16,7 +16,7 @@ Each call builds its own client and closes it before returning; see
 from __future__ import annotations
 
 import time
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -136,12 +136,20 @@ class AnthropicProvider:
         """The error for a message Anthropic stopped with ``stop_reason: "refusal"``.
 
         The response is HTTP 200 and carries why on ``stop_details``: a ``category`` (for
-        example ``reasoning_extraction``) and an ``explanation``. Older models and SDK
-        releases omit ``stop_details``, so each is read defensively and may be ``None``.
+        example ``reasoning_extraction``) and an ``explanation``. An SDK release that
+        declares the field hands it over as a typed object; an older one (0.77.0, the
+        oldest supported) keeps it as the raw dictionary, so both shapes are read. Older
+        models omit it altogether, so each value may be ``None``.
         """
         details = getattr(message, "stop_details", None)
-        category = getattr(details, "category", None)
-        explanation = getattr(details, "explanation", None)
+
+        def detail(name: str) -> Any:
+            if isinstance(details, Mapping):
+                return details.get(name)
+            return getattr(details, name, None)
+
+        category = detail("category")
+        explanation = detail("explanation")
         request_id = getattr(message, "_request_id", None)
         return refused(
             self.label,

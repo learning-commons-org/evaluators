@@ -128,8 +128,22 @@ class TestGenerateStructured:
         assert isinstance(error, LLMProviderError)
         assert not isinstance(error, LLMOutputProcessingError)
 
+    async def test_a_refusal_reads_stop_details_left_as_a_dictionary(self) -> None:
+        # anthropic 0.77.0 does not declare ``stop_details`` and keeps it as the raw dictionary.
+        details = {
+            "type": "refusal",
+            "category": "reasoning_extraction",
+            "explanation": "This request was blocked.",
+        }
+        client = _client(stop_reason="refusal", stop_details=details)
+        with pytest.raises(LLMRefusalError) as exc_info:
+            await _adapter(client).generate_structured(MESSAGES, _Verdict)
+        assert exc_info.value.category == "reasoning_extraction"
+        assert exc_info.value.explanation == "This request was blocked."
+        assert "(reasoning_extraction)" in str(exc_info.value)
+
     async def test_a_refusal_without_stop_details_still_raises_the_refusal_error(self) -> None:
-        # Older models and SDK releases stop with ``refusal`` and say nothing more.
+        # Older models stop with ``refusal`` and say nothing more.
         with pytest.raises(LLMRefusalError) as exc_info:
             await _adapter(_client(stop_reason="refusal")).generate_structured(MESSAGES, _Verdict)
         error = exc_info.value
