@@ -114,8 +114,9 @@ class TestGenerateStructured:
         error = exc_info.value
         assert str(error) == (
             "anthropic:claude-haiku-4-5-20251001 refused the request (reasoning_extraction). "
-            "The provider declined it, so sending the same request again will not help; "
-            "use another model or provider."
+            "Sending the same request again will not help. If this input should be accepted, "
+            "open an issue at https://github.com/learning-commons-org/evaluators/issues with "
+            "the evaluator, the category and the request id."
         )
         assert error.category == "reasoning_extraction"
         assert error.explanation == "This request was blocked."
@@ -148,7 +149,7 @@ class TestGenerateStructured:
             await _adapter(_client(stop_reason="refusal")).generate_structured(MESSAGES, _Verdict)
         error = exc_info.value
         assert str(error).startswith(
-            "anthropic:claude-haiku-4-5-20251001 refused the request. The provider declined it"
+            "anthropic:claude-haiku-4-5-20251001 refused the request. Sending the same request"
         )
         assert error.category is None
         assert error.explanation is None

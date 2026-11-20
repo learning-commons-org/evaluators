@@ -7,6 +7,7 @@ import {
   RateLimitError,
   RequestTimeoutError,
   LLMProviderError,
+  LLMRefusalError,
   DependencyError,
   EvaluatorError,
   KnowledgeGraphError,
@@ -181,6 +182,16 @@ describe('retryable is data', () => {
     expect(
       new AuthenticationError('x', { dependency: 'openai', retryable: true }).retryable,
     ).toBe(true);
+  });
+
+  it('never makes a refusal retryable, whatever the status code', () => {
+    // A refusal is resent and refused again, billed each time.
+    expect(new LLMRefusalError('x', { dependency: 'anthropic', statusCode: 503 }).retryable).toBe(
+      false,
+    );
+    // @ts-expect-error -- a refusal takes no retryable option
+    const forced = new LLMRefusalError('x', { dependency: 'anthropic', retryable: true });
+    expect(forced.retryable).toBe(false);
   });
 });
 

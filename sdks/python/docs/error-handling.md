@@ -36,7 +36,7 @@ The three abstract classes cannot be instantiated; they exist so you can catch a
 | `ConfigurationError`, `InputValidationError`, `StandardNotFoundError` | No | Fix the call |
 | `LLMOutputProcessingError` | Yes | Resample immediately: the failure is sampling variance, so waiting only adds latency |
 | `AuthenticationError` | No | Fix the credential |
-| `LLMRefusalError` | No | Use another model or provider: the same request is refused again, and each refused call is billed |
+| `LLMRefusalError` | No | Don't resend: the same request is refused again, and each refused call is billed. If the input should be accepted, [open an issue](https://github.com/learning-commons-org/evaluators/issues) with the evaluator, `category` and `request_id`; the fix is usually in the evaluator's prompt |
 | `RateLimitError`, `NetworkError`, `RequestTimeoutError` | Yes | Back off, honouring `retry_after_ms` when present |
 | `LLMProviderError`, `KnowledgeGraphError` | Only on 5xx | Back off |
 
@@ -105,8 +105,11 @@ except RateLimitError as e:
 except LLMOutputProcessingError as e:
     log.warning("Bad model output: %s", e.validation_errors)  # loc/type only, no model text
 except LLMRefusalError as e:
-    # Before DependencyError, which it extends. Not retryable: use another model or provider.
-    log.error("Provider refused the request", extra={"model": e.model, "category": e.category})
+    # Before DependencyError, which it extends. Not retryable; report it if the input should pass.
+    log.error(
+        "Provider refused the request",
+        extra={"model": e.model, "category": e.category, "request_id": e.request_id},
+    )
     raise
 except DependencyError as e:
     log.error(

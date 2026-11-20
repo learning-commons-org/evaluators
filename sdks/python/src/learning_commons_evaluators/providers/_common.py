@@ -8,6 +8,7 @@ from collections.abc import Callable, Sequence
 from typing import TypeVar
 
 from learning_commons_evaluators.errors import (
+    ISSUES_URL,
     ConfigurationError,
     DependencyId,
     LLMOutputProcessingError,
@@ -142,8 +143,9 @@ def refused(
     """
     suffix = f" ({category})" if category else ""
     return LLMRefusalError(
-        f"{label} refused the request{suffix}. The provider declined it, so sending the "
-        "same request again will not help; use another model or provider.",
+        f"{label} refused the request{suffix}. Sending the same request again will not help. "
+        f"If this input should be accepted, open an issue at {ISSUES_URL} with the "
+        "evaluator, the category and the request id.",
         dependency=dependency,
         model=model,
         category=category,

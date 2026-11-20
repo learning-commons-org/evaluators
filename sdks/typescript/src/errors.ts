@@ -172,7 +172,14 @@ export class LLMProviderError extends DependencyError {
   }
 }
 
-export interface LLMRefusalErrorOptions extends DependencyErrorOptions {
+/**
+ * Where a caller reports a refusal of input the evaluator should accept. The fix is
+ * usually in the evaluator's prompt, so a refusal is reported to us, not worked around.
+ */
+export const ISSUES_URL = 'https://github.com/learning-commons-org/evaluators/issues';
+
+/** {@link DependencyErrorOptions} without `retryable`: a refusal is never retryable. */
+export interface LLMRefusalErrorOptions extends Omit<DependencyErrorOptions, 'retryable'> {
   /** The provider's own label for why it refused, e.g. Anthropic's `reasoning_extraction`. */
   category?: string | null;
   /** The provider's wording for the refusal. */
@@ -185,7 +192,8 @@ export interface LLMRefusalErrorOptions extends DependencyErrorOptions {
  * A refusal is the provider's decision about the request, not a malformed
  * completion, so it is a dependency failure rather than an output one, and it is
  * never retryable: the same request is refused again, and each refused call is
- * billed. `category` and `explanation` are the provider's, passed through
+ * billed. It takes no `retryable` option, and a status code does not make it
+ * retryable. `category` and `explanation` are the provider's, passed through
  * unchanged; both are `null` when the provider gave none.
  */
 export class LLMRefusalError extends LLMProviderError {
@@ -193,7 +201,7 @@ export class LLMRefusalError extends LLMProviderError {
   readonly explanation: string | null;
 
   constructor(message: string, options: LLMRefusalErrorOptions) {
-    super(message, options);
+    super(message, { ...options, retryable: false });
     this.name = 'LLMRefusalError';
     this.category = options.category ?? null;
     this.explanation = options.explanation ?? null;
@@ -212,8 +220,9 @@ export function refused(
 ): LLMRefusalError {
   const suffix = options.category ? ` (${options.category})` : '';
   return new LLMRefusalError(
-    `${label} refused the request${suffix}. The provider declined it, so sending the ` +
-      'same request again will not help; use another model or provider.',
+    `${label} refused the request${suffix}. Sending the same request again will not help. ` +
+      `If this input should be accepted, open an issue at ${ISSUES_URL} with the ` +
+      'evaluator, the category and the request id.',
     options
   );
 }

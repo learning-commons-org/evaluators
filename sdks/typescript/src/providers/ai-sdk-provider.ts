@@ -87,9 +87,16 @@ interface RefusalSignals {
  * explanation under `providerMetadata.anthropic.stopDetails`. Checked before the
  * result's `output` is read: that getter throws a bare "No output generated." for a
  * refusal, which says nothing about why. Older models omit the stop details, so the
- * category and explanation may be absent.
+ * category and explanation may be absent. `cause` is the AI SDK error the refusal
+ * surfaced as, when it surfaced as one.
  */
-function throwIfRefused(result: RefusalSignals, type: ProviderConfig['type'], label: string, model: string): void {
+function throwIfRefused(
+  result: RefusalSignals,
+  type: ProviderConfig['type'],
+  label: string,
+  model: string,
+  cause?: unknown
+): void {
   if (type !== 'anthropic' || result.finishReason !== 'content-filter') return;
   const details = result.providerMetadata?.anthropic?.stopDetails as
     | { category?: unknown; explanation?: unknown }
@@ -102,6 +109,7 @@ function throwIfRefused(result: RefusalSignals, type: ProviderConfig['type'], la
     category: typeof details?.category === 'string' ? details.category : null,
     explanation: typeof details?.explanation === 'string' ? details.explanation : null,
     requestId: typeof requestId === 'string' ? requestId : null,
+    ...(cause !== undefined ? { cause } : {}),
   });
 }
 
@@ -166,19 +174,33 @@ export class VercelAIProvider implements LLMProvider {
     const systemMsg = request.messages.find((m) => m.role === 'system');
     const nonSystemMessages = request.messages.filter((m) => m.role !== 'system');
 
-    const result = await aiGenerateText({
-      model,
-      ...(systemMsg ? { system: systemMsg.content } : {}),
-      messages: withAttachments(nonSystemMessages, request.attachments),
-      output: Output.object({ schema: request.schema }),
-      // A null temperature means "send nothing" — see config.schema.json for
-      // which models require that.
-      ...(request.temperature != null ? { temperature: request.temperature } : {}),
-      maxRetries: this.config.maxRetries ?? 0,
-      // maxOutputTokens is the vendor option; `maxTokens` is silently discarded.
-      ...(request.maxTokens !== undefined ? { maxOutputTokens: request.maxTokens } : {}),
-      ...reasoningOptions(this.config.type, request.reasoningEffort),
-    });
+    // The last step as the AI SDK reports it, captured before the SDK parses the output.
+    let finished: RefusalSignals | undefined;
+    let result;
+    try {
+      result = await aiGenerateText({
+        model,
+        ...(systemMsg ? { system: systemMsg.content } : {}),
+        messages: withAttachments(nonSystemMessages, request.attachments),
+        output: Output.object({ schema: request.schema }),
+        // A null temperature means "send nothing" — see config.schema.json for
+        // which models require that.
+        ...(request.temperature != null ? { temperature: request.temperature } : {}),
+        maxRetries: this.config.maxRetries ?? 0,
+        // maxOutputTokens is the vendor option; `maxTokens` is silently discarded.
+        ...(request.maxTokens !== undefined ? { maxOutputTokens: request.maxTokens } : {}),
+        ...reasoningOptions(this.config.type, request.reasoningEffort),
+        onEnd: (event) => {
+          finished = event;
+        },
+      });
+    } catch (error) {
+      // Later 7.x releases parse the output inside `generateText` whenever the response
+      // has text, refused or not, so a refusal that carries partial text surfaces here as
+      // a parse error. `onEnd` runs before that parse, so it still has the stop details.
+      if (finished) throwIfRefused(finished, this.config.type, this.label, this.model, error);
+      throw error;
+    }
     // Before `output` is read: for a refusal that getter throws without saying why.
     throwIfRefused(result, this.config.type, this.label, this.model);
     const { output, usage } = result;
