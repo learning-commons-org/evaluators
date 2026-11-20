@@ -7,7 +7,13 @@ import time
 from collections.abc import Callable, Sequence
 from typing import TypeVar
 
-from learning_commons_evaluators.errors import ConfigurationError, LLMOutputProcessingError
+from learning_commons_evaluators.errors import (
+    ISSUES_URL,
+    ConfigurationError,
+    DependencyId,
+    LLMOutputProcessingError,
+    LLMRefusalError,
+)
 from learning_commons_evaluators.providers.base import (
     ImageAttachment,
     Message,
@@ -116,3 +122,33 @@ def no_structured_output(label: str, detail: str | None) -> LLMOutputProcessingE
     """
     suffix = f" ({detail})" if detail else ""
     return LLMOutputProcessingError(f"{label} returned no structured output{suffix}.")
+
+
+def refused(
+    label: str,
+    *,
+    dependency: DependencyId,
+    model: str | None,
+    category: str | None = None,
+    explanation: str | None = None,
+    request_id: str | None = None,
+) -> LLMRefusalError:
+    """The error for a call the provider answered by declining to serve it.
+
+    Raised from the vendor's own refusal signal, before the text is read: a refusal is the
+    provider's decision about the request, so it must not surface as an empty or malformed
+    completion, which would be resampled and billed again. ``category`` and ``explanation``
+    are the provider's, passed through unchanged; the message names the category so the
+    failure is diagnosable without reading the attributes.
+    """
+    suffix = f" ({category})" if category else ""
+    return LLMRefusalError(
+        f"{label} refused the request{suffix}. Sending the same request again will not help. "
+        f"If this input should be accepted, open an issue at {ISSUES_URL} with the "
+        "evaluator, the category and the request id.",
+        dependency=dependency,
+        model=model,
+        category=category,
+        explanation=explanation,
+        request_id=request_id,
+    )
