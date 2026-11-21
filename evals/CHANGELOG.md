@@ -5,6 +5,20 @@ All notable changes to the evaluator prompt files will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.11.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.10.0...evals-prompts-v1.11.0) (2026-11-21)
+
+
+### Features
+
+* add provider-agnostic generation.reasoning_effort to the contract and both SDKs ([#438](https://github.com/learning-commons-org/evaluators/issues/438)) ([99e678a](https://github.com/learning-commons-org/evaluators/commit/99e678abfc7d2eaa690e953da6090aece79645b7))
+* **evals:** move Vocabulary Complexity to gpt-6-luna and gemini-3.8-flash ahead of the gpt-4o, gpt-4.1 and gemini-2.5-pro retirements ([#421](https://github.com/learning-commons-org/evaluators/issues/421)) ([426eeb4](https://github.com/learning-commons-org/evaluators/commit/426eeb47aae7d1575b91e6ded751a3c0a672443f))
+* **sentence-structure:** move grades 3-4 to gpt-6-luna and grades 5-12 to gpt-5.5 at reasoning effort none ([#436](https://github.com/learning-commons-org/evaluators/issues/436)) ([aa496c7](https://github.com/learning-commons-org/evaluators/commit/aa496c79dbf0b50db419974e4a1a18273a9fb309))
+
+
+### Bug Fixes
+
+* **sentence-structure:** align feature names, flooring, and rubric boundaries ([#404](https://github.com/learning-commons-org/evaluators/issues/404)) ([e1b5dfb](https://github.com/learning-commons-org/evaluators/commit/e1b5dfb4631ffff37819e18d040efca04506bb5d))
+
 ## [1.10.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.9.0...evals-prompts-v1.10.0) (2026-11-04)
 
 
