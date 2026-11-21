@@ -35,7 +35,9 @@ MESSAGES: list[Message] = [
 ]
 
 _DEFS = json.loads(
-    (Path(__file__).resolve().parents[4] / "evals/_schemas/config.schema.json").read_text()
+    (Path(__file__).resolve().parents[4] / "evals/_schemas/config.schema.json").read_text(
+        encoding="utf-8"
+    )
 )["$defs"]
 
 _OPENAI = _DEFS["ReasoningEffortOpenAI"]["enum"]

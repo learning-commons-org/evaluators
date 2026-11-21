@@ -265,7 +265,9 @@ class TestLoadImage:
             load_image("f", path, BOUNDS, position="before_text")
 
     def test_rejects_a_path_that_is_not_a_regular_file(self, tmp_path: Path) -> None:
-        with pytest.raises(InputValidationError, match="is not a regular file"):
+        # Windows refuses to open a directory at all, so it never reaches the file-type check.
+        reason = "could not read file" if sys.platform == "win32" else "is not a regular file"
+        with pytest.raises(InputValidationError, match=reason):
             load_image("f", str(tmp_path), BOUNDS, position="before_text")
 
     @pytest.mark.skipif(sys.platform == "win32", reason="no FIFOs on Windows")
