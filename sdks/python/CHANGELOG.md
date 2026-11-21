@@ -2,6 +2,24 @@
 
 All notable changes to the `learning-commons-evaluators` Python SDK will be documented in this file.
 
+## [1.3.0](https://github.com/learning-commons-org/evaluators/compare/sdks-python-v1.2.0...sdks-python-v1.3.0) (2026-11-21)
+
+
+### Features
+
+* add provider-agnostic generation.reasoning_effort to the contract and both SDKs ([#438](https://github.com/learning-commons-org/evaluators/issues/438)) ([99e678a](https://github.com/learning-commons-org/evaluators/commit/99e678abfc7d2eaa690e953da6090aece79645b7))
+* **evals:** move Vocabulary Complexity to gpt-6-luna and gemini-3.8-flash ahead of the gpt-4o, gpt-4.1 and gemini-2.5-pro retirements ([#421](https://github.com/learning-commons-org/evaluators/issues/421)) ([426eeb4](https://github.com/learning-commons-org/evaluators/commit/426eeb47aae7d1575b91e6ded751a3c0a672443f))
+* **python-sdk:** add llm_provider to inject a caller-supplied LLM provider ([#405](https://github.com/learning-commons-org/evaluators/issues/405)) ([270dd6f](https://github.com/learning-commons-org/evaluators/commit/270dd6f9aaa6fc7cd412dc56173df26b9fa6a803))
+* **python-sdk:** add per-provider extras and report a missing vendor SDK ([#410](https://github.com/learning-commons-org/evaluators/issues/410)) ([696378b](https://github.com/learning-commons-org/evaluators/commit/696378b73fb522a96e05bf57635114af2355365a))
+* report an injected llm_provider as custom:&lt;label&gt; in telemetry ([#411](https://github.com/learning-commons-org/evaluators/issues/411)) ([cc63a62](https://github.com/learning-commons-org/evaluators/commit/cc63a62abc19b433986a9e13826e1c5fc6ab1fd7))
+* **sentence-structure:** move grades 3-4 to gpt-6-luna and grades 5-12 to gpt-5.5 at reasoning effort none ([#436](https://github.com/learning-commons-org/evaluators/issues/436)) ([aa496c7](https://github.com/learning-commons-org/evaluators/commit/aa496c79dbf0b50db419974e4a1a18273a9fb309))
+
+
+### Bug Fixes
+
+* **python-sdk:** accept older openai and anthropic releases ([#409](https://github.com/learning-commons-org/evaluators/issues/409)) ([03a297b](https://github.com/learning-commons-org/evaluators/commit/03a297bd9dcdc8dd780e5e27ee803b0c1f6e3994))
+* **sentence-structure:** align feature names, flooring, and rubric boundaries ([#404](https://github.com/learning-commons-org/evaluators/issues/404)) ([e1b5dfb](https://github.com/learning-commons-org/evaluators/commit/e1b5dfb4631ffff37819e18d040efca04506bb5d))
+
 ## [1.2.0](https://github.com/learning-commons-org/evaluators/compare/sdks-python-v1.1.0...sdks-python-v1.2.0) (2026-11-04)
 
 
