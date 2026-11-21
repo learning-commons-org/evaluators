@@ -440,6 +440,20 @@ describe('SentenceStructureEvaluator - grade bands', () => {
     }
   });
 
+  it.each([
+    { grade: '3', caps: [12000, 2000] },
+    { grade: '7', caps: [12000, 2000] },
+  ] as const)('sends each step its declared output cap at grade $grade', async ({ grade, caps }) => {
+    // The analysis step is the one that has run away; a cap makes that fail fast.
+    const evaluator = new SentenceStructureEvaluator({ openaiApiKey: 'k', telemetry: false });
+    const used = providersOf(evaluator).get(stepsFor(grade)[0].id)!;
+    respond(used);
+
+    await evaluator.evaluate({ text: 'The cat sat. It slept.', grade_level: grade });
+
+    expect(vi.mocked(used.generateStructured).mock.calls.map(([request]) => request.maxTokens)).toEqual(caps);
+  });
+
   it('does not send the declared reasoning effort to an overriding model', async () => {
     // The value was validated on the declared model; the override is a different one,
     // and may not be a reasoning model at all.

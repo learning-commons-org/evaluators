@@ -81,13 +81,28 @@ class MaxOutputTokensSchema(unittest.TestCase):
         step["generation"] = {"temperature": None, "reasoning_effort": "low", "max_output_tokens": 8000}
         self.assertEqual([e.message for e in Draft202012Validator(SCHEMA).iter_errors(config)], [])
 
-    def test_no_registry_contract_declares_one_yet(self) -> None:
-        # Values come with their own change; until then the SDKs pass nothing.
+    def test_the_registry_declares_a_cap_on_exactly_these_steps(self) -> None:
+        # Each value was sized for its step's model from that step's own runs, so adding or
+        # changing one is a deliberate change here too.
+        declared = {}
         for path in sorted((ROOT / "evals").glob("**/config.json")):
             config = json.loads(path.read_text())
             for step in config.get("steps", []):
-                with self.subTest(path=str(path.relative_to(ROOT)), step=step.get("id")):
-                    self.assertNotIn("max_output_tokens", step.get("generation") or {})
+                cap = (step.get("generation") or {}).get("max_output_tokens")
+                if cap is not None:
+                    declared[f"{path.parent.name}/{step.get('id')}"] = cap
+        self.assertEqual(
+            declared,
+            {
+                "sentence-structure/sentence_analysis_grades_3_4": 12000,
+                "sentence-structure/sentence_analysis_grades_5_12": 12000,
+                "sentence-structure/classify_complexity_grades_3_4": 2000,
+                "sentence-structure/classify_complexity_grades_5_12": 2000,
+                "vocabulary-complexity/background_knowledge": 2000,
+                "vocabulary-complexity/vocab_complexity_grades_3_4": 12000,
+                "vocabulary-complexity/vocab_complexity_other_grades": 4000,
+            },
+        )
 
 
 if __name__ == "__main__":
