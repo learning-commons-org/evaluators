@@ -278,15 +278,15 @@ describe('VocabularyComplexityEvaluator - complexity model per grade', () => {
   const BACKGROUND = 'openai:gpt-6-luna';
 
   const CASES = [
-    { grade: '3', provider: 'grades34ComplexityProvider', model: 'google:gemini-3.8-flash' },
-    { grade: '4', provider: 'grades34ComplexityProvider', model: 'google:gemini-3.8-flash' },
-    { grade: '5', provider: 'otherGradesComplexityProvider', model: 'openai:gpt-6-luna' },
-    { grade: '12', provider: 'otherGradesComplexityProvider', model: 'openai:gpt-6-luna' },
+    { grade: '3', provider: 'grades34ComplexityProvider', model: 'google:gemini-3.8-flash', cap: 12000 },
+    { grade: '4', provider: 'grades34ComplexityProvider', model: 'google:gemini-3.8-flash', cap: 12000 },
+    { grade: '5', provider: 'otherGradesComplexityProvider', model: 'openai:gpt-6-luna', cap: 4000 },
+    { grade: '12', provider: 'otherGradesComplexityProvider', model: 'openai:gpt-6-luna', cap: 4000 },
   ] as const;
 
   it.each(CASES)(
     'grade $grade runs $model and reports it',
-    async ({ grade, provider, model }) => {
+    async ({ grade, provider, model, cap }) => {
       const evaluator = new VocabularyComplexityEvaluator({
         googleApiKey: 'test-google-key',
         openaiApiKey: 'test-openai-key',
@@ -330,6 +330,9 @@ describe('VocabularyComplexityEvaluator - complexity model per grade', () => {
       // The model that is reported. These two disagreeing is the bug. A branch that runs
       // the background model again names it once (SPEC §3.4).
       expect(result.metadata.model).toBe(model === BACKGROUND ? model : `${BACKGROUND}+${model}`);
+      // Each step is sent its declared output cap; the prose step takes it as an option.
+      expect(vi.mocked(background.generateText).mock.calls.at(-1)?.[2]).toEqual({ maxTokens: 2000 });
+      expect(vi.mocked(complexity.generateStructured).mock.calls.at(-1)?.[0].maxTokens).toBe(cap);
     },
   );
 });
