@@ -263,6 +263,55 @@ class TestRefusesAContractItCannotRun:
         )
         assert evaluator.metadata.id == "demo.area.chain"
 
+    def test_accepts_a_pair_of_steps_per_branch_whose_second_produces_the_output(self) -> None:
+        # Sentence Structure's shape, which "every step after the last unconditional one"
+        # would wrongly reject: each grade band runs its own first step and then its own
+        # second, so the first steps are conditional and still never end a run.
+        low = {"input": "grade_level", "in": ["3"]}
+        high = {"input": "grade_level", "in": ["4", "5"]}
+        raw = contract().model_dump(by_alias=True)
+        notes, rate = raw["steps"]
+        rate["prompt"]["placeholders"]["notes"]["source"] = "steps.notes_high.output"
+        rate_low = json.loads(json.dumps(rate))
+        rate_low["prompt"]["placeholders"]["notes"]["source"] = "steps.notes_low.output"
+        raw["steps"] = [
+            {**notes, "id": "notes_low", "condition": low},
+            {**notes, "id": "notes_high", "condition": high},
+            {**rate_low, "id": "rate_low", "condition": low},
+            {**rate, "id": "rate_high", "condition": high},
+        ]
+        raw["preprocessing"] = [
+            entry
+            if entry["id"] != "shouted"
+            else {
+                **entry,
+                "id": "shouted_high",
+                "input": "steps.notes_high.output",
+                "condition": high,
+            }
+            for entry in raw["preprocessing"]
+        ] + [
+            {
+                **next(e for e in raw["preprocessing"] if e["id"] == "shouted"),
+                "id": "shouted_low",
+                "input": "steps.notes_low.output",
+                "condition": low,
+            }
+        ]
+        models = {"notes_low": None, "notes_high": None, "rate_low": ChainOutput}
+        define(
+            steps=raw["steps"],
+            preprocessing=raw["preprocessing"],
+            step_models={**models, "rate_high": ChainOutput},
+        )
+        # The second step of a pair is what ends the run, so it is still held to the output.
+        with pytest.raises(ValueError, match='Step "rate_high".*can end a run'):
+            define(
+                steps=raw["steps"],
+                preprocessing=raw["preprocessing"],
+                step_models={**models, "rate_high": Notes},
+            )
+
     def test_refuses_an_optional_step(self) -> None:
         raw = contract().model_dump(by_alias=True)
         raw["steps"][0]["optional"] = True
@@ -793,3 +842,51 @@ class TestReasoningEffort:
             define(steps=self._steps(None, "low"))(**KEYS)
         # An openai step's effort needs no check: its SDK passes request data through.
         define(steps=self._steps("none", None))(**KEYS)
+
+
+class TestMaxOutputTokens:
+    """Each step sends the cap it declares, on the prose and the structured path alike."""
+
+    @staticmethod
+    def _steps(notes: int | None, rate: int | None) -> list[dict[str, Any]]:
+        steps = contract().model_dump(by_alias=True)["steps"]
+        for step, cap in zip(steps, (notes, rate), strict=True):
+            if cap is not None:
+                step["generation"] = {**step["generation"], "max_output_tokens": cap}
+        return steps
+
+    async def test_each_step_sends_only_its_own_declared_cap(
+        self, providers: ProviderFactory
+    ) -> None:
+        # ``notes`` is a prose step, ``rate`` a structured one.
+        await define(steps=self._steps(2000, None))(**KEYS).evaluate(**INPUT)
+        assert [call["max_tokens"] for call in providers.calls] == [2000, NOT_PASSED]
+
+        providers.calls.clear()
+        await define(steps=self._steps(None, 800))(**KEYS).evaluate(**INPUT)
+        assert [call["max_tokens"] for call in providers.calls] == [NOT_PASSED, 800]
+
+    async def test_an_override_drops_every_steps_cap(self, providers: ProviderFactory) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        evaluator = define(steps=self._steps(2000, 800))(
+            anthropic_api_key="a", model_override=override
+        )
+        await evaluator.evaluate(**INPUT)
+        assert [call["max_tokens"] for call in providers.calls] == [NOT_PASSED, NOT_PASSED]
+
+    def test_the_override_warning_lists_each_declared_cap_once(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            define(steps=self._steps(2000, 800))(anthropic_api_key="a", model_override=override)
+        [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert "output cap its contract declares (800, 2000 tokens) is not sent" in (
+            record.getMessage()
+        )
+
+    async def test_an_injected_provider_is_not_handed_any_cap(self) -> None:
+        injected = FakeProvider(ProviderConfig(type=Provider.OPENAI, model="mine"), _verdict)
+        evaluator = define(steps=self._steps(2000, 800))(llm_provider=injected)
+        await evaluator.evaluate(**INPUT)
+        assert [call["max_tokens"] for call in injected.calls] == [NOT_PASSED, NOT_PASSED]

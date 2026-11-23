@@ -74,7 +74,7 @@ class FakeProvider:
         schema: type[BaseModel],
         *,
         temperature: float | None = None,
-        max_tokens: int | None = None,
+        max_tokens: Any = NOT_PASSED,
         attachments: Sequence[ImageAttachment] = (),
         reasoning_effort: Any = NOT_PASSED,
     ) -> LLMResponse[Any]:
@@ -85,6 +85,8 @@ class FakeProvider:
                 "temperature": temperature,
                 "attachments": tuple(attachments),
                 "reasoning_effort": reasoning_effort,
+                "max_tokens": max_tokens,
+                "model": self.config.model,
             }
         )
         if self.failures:
@@ -101,7 +103,7 @@ class FakeProvider:
         messages: Sequence[Message],
         *,
         temperature: float | None = None,
-        max_tokens: int | None = None,
+        max_tokens: Any = NOT_PASSED,
         reasoning_effort: Any = NOT_PASSED,
     ) -> TextGenerationResponse:
         # Recorded alongside the structured calls, with ``schema`` absent, so a test reads
@@ -112,6 +114,8 @@ class FakeProvider:
                 "schema": None,
                 "temperature": temperature,
                 "reasoning_effort": reasoning_effort,
+                "max_tokens": max_tokens,
+                "model": self.config.model,
             }
         )
         if self.failures:

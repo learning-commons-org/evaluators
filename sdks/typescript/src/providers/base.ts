@@ -37,6 +37,13 @@ export interface LLMRequest<T> {
   schema: z.ZodSchema<T>;
   /** `null` sends no temperature at all, for models that reject an explicit value. */
   temperature?: number | null;
+  /**
+   * The most tokens the model may generate, reasoning tokens included on a reasoning model.
+   * Absent leaves the provider's own limit. An evaluator sets it from a step's
+   * `generation.max_output_tokens`, only on the model its contract declares: never under
+   * `modelOverride` or for an injected `llmProvider`. A completion that stops at the limit
+   * is reported as an `LLMOutputProcessingError`, not returned cut off.
+   */
   maxTokens?: number;
   /** Images for the final user turn, in array order, each before or after its text as its `position` says. */
   attachments?: readonly ImageAttachment[];
@@ -62,6 +69,18 @@ export interface LLMResponse<T> {
     outputTokens: number;
   };
   latencyMs: number;
+}
+
+/**
+ * Optional settings for {@link LLMProvider.generateText}, passed as its third argument.
+ *
+ * An object rather than another positional parameter, so a later setting is added here
+ * without changing the method's signature again. An evaluator passes it only when it has a
+ * setting to send, so an implementation that takes two arguments is called as before.
+ */
+export interface TextGenerationOptions {
+  /** As {@link LLMRequest.maxTokens}. */
+  maxTokens?: number;
 }
 
 /**
@@ -96,9 +115,14 @@ export interface LLMProvider {
 
   /**
    * Generate plain text from LLM. `null` sends no temperature; omitting the
-   * argument falls back to `ProviderConfig.temperature`.
+   * argument falls back to `ProviderConfig.temperature`. `options` is optional, and an
+   * implementation may leave the parameter out entirely.
    */
-  generateText(messages: Message[], temperature?: number | null): Promise<TextGenerationResponse>;
+  generateText(
+    messages: Message[],
+    temperature?: number | null,
+    options?: TextGenerationOptions
+  ): Promise<TextGenerationResponse>;
 }
 
 /**

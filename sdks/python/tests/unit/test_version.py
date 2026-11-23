@@ -23,7 +23,9 @@ SDK_ROOT = Path(__file__).resolve().parents[2]
 #: The literal in the ``except`` arm, read from source rather than by importing, so the
 #: test sees what a reader sees even when metadata has already supplied something else.
 FALLBACK = re.search(
-    r'^\s+__version__ = "([^"]+)"', Path(version_module.__file__).read_text(), re.MULTILINE
+    r'^\s+__version__ = "([^"]+)"',
+    Path(version_module.__file__).read_text(encoding="utf-8"),
+    re.MULTILINE,
 )
 
 
@@ -68,7 +70,9 @@ def test_the_fallback_matches_the_version_the_package_declares() -> None:
     Without this, the two drift the first time one is edited by hand, and the fallback
     silently reports a version the package has not been for several releases.
     """
-    declared = tomllib.loads((SDK_ROOT / "pyproject.toml").read_text())["project"]["version"]
+    declared = tomllib.loads((SDK_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"][
+        "version"
+    ]
     assert FALLBACK is not None
     assert FALLBACK.group(1) == declared
 

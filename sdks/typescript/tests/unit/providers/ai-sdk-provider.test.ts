@@ -29,8 +29,11 @@ async function loadProvider(
     output: { ok: true },
     usage: { inputTokens: 10, outputTokens: 5 },
   });
+  // The real error class, so `NoObjectGeneratedError.isInstance` behaves as it does in use.
+  const { NoObjectGeneratedError } = await vi.importActual<typeof import('ai')>('ai');
   vi.doMock('ai', () => ({
     generateText,
+    NoObjectGeneratedError,
     Output: { object: vi.fn((cfg) => cfg) },
   }));
 
@@ -239,6 +242,18 @@ describe('VercelAIProvider - generateStructured', () => {
   });
 });
 
+/** The parse error the AI SDK throws from inside `generateText`. */
+async function noObjectGeneratedError(finishReason: string) {
+  const { NoObjectGeneratedError } = await vi.importActual<typeof import('ai')>('ai');
+  return new NoObjectGeneratedError({
+    message: 'No object generated: could not parse the response.',
+    text: '{"ok":',
+    response: { id: 'resp_1', timestamp: new Date(0), modelId: 'claude-opus-5-5' },
+    usage: { inputTokens: 10, outputTokens: 3 } as never,
+    finishReason: finishReason as never,
+  });
+}
+
 describe('VercelAIProvider - refusals', () => {
   /**
    * What the AI SDK returns when Anthropic refuses: the `content-filter` finish reason,
@@ -274,10 +289,11 @@ describe('VercelAIProvider - refusals', () => {
     expect(error).toMatchObject({
       name: 'LLMRefusalError',
       message:
-        'anthropic:claude-opus-5-5 refused the request (reasoning_extraction). ' +
-        'Sending the same request again will not help. If this input should be accepted, ' +
-        'open an issue at https://github.com/learning-commons-org/evaluators/issues with ' +
-        'the evaluator, the category and the request id.',
+        'The model declined this request (provider: anthropic, model: claude-opus-5-5, ' +
+        "reason reported: reasoning_extraction). Retrying with the same input won't change " +
+        'the result. If you believe this input should be accepted, please report it at ' +
+        'https://github.com/learning-commons-org/evaluators/issues and include the ' +
+        'evaluator name, the category, and the request ID.',
       category: 'reasoning_extraction',
       explanation: 'This request was blocked.',
       dependency: 'anthropic',
@@ -309,7 +325,7 @@ describe('VercelAIProvider - refusals', () => {
 
     expect(error).toMatchObject({ name: 'LLMRefusalError', category: null, explanation: null });
     expect((error as Error).message).toMatch(
-      /^anthropic:claude-opus-5-5 refused the request\. Sending the same request/
+      /^The model declined this request \(provider: anthropic, model: claude-opus-5-5\)\. Retrying/
     );
   });
 
@@ -318,7 +334,7 @@ describe('VercelAIProvider - refusals', () => {
     // text, so a refusal with partial text rejects with a parse error instead of returning.
     // onEnd has already reported the stop by then.
     const ctx = await loadProvider();
-    const parseError = new Error('No object generated: could not parse the response.');
+    const parseError = await noObjectGeneratedError('content-filter');
     ctx.generateText.mockImplementationOnce(
       async (options: { onEnd: (event: unknown) => void }) => {
         options.onEnd({
@@ -345,7 +361,7 @@ describe('VercelAIProvider - refusals', () => {
 
   it('leaves a parse error after a normal stop as it was', async () => {
     const ctx = await loadProvider();
-    const parseError = new Error('No object generated: could not parse the response.');
+    const parseError = await noObjectGeneratedError('stop');
     ctx.generateText.mockImplementationOnce(
       async (options: { onEnd: (event: unknown) => void }) => {
         options.onEnd({ finishReason: 'stop', providerMetadata: { anthropic: {} } });

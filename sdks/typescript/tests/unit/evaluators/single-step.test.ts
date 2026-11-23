@@ -171,6 +171,54 @@ describe('defineSingleStepEvaluator reads its behaviour from the contract', () =
     expect(vi.mocked(provider.generateStructured).mock.calls[0][0].temperature).toBe(0.5);
   });
 
+  describe('output cap', () => {
+    const capStep = (cap: number) => ({
+      steps: [
+        {
+          id: 'evaluate_thing',
+          model: { provider: 'openai', name: 'gpt-5.5' },
+          generation: { temperature: 0, max_output_tokens: cap },
+          prompt: { placeholders: { text: {}, grade_level: {}, fk_score: {} } },
+        },
+      ],
+    });
+    /** The request the last built-in provider was sent. */
+    const lastRequest = () => {
+      const provider = vi.mocked(createProvider).mock.results.at(-1)!.value as LLMProvider;
+      return vi.mocked(provider.generateStructured).mock.calls[0][0];
+    };
+
+    it('sends the cap the step declares to its own model, as maxTokens', async () => {
+      await new (define(capStep(4096)))({ openaiApiKey: 'k', telemetry: false }).evaluate(INPUT);
+
+      expect(lastRequest().maxTokens).toBe(4096);
+    });
+
+    it('leaves the key off when the step declares none', async () => {
+      await new (define())({ googleApiKey: 'k', telemetry: false }).evaluate(INPUT);
+
+      expect(lastRequest()).not.toHaveProperty('maxTokens');
+    });
+
+    it('drops it under modelOverride', async () => {
+      const evaluator = new (define(capStep(4096)))({
+        anthropicApiKey: 'k',
+        telemetry: false,
+        modelOverride: { provider: Provider.Anthropic, model: 'claude-opus-5-5' },
+      });
+      await evaluator.evaluate(INPUT);
+
+      expect(lastRequest()).not.toHaveProperty('maxTokens');
+    });
+
+    it('does not hand it to an injected llmProvider', async () => {
+      const provider = fakeProvider();
+      await new (define(capStep(4096)))({ llmProvider: provider, telemetry: false }).evaluate(INPUT);
+
+      expect(vi.mocked(provider.generateStructured).mock.calls[0][0]).not.toHaveProperty('maxTokens');
+    });
+  });
+
   describe('reasoning effort', () => {
     const effortStep = (effort: string) => ({
       steps: [

@@ -25,6 +25,14 @@ export function withReasoningEffort(effort: string | undefined): { reasoningEffo
 }
 
 /**
+ * The request field for an output cap, or nothing, left off for the reason
+ * {@link withReasoningEffort} leaves an absent effort off.
+ */
+export function withMaxTokens(cap: number | undefined): { maxTokens?: number } {
+  return cap === undefined ? {} : { maxTokens: cap };
+}
+
+/**
  * Longest injected-provider label telemetry sends after `custom:` (spec §3.4),
  * in characters (code points, as in the Python SDK). The label is the only
  * caller-written free text in the event.
@@ -83,8 +91,8 @@ type NormalizedTelemetryOptions = Required<Pick<TelemetryOptions, 'enabled'>> &
  * Two things to know before overriding:
  *
  * - The override is evaluator-wide, not per call site. `VocabularyComplexityEvaluator`
- *   deliberately uses three models (Gemini 2.5 Pro for grade levels 3-4, GPT-4.1 for
- *   5-12, GPT-4o for background knowledge); an override collapses all three.
+ *   deliberately uses two models (Gemini 3.8 Flash for grade levels 3-4, gpt-6-luna for
+ *   5-12 and for background knowledge); an override collapses both.
  * - Every evaluator on `defineSingleStepEvaluator` takes its model from its own contract
  *   (`evals/<domain>/<skill>/<evaluator>/config.json`), so an override diverges from the
  *   shared cross-language config rather than from an SDK default.
@@ -572,6 +580,19 @@ export abstract class BaseEvaluator {
    * declared vendor's terms, and the caller's provider may not take it.
    */
   protected effectiveReasoningEffort(declared: string | undefined): string | undefined {
+    return this.config.modelOverride || this.config.llmProvider ? undefined : declared;
+  }
+
+  /**
+   * The output cap to send for a step whose contract declares `declared`.
+   *
+   * Dropped under `modelOverride` and for an injected `llmProvider` by the rule
+   * {@link effectiveReasoningEffort} follows: the cap was sized for the model the contract
+   * declares, and how many tokens another model needs, reasoning tokens included, is that
+   * model's own property. A cap too small for the override would cut off every answer rather
+   * than only a runaway one.
+   */
+  protected effectiveMaxOutputTokens(declared: number | undefined): number | undefined {
     return this.config.modelOverride || this.config.llmProvider ? undefined : declared;
   }
 

@@ -3,7 +3,8 @@
 Structured output sends the pydantic model's JSON schema as the message's output format,
 the same one ``messages.parse`` builds, through ``messages.create``, and validates the text
 afterwards. That order lets the stop reason be read first: a completion cut off at
-``max_tokens`` is reported as truncated rather than as a schema error. Anthropic requires
+``max_tokens`` is reported as truncated rather than as a schema error, and prose cut off
+there is reported the same way rather than returned. Anthropic requires
 ``max_tokens``. A request that names none gets :data:`DEFAULT_MAX_TOKENS`. The TypeScript
 adapter sends the model's own ceiling instead (128,000 for ``claude-opus-5``). This client
 makes non-streaming calls, which the SDK refuses above 21,333 tokens. The default is 20,000, the higher ceiling we send
@@ -152,7 +153,6 @@ class AnthropicProvider:
         explanation = detail("explanation")
         request_id = getattr(message, "_request_id", None)
         return refused(
-            self.label,
             dependency="anthropic",
             model=self._model,
             category=category if isinstance(category, str) else None,
@@ -223,11 +223,15 @@ class AnthropicProvider:
         reasoning_effort: str | None = None,
     ) -> TextGenerationResponse:
         start = time.perf_counter()
+        request = self._request(
+            messages, temperature, max_tokens, reasoning_effort=reasoning_effort
+        )
         async with self._session() as client:
-            message = await client.messages.create(
-                **self._request(
-                    messages, temperature, max_tokens, reasoning_effort=reasoning_effort
-                )
+            message = await client.messages.create(**request)
+        # A completion cut off at the output limit would otherwise read as the whole answer.
+        if getattr(message, "stop_reason", None) == "max_tokens":
+            raise truncated_output(
+                self.label, temperature=temperature, max_tokens=request["max_tokens"]
             )
         if getattr(message, "stop_reason", None) == "refusal":
             raise self._refusal(message)

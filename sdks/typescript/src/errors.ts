@@ -99,16 +99,19 @@ export abstract class EvaluationError extends EvaluatorError {}
 
 /**
  * Model response failed parsing, normalization, or its output schema.
- * Retryable immediately: the failure is sampling variance, so backing off
- * only adds latency.
+ * Retryable immediately by default: the failure is sampling variance, so backing
+ * off only adds latency. The one exception is a completion that stopped at the
+ * output limit at temperature 0, which is not variance: the same request stops at
+ * the same place again, so it is raised with `retryable: false`.
  */
 export class LLMOutputProcessingError extends EvaluationError {
   constructor(
     message: string,
     readonly validationErrors: unknown[] | null = null,
-    cause?: unknown
+    cause?: unknown,
+    options: { retryable?: boolean } = {}
   ) {
-    super(message, true, cause);
+    super(message, options.retryable ?? true, cause);
     this.name = 'LLMOutputProcessingError';
   }
 }
@@ -211,18 +214,18 @@ export class LLMRefusalError extends LLMProviderError {
 /**
  * The error for a call the provider answered by declining to serve it.
  *
- * `label` is the provider's `type:model` label. The message names the category so
- * the failure is diagnosable without reading the fields.
+ * The message names the provider, model and category so the failure is diagnosable
+ * without reading the fields, and leaves out whichever of the last two is unknown.
  */
-export function refused(
-  label: string,
-  options: LLMRefusalErrorOptions
-): LLMRefusalError {
-  const suffix = options.category ? ` (${options.category})` : '';
+export function refused(options: LLMRefusalErrorOptions): LLMRefusalError {
+  const details = [`provider: ${options.dependency}`];
+  if (options.model) details.push(`model: ${options.model}`);
+  if (options.category) details.push(`reason reported: ${options.category}`);
   return new LLMRefusalError(
-    `${label} refused the request${suffix}. Sending the same request again will not help. ` +
-      `If this input should be accepted, open an issue at ${ISSUES_URL} with the ` +
-      'evaluator, the category and the request id.',
+    `The model declined this request (${details.join(', ')}). Retrying with the same ` +
+      "input won't change the result. If you believe this input should be accepted, please " +
+      `report it at ${ISSUES_URL} and include the evaluator name, the category, and the ` +
+      'request ID.',
     options
   );
 }

@@ -1,13 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SentenceStructureEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/sentence-structure.js';
 import { ConfigurationError } from '../../../src/errors.js';
+import { Provider } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
 import { addEngineeredFeatures, featuresToJSON } from '../../../src/features/sentence-features.js';
 import CONFIG from '../../../../../evals/text-complexity/ela-reading/sentence-structure/config.json';
 
 // Derived from the contract rather than copied from it, so a model re-pin in
 // config.json surfaces here instead of the test quietly asserting a stale value.
-const EXPECTED_MODEL = `${CONFIG.steps[0].model.provider}:${CONFIG.steps[0].model.name}`;
+const stepsFor = (grade: string) => CONFIG.steps.filter((step) => step.condition.in.includes(grade));
+
+/** The model the envelope reports for a grade: that of the last step the grade runs. */
+const expectedModel = (grade: string) => {
+  const steps = stepsFor(grade);
+  const last = steps[steps.length - 1];
+  return `${last.model.provider}:${last.model.name}`;
+};
 
 // Helper to create minimal valid sentence analysis mock
 const createMockSentenceAnalysis = () => ({
@@ -84,6 +92,16 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
   let evaluator: SentenceStructureEvaluator;
   let mockProvider: LLMProvider;
 
+  /**
+   * Point `mockProvider` at the provider a grade runs on. Each grade band has its own
+   * model, and both stages of a band share one provider instance.
+   */
+  const useProviderFor = (grade: string) => {
+    // @ts-expect-error Accessing private property for testing
+    const providers: Map<string, LLMProvider> = evaluator.providers;
+    mockProvider = providers.get(stepsFor(grade)[0].id)!;
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -92,10 +110,6 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       openaiApiKey: 'test-openai-key',
       telemetry: false,
     });
-
-    // Both stages share a single provider instance
-    // @ts-expect-error Accessing private property for testing
-    mockProvider = evaluator.provider;
   });
 
   afterEach(() => {
@@ -106,12 +120,13 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
     it('should successfully evaluate text through both stages', async () => {
       const testText = 'The cat sat on the mat. It was sleeping peacefully.';
       const testGrade = '3';
+      useProviderFor(testGrade);
 
       // Stage 1: sentence analysis, Stage 2: complexity classification — same provider
       vi.mocked(mockProvider.generateStructured)
         .mockResolvedValueOnce({
           data: createMockSentenceAnalysis(),
-          model: 'gpt-4o',
+          model: 'stub-model',
           usage: { inputTokens: 150, outputTokens: 100 },
           latencyMs: 600,
         })
@@ -120,7 +135,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
             complexity_score: 'slightly_complex',
             reasoning: 'The text uses simple sentence structures appropriate for third grade.',
           },
-          model: 'gpt-4o',
+          model: 'stub-model',
           usage: { inputTokens: 250, outputTokens: 80 },
           latencyMs: 500,
         });
@@ -132,7 +147,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       expect(result.result.complexity_score).toBe('slightly_complex');
       expect(result.result.reasoning).toContain('simple sentence structures');
       expect(result.metadata).toBeDefined();
-      expect(result.metadata.model).toBe(EXPECTED_MODEL);
+      expect(result.metadata.model).toBe(expectedModel(testGrade));
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
       // Token usage is aggregated across both stages: stage 1 (150/100) + stage 2 (250/80)
       expect(result.metadata.tokenUsage.inputTokens).toBe(400);
@@ -149,6 +164,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
   });
 
   it.each(['3', '4'] as const)('floors raw features and uses explicit rubric boundaries for grade %s', async (grade) => {
+    useProviderFor(grade);
     vi.mocked(mockProvider.generateStructured)
       .mockResolvedValueOnce({
         data: {
@@ -162,13 +178,13 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
           num_appositive_phrases: 1,
           num_participle_phrases: 1,
         },
-        model: 'gpt-4o',
+        model: 'stub-model',
         usage: { inputTokens: 1, outputTokens: 1 },
         latencyMs: 0,
       })
       .mockResolvedValueOnce({
         data: { complexity_score: 'slightly_complex', reasoning: 'Mock classification' },
-        model: 'gpt-4o',
+        model: 'stub-model',
         usage: { inputTokens: 1, outputTokens: 1 },
         latencyMs: 0,
       });
@@ -206,6 +222,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
   ] as const)('percentage boundaries in classification request: grade %s, %s = %i/%i', async (
     grade, countName, numerator, denominator, expected, boundary, atOrAbove,
   ) => {
+    useProviderFor(grade);
     // Mock counts, not the preprocessing. 44.9 catches whole-number rounding;
     // 44.96 and 59.96 catch rounding to one decimal before truncation.
     vi.mocked(mockProvider.generateStructured)
@@ -217,13 +234,13 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
           sentence_word_counts: Array(denominator).fill(10),
           [countName]: numerator,
         },
-        model: 'gpt-4o',
+        model: 'stub-model',
         usage: { inputTokens: 1, outputTokens: 1 },
         latencyMs: 0,
       })
       .mockResolvedValueOnce({
         data: { complexity_score: 'slightly_complex', reasoning: 'Mock classification' },
-        model: 'gpt-4o',
+        model: 'stub-model',
         usage: { inputTokens: 1, outputTokens: 1 },
         latencyMs: 0,
       });
@@ -247,6 +264,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
     it('should handle sentence analysis API failure', async () => {
       const testText = 'Test text here for API failure';
       const testGrade = '3';
+      useProviderFor(testGrade);
 
       // Stage 1 fails — stage 2 should never be reached
       vi.mocked(mockProvider.generateStructured).mockRejectedValueOnce(
@@ -264,12 +282,13 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
     it('should handle complexity classification API failure', async () => {
       const testText = 'Test text here for complexity failure';
       const testGrade = '5';
+      useProviderFor(testGrade);
 
       // Stage 1 succeeds, stage 2 fails
       vi.mocked(mockProvider.generateStructured)
         .mockResolvedValueOnce({
           data: createMockSentenceAnalysis(),
-          model: 'gpt-4o',
+          model: 'stub-model',
           usage: { inputTokens: 150, outputTokens: 100 },
           latencyMs: 600,
         })
@@ -287,10 +306,11 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
 
   describe('Response Structure', () => {
     it('should return correct result structure', async () => {
+      useProviderFor('5');
       vi.mocked(mockProvider.generateStructured)
         .mockResolvedValueOnce({
           data: createMockSentenceAnalysis(),
-          model: 'gpt-4o',
+          model: 'stub-model',
           usage: { inputTokens: 150, outputTokens: 100 },
           latencyMs: 600,
         })
@@ -299,7 +319,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
             complexity_score: 'moderately_complex',
             reasoning: 'Detailed reasoning here',
           },
-          model: 'gpt-4o',
+          model: 'stub-model',
           usage: { inputTokens: 250, outputTokens: 80 },
           latencyMs: 500,
         });
@@ -317,7 +337,7 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       expect(result.metadata).toHaveProperty('processingTimeMs');
 
       // Verify metadata values
-      expect(result.metadata.model).toBe(EXPECTED_MODEL);
+      expect(result.metadata.model).toBe(expectedModel('5'));
       expect(result.metadata.processingTimeMs).toBeGreaterThanOrEqual(0);
       expect(result.metadata.tokenUsage.inputTokens).toBe(400);
       expect(result.metadata.tokenUsage.outputTokens).toBe(180);
@@ -328,16 +348,17 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
   // and degrades the prompt silently — nothing else in the suite would notice.
   describe('Prompt substitution', () => {
     it('leaves no unsubstituted placeholder in either stage, system or user', async () => {
+      useProviderFor('7');
       vi.mocked(mockProvider.generateStructured)
         .mockResolvedValueOnce({
           data: createMockSentenceAnalysis(),
-          model: 'gpt-4o',
+          model: 'stub-model',
           usage: { inputTokens: 1, outputTokens: 1 },
           latencyMs: 1,
         })
         .mockResolvedValueOnce({
           data: { complexity_score: 'moderately_complex', reasoning: 'why' },
-          model: 'gpt-4o',
+          model: 'stub-model',
           usage: { inputTokens: 1, outputTokens: 1 },
           latencyMs: 1,
         });
@@ -352,6 +373,117 @@ describe('SentenceStructureEvaluator - Evaluation Flow', () => {
       expect(sent).not.toMatch(/\{[a-z_]+\}/);
     });
 
+  });
+});
+
+/**
+ * The contract is two evaluators split by grade, each validated on its own model. These
+ * drive the real contract, so a band wired to the other band's steps or model fails here.
+ */
+describe('SentenceStructureEvaluator - grade bands', () => {
+  const respond = (provider: LLMProvider) =>
+    vi
+      .mocked(provider.generateStructured)
+      .mockResolvedValueOnce({
+        data: createMockSentenceAnalysis(),
+        model: 'stub-model',
+        usage: { inputTokens: 1, outputTokens: 1 },
+        latencyMs: 1,
+      })
+      .mockResolvedValueOnce({
+        data: { complexity_score: 'moderately_complex', reasoning: 'why' },
+        model: 'stub-model',
+        usage: { inputTokens: 1, outputTokens: 1 },
+        latencyMs: 1,
+      });
+
+  const providersOf = (evaluator: SentenceStructureEvaluator) =>
+    // @ts-expect-error Accessing private property for testing
+    evaluator.providers as Map<string, LLMProvider>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each([
+    ['3', 'grades_3_4', 'openai:gpt-6-luna'],
+    ['7', 'grades_5_12', 'openai:gpt-5.5-2026-04-23'],
+  ] as const)('grade %s runs the two %s steps on %s', async (grade, band, model) => {
+    const evaluator = new SentenceStructureEvaluator({ openaiApiKey: 'k', telemetry: false });
+    const providers = providersOf(evaluator);
+    const used = providers.get(`sentence_analysis_${band}`)!;
+    respond(used);
+
+    const result = await evaluator.evaluate({ text: 'The cat sat. It slept.', grade_level: grade });
+
+    // Both steps of the band share the one provider, and the other band's is never called.
+    expect(providers.get(`classify_complexity_${band}`)).toBe(used);
+    expect(used.label).toBe(model);
+    expect(used.generateStructured).toHaveBeenCalledTimes(2);
+    for (const provider of new Set(providers.values())) {
+      if (provider !== used) expect(provider.generateStructured).not.toHaveBeenCalled();
+    }
+    expect(result.metadata.model).toBe(model);
+    expect(result.result.complexity_score).toBe('moderately_complex');
+  });
+
+  it.each(['3', '7'] as const)('sends reasoning effort none and no temperature at grade %s', async (grade) => {
+    const evaluator = new SentenceStructureEvaluator({ openaiApiKey: 'k', telemetry: false });
+    const used = providersOf(evaluator).get(stepsFor(grade)[0].id)!;
+    respond(used);
+
+    await evaluator.evaluate({ text: 'The cat sat. It slept.', grade_level: grade });
+
+    for (const [request] of vi.mocked(used.generateStructured).mock.calls) {
+      expect(request.reasoningEffort).toBe('none');
+      expect(request.temperature).toBeNull();
+    }
+  });
+
+  it.each([
+    { grade: '3', caps: [12000, 2000] },
+    { grade: '7', caps: [12000, 2000] },
+  ] as const)('sends each step its declared output cap at grade $grade', async ({ grade, caps }) => {
+    // The analysis step is the one that has run away; a cap makes that fail fast.
+    const evaluator = new SentenceStructureEvaluator({ openaiApiKey: 'k', telemetry: false });
+    const used = providersOf(evaluator).get(stepsFor(grade)[0].id)!;
+    respond(used);
+
+    await evaluator.evaluate({ text: 'The cat sat. It slept.', grade_level: grade });
+
+    expect(vi.mocked(used.generateStructured).mock.calls.map(([request]) => request.maxTokens)).toEqual(caps);
+  });
+
+  it('does not send the declared reasoning effort to an overriding model', async () => {
+    // The value was validated on the declared model; the override is a different one,
+    // and may not be a reasoning model at all.
+    const evaluator = new SentenceStructureEvaluator({
+      openaiApiKey: 'k',
+      telemetry: false,
+      modelOverride: { provider: Provider.OpenAI, model: 'gpt-other' },
+    });
+    const used = providersOf(evaluator).get(stepsFor('7')[0].id)!;
+    respond(used);
+
+    await evaluator.evaluate({ text: 'The cat sat. It slept.', grade_level: '7' });
+
+    expect(used.label).toBe('openai:gpt-other');
+    for (const [request] of vi.mocked(used.generateStructured).mock.calls) {
+      expect(request).not.toHaveProperty('reasoningEffort');
+    }
+  });
+
+  it('does not send the declared reasoning effort to an injected provider', async () => {
+    const llmProvider = createMockProvider();
+    respond(llmProvider);
+    const evaluator = new SentenceStructureEvaluator({ llmProvider, telemetry: false });
+
+    await evaluator.evaluate({ text: 'The cat sat. It slept.', grade_level: '3' });
+
+    expect(llmProvider.generateStructured).toHaveBeenCalledTimes(2);
+    for (const [request] of vi.mocked(llmProvider.generateStructured).mock.calls) {
+      expect(request).not.toHaveProperty('reasoningEffort');
+    }
   });
 });
 

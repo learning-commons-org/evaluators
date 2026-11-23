@@ -103,12 +103,14 @@ def truncated_output(
     At temperature 0 the same request stops at the same place, so resampling it would only
     repeat the cost; it is raised as not retryable. At any other temperature, or with none
     sent (the model's default), a resample may come back shorter, so it is retryable as
-    before. Each adapter raises this from the vendor's own stop signal, before it parses
-    the text, because cut-off JSON would otherwise surface as a schema error.
+    before. Each adapter raises this from the vendor's own stop signal: for structured
+    output before it parses the text, because cut-off JSON would otherwise surface as a
+    schema error, and for prose because cut-off text would otherwise be returned as if it
+    were the whole answer.
     """
     limit = f"max_tokens={max_tokens}" if max_tokens is not None else "its output limit"
     return LLMOutputProcessingError(
-        f"{label} stopped at {limit} before its structured output was complete.",
+        f"{label} stopped at {limit} before its output was complete.",
         retryable=temperature != 0,
     )
 
@@ -125,7 +127,6 @@ def no_structured_output(label: str, detail: str | None) -> LLMOutputProcessingE
 
 
 def refused(
-    label: str,
     *,
     dependency: DependencyId,
     model: str | None,
@@ -138,14 +139,20 @@ def refused(
     Raised from the vendor's own refusal signal, before the text is read: a refusal is the
     provider's decision about the request, so it must not surface as an empty or malformed
     completion, which would be resampled and billed again. ``category`` and ``explanation``
-    are the provider's, passed through unchanged; the message names the category so the
-    failure is diagnosable without reading the attributes.
+    are the provider's, passed through unchanged; the message names the provider, model and
+    category so the failure is diagnosable without reading the attributes, and leaves out
+    whichever of the last two is unknown.
     """
-    suffix = f" ({category})" if category else ""
+    details = [f"provider: {dependency}"]
+    if model:
+        details.append(f"model: {model}")
+    if category:
+        details.append(f"reason reported: {category}")
     return LLMRefusalError(
-        f"{label} refused the request{suffix}. Sending the same request again will not help. "
-        f"If this input should be accepted, open an issue at {ISSUES_URL} with the "
-        "evaluator, the category and the request id.",
+        f"The model declined this request ({', '.join(details)}). Retrying with the same "
+        "input won't change the result. If you believe this input should be accepted, please "
+        f"report it at {ISSUES_URL} and include the evaluator name, the category, and the "
+        "request ID.",
         dependency=dependency,
         model=model,
         category=category,

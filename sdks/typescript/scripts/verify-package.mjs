@@ -12,7 +12,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -33,9 +33,30 @@ function run(cmd, args, cwd) {
   return execFileSync(cmd, args, { cwd, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
-/** Pack once; every check reads or installs this exact artifact. */
+// npm's own CLI script, set by `npm run`. Spawning `npm` directly fails on Windows, where it
+// is a .cmd that execFileSync will not run without a shell. Under pnpm or yarn the variable
+// names their CLI instead, whose `pack` and `install` behave differently.
+function npm(args, cwd) {
+  const cli = process.env.npm_execpath;
+  if (!cli || !/^npm-cli\.js$/.test(basename(cli))) {
+    throw new Error('Run this through `npm run verify:package`.');
+  }
+  return run(process.execPath, [cli, ...args], cwd);
+}
+
+// By name from ROOT, where pack() writes it: GNU tar, first on PATH in Git Bash, reads the
+// `C:` of an absolute Windows path as a remote host.
+function tar(flags, tarball, ...members) {
+  return run('tar', [...flags, basename(tarball), ...members], ROOT);
+}
+
+/**
+ * Pack once; every check reads or installs this exact artifact. The destination is explicit
+ * because a `pack-destination` in the user's .npmrc would write it elsewhere while npm still
+ * prints only the file name, leaving the checks to read whatever tarball is in ROOT.
+ */
 function pack() {
-  const out = run('npm', ['pack', '--silent'], ROOT).trim().split('\n').pop();
+  const out = npm(['pack', '--silent', '--pack-destination', ROOT], ROOT).trim().split('\n').pop();
   return join(ROOT, out);
 }
 
@@ -48,7 +69,7 @@ function pack() {
  */
 function tarballPaths(tarball) {
   return new Set(
-    run('tar', ['tzf', tarball], ROOT)
+    tar(['tzf'], tarball)
       .split('\n')
       .map((l) => l.trim().replace(/^package\//, ''))
       .filter(Boolean),
@@ -92,7 +113,7 @@ function checkPeerFloorsInstall(tarball) {
   const dir = mkdtempSync(join(tmpdir(), 'verify-floors-'));
   try {
     writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'f', private: true }) + '\n');
-    run('npm', ['install', '--silent', tarball, ...floors], dir);
+    npm(['install', '--silent', tarball, ...floors], dir);
     pass('declared peer floors install together', floors.join(' '));
   } catch (e) {
     const out = `${e.stdout ?? ''}${e.stderr ?? ''}`;
@@ -139,7 +160,7 @@ function checkSubpathStubs(tarball, shipped) {
       continue;
     }
     // Read it out of the tarball too, so a stub that ships but points nowhere is caught.
-    const stub = JSON.parse(run('tar', ['xzOf', tarball, `package/${stubPath}`], ROOT));
+    const stub = JSON.parse(tar(['xzOf'], tarball, `package/${stubPath}`));
     if (!stub.main) {
       missing.push(`${sub}: shipped stub declares no "main"`);
       continue;
@@ -197,7 +218,7 @@ function checkRuntimeLoads(tarball) {
   try {
     writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'l', private: true }) + '\n');
     // The peers the artifacts actually import at load time.
-    run('npm', ['install', '--silent', tarball, 'ai', 'zod'], dir);
+    npm(['install', '--silent', tarball, 'ai', 'zod'], dir);
 
     writeFileSync(
       join(dir, 'load.cjs'),
