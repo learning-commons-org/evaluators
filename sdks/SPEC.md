@@ -243,11 +243,14 @@ Class names are canonical in every SDK (§2.2). An error pattern useful in one S
 | `NetworkError` | `DependencyError` | Connection failure (DNS, refused, TLS) | Yes — backoff |
 | `RequestTimeoutError` | `DependencyError` | Request to the dependency exceeded its timeout | Yes — backoff |
 | `LLMProviderError` | `DependencyError` | Catch-all for LLM-provider failures not mapped above | iff 5xx |
+| `LLMRefusalError` | `LLMProviderError` | The LLM provider answered that it will not serve the request (a refusal) | No |
 | `KnowledgeGraphError` | `DependencyError` | Catch-all for Knowledge Graph service failures not mapped above | iff 5xx |
 
 - Abstract bases (`EvaluatorError`, `EvaluationError`, `DependencyError`) exist so callers can branch on category; the SDK never raises one directly. Languages that can enforce non-instantiation SHOULD.
 - `InputValidationError` (caller's fault, never retryable) and `LLMOutputProcessingError` (model's fault, retryable — LLMs are nondeterministic) MUST NOT be merged.
 - Fault domain decides classification, not subsystem: a caller-supplied unknown standards code is `InputValidationError`, even though the Knowledge Graph reports it.
+
+- A provider refusal is a `DependencyError`, not an `LLMOutputProcessingError`: the provider decided not to serve the request, so resampling repeats the refusal and its cost. `LLMRefusalError` extends the LLM catch-all so callers already handling `LLMProviderError` keep handling it; it is the one class below a catch-all leaf.
 
 **Extending to a new dependency:** reuse the shared subclasses (auth, rate-limit, network, timeout) — which system failed is data (`dependency`, §6.2), not a class. A new external system MAY add exactly one catch-all leaf under `DependencyError`, registered in the table above before it ships. No deeper per-integration hierarchies.
 
@@ -269,6 +272,8 @@ Every `EvaluatorError` exposes `retryable` (bool). Class defaults are the Retrya
 `LLMOutputProcessingError` additionally: `validation_errors` (array | null) — per-field failures (schema locations and error types) for diagnostics; the element shape is implementation-defined and not for programmatic branching.
 
 `StandardNotFoundError` additionally: `statement_code` — the code the caller supplied.
+
+`LLMRefusalError` additionally: `category` (string | null) — the provider's own label for why it refused (e.g. Anthropic's `reasoning_extraction`); `explanation` (string | null) — the provider's wording. Both are passed through unchanged and are null when the provider gave none.
 
 ### 6.3 Retryability is data; strategy follows the category
 
@@ -308,6 +313,7 @@ Classify by **structured signals only** — status code, typed exception, struct
 | 429 | `RateLimitError` |
 | Connection-level failure (typed) | `NetworkError` |
 | Timeout (typed or 408) | `RequestTimeoutError` |
+| Structured refusal signal on a successful response (e.g. Anthropic `stop_reason: "refusal"`) | `LLMRefusalError` |
 | Schema-invalid or unparseable model output | `LLMOutputProcessingError` |
 | Anything else | Dependency catch-all (`LLMProviderError`, `KnowledgeGraphError`, …), retryable iff 5xx |
 

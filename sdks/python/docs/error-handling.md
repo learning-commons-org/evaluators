@@ -21,6 +21,7 @@ EvaluatorError                      (abstract; carries `retryable`)
     ├── NetworkError                connection failure: DNS, refused, reset, TLS
     ├── RequestTimeoutError         the request exceeded its timeout, or a 408
     ├── LLMProviderError            catch-all for LLM-provider failures not mapped above
+    │   └── LLMRefusalError         the provider refused the request (`category`, `explanation`)
     └── KnowledgeGraphError         catch-all for Knowledge Graph failures not mapped above
 ```
 
@@ -35,6 +36,7 @@ The three abstract classes cannot be instantiated; they exist so you can catch a
 | `ConfigurationError`, `InputValidationError`, `StandardNotFoundError` | No | Fix the call |
 | `LLMOutputProcessingError` | Yes | Resample immediately: the failure is sampling variance, so waiting only adds latency |
 | `AuthenticationError` | No | Fix the credential |
+| `LLMRefusalError` | No | Don't resend: the same request is refused again, and each refused call is billed. If the input should be accepted, [open an issue](https://github.com/learning-commons-org/evaluators/issues) with the evaluator, `category` and `request_id`; the fix is usually in the evaluator's prompt |
 | `RateLimitError`, `NetworkError`, `RequestTimeoutError` | Yes | Back off, honouring `retry_after_ms` when present |
 | `LLMProviderError`, `KnowledgeGraphError` | Only on 5xx | Back off |
 
@@ -64,7 +66,7 @@ Every `EvaluatorError` exposes `retryable`. `DependencyError` and its subclasses
 - `request_id` — the dependency's request id for support escalation, read from `x-request-id`, `request-id`, or `x-amzn-requestid`, or `None`.
 - `model` — the model id in use when the dependency is an LLM provider, or `None`.
 
-`RateLimitError` adds `retry_after_ms`: the provider's `Retry-After` converted to milliseconds, `None` when absent, unusable (zero, negative, an HTTP-date), or implausible (capped at one hour). `LLMOutputProcessingError` adds `validation_errors`: pydantic's per-field failures reduced to `loc`, `type`, and numeric constraint context, with the rejected values and messages stripped so the list is safe to log.
+`RateLimitError` adds `retry_after_ms`: the provider's `Retry-After` converted to milliseconds, `None` when absent, unusable (zero, negative, an HTTP-date), or implausible (capped at one hour). `LLMOutputProcessingError` adds `validation_errors`: pydantic's per-field failures reduced to `loc`, `type`, and numeric constraint context, with the rejected values and messages stripped so the list is safe to log. `LLMRefusalError` adds `category`, the provider's own label for why it refused (for example Anthropic's `reasoning_extraction`), and `explanation`, the provider's wording; both are `None` when the provider gave none.
 
 `str(err)` is the message, which carries the provider's own wording for diagnosis. The original exception is always on `__cause__`, so tracebacks and `logging.exception()` keep full detail.
 
@@ -79,6 +81,7 @@ Every `EvaluatorError` exposes `retryable`. `DependencyError` and its subclasses
 | 429 | `RateLimitError`, with `retry_after_ms` |
 | Typed connection failure (`httpx.NetworkError`, `ConnectionError`, `socket.gaierror`, `ssl.SSLError`, the SDKs' `APIConnectionError`, host/network-unreachable errnos) | `NetworkError` |
 | Typed timeout (`httpx.TimeoutException`, `TimeoutError`, the SDKs' `APITimeoutError`, `ETIMEDOUT`) or 408 | `RequestTimeoutError` |
+| Anthropic `stop_reason: "refusal"` on a successful response | `LLMRefusalError`, with the `category` and `explanation` from `stop_details` |
 | `pydantic.ValidationError` or `json.JSONDecodeError` on a *successful* response | `LLMOutputProcessingError` |
 | Anything else | `LLMProviderError`, retryable iff 5xx |
 
@@ -90,6 +93,7 @@ import logging
 from learning_commons_evaluators import (
     DependencyError,
     LLMOutputProcessingError,
+    LLMRefusalError,
     RateLimitError,
 )
 
@@ -100,6 +104,13 @@ except RateLimitError as e:
     time.sleep((e.retry_after_ms or 30_000) / 1000)
 except LLMOutputProcessingError as e:
     log.warning("Bad model output: %s", e.validation_errors)  # loc/type only, no model text
+except LLMRefusalError as e:
+    # Before DependencyError, which it extends. Not retryable; report it if the input should pass.
+    log.error(
+        "Provider refused the request",
+        extra={"model": e.model, "category": e.category, "request_id": e.request_id},
+    )
+    raise
 except DependencyError as e:
     log.error(
         "Dependency call failed",

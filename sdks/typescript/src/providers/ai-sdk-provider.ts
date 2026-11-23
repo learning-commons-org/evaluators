@@ -1,5 +1,5 @@
 import { generateText as aiGenerateText, NoObjectGeneratedError, Output } from 'ai';
-import { ConfigurationError, LLMOutputProcessingError } from '../errors.js';
+import { ConfigurationError, LLMOutputProcessingError, refused } from '../errors.js';
 
 /** Node's resolution codes for "that package is not there", ESM and CJS. */
 const NOT_INSTALLED = new Set(['ERR_MODULE_NOT_FOUND', 'MODULE_NOT_FOUND']);
@@ -97,6 +97,46 @@ function reasoningOptions(
   }
 }
 
+/** The parts of an AI SDK result that say whether, and why, the provider refused. */
+interface RefusalSignals {
+  finishReason?: string;
+  providerMetadata?: Record<string, Record<string, unknown>> | undefined;
+  response?: { headers?: Record<string, string> | undefined } | undefined;
+}
+
+/**
+ * Throw `LLMRefusalError` when Anthropic refused the request.
+ *
+ * Anthropic answers a refusal with HTTP 200 and `stop_reason: "refusal"`, which its
+ * adapter reports as the `content-filter` finish reason, with the category and
+ * explanation under `providerMetadata.anthropic.stopDetails`. Checked before the
+ * result's `output` is read: that getter throws a bare "No output generated." for a
+ * refusal, which says nothing about why. Older models omit the stop details, so the
+ * category and explanation may be absent. `cause` is the AI SDK error the refusal
+ * surfaced as, when it surfaced as one.
+ */
+function throwIfRefused(
+  result: RefusalSignals,
+  type: ProviderConfig['type'],
+  model: string,
+  cause?: unknown
+): void {
+  if (type !== 'anthropic' || result.finishReason !== 'content-filter') return;
+  const details = result.providerMetadata?.anthropic?.stopDetails as
+    | { category?: unknown; explanation?: unknown }
+    | undefined;
+  const headers = result.response?.headers;
+  const requestId = headers?.['request-id'] ?? headers?.['x-request-id'];
+  throw refused({
+    dependency: 'anthropic',
+    model,
+    category: typeof details?.category === 'string' ? details.category : null,
+    explanation: typeof details?.explanation === 'string' ? details.explanation : null,
+    requestId: typeof requestId === 'string' ? requestId : null,
+    ...(cause !== undefined ? { cause } : {}),
+  });
+}
+
 /**
  * Place attachments on the final user turn, before or after its text as each one's
  * `position` says, in array order, as the AI SDK's content parts. Each image travels as a
@@ -159,7 +199,8 @@ export class VercelAIProvider implements LLMProvider {
     const nonSystemMessages = request.messages.filter((m) => m.role !== 'system');
 
     const messages = withAttachments(nonSystemMessages, request.attachments);
-
+    // The last step as the AI SDK reports it, captured before the SDK parses the output.
+    let finished: RefusalSignals | undefined;
     let result;
     try {
       result = await aiGenerateText({
@@ -174,6 +215,9 @@ export class VercelAIProvider implements LLMProvider {
         // maxOutputTokens is the vendor option; `maxTokens` is silently discarded.
         ...(request.maxTokens !== undefined ? { maxOutputTokens: request.maxTokens } : {}),
         ...reasoningOptions(this.config.type, request.reasoningEffort),
+        onEnd: (event) => {
+          finished = event;
+        },
       });
     } catch (error) {
       // Cut-off JSON fails to parse inside the call; its finish reason says why, so it is
@@ -181,12 +225,18 @@ export class VercelAIProvider implements LLMProvider {
       if (NoObjectGeneratedError.isInstance(error) && error.finishReason === 'length') {
         throw truncatedOutput(this.label, request.temperature, request.maxTokens, error);
       }
+      // Later 7.x releases parse the output inside `generateText` whenever the response
+      // has text, refused or not, so a refusal that carries partial text surfaces here as
+      // a parse error. `onEnd` runs before that parse, so it still has the stop details.
+      if (finished) throwIfRefused(finished, this.config.type, this.model, error);
       throw error;
     }
     // Read before the output, which is absent when the cut-off left no text at all.
     if (result.finishReason === 'length') {
       throw truncatedOutput(this.label, request.temperature, request.maxTokens);
     }
+    // Before `output` is read: for a refusal that getter throws without saying why.
+    throwIfRefused(result, this.config.type, this.model);
     const { output, usage } = result;
 
     return {
@@ -218,7 +268,7 @@ export class VercelAIProvider implements LLMProvider {
     const effectiveTemperature =
       temperature === undefined ? this.config.temperature : temperature;
 
-    const { text, usage, finishReason } = await aiGenerateText({
+    const result = await aiGenerateText({
       model,
       ...(systemMsg ? { system: systemMsg.content } : {}),
       messages: nonSystemMessages,
@@ -226,6 +276,8 @@ export class VercelAIProvider implements LLMProvider {
       maxRetries: this.config.maxRetries ?? 0,
       ...(options.maxTokens !== undefined ? { maxOutputTokens: options.maxTokens } : {}),
     });
+    throwIfRefused(result, this.config.type, this.model);
+    const { text, usage, finishReason } = result;
     // Cut-off prose would otherwise be returned as if it were the whole answer.
     if (finishReason === 'length') {
       throw truncatedOutput(this.label, effectiveTemperature, options.maxTokens);
