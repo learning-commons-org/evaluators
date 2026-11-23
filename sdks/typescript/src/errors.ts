@@ -99,16 +99,19 @@ export abstract class EvaluationError extends EvaluatorError {}
 
 /**
  * Model response failed parsing, normalization, or its output schema.
- * Retryable immediately: the failure is sampling variance, so backing off
- * only adds latency.
+ * Retryable immediately by default: the failure is sampling variance, so backing
+ * off only adds latency. The one exception is a completion that stopped at the
+ * output limit at temperature 0, which is not variance: the same request stops at
+ * the same place again, so it is raised with `retryable: false`.
  */
 export class LLMOutputProcessingError extends EvaluationError {
   constructor(
     message: string,
     readonly validationErrors: unknown[] | null = null,
-    cause?: unknown
+    cause?: unknown,
+    options: { retryable?: boolean } = {}
   ) {
-    super(message, true, cause);
+    super(message, options.retryable ?? true, cause);
     this.name = 'LLMOutputProcessingError';
   }
 }

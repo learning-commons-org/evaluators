@@ -114,6 +114,12 @@ class LLMProvider(Protocol):
     to an injected ``llm_provider``. So an implementation without the keyword conforms
     unchanged.
 
+    ``max_tokens`` is the per-call output cap a contract step declares as
+    ``generation.max_output_tokens``, passed the same way: only for a step that declares one,
+    and only to the adapter for the declared model. The built-in adapters raise
+    ``LLMOutputProcessingError`` for a completion that stopped at the output limit, from
+    both methods, rather than return the cut-off output.
+
     The built-in adapters build a vendor client for each call and close it before the call
     returns, so an adapter holds no connection between calls and has nothing to release.
     A vendor client pools connections on the event loop that opened them, and

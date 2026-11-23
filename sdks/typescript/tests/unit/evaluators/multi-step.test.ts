@@ -17,6 +17,7 @@ const calls: Array<{
   /** The whole request, for checks on which keys were sent at all. */
   request: Record<string, unknown>;
   reasoningEffort?: string;
+  maxTokens?: number;
 }> = [];
 
 vi.mock('../../../src/telemetry/client.js', () => ({
@@ -41,6 +42,7 @@ vi.mock('../../../src/providers/index.js', async (importOriginal) => {
             messages: Array<{ role: string; content: string }>;
             temperature?: number;
             reasoningEffort?: string;
+            maxTokens?: number;
           }) => {
             calls.push({
               model: config.model,
@@ -50,6 +52,7 @@ vi.mock('../../../src/providers/index.js', async (importOriginal) => {
               request: request as unknown as Record<string, unknown>,
               // Recorded only when present, so a test can tell "absent" from undefined.
               ...('reasoningEffort' in request ? { reasoningEffort: request.reasoningEffort } : {}),
+              ...('maxTokens' in request ? { maxTokens: request.maxTokens } : {}),
             });
             const canned = RESPONSES[config.model];
             if (canned instanceof Error) return Promise.reject(canned);
@@ -266,6 +269,57 @@ describe('defineMultiStepEvaluator', () => {
     await construct(define()).evaluate({ text: 'a b', grade_level: '3' });
 
     expect(calls.map((c) => c.temperature)).toEqual([0, 0.5]);
+  });
+
+  describe('output cap', () => {
+    function withCaps(analyse?: number, classify?: number) {
+      const source = contract();
+      if (analyse) Object.assign(source.steps[0].generation, { max_output_tokens: analyse });
+      if (classify) Object.assign(source.steps[1].generation, { max_output_tokens: classify });
+      return source;
+    }
+
+    it('sends each step only the cap it declares, as maxTokens', async () => {
+      await construct(defineFrom(withCaps(undefined, 800))).evaluate({ text: 'a b', grade_level: '3' });
+
+      expect(calls[0]).not.toHaveProperty('maxTokens');
+      expect(calls[1].maxTokens).toBe(800);
+    });
+
+    it('leaves the key off every request when the contract declares none', async () => {
+      await construct(define()).evaluate({ text: 'a b', grade_level: '3' });
+
+      expect(calls.every((c) => !('maxTokens' in c))).toBe(true);
+    });
+
+    it('drops every cap under modelOverride', async () => {
+      const Klass = defineFrom(withCaps(2000, 800));
+      const evaluator = new Klass({
+        anthropicApiKey: 'k',
+        telemetry: false,
+        modelOverride: { provider: 'anthropic' as never, model: 'claude-opus-5-5' },
+      });
+      await evaluator.evaluate({ text: 'a b', grade_level: '3' });
+
+      expect(calls.every((c) => !('maxTokens' in c))).toBe(true);
+    });
+
+    it('does not hand an injected llmProvider the cap', async () => {
+      const generateStructured = vi.fn().mockResolvedValue({
+        data: { count: 2, verdict: 'clear', reasoning: 'because' },
+        model: 'mine',
+        usage: { inputTokens: 1, outputTokens: 1 },
+        latencyMs: 1,
+      });
+      const llmProvider = { label: 'mine', generateStructured, generateText: vi.fn() };
+      const Klass = defineFrom(withCaps(2000, 800));
+      await new Klass({ telemetry: false, llmProvider }).evaluate({ text: 'a b', grade_level: '3' });
+
+      expect(generateStructured).toHaveBeenCalledTimes(2);
+      for (const [request] of generateStructured.mock.calls) {
+        expect(request).not.toHaveProperty('maxTokens');
+      }
+    });
   });
 
   describe('reasoning effort', () => {

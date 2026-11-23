@@ -7,6 +7,7 @@ import { runPreprocessingStep, type PreprocessingImplementation } from '../featu
 import {
   BaseEvaluator,
   Provider,
+  withMaxTokens,
   withReasoningEffort,
   type BaseEvaluatorConfig,
   type EvaluatorMetadata,
@@ -52,7 +53,11 @@ export interface MultiStepContract extends CredentialDeclaringConfig {
   steps: Array<{
     id: string;
     model: { provider: string; name: string };
-    generation?: { temperature?: number | null; reasoning_effort?: string };
+    generation?: {
+      temperature?: number | null;
+      reasoning_effort?: string;
+      max_output_tokens?: number;
+    };
     /** The step runs only for these input values. Absent means it always runs. */
     condition?: DeclaredCondition;
     prompt: { placeholders: Record<string, DeclaredPlaceholder | undefined> };
@@ -270,6 +275,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
       canEnd,
       schema: parts.schema,
       reasoningEffort: step.generation?.reasoning_effort,
+      maxOutputTokens: step.generation?.max_output_tokens,
       prompts: createPromptRenderers(
         parts.system,
         parts.user,
@@ -433,6 +439,7 @@ export function defineMultiStepEvaluator<TInput extends Record<string, string>, 
             schema,
             temperature: step.generation?.temperature,
             ...withReasoningEffort(this.effectiveReasoningEffort(renderer.reasoningEffort)),
+            ...withMaxTokens(this.effectiveMaxOutputTokens(renderer.maxOutputTokens)),
           });
 
           stepOutputs.set(step.id, response.data);

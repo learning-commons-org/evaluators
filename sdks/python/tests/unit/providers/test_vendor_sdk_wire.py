@@ -191,6 +191,25 @@ class TestOpenAI:
         with pytest.raises(LLMOutputProcessingError, match="max_tokens=9"):
             await adapter.generate_structured(MESSAGES, _Verdict, max_tokens=9)
 
+    async def test_generate_text_sends_the_cap_as_max_output_tokens(self) -> None:
+        adapter, wire = _openai(body=_openai_body(text="hello"))
+        await adapter.generate_text(MESSAGES, max_tokens=700)
+        assert wire.sent["max_output_tokens"] == 700
+
+    async def test_generate_text_sends_no_cap_when_none_is_given(self) -> None:
+        adapter, wire = _openai(body=_openai_body(text="hello"))
+        await adapter.generate_text(MESSAGES)
+        assert "max_output_tokens" not in wire.sent
+
+    async def test_prose_cut_off_at_the_limit_is_truncated(self) -> None:
+        body = _openai_body(
+            text="The text assumes", status="incomplete", incomplete="max_output_tokens"
+        )
+        adapter, _ = _openai(body=body)
+        with pytest.raises(LLMOutputProcessingError, match="max_tokens=9") as exc_info:
+            await adapter.generate_text(MESSAGES, temperature=0.0, max_tokens=9)
+        assert exc_info.value.retryable is False
+
     async def test_generate_text(self) -> None:
         adapter, wire = _openai(body=_openai_body(text="hello"))
         response = await adapter.generate_text(MESSAGES)
@@ -289,6 +308,23 @@ class TestAnthropic:
         adapter, _ = _anthropic(body=body)
         with pytest.raises(LLMOutputProcessingError, match="max_tokens=9"):
             await adapter.generate_structured(MESSAGES, _Verdict, max_tokens=9)
+
+    async def test_generate_text_sends_the_cap_as_max_tokens(self) -> None:
+        adapter, wire = _anthropic(body=_anthropic_body(text="hello"))
+        await adapter.generate_text(MESSAGES, max_tokens=700)
+        assert wire.sent["max_tokens"] == 700
+
+    async def test_generate_text_sends_the_default_when_no_cap_is_given(self) -> None:
+        adapter, wire = _anthropic(body=_anthropic_body(text="hello"))
+        await adapter.generate_text(MESSAGES)
+        assert wire.sent["max_tokens"] == DEFAULT_MAX_TOKENS
+
+    async def test_prose_cut_off_at_the_limit_is_truncated(self) -> None:
+        body = _anthropic_body(text="The text assumes", stop_reason="max_tokens")
+        adapter, _ = _anthropic(body=body)
+        with pytest.raises(LLMOutputProcessingError, match="max_tokens=9") as exc_info:
+            await adapter.generate_text(MESSAGES, temperature=0.0, max_tokens=9)
+        assert exc_info.value.retryable is False
 
     async def test_generate_text(self) -> None:
         adapter, wire = _anthropic(body=_anthropic_body(text="hello"))
@@ -417,6 +453,23 @@ class TestGoogle:
         adapter, _ = _google(body=body)
         with pytest.raises(LLMOutputProcessingError, match="max_tokens=9"):
             await adapter.generate_structured(MESSAGES, _Verdict, max_tokens=9)
+
+    async def test_generate_text_sends_the_cap_as_max_output_tokens(self) -> None:
+        adapter, wire = _google(body=_google_body(text="hello"))
+        await adapter.generate_text(MESSAGES, max_tokens=700)
+        assert wire.sent["generationConfig"]["maxOutputTokens"] == 700
+
+    async def test_generate_text_sends_no_cap_when_none_is_given(self) -> None:
+        adapter, wire = _google(body=_google_body(text="hello"))
+        await adapter.generate_text(MESSAGES)
+        assert "maxOutputTokens" not in wire.sent.get("generationConfig", {})
+
+    async def test_prose_cut_off_at_the_limit_is_truncated(self) -> None:
+        body = _google_body(text="The text assumes", finish="MAX_TOKENS")
+        adapter, _ = _google(body=body)
+        with pytest.raises(LLMOutputProcessingError, match="max_tokens=9") as exc_info:
+            await adapter.generate_text(MESSAGES, temperature=0.0, max_tokens=9)
+        assert exc_info.value.retryable is False
 
     async def test_generate_text(self) -> None:
         adapter, wire = _google(body=_google_body(text="hello"))

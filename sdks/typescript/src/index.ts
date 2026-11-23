@@ -51,6 +51,7 @@ export type {
   AttachmentPosition,
   LLMResponse,
   TextGenerationResponse,
+  TextGenerationOptions,
   Message,
   ProviderConfig,
 } from './providers/index.js';
