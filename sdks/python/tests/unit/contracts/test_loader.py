@@ -57,7 +57,7 @@ class TestBundleMatchesTheRegistry:
         source = next(
             p
             for p in EVALS_ROOT.glob("*/*/*/config.json")
-            if json.loads(p.read_text())["evaluator"]["id"] == contract.evaluator.id
+            if json.loads(p.read_text(encoding="utf-8"))["evaluator"]["id"] == contract.evaluator.id
         )
         bundled = contract_path(contract.evaluator.id) / "config.json"
         assert bundled.read_bytes() == source.read_bytes()
