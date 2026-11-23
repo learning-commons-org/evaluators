@@ -140,7 +140,7 @@ class TestEmitter:
             input_schema=self.INPUT,
             output_schema=self.OUTPUT,
         )
-        config = json.loads(config_path.read_text())
+        config = json.loads(config_path.read_text(encoding="utf-8"))
         source = generator.emit_schema_module(config, config_path.parent)
         assert source.startswith(generator.GENERATED_MARKER)
         return _exec_module(source)
@@ -197,7 +197,7 @@ class TestEmitter:
                 "properties": {"ok": {"type": "string"}},
             },
         )
-        config = json.loads(config_path.read_text())
+        config = json.loads(config_path.read_text(encoding="utf-8"))
         module = _exec_module(generator.emit_schema_module(config, config_path.parent))
 
         passage = module["SourcePassage"]
@@ -239,7 +239,7 @@ class TestEmitter:
             )
             with pytest.raises(ValueError, match="collides with a generated declaration"):
                 generator.emit_schema_module(
-                    json.loads(config_path.read_text()), config_path.parent
+                    json.loads(config_path.read_text(encoding="utf-8")), config_path.parent
                 )
 
     def test_input_defs_stay_separate_and_omit_constraints(self, tmp_path: Path) -> None:
@@ -284,7 +284,7 @@ class TestEmitter:
                 },
             },
         )
-        config = json.loads(config_path.read_text())
+        config = json.loads(config_path.read_text(encoding="utf-8"))
         module = _exec_module(generator.emit_schema_module(config, config_path.parent))
 
         caller = module["SourcePassage"]
@@ -351,7 +351,9 @@ class TestEmitter:
             input_schema={"type": "object", "required": list(properties), "properties": properties},
             output_schema={"type": "object", "properties": {}},
         )
-        return generator.emit_schema_module(json.loads(config_path.read_text()), config_path.parent)
+        return generator.emit_schema_module(
+            json.loads(config_path.read_text(encoding="utf-8")), config_path.parent
+        )
 
     def test_an_array_of_strings_is_a_list_of_str_with_no_count_bounds(
         self, tmp_path: Path
@@ -386,7 +388,9 @@ class TestEmitter:
             output_schema=output,
         )
         with pytest.raises(ValueError, match="Unsupported \\$ref"):
-            generator.emit_schema_module(json.loads(config_path.read_text()), config_path.parent)
+            generator.emit_schema_module(
+                json.loads(config_path.read_text(encoding="utf-8")), config_path.parent
+            )
 
     def _emit_output(self, tmp_path: Path, output_schema: dict[str, Any]) -> dict[str, Any]:
         config_path = _write_contract(
@@ -396,7 +400,7 @@ class TestEmitter:
             output_schema=output_schema,
         )
         source = generator.emit_schema_module(
-            json.loads(config_path.read_text()), config_path.parent
+            json.loads(config_path.read_text(encoding="utf-8")), config_path.parent
         )
         return _exec_module(source)
 
@@ -466,7 +470,7 @@ class TestBundling:
             input_schema={"type": "object", "properties": {}},
             output_schema={"type": "object", "properties": {}},
         )
-        config = json.loads(config_path.read_text())
+        config = json.loads(config_path.read_text(encoding="utf-8"))
         config["evaluator"]["id_history"] = ["a.b.old"]
         config_path.write_text(json.dumps(config))
         monkeypatch.setattr(generator, "_BUNDLE_ROOT", bundle_root)
@@ -485,7 +489,7 @@ class TestBundling:
             output_schema={"type": "object", "properties": {}},
         )
         (directory / "system.txt").write_text("edited prompt")
-        config = json.loads(config_path.read_text())
+        config = json.loads(config_path.read_text(encoding="utf-8"))
         config["steps"] = [
             {
                 "id": "s",
