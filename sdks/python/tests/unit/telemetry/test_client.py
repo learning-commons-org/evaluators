@@ -30,6 +30,7 @@ from learning_commons_evaluators.telemetry.types import (
     EventTokenUsage,
     StageDetail,
     TelemetryEvent,
+    TelemetryMetadata,
 )
 from tests.conftest import EventSink, SinkResponse
 
@@ -37,6 +38,7 @@ from tests.conftest import EventSink, SinkResponse
 EVENT = TelemetryEvent(
     timestamp="2026-09-17T00:00:00.000Z",
     sdk_version="learning-commons-evaluators-python-1.0.0",
+    sdk_language="python",
     evaluator_type="text_complexity.ela_reading.purpose_clarity",
     status="success",
     latency_ms=1234,
@@ -44,13 +46,15 @@ EVENT = TelemetryEvent(
     provider="google:gemini-3-flash-preview",
     grade="5",
     token_usage=EventTokenUsage(input_tokens=250, output_tokens=120),
-    stage_details=(
-        StageDetail(
-            stage="evaluate_purpose_clarity",
-            provider="google:gemini-3-flash-preview",
-            latency_ms=900,
-            token_usage=EventTokenUsage(input_tokens=250, output_tokens=120),
-        ),
+    metadata=TelemetryMetadata(
+        stage_details=(
+            StageDetail(
+                stage="evaluate_purpose_clarity",
+                provider="google:gemini-3-flash-preview",
+                latency_ms=900,
+                token_usage=EventTokenUsage(input_tokens=250, output_tokens=120),
+            ),
+        )
     ),
 )
 

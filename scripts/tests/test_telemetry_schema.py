@@ -266,5 +266,82 @@ class TypeScriptTarget(unittest.TestCase):
         self.assertTrue(self.render(schema()).startswith(f"// {gen.GENERATED_MARKER}"))
 
 
+class PythonTarget(unittest.TestCase):
+    def render(self, changed: dict) -> str:
+        return gen.render_python(gen.build_model(changed))
+
+    def test_writes_keys_in_schema_order(self) -> None:
+        content = self.render(schema())
+        body = content[content.index("class TelemetryEvent:") :]
+        body = body[body.index("def payload") :]
+        positions = [body.index(f'wire["{name}"]') for name in schema()["properties"]]
+        self.assertEqual(positions, sorted(positions))
+
+    def test_a_required_field_is_always_written_and_an_optional_one_only_when_set(self) -> None:
+        content = self.render(schema())
+        self.assertIn('        wire["grade"] = self.grade\n', content)
+        self.assertIn(
+            '        if self.error_code is not None:\n'
+            '            wire["error_code"] = self.error_code\n',
+            content,
+        )
+
+    def test_the_class_is_keyword_only_so_field_order_can_follow_the_wire(self) -> None:
+        # Required and optional fields interleave in wire order; a positional dataclass
+        # could not declare a required field after a defaulted one.
+        self.assertIn("@dataclass(frozen=True, kw_only=True)\nclass TelemetryEvent:", self.render(schema()))
+
+    def test_a_new_field_reaches_the_class_and_the_payload(self) -> None:
+        grown = schema()
+        grown["properties"]["run_id"] = {"type": "string"}
+        content = self.render(grown)
+        self.assertIn("    run_id: str | None = None\n", content)
+        self.assertIn('wire["run_id"] = self.run_id', content)
+
+    def test_the_version_constant_follows_the_schema(self) -> None:
+        bumped = schema()
+        bumped["properties"]["schema_version"]["const"] = 7
+        content = self.render(bumped)
+        self.assertIn("SCHEMA_VERSION: Literal[7] = 7", content)
+        self.assertIn("    schema_version: Literal[7] = 7", content)
+
+    def test_the_module_runs_and_serializes_like_the_schema_says(self) -> None:
+        namespace: dict = {}
+        exec(compile(self.render(schema()), "_event_generated.py", "exec"), namespace)
+        event = namespace["TelemetryEvent"](
+            timestamp="t",
+            sdk_version="v",
+            sdk_language="python",
+            evaluator_type="e",
+            grade="",
+            status="success",
+            latency_ms=1,
+            text_length_chars=0,
+            provider="p",
+        )
+        wire = event.payload()
+        required = [p for p in schema()["properties"] if p in schema()["required"]]
+        self.assertEqual(list(wire), required)
+        self.assertEqual(wire["schema_version"], 1)
+        Draft202012Validator(schema()).validate(wire)
+
+    def test_starts_with_the_generated_marker(self) -> None:
+        self.assertTrue(self.render(schema()).startswith(f'"""{gen.GENERATED_MARKER}'))
+
+
+class EveryTarget(unittest.TestCase):
+    def test_is_registered_and_marked_generated(self) -> None:
+        relative = {t.relative for t in gen.TARGETS}
+        self.assertEqual(
+            relative,
+            {
+                "sdks/typescript/src/telemetry/types.generated.ts",
+                "sdks/python/src/learning_commons_evaluators/telemetry/_event_generated.py",
+            },
+        )
+        text = (gen.REPO_ROOT / ".gitattributes").read_text(encoding="utf-8")
+        self.assertEqual(gitattributes_problems(text, sorted(relative)), [])
+
+
 if __name__ == "__main__":
     unittest.main()

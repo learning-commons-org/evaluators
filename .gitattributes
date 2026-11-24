@@ -11,7 +11,7 @@
 #                    →  make generate-kg-client (sdks/python)
 #   kg-api.d.ts      →  npm run generate:kg-types (sdks/typescript)
 #   src/schemas/...  →  npm run generate:schemas (sdks/typescript)
-#   src/telemetry/types.generated.ts
+#   src/telemetry/types.generated.ts, telemetry/_event_generated.py
 #                    →  python3 scripts/generate_telemetry_schema.py (repo root)
 #
 # The schema modules are listed one by one because generated and hand-written ones share
@@ -23,6 +23,7 @@ sdks/python/src/learning_commons_evaluators/contracts/_generated/** linguist-gen
 sdks/python/src/learning_commons_evaluators/schemas/*/** linguist-generated=true
 sdks/python/src/learning_commons_evaluators/dependencies/_generated/knowledge_graph/** linguist-generated=true
 sdks/python/openapi/knowledge-graph.yaml linguist-generated=true
+sdks/python/src/learning_commons_evaluators/telemetry/_event_generated.py linguist-generated=true
 sdks/typescript/src/knowledge-graph/kg-api.d.ts linguist-generated=true
 sdks/typescript/src/telemetry/types.generated.ts linguist-generated=true
 sdks/typescript/src/schemas/durable-skills/ela-writing/critical-thinking.ts linguist-generated=true

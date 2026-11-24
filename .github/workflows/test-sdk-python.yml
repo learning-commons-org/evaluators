@@ -8,6 +8,8 @@ on:
       - "sdks/python/**"
       # The package bundles evals/ contracts; a registry change must re-run check-generated.
       - "evals/**"
+      # Renders the telemetry event module from evals/telemetry/.
+      - "scripts/generate_telemetry_schema.py"
       - ".github/workflows/test-sdk-python.yml"
       # The coverage job uploads under the flags and thresholds this file defines.
       - "codecov.yml"
@@ -15,6 +17,8 @@ on:
     paths:
       - "sdks/python/**"
       - "evals/**"
+      # Renders the telemetry event module from evals/telemetry/.
+      - "scripts/generate_telemetry_schema.py"
       - ".github/workflows/test-sdk-python.yml"
       # The coverage job uploads under the flags and thresholds this file defines.
       - "codecov.yml"
@@ -107,6 +111,10 @@ jobs:
       - name: Generated Knowledge Graph client matches the spec
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: python scripts/generate_kg_client.py --check
+
+      - name: Generated telemetry event matches its schema
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: make check-telemetry PYTHON=python
 
       - name: Tests
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
