@@ -10,6 +10,9 @@ check is the CI gate that keeps the three in step:
 - `schema_version` names the wire shape: the hash recorded for the current version in
   `evals/telemetry/schema-versions.json` matches the schema. A wire change without a bump
   fails and is not auto-fixed (bumping is a decision); `--fix` records a genuine bump;
+- the registry only grows: against the copy on the branch this one merges into, every
+  recorded version keeps its hash, and the only new entry is the version the schema names
+  (see `base_ref` for which branch that is, and when the comparison is skipped);
 - every generated module matches what the schema renders (`--fix` rewrites it);
 - every generated module is marked `linguist-generated` in `.gitattributes`.
 """
@@ -17,7 +20,10 @@ check is the CI gate that keeps the three in step:
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
+from collections.abc import Mapping
+from pathlib import Path
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
@@ -30,6 +36,50 @@ import generate_telemetry_schema as gen  # noqa: E402
 
 SCHEMA = gen.SCHEMA_PATH.relative_to(gen.REPO_ROOT).as_posix()
 VERSIONS = gen.VERSIONS_PATH.relative_to(gen.REPO_ROOT).as_posix()
+
+
+#: Names the git ref to compare the registry against, overriding the default.
+BASE_REF_ENV = "TELEMETRY_REGISTRY_BASE"
+
+
+def base_ref(env: Mapping[str, str]) -> tuple[str, bool]:
+    """The ref holding the registry this change must extend, and whether it must be readable.
+
+    An explicit ``TELEMETRY_REGISTRY_BASE`` wins. On a pull request in GitHub Actions it is
+    the PR's base branch, which `checks.yml` fetches; either way the comparison is required,
+    because a CI run that silently skipped it would reopen the gap it closes. Anywhere else
+    (a local run, the pre-commit hook, a push build) it is ``origin/main`` on a best-effort
+    basis: skipped when that ref is not there, since the pull request is the gate.
+    """
+    if env.get(BASE_REF_ENV):
+        return env[BASE_REF_ENV], True
+    if env.get("GITHUB_BASE_REF"):
+        return f"origin/{env['GITHUB_BASE_REF']}", True
+    return "origin/main", False
+
+
+def registry_at(ref: str, repo: Path = gen.REPO_ROOT) -> dict[int, str] | None:
+    """The version registry as committed at ``ref``; ``None`` if it did not exist there yet.
+
+    Raises ``LookupError`` when ``ref`` itself cannot be resolved (not fetched, or no git).
+    """
+
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        # Return codes are the answers here (ref missing, file absent), not errors.
+        return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=False)
+
+    try:
+        if git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}").returncode:
+            raise LookupError(f"git ref {ref!r} is not available")
+        blob = f"{ref}:{VERSIONS}"
+        if git("cat-file", "-e", blob).returncode:
+            return None
+        shown = git("show", blob)
+    except OSError as error:
+        raise LookupError(f"cannot run git: {error}") from error
+    if shown.returncode:
+        raise LookupError(f"cannot read {blob}: {shown.stderr.strip()}")
+    return gen.parse_versions(shown.stdout)
 
 
 def gitattributes_problems(text: str, generated: list[str]) -> list[str]:
@@ -67,6 +117,7 @@ class TelemetrySchema(Check):
             return result
 
         self._check_version(schema, fix, result)
+        self._check_history(schema, result)
         self._check_generated(schema, fix, result)
         self._check_gitattributes(result)
         return result
@@ -87,6 +138,35 @@ class TelemetrySchema(Check):
             return
         for problem in problems:
             result.violations.append(Violation(VERSIONS, problem))
+
+    @staticmethod
+    def _check_history(schema: dict, result: Result, env: Mapping[str, str] = os.environ) -> None:
+        # Runs after `_check_version`, so a bump `--fix` just recorded is judged as written.
+        try:
+            current = gen.load_versions()
+        except (OSError, ValueError, KeyError):
+            return  # already reported by `_check_version`
+        ref, required = base_ref(env)
+        try:
+            base = registry_at(ref)
+        except LookupError as error:
+            if required:
+                result.violations.append(
+                    Violation(
+                        VERSIONS,
+                        f"cannot compare with {ref}: {error}; fetch it, or set "
+                        f"{BASE_REF_ENV} to the branch this one merges into",
+                    )
+                )
+            return
+        except (ValueError, KeyError) as error:
+            result.violations.append(Violation(VERSIONS, f"cannot read the copy at {ref}: {error}"))
+            return
+        if base is None:
+            return  # the registry is new in this change; nothing to extend
+        version = schema["properties"]["schema_version"]["const"]
+        for problem in gen.history_problems(base, current, version):
+            result.violations.append(Violation(VERSIONS, f"{problem} (compared with {ref})"))
 
     @staticmethod
     def _check_generated(schema: dict, fix: bool, result: Result) -> None:

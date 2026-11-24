@@ -26,6 +26,12 @@ jobs:
         with:
           python-version: "3.13"
 
+      # The telemetry-schema check compares evals/telemetry/schema-versions.json with the
+      # copy on the PR's base branch, which the shallow checkout above does not include.
+      - name: Fetch the base branch
+        if: github.event_name == 'pull_request'
+        run: git fetch --no-tags --depth=1 origin "+refs/heads/${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}"
+
       - name: Install check dependencies
         run: pip install -r scripts/requirements.txt
 
