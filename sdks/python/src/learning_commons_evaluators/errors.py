@@ -60,6 +60,20 @@ class DependencyErrorOptions(TypedDict, total=False):
     cause: BaseException | None
 
 
+class LLMRefusalErrorOptions(TypedDict, total=False):
+    """:class:`DependencyErrorOptions` without ``retryable``: a refusal is never retryable."""
+
+    status_code: int | None
+    request_id: str | None
+    model: str | None
+    cause: BaseException | None
+
+
+#: Where a caller reports a refusal of input the evaluator should accept. The fix is
+#: usually in the evaluator's prompt, so a refusal is reported to us, not worked around.
+ISSUES_URL = "https://github.com/learning-commons-org/evaluators/issues"
+
+
 class EvaluatorError(Exception):
     """Abstract base for every error the SDK raises.
 
@@ -216,6 +230,31 @@ class LLMProviderError(DependencyError):
         self, message: str, *, dependency: DependencyId, **options: Unpack[DependencyErrorOptions]
     ) -> None:
         super().__init__(message, False, dependency=dependency, **options)
+
+
+class LLMRefusalError(LLMProviderError):
+    """The LLM provider answered, and its answer was that it will not serve the request.
+
+    A refusal is the provider's decision about the request, not a malformed completion, so
+    it is a dependency failure rather than an output one, and it is never retryable: the
+    same request is refused again, and each refused call is billed. It takes no
+    ``retryable`` option, and a status code does not make it retryable. ``category`` is the
+    provider's own label for why (for example Anthropic's ``reasoning_extraction``) and
+    ``explanation`` its wording; both are ``None`` when the provider gave none.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        dependency: DependencyId,
+        category: str | None = None,
+        explanation: str | None = None,
+        **options: Unpack[LLMRefusalErrorOptions],
+    ) -> None:
+        super().__init__(message, dependency=dependency, retryable=False, **options)
+        self.category: str | None = category
+        self.explanation: str | None = explanation
 
 
 class KnowledgeGraphError(DependencyError):
@@ -664,6 +703,8 @@ __all__ = [
     "KnowledgeGraphError",
     "LLMOutputProcessingError",
     "LLMProviderError",
+    "LLMRefusalError",
+    "LLMRefusalErrorOptions",
     "NetworkError",
     "RateLimitError",
     "RequestTimeoutError",

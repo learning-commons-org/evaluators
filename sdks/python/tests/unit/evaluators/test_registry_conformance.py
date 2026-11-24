@@ -289,7 +289,7 @@ def _fixture_cases(evaluator_id: str) -> list[dict[str, object]]:
     )
     return [
         resolve_attached_paths(contract, directory, case["input"])
-        for case in json.loads((directory / path).read_text())
+        for case in json.loads((directory / path).read_text(encoding="utf-8"))
     ]
 
 
@@ -305,6 +305,6 @@ def _fixture_input(evaluator_id: str) -> dict[str, object]:
                 if contract.fixtures and contract.fixtures.path
                 else "fixtures.json"
             )
-        ).read_text()
+        ).read_text(encoding="utf-8")
     )[0]
     return resolve_attached_paths(contract, directory, case["input"])

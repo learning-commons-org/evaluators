@@ -8,6 +8,7 @@ import { runPreprocessingStep } from '../features/preprocessing.js';
 import {
   BaseEvaluator,
   Provider,
+  withMaxTokens,
   withReasoningEffort,
   type BaseEvaluatorConfig,
   type EvaluatorMetadata,
@@ -35,7 +36,7 @@ export interface SingleStepContract extends CredentialDeclaringConfig {
   steps: Array<{
     id: string;
     model: { provider: string; name: string };
-    generation?: { temperature?: number | null; reasoning_effort?: string };
+    generation?: { temperature?: number | null; reasoning_effort?: string; max_output_tokens?: number };
     prompt: { placeholders: Record<string, { source?: string } | undefined> };
     required_credentials?: string[];
     optional?: boolean;
@@ -258,6 +259,7 @@ export function defineSingleStepEvaluator<
   const VENDOR = vendorOf(STEP, contract.evaluator.name);
   const ATTACHMENTS = attachmentsOf(STEP, inputSchema, contract.evaluator.name);
   const REASONING_EFFORT = STEP.generation?.reasoning_effort;
+  const MAX_OUTPUT_TOKENS = STEP.generation?.max_output_tokens;
   const PREPROCESSING = contract.preprocessing ?? [];
   // With model-only fields, the model fills in `responseSchema` and the caller receives
   // only the fields `outputSchema` names.
@@ -412,6 +414,7 @@ export function defineSingleStepEvaluator<
           schema: SENT_SCHEMA,
           temperature: STEP.generation?.temperature,
           ...withReasoningEffort(this.effectiveReasoningEffort(REASONING_EFFORT)),
+          ...withMaxTokens(this.effectiveMaxOutputTokens(MAX_OUTPUT_TOKENS)),
         });
         const data = RETURNED_FIELDS
           ? (Object.fromEntries(

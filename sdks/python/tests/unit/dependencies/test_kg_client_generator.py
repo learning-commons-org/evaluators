@@ -117,6 +117,14 @@ def test_a_changed_file_reads_as_stale(tmp_path: Path) -> None:
     assert generate.tree_differences(left, right) == ["STALE    client.py"]
 
 
+def test_line_endings_alone_are_not_a_difference(tmp_path: Path) -> None:
+    left = _tree(tmp_path / "left", {"client.py": ""})
+    right = _tree(tmp_path / "right", {"client.py": ""})
+    (left / "client.py").write_bytes(b"a\nb\n")
+    (right / "client.py").write_bytes(b"a\r\nb\r\n")
+    assert generate.tree_differences(left, right) == []
+
+
 def test_an_endpoint_the_spec_dropped_reads_as_an_orphan(tmp_path: Path) -> None:
     left = _tree(tmp_path / "left", {"client.py": "a\n", "api/gone.py": "x\n"})
     right = _tree(tmp_path / "right", {"client.py": "a\n"})

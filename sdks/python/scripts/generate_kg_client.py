@@ -35,7 +35,6 @@ callers can ask for but never produces a bad request.
 from __future__ import annotations
 
 import argparse
-import filecmp
 import importlib.util
 import shutil
 import subprocess
@@ -275,6 +274,12 @@ def _tree_files(root: Path) -> set[Path]:
     }
 
 
+def _same_content(a: Path, b: Path) -> bool:
+    """Equal apart from line endings: the generator writes in text mode, which is CRLF on
+    Windows, and git checks the committed files out with LF."""
+    return a.read_bytes().replace(b"\r\n", b"\n") == b.read_bytes().replace(b"\r\n", b"\n")
+
+
 def tree_differences(committed: Path, fresh: Path) -> list[str]:
     """Human-readable differences between the committed client and a fresh one."""
     committed_files, fresh_files = _tree_files(committed), _tree_files(fresh)
@@ -283,7 +288,7 @@ def tree_differences(committed: Path, fresh: Path) -> list[str]:
     differences += [
         f"STALE    {path}"
         for path in sorted(committed_files & fresh_files)
-        if not filecmp.cmp(committed / path, fresh / path, shallow=False)
+        if not _same_content(committed / path, fresh / path)
     ]
     return differences
 

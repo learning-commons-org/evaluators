@@ -11,7 +11,11 @@ from anthropic import omit, transform_schema
 from pydantic import BaseModel, TypeAdapter
 from pydantic import ValidationError as PydanticValidationError
 
-from learning_commons_evaluators.errors import LLMOutputProcessingError
+from learning_commons_evaluators.errors import (
+    LLMOutputProcessingError,
+    LLMProviderError,
+    LLMRefusalError,
+)
 from learning_commons_evaluators.providers import Message, Provider, ProviderConfig
 from learning_commons_evaluators.providers.anthropic_sdk import (
     DEFAULT_MAX_TOKENS,
@@ -31,16 +35,24 @@ MESSAGES: list[Message] = [
 
 USAGE = SimpleNamespace(input_tokens=5, output_tokens=9)
 
+REFUSAL_DETAILS = SimpleNamespace(
+    type="refusal", category="reasoning_extraction", explanation="This request was blocked."
+)
+
 
 def _client(
     parsed: BaseModel | None = None,
     content: list[Any] | None = None,
     stop_reason: str = "end_turn",
+    **extra: Any,
 ) -> Any:
-    """A fake whose ``messages.create`` returns ``content``, or ``parsed`` as its JSON text."""
+    """A fake whose ``messages.create`` returns ``content``, or ``parsed`` as its JSON text.
+
+    ``extra`` sets further attributes on the returned message, such as ``stop_details``.
+    """
     if content is None and parsed is not None:
         content = [SimpleNamespace(type="text", text=parsed.model_dump_json())]
-    result = SimpleNamespace(content=content or [], usage=USAGE, stop_reason=stop_reason)
+    result = SimpleNamespace(content=content or [], usage=USAGE, stop_reason=stop_reason, **extra)
     return SimpleNamespace(messages=SimpleNamespace(create=AsyncMock(return_value=result)))
 
 
@@ -91,10 +103,70 @@ class TestGenerateStructured:
         await _adapter(client).generate_structured(MESSAGES[1:], _Verdict)
         assert client.messages.create.await_args.kwargs["system"] is omit
 
-    async def test_a_refusal_with_no_text_is_an_output_processing_error(self) -> None:
-        client = _client(stop_reason="refusal")
-        with pytest.raises(LLMOutputProcessingError, match="refusal") as exc_info:
+    async def test_a_refusal_raises_the_refusal_error_with_the_providers_reason(self) -> None:
+        client = _client(
+            stop_reason="refusal",
+            stop_details=REFUSAL_DETAILS,
+            _request_id="req_123",
+        )
+        with pytest.raises(LLMRefusalError) as exc_info:
             await _adapter(client).generate_structured(MESSAGES, _Verdict)
+        error = exc_info.value
+        assert str(error) == (
+            "The model declined this request (provider: anthropic, model: "
+            "claude-haiku-4-5-20251001, reason reported: reasoning_extraction). Retrying with "
+            "the same input won't change the result. If you believe this input should be "
+            "accepted, please report it at https://github.com/learning-commons-org/evaluators/"
+            "issues and include the evaluator name, the category, and the request ID."
+        )
+        assert error.category == "reasoning_extraction"
+        assert error.explanation == "This request was blocked."
+        assert error.dependency == "anthropic"
+        assert error.model == "claude-haiku-4-5-20251001"
+        assert error.request_id == "req_123"
+        # Refused again if resent, and billed each time.
+        assert error.retryable is False
+        # Callers already catching the provider catch-all keep catching it.
+        assert isinstance(error, LLMProviderError)
+        assert not isinstance(error, LLMOutputProcessingError)
+
+    async def test_a_refusal_reads_stop_details_left_as_a_dictionary(self) -> None:
+        # anthropic 0.77.0 does not declare ``stop_details`` and keeps it as the raw dictionary.
+        details = {
+            "type": "refusal",
+            "category": "reasoning_extraction",
+            "explanation": "This request was blocked.",
+        }
+        client = _client(stop_reason="refusal", stop_details=details)
+        with pytest.raises(LLMRefusalError) as exc_info:
+            await _adapter(client).generate_structured(MESSAGES, _Verdict)
+        assert exc_info.value.category == "reasoning_extraction"
+        assert exc_info.value.explanation == "This request was blocked."
+        assert "reason reported: reasoning_extraction" in str(exc_info.value)
+
+    async def test_a_refusal_without_stop_details_still_raises_the_refusal_error(self) -> None:
+        # Older models stop with ``refusal`` and say nothing more.
+        with pytest.raises(LLMRefusalError) as exc_info:
+            await _adapter(_client(stop_reason="refusal")).generate_structured(MESSAGES, _Verdict)
+        error = exc_info.value
+        assert str(error).startswith(
+            "The model declined this request (provider: anthropic, model: "
+            "claude-haiku-4-5-20251001). Retrying"
+        )
+        assert error.category is None
+        assert error.explanation is None
+        assert error.request_id is None
+
+    async def test_a_refusal_that_left_partial_text_is_still_a_refusal(self) -> None:
+        # The stop reason decides, so cut-off text is not handed to the schema.
+        content = [SimpleNamespace(type="text", text='{"aligned": tr')]
+        client = _client(content=content, stop_reason="refusal", stop_details=REFUSAL_DETAILS)
+        with pytest.raises(LLMRefusalError):
+            await _adapter(client).generate_structured(MESSAGES, _Verdict)
+
+    async def test_an_empty_completion_that_is_not_a_refusal_is_an_output_error(self) -> None:
+        with pytest.raises(LLMOutputProcessingError, match="end_turn") as exc_info:
+            await _adapter(_client()).generate_structured(MESSAGES, _Verdict)
         assert exc_info.value.retryable is True
 
     async def test_schema_invalid_text_raises_pydantic_for_the_boundary_to_classify(self) -> None:
@@ -115,12 +187,18 @@ class TestGenerateStructured:
             await _adapter(client).generate_structured(MESSAGES, _Verdict, temperature=temperature)
         assert str(exc_info.value) == (
             "anthropic:claude-haiku-4-5-20251001 stopped at "
-            f"max_tokens={DEFAULT_MAX_TOKENS} before its structured output was complete."
+            f"max_tokens={DEFAULT_MAX_TOKENS} before its output was complete."
         )
         assert exc_info.value.retryable is retryable
 
 
 class TestGenerateText:
+    async def test_a_refusal_raises_the_refusal_error(self) -> None:
+        client = _client(stop_reason="refusal", stop_details=REFUSAL_DETAILS)
+        with pytest.raises(LLMRefusalError) as exc_info:
+            await _adapter(client).generate_text(MESSAGES)
+        assert exc_info.value.category == "reasoning_extraction"
+
     async def test_concatenates_text_blocks_only(self) -> None:
         content = [
             SimpleNamespace(type="text", text="Hello, "),
@@ -130,3 +208,31 @@ class TestGenerateText:
         response = await _adapter(_client(content=content)).generate_text(MESSAGES)
         assert response.text == "Hello, world."
         assert response.usage.input_tokens == 5
+
+    async def test_sends_the_cap_as_max_tokens(self) -> None:
+        client = _client(content=[SimpleNamespace(type="text", text="Done.")])
+        await _adapter(client).generate_text(MESSAGES, max_tokens=700)
+        assert client.messages.create.await_args.kwargs["max_tokens"] == 700
+
+    @pytest.mark.parametrize(
+        ("temperature", "retryable"), [(0.0, False), (None, True), (0.7, True)]
+    )
+    async def test_a_max_tokens_stop_is_truncated_rather_than_returned(
+        self, temperature: float | None, retryable: bool
+    ) -> None:
+        content = [SimpleNamespace(type="text", text="The text assumes the reader kno")]
+        client = _client(content=content, stop_reason="max_tokens")
+        with pytest.raises(LLMOutputProcessingError) as exc_info:
+            await _adapter(client).generate_text(MESSAGES, temperature=temperature, max_tokens=700)
+        assert str(exc_info.value) == (
+            "anthropic:claude-haiku-4-5-20251001 stopped at max_tokens=700 before its output "
+            "was complete."
+        )
+        assert exc_info.value.retryable is retryable
+
+    async def test_a_max_tokens_stop_under_the_default_names_the_default(self) -> None:
+        client = _client(
+            content=[SimpleNamespace(type="text", text="Cut")], stop_reason="max_tokens"
+        )
+        with pytest.raises(LLMOutputProcessingError, match=f"max_tokens={DEFAULT_MAX_TOKENS}"):
+            await _adapter(client).generate_text(MESSAGES)

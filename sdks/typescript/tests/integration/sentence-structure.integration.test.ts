@@ -60,11 +60,15 @@ const TEST_CASES: BaseTestCase[] = [
     id: 'SS5',
     grade: '5',
     text: "Mesopotamia, located in present-day Iraq, is known as the 'Cradle of Civilization' because it was home to some of the earliest civilizations in the world. The region got its name from the ancient Greek words for 'land between the rivers,' referring to the Tigris and Euphrates rivers. These rivers provided water for the fertile land, making it perfect for farming. The regular flooding of the rivers made the land around them ideal for growing crops, which helped people settle down and form permanent villages. These villages eventually grew into cities, where people developed many of the characteristics of civilization, like organized government, complex buildings, and different social classes.\n \n\n The first civilizations in Mesopotamia were the Sumerians, who lived around 5,000 years ago. They invented the world's first written language, called cuneiform, which they used to keep track of things like food supplies and trade. They also developed a system of numbers, which helped them with math and measurement. The Sumerians built impressive cities like Ur, Eridu, and Uruk, which had populations of over 50,000 people. These cities were centers of learning and culture, and they helped spread knowledge and ideas throughout the region.\n \n\n Over time, other civilizations rose and fell in Mesopotamia, including the Akkadians, Babylonians, and Assyrians. Each civilization made its own contributions to the development of human society. The Babylonians are famous for their code of laws, which was one of the first written legal systems in the world. The Assyrians were known for their powerful military and their impressive palaces. Mesopotamia's history is full of amazing inventions and innovations that shaped the world we live in today.\n \n\n The development of civilization in Mesopotamia was not just about the fertile land and the rivers. Changes in climate and the environment also played a role. People had to become more organized and work together to survive. This led to the development of complex societies and governments. Mesopotamia's story is a reminder of how human ingenuity and adaptability can lead to amazing achievements.\n \n\n The 'Cradle of Civilization' is a term that refers to the regions where the earliest known human civilizations emerged. Mesopotamia is a prime example of this, as it was a place where people learned to live together, build cities, and develop new technologies that changed the course of human history. The innovations that came from Mesopotamia, like writing, mathematics, and agriculture, continue to influence our lives today. By studying ancient Mesopotamia, we can learn about the origins of our own civilization and the challenges and triumphs of early humans.",
-    expected: 'slightly_complex',
-    acceptable: ['moderately_complex'],
-    // TODO: Valiadate the test-case with additional data from Grade 5
-    // expected: 'exceedingly_complex',
-    // acceptable: ['very_complex'],
+    // What gpt-5.5-2026-04-23 at reasoning effort none returns for this text: very_complex
+    // on every attempt of the two live runs on 53f5444 (Nov 18, 2026). The text has no
+    // expert label, so this pins the shipped model's behaviour and is not a ground-truth
+    // rating. Before the model swap the case expected slightly_complex, which was not
+    // validated either. Grades 5-12 are known to rate harder after the swap (see the PR
+    // and the model card), and this case is to be revisited when the grades 5-12 evaluator
+    // is rebuilt on expert-labelled data.
+    expected: 'very_complex',
+    acceptable: ['moderately_complex', 'exceedingly_complex'],
   },
   {
     id: 'SS6',

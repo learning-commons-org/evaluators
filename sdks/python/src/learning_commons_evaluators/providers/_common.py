@@ -7,7 +7,13 @@ import time
 from collections.abc import Callable, Sequence
 from typing import TypeVar
 
-from learning_commons_evaluators.errors import ConfigurationError, LLMOutputProcessingError
+from learning_commons_evaluators.errors import (
+    ISSUES_URL,
+    ConfigurationError,
+    DependencyId,
+    LLMOutputProcessingError,
+    LLMRefusalError,
+)
 from learning_commons_evaluators.providers.base import (
     ImageAttachment,
     Message,
@@ -97,12 +103,14 @@ def truncated_output(
     At temperature 0 the same request stops at the same place, so resampling it would only
     repeat the cost; it is raised as not retryable. At any other temperature, or with none
     sent (the model's default), a resample may come back shorter, so it is retryable as
-    before. Each adapter raises this from the vendor's own stop signal, before it parses
-    the text, because cut-off JSON would otherwise surface as a schema error.
+    before. Each adapter raises this from the vendor's own stop signal: for structured
+    output before it parses the text, because cut-off JSON would otherwise surface as a
+    schema error, and for prose because cut-off text would otherwise be returned as if it
+    were the whole answer.
     """
     limit = f"max_tokens={max_tokens}" if max_tokens is not None else "its output limit"
     return LLMOutputProcessingError(
-        f"{label} stopped at {limit} before its structured output was complete.",
+        f"{label} stopped at {limit} before its output was complete.",
         retryable=temperature != 0,
     )
 
@@ -116,3 +124,38 @@ def no_structured_output(label: str, detail: str | None) -> LLMOutputProcessingE
     """
     suffix = f" ({detail})" if detail else ""
     return LLMOutputProcessingError(f"{label} returned no structured output{suffix}.")
+
+
+def refused(
+    *,
+    dependency: DependencyId,
+    model: str | None,
+    category: str | None = None,
+    explanation: str | None = None,
+    request_id: str | None = None,
+) -> LLMRefusalError:
+    """The error for a call the provider answered by declining to serve it.
+
+    Raised from the vendor's own refusal signal, before the text is read: a refusal is the
+    provider's decision about the request, so it must not surface as an empty or malformed
+    completion, which would be resampled and billed again. ``category`` and ``explanation``
+    are the provider's, passed through unchanged; the message names the provider, model and
+    category so the failure is diagnosable without reading the attributes, and leaves out
+    whichever of the last two is unknown.
+    """
+    details = [f"provider: {dependency}"]
+    if model:
+        details.append(f"model: {model}")
+    if category:
+        details.append(f"reason reported: {category}")
+    return LLMRefusalError(
+        f"The model declined this request ({', '.join(details)}). Retrying with the same "
+        "input won't change the result. If you believe this input should be accepted, please "
+        f"report it at {ISSUES_URL} and include the evaluator name, the category, and the "
+        "request ID.",
+        dependency=dependency,
+        model=model,
+        category=category,
+        explanation=explanation,
+        request_id=request_id,
+    )

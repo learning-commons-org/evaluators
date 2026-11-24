@@ -30,10 +30,6 @@ def home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     return tmp_path
 
 
-def config_path(home: Path) -> Path:
-    return home / ".config" / "learning-commons" / "config.json"
-
-
 class TestSdkVersion:
     def test_names_this_sdk_and_its_version(self) -> None:
         assert utils.sdk_version() == f"learning-commons-evaluators-python-{__version__}"
@@ -69,16 +65,16 @@ class TestTimestamp:
 
 
 class TestClientId:
-    def test_generates_and_saves_an_id_when_there_is_no_config_file(self, home: Path) -> None:
+    def test_generates_and_saves_an_id_when_there_is_no_config_file(self) -> None:
         generated = utils.client_id()
 
         assert UUID.match(generated)
-        saved = json.loads(config_path(home).read_text(encoding="utf-8"))
+        saved = json.loads(utils.config_file().read_text(encoding="utf-8"))
         assert saved == {"telemetry": {"clientId": generated}}
 
-    def test_reads_the_id_the_typescript_sdk_saved(self, home: Path) -> None:
+    def test_reads_the_id_the_typescript_sdk_saved(self) -> None:
         existing = "a1b2c3d4-e5f6-4789-ab01-cd23ef456789"
-        path = config_path(home)
+        path = utils.config_file()
         path.parent.mkdir(parents=True)
         path.write_text(json.dumps({"telemetry": {"clientId": existing}}), encoding="utf-8")
 
@@ -99,10 +95,10 @@ class TestClientId:
         assert utils.client_id() == utils.client_id()
         assert len(reads) == 1
 
-    def test_keeps_what_else_the_shared_file_holds(self, home: Path) -> None:
+    def test_keeps_what_else_the_shared_file_holds(self) -> None:
         # The file belongs to both SDKs and to whatever comes next; a key this SDK does not
         # know about is not ours to drop.
-        path = config_path(home)
+        path = utils.config_file()
         path.parent.mkdir(parents=True)
         path.write_text(json.dumps({"other": {"kept": True}, "telemetry": {}}), encoding="utf-8")
 
@@ -116,15 +112,15 @@ class TestClientId:
         ["not json at all", "[]", '{"telemetry": {"clientId": ""}}'],
         ids=["malformed", "not-an-object", "empty-id"],
     )
-    def test_generates_an_id_when_the_file_cannot_be_used(self, home: Path, contents: str) -> None:
-        path = config_path(home)
+    def test_generates_an_id_when_the_file_cannot_be_used(self, contents: str) -> None:
+        path = utils.config_file()
         path.parent.mkdir(parents=True)
         path.write_text(contents, encoding="utf-8")
 
         assert UUID.match(utils.client_id())
 
     def test_a_filesystem_it_cannot_write_still_yields_an_id(
-        self, home: Path, monkeypatch: pytest.MonkeyPatch
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         # A read-only container or serverless sandbox: the id is then per-process, and
         # telemetry is anonymous either way.
@@ -134,12 +130,14 @@ class TestClientId:
         monkeypatch.setattr(Path, "mkdir", read_only)
 
         assert UUID.match(utils.client_id())
-        assert not config_path(home).exists()
+        assert not utils.config_file().exists()
 
 
 class TestWhereTheConfigLives:
-    def test_follows_xdg_on_posix(self, home: Path) -> None:
-        assert utils.config_file() == config_path(home)
+    def test_follows_xdg_on_posix(self, monkeypatch: pytest.MonkeyPatch, home: Path) -> None:
+        monkeypatch.setattr(utils, "os", SimpleNamespace(name="posix", environ={}))
+
+        assert utils.config_file() == home / ".config" / "learning-commons" / "config.json"
 
     def test_follows_appdata_on_windows(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path

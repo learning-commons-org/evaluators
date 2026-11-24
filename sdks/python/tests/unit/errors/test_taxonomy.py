@@ -18,6 +18,7 @@ from learning_commons_evaluators.errors import (
     KnowledgeGraphError,
     LLMOutputProcessingError,
     LLMProviderError,
+    LLMRefusalError,
     NetworkError,
     RateLimitError,
     RequestTimeoutError,
@@ -53,6 +54,12 @@ class TestRetryableIsData:
             is False
         )
         assert AuthenticationError("x", dependency="openai", retryable=True).retryable is True
+
+    def test_a_refusal_is_never_retryable_whatever_the_status_code(self) -> None:
+        # A refusal is resent and refused again, billed each time.
+        assert LLMRefusalError("x", dependency="anthropic", status_code=503).retryable is False
+        with pytest.raises(TypeError):
+            LLMRefusalError("x", dependency="anthropic", retryable=True)  # type: ignore[call-arg]
 
 
 class TestTaxonomyShape:

@@ -330,6 +330,9 @@ class SingleStepEvaluator(BaseEvaluator, Generic[InputT, OutputT]):
                 effort = self.effective_reasoning_effort(self._step.reasoning_effort)
                 if effort is not None:
                     extra["reasoning_effort"] = effort
+                cap = self.effective_max_output_tokens(self._step.max_output_tokens)
+                if cap is not None:
+                    extra["max_tokens"] = cap
                 dependency, model = self._provider_context(self.provider)
                 assert self._step.model is not None
                 response = await call_with_resampling(

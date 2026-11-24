@@ -32,6 +32,7 @@ VOCAB = "text_complexity.ela_reading.vocabulary_complexity"
 TONE = "feedback.ela_writing.tone_appropriateness"
 MATH = "academic_standards_alignment.mathematics.math_standards_alignment"
 CRITICAL_THINKING = "durable_skills.ela_writing.critical_thinking"
+SENTENCE_STRUCTURE = "text_complexity.ela_reading.sentence_structure"
 
 
 def registry_ids() -> list[str]:
@@ -56,7 +57,7 @@ class TestBundleMatchesTheRegistry:
         source = next(
             p
             for p in EVALS_ROOT.glob("*/*/*/config.json")
-            if json.loads(p.read_text())["evaluator"]["id"] == contract.evaluator.id
+            if json.loads(p.read_text(encoding="utf-8"))["evaluator"]["id"] == contract.evaluator.id
         )
         bundled = contract_path(contract.evaluator.id) / "config.json"
         assert bundled.read_bytes() == source.read_bytes()
@@ -154,7 +155,8 @@ class TestLookups:
         assert step.model.provider is Provider.GOOGLE
         assert step.condition is not None
         assert step.condition.values == ["3", "4"]
-        assert step.temperature == 0
+        # gemini-3.8-flash is sent no temperature (Google's 3.8 guidance), so the step declares null.
+        assert step.temperature is None
 
     def test_unknown_step_names_the_contract(self) -> None:
         with pytest.raises(
@@ -180,6 +182,29 @@ class TestLookups:
     def test_temperature_null_is_none(self) -> None:
         step = load_contract(CRITICAL_THINKING).step("evaluate_critical_thinking")
         assert step.temperature is None
+
+    def test_max_output_tokens_reads_through_and_absent_is_none(self) -> None:
+        step = load_contract(GLA).steps[0]
+        # No registry contract declares one yet; absent means no cap.
+        assert step.max_output_tokens is None
+        raw = step.model_dump(by_alias=True)
+        raw["generation"] = {**raw["generation"], "max_output_tokens": 4096}
+        capped = type(step).model_validate(raw)
+        assert capped.max_output_tokens == 4096
+        assert capped.generation is not None and capped.generation.max_output_tokens == 4096
+
+    def test_a_step_without_generation_has_no_cap(self) -> None:
+        raw = load_contract(GLA).steps[0].model_dump(by_alias=True)
+        raw["generation"] = None
+        assert type(load_contract(GLA).steps[0]).model_validate(raw).max_output_tokens is None
+
+    def test_reasoning_effort_is_read_per_step_and_absent_is_none(self) -> None:
+        step = load_contract(SENTENCE_STRUCTURE).step("sentence_analysis_grades_3_4")
+        assert step.reasoning_effort == "none"
+        assert (
+            load_contract(CRITICAL_THINKING).step("evaluate_critical_thinking").reasoning_effort
+            is None
+        )
 
     def test_required_credentials_skip_optional_steps(self) -> None:
         math = load_contract(MATH)

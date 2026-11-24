@@ -3,7 +3,8 @@
 Structured output sends the pydantic model's JSON schema as the message's output format,
 the same one ``messages.parse`` builds, through ``messages.create``, and validates the text
 afterwards. That order lets the stop reason be read first: a completion cut off at
-``max_tokens`` is reported as truncated rather than as a schema error. Anthropic requires
+``max_tokens`` is reported as truncated rather than as a schema error, and prose cut off
+there is reported the same way rather than returned. Anthropic requires
 ``max_tokens``. A request that names none gets :data:`DEFAULT_MAX_TOKENS`. The TypeScript
 adapter sends the model's own ceiling instead (128,000 for ``claude-opus-5``). This client
 makes non-streaming calls, which the SDK refuses above 21,333 tokens. The default is 20,000, the higher ceiling we send
@@ -16,19 +17,21 @@ Each call builds its own client and closes it before returning; see
 from __future__ import annotations
 
 import time
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel, TypeAdapter
 
+from learning_commons_evaluators.errors import LLMRefusalError
 from learning_commons_evaluators.providers._common import (
     around_text,
     base64_data,
     elapsed_ms,
     last_user_turn,
     no_structured_output,
+    refused,
     require_config,
     split_system,
     truncated_output,
@@ -130,6 +133,33 @@ class AnthropicProvider:
             request["output_config"] = {"effort": reasoning_effort}
         return request
 
+    def _refusal(self, message: Any) -> LLMRefusalError:
+        """The error for a message Anthropic stopped with ``stop_reason: "refusal"``.
+
+        The response is HTTP 200 and carries why on ``stop_details``: a ``category`` (for
+        example ``reasoning_extraction``) and an ``explanation``. An SDK release that
+        declares the field hands it over as a typed object; an older one (0.77.0, the
+        oldest supported) keeps it as the raw dictionary, so both shapes are read. Older
+        models omit it altogether, so each value may be ``None``.
+        """
+        details = getattr(message, "stop_details", None)
+
+        def detail(name: str) -> Any:
+            if isinstance(details, Mapping):
+                return details.get(name)
+            return getattr(details, name, None)
+
+        category = detail("category")
+        explanation = detail("explanation")
+        request_id = getattr(message, "_request_id", None)
+        return refused(
+            dependency="anthropic",
+            model=self._model,
+            category=category if isinstance(category, str) else None,
+            explanation=explanation if isinstance(explanation, str) else None,
+            request_id=request_id if isinstance(request_id, str) else None,
+        )
+
     @staticmethod
     def _usage(message: Any) -> TokenUsage:
         usage = getattr(message, "usage", None)
@@ -163,6 +193,8 @@ class AnthropicProvider:
         async with self._session() as client:
             message = await client.messages.create(**request)
         stop_reason = getattr(message, "stop_reason", None)
+        if stop_reason == "refusal":
+            raise self._refusal(message)
         if stop_reason == "max_tokens":
             raise truncated_output(
                 self.label, temperature=temperature, max_tokens=request["max_tokens"]
@@ -171,7 +203,7 @@ class AnthropicProvider:
             getattr(block, "text", "") for block in message.content if block.type == "text"
         )
         if not text.strip():
-            # A refusal ends without a text block; the stop reason says so.
+            # An empty completion that is not a refusal; the stop reason is all there is.
             raise no_structured_output(self.label, stop_reason)
         # A pydantic ValidationError here classifies as LLMOutputProcessingError, as before.
         parsed = schema.model_validate_json(text)
@@ -191,12 +223,18 @@ class AnthropicProvider:
         reasoning_effort: str | None = None,
     ) -> TextGenerationResponse:
         start = time.perf_counter()
+        request = self._request(
+            messages, temperature, max_tokens, reasoning_effort=reasoning_effort
+        )
         async with self._session() as client:
-            message = await client.messages.create(
-                **self._request(
-                    messages, temperature, max_tokens, reasoning_effort=reasoning_effort
-                )
+            message = await client.messages.create(**request)
+        # A completion cut off at the output limit would otherwise read as the whole answer.
+        if getattr(message, "stop_reason", None) == "max_tokens":
+            raise truncated_output(
+                self.label, temperature=temperature, max_tokens=request["max_tokens"]
             )
+        if getattr(message, "stop_reason", None) == "refusal":
+            raise self._refusal(message)
         text = "".join(
             getattr(block, "text", "") for block in message.content if block.type == "text"
         )

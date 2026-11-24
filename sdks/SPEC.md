@@ -41,7 +41,7 @@ Every rule in this spec derives from one of these. When the spec is silent, deci
 
 7. **Sensitive data stays in the process.** Raw user-supplied input MUST NOT appear in telemetry, and appears in logs only at `DEBUG`; credentials and key fragments MUST NOT appear on any surface, ever. In-process error objects carry full diagnostic detail (§6.4). Model outputs, scores, and reasoning are product data and MAY be logged and reported.
 
-8. **Determinism is declared.** Models are pinned to immutable versions, and temperatures and reasoning efforts declared; behavior changes only through deliberate registry updates (§10).
+8. **Determinism is declared.** Models are pinned to immutable versions, and temperatures, reasoning efforts and output caps declared; behavior changes only through deliberate registry updates (§10).
 
 9. **Every unit is in the name.** Quantity fields carry a unit suffix (`_ms`, `_chars`, `_tokens`). The default unit for durations is milliseconds (`_ms`); any other unit is an explicit, documented exception.
 
@@ -243,11 +243,14 @@ Class names are canonical in every SDK (§2.2). An error pattern useful in one S
 | `NetworkError` | `DependencyError` | Connection failure (DNS, refused, TLS) | Yes — backoff |
 | `RequestTimeoutError` | `DependencyError` | Request to the dependency exceeded its timeout | Yes — backoff |
 | `LLMProviderError` | `DependencyError` | Catch-all for LLM-provider failures not mapped above | iff 5xx |
+| `LLMRefusalError` | `LLMProviderError` | The LLM provider answered that it will not serve the request (a refusal) | No |
 | `KnowledgeGraphError` | `DependencyError` | Catch-all for Knowledge Graph service failures not mapped above | iff 5xx |
 
 - Abstract bases (`EvaluatorError`, `EvaluationError`, `DependencyError`) exist so callers can branch on category; the SDK never raises one directly. Languages that can enforce non-instantiation SHOULD.
 - `InputValidationError` (caller's fault, never retryable) and `LLMOutputProcessingError` (model's fault, retryable — LLMs are nondeterministic) MUST NOT be merged.
 - Fault domain decides classification, not subsystem: a caller-supplied unknown standards code is `InputValidationError`, even though the Knowledge Graph reports it.
+
+- A provider refusal is a `DependencyError`, not an `LLMOutputProcessingError`: the provider decided not to serve the request, so resampling repeats the refusal and its cost. `LLMRefusalError` extends the LLM catch-all so callers already handling `LLMProviderError` keep handling it; it is the one class below a catch-all leaf.
 
 **Extending to a new dependency:** reuse the shared subclasses (auth, rate-limit, network, timeout) — which system failed is data (`dependency`, §6.2), not a class. A new external system MAY add exactly one catch-all leaf under `DependencyError`, registered in the table above before it ships. No deeper per-integration hierarchies.
 
@@ -269,6 +272,8 @@ Every `EvaluatorError` exposes `retryable` (bool). Class defaults are the Retrya
 `LLMOutputProcessingError` additionally: `validation_errors` (array | null) — per-field failures (schema locations and error types) for diagnostics; the element shape is implementation-defined and not for programmatic branching.
 
 `StandardNotFoundError` additionally: `statement_code` — the code the caller supplied.
+
+`LLMRefusalError` additionally: `category` (string | null) — the provider's own label for why it refused (e.g. Anthropic's `reasoning_extraction`); `explanation` (string | null) — the provider's wording. Both are passed through unchanged and are null when the provider gave none.
 
 ### 6.3 Retryability is data; strategy follows the category
 
@@ -308,6 +313,7 @@ Classify by **structured signals only** — status code, typed exception, struct
 | 429 | `RateLimitError` |
 | Connection-level failure (typed) | `NetworkError` |
 | Timeout (typed or 408) | `RequestTimeoutError` |
+| Structured refusal signal on a successful response (e.g. Anthropic `stop_reason: "refusal"`) | `LLMRefusalError` |
 | Schema-invalid or unparseable model output | `LLMOutputProcessingError` |
 | Anything else | Dependency catch-all (`LLMProviderError`, `KnowledgeGraphError`, …), retryable iff 5xx |
 
@@ -397,7 +403,7 @@ A definition MUST specify:
 | Input schema | Every accepted input by canonical name, with bounds (§4.1) and accepted grade tokens |
 | Output schema | The `result` shape (§5.2), field by field |
 | Preprocessing | Derived-input entries (§10.4), each with its computation and any `required_credentials` |
-| Steps | Ordered LLM steps; per step: model (`provider` + immutable model ID, §10.2), prompt, temperature (`null` = omit the parameter, for providers that do not accept one), reasoning effort (optional, in the step provider's own terms; absent = send nothing and take the model's default; a step declaring one sets temperature to `null`; not sent under a model override or to a caller-supplied provider), `optional` flag, and `required_credentials` |
+| Steps | Ordered LLM steps; per step: model (`provider` + immutable model ID, §10.2), prompt, temperature (`null` = omit the parameter, for providers that do not accept one), reasoning effort (optional, in the step provider's own terms; absent = send nothing and take the model's default; a step declaring one sets temperature to `null`; not sent under a model override or to a caller-supplied provider), output cap (`max_output_tokens`, optional, at most 20,000; absent = no cap of the contract's own; reasoning tokens count against it; a completion that stops at it fails as truncated output rather than being returned; not sent under a model override or to a caller-supplied provider), `optional` flag, and `required_credentials` |
 
 `required_credentials` sit on steps and preprocessing entries — not on the evaluator — so requirements narrow correctly: an `optional` step's credential is demanded only when a caller opts into that step. LLM key requirements are derived from the steps' providers, never declared separately (§3.1).
 
@@ -472,7 +478,7 @@ Cross-SDK behavior is verified by shared, language-neutral fixture files (per-ev
 Applies to non-Draft spec surfaces and Stable evaluators; Draft content and Experimental evaluators are exempt. Breaking is judged from the **user's** point of view:
 
 - **Non-breaking:** adding fields to results, events, or config; adding evaluators, error subclasses, or capabilities; widening accepted inputs; improving error messages within §4.1's same-facts rule.
-- **Breaking (major bump + deprecation):** removing or renaming any public name; changing a field's type, unit, or semantics; narrowing accepted inputs; changing a registry definition's models, steps, temperature, or reasoning effort in a way that changes evaluation results.
+- **Breaking (major bump + deprecation):** removing or renaming any public name; changing a field's type, unit, or semantics; narrowing accepted inputs; changing a registry definition's models, steps, temperature, reasoning effort, or output cap in a way that changes evaluation results.
 - Consumers of results, events, and registry data MUST treat unknown fields as forward-compatible (ignore, don't fail).
 
 **Deprecation:** a renamed or removed surface keeps a working, warning-emitting alias for at least one minor release of every affected SDK.
