@@ -137,6 +137,41 @@ class WireShapeHash(unittest.TestCase):
         grown["$defs"]["StageDetail"]["properties"]["description"] = {"type": "string"}
         self.assertNotEqual(gen.wire_shape_hash(grown), gen.wire_shape_hash(schema()))
 
+    def test_ignores_the_order_of_required(self) -> None:
+        # A set in JSON Schema: reversing it renders identical SDK code.
+        reordered = schema()
+        reordered["required"] = list(reversed(reordered["required"]))
+        reordered["$defs"]["StageDetail"]["required"].reverse()
+        self.assertEqual(gen.wire_shape_hash(reordered), gen.wire_shape_hash(schema()))
+        self.assertEqual(
+            gen.render_typescript(gen.build_model(reordered)),
+            gen.render_typescript(gen.build_model(schema())),
+        )
+
+    def test_ignores_the_order_of_an_enum(self) -> None:
+        reordered = schema()
+        reordered["$defs"]["EvaluationStatus"]["enum"].reverse()
+        self.assertEqual(gen.wire_shape_hash(reordered), gen.wire_shape_hash(schema()))
+
+    def test_still_sees_a_change_to_required(self) -> None:
+        loosened = schema()
+        loosened["required"].remove("grade")
+        self.assertNotEqual(gen.wire_shape_hash(loosened), gen.wire_shape_hash(schema()))
+
+    def test_still_sees_a_change_to_an_enum(self) -> None:
+        grown = schema()
+        grown["$defs"]["EvaluationStatus"]["enum"].append("partial")
+        self.assertNotEqual(gen.wire_shape_hash(grown), gen.wire_shape_hash(schema()))
+
+    def test_a_property_named_like_an_unordered_keyword_keeps_its_subschema(self) -> None:
+        # Inside ``properties``, ``required`` is a property name; its subschema is hashed
+        # like any other, not sorted as if it were the keyword's set.
+        first = schema()
+        first["$defs"]["StageDetail"]["properties"]["required"] = {"type": "string"}
+        second = schema()
+        second["$defs"]["StageDetail"]["properties"]["required"] = {"type": "boolean"}
+        self.assertNotEqual(gen.wire_shape_hash(first), gen.wire_shape_hash(second))
+
 
 class VersionProblems(unittest.TestCase):
     def setUp(self) -> None:
@@ -172,6 +207,21 @@ class VersionProblems(unittest.TestCase):
         problems, fixable = gen.version_problems(self.grown(3), self.versions)
         self.assertIn("must be the next version after 1", problems[0])
         self.assertFalse(fixable)
+
+    def test_restoring_an_older_recorded_version_fails(self) -> None:
+        # Version 1's shape still matches version 1's hash, but version 2 superseded it.
+        versions = {**self.versions, 2: gen.wire_shape_hash(self.grown(2))}
+        problems, fixable = gen.version_problems(schema(), versions)
+        self.assertIn("older than the newest recorded version, 2", problems[0])
+        self.assertFalse(fixable)
+
+    def test_restoring_an_older_shape_under_a_new_number_is_a_genuine_bump(self) -> None:
+        versions = {**self.versions, 2: gen.wire_shape_hash(self.grown(2))}
+        restored = schema()
+        restored["properties"]["schema_version"]["const"] = 3
+        problems, fixable = gen.version_problems(restored, versions)
+        self.assertEqual(len(problems), 1)
+        self.assertTrue(fixable)
 
 
 class Gitattributes(unittest.TestCase):

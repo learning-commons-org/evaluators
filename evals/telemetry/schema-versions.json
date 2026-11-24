@@ -1,6 +1,6 @@
 {
   "$comment": "schema_version -> hash of the wire shape it names, written by `python3 scripts/check.py --fix telemetry-schema`. Append-only: a recorded version is never re-hashed. See scripts/generate_telemetry_schema.py (wire_shape_hash).",
   "versions": {
-    "1": "sha256:072d5d02c55f0bed83f71e63b0b1d57de563a54bb709d795b066770218e322a8"
+    "1": "sha256:0802d0fc22ca7e72b69b0d76e2643567b22fbb2621365aa6f36f41b478bc8e1a"
   }
 }

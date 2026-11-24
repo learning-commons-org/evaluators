@@ -338,7 +338,8 @@ def wire_shape_hash(schema: dict[str, Any]) -> str:
     comment needs no version bump. ``schema_version``'s own ``const`` is dropped too, so the
     hash names the shape, not the number given to it. Key order is normalized everywhere
     except inside ``properties``, whose order *is* wire order: reordering two properties
-    changes what is sent, so it changes the hash.
+    changes what is sent, so it changes the hash. The ``required`` and ``enum`` arrays are
+    sorted, since they are sets in JSON Schema and their order reaches no wire.
     """
     stripped = _without_annotations(schema)
     version = stripped.get("properties", {}).get("schema_version")
@@ -361,15 +362,27 @@ def _without_annotations(node: Any, *, in_properties: bool = False) -> Any:
     return node
 
 
+#: Keywords whose array value is a set: its order is not part of the wire shape.
+_UNORDERED_ARRAYS = frozenset({"required", "enum"})
+
+
 def _canonical(node: Any, *, ordered: bool = False) -> Any:
     """Plain data with dict key order normalized, except where order is meaningful."""
     if isinstance(node, dict):
         keys = list(node) if ordered else sorted(node)
         # A list of pairs, not a dict, so json.dumps cannot reorder what we just ordered.
-        return [[key, _canonical(node[key], ordered=key == "properties")] for key in keys]
+        return [[key, _canonical_value(key, node[key], in_properties=ordered)] for key in keys]
     if isinstance(node, list):
         return [_canonical(item) for item in node]
     return node
+
+
+def _canonical_value(key: str, value: Any, *, in_properties: bool) -> Any:
+    # Inside ``properties`` a key is a property name, so one named ``required`` or ``enum``
+    # holds a subschema, not a keyword's set.
+    if not in_properties and key in _UNORDERED_ARRAYS and isinstance(value, list):
+        return sorted((_canonical(item) for item in value), key=json.dumps)
+    return _canonical(value, ordered=key == "properties" and not in_properties)
 
 
 def load_versions(path: Path = VERSIONS_PATH) -> dict[int, str]:
@@ -398,11 +411,19 @@ def version_problems(schema: dict[str, Any], versions: dict[int, str]) -> tuple[
       auto-fixable — bumping is a decision, like a prompt's pinned sha256.
     - It is not recorded, it is one past the newest recorded version, and the shape really
       differs from that version's: a bump. Fixable by recording it.
-    - Anything else (a skipped number, a bump with no wire change, a version older than the
-      newest): not fixable.
+    - It is older than the newest recorded version: a rollback, even when the older shape's
+      hash matches. Versions only move forward, so an event never claims a version the
+      collector has seen superseded; restoring an old shape takes a new number. Not fixable.
+    - Anything else (a skipped number, a bump with no wire change): not fixable.
     """
     version = schema["properties"]["schema_version"]["const"]
     digest = wire_shape_hash(schema)
+    newest = max(versions, default=0)
+    if version < newest:
+        return [
+            f"schema_version {version} is older than the newest recorded version, {newest}; "
+            f"versions only move forward, so restoring an older wire shape takes {newest + 1}"
+        ], False
     if version in versions:
         if versions[version] == digest:
             return [], False
@@ -411,7 +432,6 @@ def version_problems(schema: dict[str, Any], versions: dict[int, str]) -> tuple[
             f"{max(versions) + 1} in event.schema.json, then run "
             "`python3 scripts/check.py --fix telemetry-schema` to record it"
         ], False
-    newest = max(versions, default=0)
     if version != newest + 1:
         return [f"schema_version {version} must be the next version after {newest}"], False
     if versions.get(newest) == digest:
