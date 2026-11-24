@@ -620,7 +620,10 @@ def render_python(model: Model) -> str:
         for field in obj.fields:
             out += [f"    #: {line.strip()}" for line in _doc_lines(field.description, "", 92)]
             annotation = _py_type(field.type)
-            if field.type.const is not None:
+            # Only a *required* constant defaults to its value. An optional one defaults to
+            # None like any optional field, so it is omitted when unset — as the TypeScript
+            # target's `field?: <const>` is — rather than always written.
+            if field.type.const is not None and field.required:
                 out.append(f"    {field.name}: {annotation} = {field.type.const!r}")
             elif field.required:
                 out.append(f"    {field.name}: {annotation}")
