@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://learningcommons.org/schemas/evaluators/telemetry/event.schema.json",
+  "title": "TelemetryEvent",
+  "description": "One evaluation, reported once to the Learning Commons telemetry collector, whether it succeeded or failed. This file is the single source of truth for the event both SDKs send: their types and wire serialization are generated from it by scripts/generate_telemetry_schema.py. Property order here is the order keys are written on the wire, and an optional property is omitted rather than sent as null. No property may carry the text being evaluated. Per-evaluator variation lives only in the named, typed blocks under `metadata`; the rest of the envelope is the same for every evaluator. Changing the wire shape means bumping `schema_version` in the same change (the telemetry-schema check enforces it).",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "description": "Version of this schema the event was built against. Bumped in the same change as any wire-shape change; an event without it predates versioning.",
+      "type": "integer",
+      "const": 1
+    },
+    "timestamp": {
+      "description": "When the event was emitted (the evaluation's completion), as JavaScript's Date.toISOString writes it: millisecond precision, Z suffix.",
+      "type": "string"
+    },
+    "sdk_version": {
+      "description": "The emitting SDK's version. The Python SDK prefixes it with its package identifier; the TypeScript SDK sends it bare.",
+      "type": "string"
+    },
+    "sdk_language": {
+      "description": "Which SDK emitted the event.",
+      "$ref": "#/$defs/SdkLanguage"
+    },
+    "evaluator_type": {
+      "description": "The evaluator's current dotted registry id.",
+      "type": "string"
+    },
+    "grade": {
+      "description": "The grade evaluated. Always present: empty string for an evaluator that takes no grade, or when the evaluation failed before the grade was known.",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/EvaluationStatus"
+    },
+    "error_code": {
+      "description": "The error's class name, on a failed evaluation only.",
+      "type": "string"
+    },
+    "latency_ms": {
+      "description": "Wall-clock duration of the whole evaluation in milliseconds, including a failed one.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "text_length_chars": {
+      "description": "Length of the evaluator's primary text input in UTF-16 code units (JavaScript's String.length); 0 when the inputs were never validated.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "provider": {
+      "description": "`provider:model` for the model that answered, or that was being called when the evaluation failed. `provider1+provider2` for an evaluator that reports a combined label.",
+      "type": "string"
+    },
+    "token_usage": {
+      "description": "Token usage summed over the steps that completed. Absent when no step completed.",
+      "$ref": "#/$defs/TokenUsage"
+    },
+    "metadata": {
+      "description": "Per-evaluator extension blocks. Absent when no block has anything to report.",
+      "$ref": "#/$defs/TelemetryMetadata"
+    },
+    "model_override": {
+      "description": "true when the caller configured a model override; absent otherwise.",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema_version",
+    "timestamp",
+    "sdk_version",
+    "sdk_language",
+    "evaluator_type",
+    "grade",
+    "status",
+    "latency_ms",
+    "text_length_chars",
+    "provider"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "EvaluationStatus": {
+      "description": "What an evaluation did, from the collector's point of view.",
+      "type": "string",
+      "enum": ["success", "error"]
+    },
+    "SdkLanguage": {
+      "description": "The SDK an event came from.",
+      "type": "string",
+      "enum": ["python", "typescript"]
+    },
+    "TokenUsage": {
+      "description": "Token counts reported by the model provider.",
+      "type": "object",
+      "properties": {
+        "input_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "output_tokens": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": ["input_tokens", "output_tokens"],
+      "additionalProperties": false
+    },
+    "StageDetail": {
+      "description": "One step of an evaluation: what ran, on which model, for how long, at what cost.",
+      "type": "object",
+      "properties": {
+        "stage": {
+          "description": "Stage name, e.g. `background_knowledge` or `complexity_evaluation`.",
+          "type": "string"
+        },
+        "provider": {
+          "description": "`provider:model` for this stage.",
+          "type": "string"
+        },
+        "latency_ms": {
+          "description": "This stage's latency in milliseconds, including its retries.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "token_usage": {
+          "$ref": "#/$defs/TokenUsage"
+        },
+        "schema_validation_failed": {
+          "description": "Declared but never set by either SDK; to be replaced by `output_failure_kind` (telemetry Phase B1).",
+          "type": "boolean"
+        }
+      },
+      "required": ["stage", "provider", "latency_ms"],
+      "additionalProperties": false
+    },
+    "TelemetryMetadata": {
+      "description": "The only place per-evaluator variation may live. Each property is one named, typed block that an evaluator emits only when it has something to report in it; every block is optional.",
+      "type": "object",
+      "properties": {
+        "stage_details": {
+          "description": "One entry per completed step, in run order. Emitted by every evaluator that runs model steps (single-step, multi-step, and Math Standards Alignment).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StageDetail"
+          }
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    }
+  }
+}

@@ -42,6 +42,7 @@ fails the PR (it never auto-fixes) — so fixing locally saves a round-trip.
 | `eval-fixtures` | Validates `fixtures.json` against the shared `evals/_schemas/fixtures.schema.json`, and binds each case's `input`/`expected` to that evaluator's own input/output schema |
 | `eval-notebook` | Where an evaluator ships an example notebook, confirms it loads the config + prompt files from disk rather than hardcoding them |
 | `eval-requirements` | Cross-checks `evals/requirements.txt` against imports actually used in `evals/`, in both directions: something imported with no matching entry (a missing dependency), and something listed but never imported (a stale one) |
+| `telemetry-schema` | Validates the telemetry event schema (`evals/telemetry/event.schema.json`) — Draft 2020-12, inside the subset `generate_telemetry_schema.py` renders, every object closed, per-evaluator variation only in named `metadata` blocks. Checks `schema_version` against the wire-shape hash recorded in `evals/telemetry/schema-versions.json` (a wire change without a bump fails and is not auto-fixed; `--fix` records a genuine bump), and that every SDK module generated from the schema is current (`--fix` regenerates) and marked `linguist-generated` |
 
 ## Coming next
 

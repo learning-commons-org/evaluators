@@ -1,4 +1,4 @@
-import type { TelemetryConfig, TelemetryEvent } from './types.js';
+import { telemetryEventToWire, type TelemetryConfig, type TelemetryEvent } from './types.js';
 import type { Logger } from '../logger.js';
 
 /**
@@ -40,7 +40,9 @@ export class TelemetryClient {
       const response = await fetch(this.config.endpoint, {
         method: 'POST',
         headers,
-        body: JSON.stringify(event),
+        // Schema order, unset optionals omitted, undeclared keys dropped: the same bytes
+        // the Python SDK's generated serializer writes for the same event.
+        body: JSON.stringify(telemetryEventToWire(event)),
         // Don't block SDK operations on slow networks
         signal: AbortSignal.timeout(5000), // 5 second timeout
       });

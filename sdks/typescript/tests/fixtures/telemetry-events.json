@@ -7,8 +7,10 @@
       "grade_level": "5"
     },
     "event": {
+      "schema_version": 1,
       "timestamp": "<masked>",
       "sdk_version": "<masked>",
+      "sdk_language": "<masked>",
       "evaluator_type": "text_complexity.ela_reading.purpose_clarity",
       "grade": "5",
       "status": "success",
@@ -43,8 +45,10 @@
     },
     "raises": true,
     "event": {
+      "schema_version": 1,
       "timestamp": "<masked>",
       "sdk_version": "<masked>",
+      "sdk_language": "<masked>",
       "evaluator_type": "text_complexity.ela_reading.purpose_clarity",
       "grade": "",
       "status": "error",
@@ -64,8 +68,10 @@
     "fail_at_call": 1,
     "raises": true,
     "event": {
+      "schema_version": 1,
       "timestamp": "<masked>",
       "sdk_version": "<masked>",
+      "sdk_language": "<masked>",
       "evaluator_type": "text_complexity.ela_reading.purpose_clarity",
       "grade": "5",
       "status": "error",
@@ -87,8 +93,10 @@
       "model": "claude-opus-5"
     },
     "event": {
+      "schema_version": 1,
       "timestamp": "<masked>",
       "sdk_version": "<masked>",
+      "sdk_language": "<masked>",
       "evaluator_type": "text_complexity.ela_reading.purpose_clarity",
       "grade": "5",
       "status": "success",
@@ -123,8 +131,10 @@
       "grade_level": "5"
     },
     "event": {
+      "schema_version": 1,
       "timestamp": "<masked>",
       "sdk_version": "<masked>",
+      "sdk_language": "<masked>",
       "evaluator_type": "text_complexity.ela_reading.sentence_structure",
       "grade": "5",
       "status": "success",
@@ -169,8 +179,10 @@
     "fail_at_call": 2,
     "raises": true,
     "event": {
+      "schema_version": 1,
       "timestamp": "<masked>",
       "sdk_version": "<masked>",
+      "sdk_language": "<masked>",
       "evaluator_type": "text_complexity.ela_reading.sentence_structure",
       "grade": "5",
       "status": "error",
