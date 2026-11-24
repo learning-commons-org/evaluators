@@ -5,3 +5,4 @@ Evaluates grade 8–10 student argumentative essays for critical thinking across
 - Schemas: [input](./input_schema.json), [output](./output_schema.json)
 - [Python notebook](./example_notebook.ipynb)
 - Prompts: [`system.txt`](./system.txt), [`user.txt`](./user.txt)
+- Model used: Claude Opus 5 (`claude-opus-5-20260723`) - no configurable temperature
