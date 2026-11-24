@@ -47,8 +47,11 @@ class SentenceAnalysis(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    # Not "your step-by-step reasoning": Anthropic refuses a schema that asks for that
+    # (stop_reason "refusal", category "reasoning_extraction") on Sonnet and Opus.
     reasoning: str = Field(
-        description="Your step-by-step reasoning as you analyze the text, with a line break between each sentence analyzed."
+        description="A short sentence-by-sentence breakdown of the text: for each sentence, its type "
+        "and the clauses, phrases, and transitions it contains, one sentence per line."
     )
     num_sentences: int = Field(description="Total number of sentences in the text.")
     num_words: int = Field(description="Total number of words in the text.")
