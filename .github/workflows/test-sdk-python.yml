@@ -48,7 +48,7 @@ jobs:
       - name: Install package and dev tools
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[all]" --group dev
 
       - name: make verify
         run: make verify
@@ -99,7 +99,7 @@ jobs:
         id: install
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[all]" --group dev
 
       - name: Generated contracts match evals/
         run: python scripts/generate_contracts.py --check
@@ -155,7 +155,7 @@ jobs:
           )
           echo "Pinning: $pins"
           test "$(echo "$pins" | wc -l)" -eq 3
-          pip install -e ".[dev]" $pins
+          pip install -e ".[all]" --group dev $pins
 
       - name: Tests
         run: python -m pytest -p no:cacheprovider -q
@@ -204,7 +204,7 @@ jobs:
       - name: Install package and dev tools
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[all]" --group dev
 
       # The gate. `make coverage` exits non-zero below COV_MIN, so this step — not the
       # Codecov status — is what holds the floor when Codecov is unreachable.

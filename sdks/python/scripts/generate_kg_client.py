@@ -102,7 +102,7 @@ def _generator_installed() -> bool:
 def _require_generator() -> None:
     if not _generator_installed():
         raise SystemExit(
-            "openapi-python-client is not installed. From sdks/python/: pip install -e '.[dev]'"
+            "openapi-python-client is not installed. From sdks/python/: pip install -e '.[all]' --group dev"
         )
 
 
