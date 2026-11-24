@@ -79,6 +79,13 @@ def check_reasoning_effort(effort: str) -> None:
     )
 
 
+def _finish_reason(response: Any) -> str | None:
+    """The first candidate's finish reason as its name (``"MAX_TOKENS"``), or ``None``."""
+    candidates = getattr(response, "candidates", None) or []
+    finish = getattr(candidates[0], "finish_reason", None) if candidates else None
+    return None if finish is None else str(getattr(finish, "value", finish))
+
+
 class GoogleProvider:
     """``LLMProvider`` for Google Gemini models."""
 
@@ -199,11 +206,9 @@ class GoogleProvider:
         # JSON schema the text is the payload, and the model validates it.
         parsed = response.parsed
         if not isinstance(parsed, schema):
-            candidates = getattr(response, "candidates", None) or []
-            finish = getattr(candidates[0], "finish_reason", None) if candidates else None
             # Checked before the text is validated, so cut-off JSON is reported as
             # truncated rather than as a schema error.
-            if finish is not None and str(getattr(finish, "value", finish)) == "MAX_TOKENS":
+            if _finish_reason(response) == "MAX_TOKENS":
                 raise truncated_output(self.label, temperature=temperature, max_tokens=max_tokens)
             text = response.text
             if text is None or not text.strip():
@@ -234,6 +239,9 @@ class GoogleProvider:
         )
         async with self._session() as client:
             response = await client.aio.models.generate_content(**request)
+        # A completion cut off at the output limit would otherwise read as the whole answer.
+        if _finish_reason(response) == "MAX_TOKENS":
+            raise truncated_output(self.label, temperature=temperature, max_tokens=max_tokens)
         return TextGenerationResponse(
             text=response.text or "",
             usage=self._usage(response),

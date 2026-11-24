@@ -99,16 +99,19 @@ export abstract class EvaluationError extends EvaluatorError {}
 
 /**
  * Model response failed parsing, normalization, or its output schema.
- * Retryable immediately: the failure is sampling variance, so backing off
- * only adds latency.
+ * Retryable immediately by default: the failure is sampling variance, so backing
+ * off only adds latency. The one exception is a completion that stopped at the
+ * output limit at temperature 0, which is not variance: the same request stops at
+ * the same place again, so it is raised with `retryable: false`.
  */
 export class LLMOutputProcessingError extends EvaluationError {
   constructor(
     message: string,
     readonly validationErrors: unknown[] | null = null,
-    cause?: unknown
+    cause?: unknown,
+    options: { retryable?: boolean } = {}
   ) {
-    super(message, true, cause);
+    super(message, options.retryable ?? true, cause);
     this.name = 'LLMOutputProcessingError';
   }
 }
@@ -170,6 +173,61 @@ export class LLMProviderError extends DependencyError {
     super(message, false, options);
     this.name = 'LLMProviderError';
   }
+}
+
+/**
+ * Where a caller reports a refusal of input the evaluator should accept. The fix is
+ * usually in the evaluator's prompt, so a refusal is reported to us, not worked around.
+ */
+export const ISSUES_URL = 'https://github.com/learning-commons-org/evaluators/issues';
+
+/** {@link DependencyErrorOptions} without `retryable`: a refusal is never retryable. */
+export interface LLMRefusalErrorOptions extends Omit<DependencyErrorOptions, 'retryable'> {
+  /** The provider's own label for why it refused, e.g. Anthropic's `reasoning_extraction`. */
+  category?: string | null;
+  /** The provider's wording for the refusal. */
+  explanation?: string | null;
+}
+
+/**
+ * The LLM provider answered, and its answer was that it will not serve the request.
+ *
+ * A refusal is the provider's decision about the request, not a malformed
+ * completion, so it is a dependency failure rather than an output one, and it is
+ * never retryable: the same request is refused again, and each refused call is
+ * billed. It takes no `retryable` option, and a status code does not make it
+ * retryable. `category` and `explanation` are the provider's, passed through
+ * unchanged; both are `null` when the provider gave none.
+ */
+export class LLMRefusalError extends LLMProviderError {
+  readonly category: string | null;
+  readonly explanation: string | null;
+
+  constructor(message: string, options: LLMRefusalErrorOptions) {
+    super(message, { ...options, retryable: false });
+    this.name = 'LLMRefusalError';
+    this.category = options.category ?? null;
+    this.explanation = options.explanation ?? null;
+  }
+}
+
+/**
+ * The error for a call the provider answered by declining to serve it.
+ *
+ * The message names the provider, model and category so the failure is diagnosable
+ * without reading the fields, and leaves out whichever of the last two is unknown.
+ */
+export function refused(options: LLMRefusalErrorOptions): LLMRefusalError {
+  const details = [`provider: ${options.dependency}`];
+  if (options.model) details.push(`model: ${options.model}`);
+  if (options.category) details.push(`reason reported: ${options.category}`);
+  return new LLMRefusalError(
+    `The model declined this request (${details.join(', ')}). Retrying with the same ` +
+      "input won't change the result. If you believe this input should be accepted, please " +
+      `report it at ${ISSUES_URL} and include the evaluator name, the category, and the ` +
+      'request ID.',
+    options
+  );
 }
 
 /** Catch-all for Knowledge Graph failures not mapped above. Retryable iff 5xx. */

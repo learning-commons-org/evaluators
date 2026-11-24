@@ -57,7 +57,7 @@ class TestBundleMatchesTheRegistry:
         source = next(
             p
             for p in EVALS_ROOT.glob("*/*/*/config.json")
-            if json.loads(p.read_text())["evaluator"]["id"] == contract.evaluator.id
+            if json.loads(p.read_text(encoding="utf-8"))["evaluator"]["id"] == contract.evaluator.id
         )
         bundled = contract_path(contract.evaluator.id) / "config.json"
         assert bundled.read_bytes() == source.read_bytes()
@@ -182,6 +182,21 @@ class TestLookups:
     def test_temperature_null_is_none(self) -> None:
         step = load_contract(CRITICAL_THINKING).step("evaluate_critical_thinking")
         assert step.temperature is None
+
+    def test_max_output_tokens_reads_through_and_absent_is_none(self) -> None:
+        step = load_contract(GLA).steps[0]
+        # No registry contract declares one yet; absent means no cap.
+        assert step.max_output_tokens is None
+        raw = step.model_dump(by_alias=True)
+        raw["generation"] = {**raw["generation"], "max_output_tokens": 4096}
+        capped = type(step).model_validate(raw)
+        assert capped.max_output_tokens == 4096
+        assert capped.generation is not None and capped.generation.max_output_tokens == 4096
+
+    def test_a_step_without_generation_has_no_cap(self) -> None:
+        raw = load_contract(GLA).steps[0].model_dump(by_alias=True)
+        raw["generation"] = None
+        assert type(load_contract(GLA).steps[0]).model_validate(raw).max_output_tokens is None
 
     def test_reasoning_effort_is_read_per_step_and_absent_is_none(self) -> None:
         step = load_contract(SENTENCE_STRUCTURE).step("sentence_analysis_grades_3_4")

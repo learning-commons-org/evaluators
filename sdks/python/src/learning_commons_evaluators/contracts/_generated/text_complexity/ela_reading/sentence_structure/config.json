@@ -168,7 +168,8 @@
       },
       "generation": {
         "temperature": null,
-        "reasoning_effort": "none"
+        "reasoning_effort": "none",
+        "max_output_tokens": 12000
       },
       "parser": {
         "kind": "structured_output"
@@ -209,7 +210,8 @@
       },
       "generation": {
         "temperature": null,
-        "reasoning_effort": "none"
+        "reasoning_effort": "none",
+        "max_output_tokens": 12000
       },
       "parser": {
         "kind": "structured_output"
@@ -258,7 +260,8 @@
       },
       "generation": {
         "temperature": null,
-        "reasoning_effort": "none"
+        "reasoning_effort": "none",
+        "max_output_tokens": 2000
       },
       "parser": {
         "kind": "structured_output"
@@ -307,7 +310,8 @@
       },
       "generation": {
         "temperature": null,
-        "reasoning_effort": "none"
+        "reasoning_effort": "none",
+        "max_output_tokens": 2000
       },
       "parser": {
         "kind": "structured_output"

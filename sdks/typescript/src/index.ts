@@ -21,9 +21,11 @@ export {
   NetworkError,
   RequestTimeoutError,
   LLMProviderError,
+  LLMRefusalError,
   KnowledgeGraphError,
   type DependencyId,
   type DependencyErrorOptions,
+  type LLMRefusalErrorOptions,
 } from './errors.js';
 
 // Knowledge Graph
@@ -51,6 +53,7 @@ export type {
   AttachmentPosition,
   LLMResponse,
   TextGenerationResponse,
+  TextGenerationOptions,
   Message,
   ProviderConfig,
 } from './providers/index.js';

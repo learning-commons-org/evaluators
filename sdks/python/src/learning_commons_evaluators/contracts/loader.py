@@ -104,10 +104,14 @@ class Generation(_ContractModel):
     leaves the model at its own default. That is not the value ``"none"``, which is sent and
     turns an OpenAI model's reasoning off. Which values a step may declare is
     ``config.schema.json``'s rule, checked on the registry.
+
+    ``max_output_tokens`` is ``None`` when the contract omits the key, which sets no cap of
+    the contract's own: the provider's limit applies.
     """
 
     temperature: float | None = None
     reasoning_effort: str | None = None
+    max_output_tokens: int | None = None
 
 
 class Parser(_ContractModel):
@@ -146,6 +150,10 @@ class Step(_ContractModel):
     @property
     def reasoning_effort(self) -> str | None:
         return self.generation.reasoning_effort if self.generation is not None else None
+
+    @property
+    def max_output_tokens(self) -> int | None:
+        return self.generation.max_output_tokens if self.generation is not None else None
 
 
 class PostTransform(_ContractModel):

@@ -1088,3 +1088,57 @@ class TestReasoningEffort:
         override = ModelOverride(provider=Provider.GOOGLE, model="gemini-3.6-flash")
         evaluator = define(steps=[_with_effort("high", "google", "gemini-3.5-flash")])
         evaluator(google_api_key="g", model_override=override)
+
+
+def _with_cap(cap: int) -> dict[str, Any]:
+    """The test contract's one step, declaring an output cap of ``cap`` tokens."""
+    [step] = contract().model_dump(by_alias=True)["steps"]
+    step["generation"] = {**step["generation"], "max_output_tokens": cap}
+    return step
+
+
+class TestMaxOutputTokens:
+    async def test_sends_the_cap_the_contract_declares_as_max_tokens(
+        self, providers: ProviderFactory
+    ) -> None:
+        await define(steps=[_with_cap(4096)])(google_api_key="k").evaluate(**INPUT)
+        assert providers.last.calls[0]["max_tokens"] == 4096
+
+    async def test_passes_no_keyword_when_the_contract_declares_none(
+        self, providers: ProviderFactory
+    ) -> None:
+        # Not even ``None``: a provider that leaves the keyword out must still be called.
+        await define()(google_api_key="k").evaluate(**INPUT)
+        assert providers.last.calls[0]["max_tokens"] is NOT_PASSED
+
+    async def test_an_override_does_not_carry_the_contracts_cap_across(
+        self, providers: ProviderFactory
+    ) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        evaluator = define(steps=[_with_cap(4096)])(anthropic_api_key="a", model_override=override)
+        await evaluator.evaluate(**INPUT)
+        assert providers.last.calls[0]["max_tokens"] is NOT_PASSED
+
+    def test_the_override_warning_says_the_declared_cap_is_not_sent(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            define(steps=[_with_cap(4096)])(anthropic_api_key="a", model_override=override)
+        [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert "output cap its contract declares (4096 tokens) is not sent" in record.getMessage()
+
+    def test_the_override_warning_claims_no_cap_when_the_contract_declares_none(
+        self, providers: ProviderFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        override = ModelOverride(provider=Provider.ANTHROPIC, model="claude-opus-5")
+        with caplog.at_level(logging.WARNING, logger="learning_commons_evaluators"):
+            define()(anthropic_api_key="a", model_override=override)
+        [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert "output cap" not in record.getMessage()
+
+    async def test_an_injected_provider_is_not_handed_the_cap(self) -> None:
+        injected = FakeProvider(ProviderConfig(type=Provider.OPENAI, model="mine"), _verdict)
+        evaluator = define(steps=[_with_cap(4096)])(llm_provider=injected)
+        await evaluator.evaluate(**INPUT)
+        assert injected.calls[0]["max_tokens"] is NOT_PASSED
