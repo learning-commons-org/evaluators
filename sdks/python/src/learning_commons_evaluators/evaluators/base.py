@@ -27,10 +27,12 @@ from learning_commons_evaluators.schemas.evaluator import EvaluationResult
 from learning_commons_evaluators.schemas.metadata import EvaluatorMetadata
 from learning_commons_evaluators.telemetry import (
     COLLECTOR_ENDPOINT,
+    SDK_LANGUAGE,
     EvaluationStatus,
     TelemetryClient,
     TelemetryClientConfig,
     TelemetryEvent,
+    TelemetryMetadata,
     TelemetryRun,
     client_id,
     sdk_version,
@@ -461,6 +463,7 @@ class BaseEvaluator(ABC):
             TelemetryEvent(
                 timestamp=utc_timestamp(),
                 sdk_version=sdk_version(),
+                sdk_language=SDK_LANGUAGE,
                 evaluator_type=self.metadata.id,
                 grade=run.grade,
                 status=status,
@@ -471,7 +474,8 @@ class BaseEvaluator(ABC):
                 text_length_chars=run.text_length,
                 provider=run.provider,
                 token_usage=run.token_usage,
-                stage_details=tuple(run.stages),
+                # Absent, not an empty block, when no step completed.
+                metadata=TelemetryMetadata(stage_details=tuple(run.stages)) if run.stages else None,
                 model_override=True if self.config.model_override is not None else None,
             )
         )

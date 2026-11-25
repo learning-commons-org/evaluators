@@ -16,6 +16,11 @@ COV_MIN ?= 95
 #   src/learning_commons_evaluators/schemas/<family>/<subject>/*.py — pydantic Input/Output models
 # Both are committed; `make check-generated` fails CI when they drift from evals/.
 #
+# Generated from evals/telemetry/event.schema.json by ../../scripts/generate_telemetry_schema.py
+# (shared with the TypeScript SDK):
+#   src/learning_commons_evaluators/telemetry/_event_generated.py
+# `make check-telemetry` fails when it drifts; the repo-checks `telemetry-schema` check too.
+#
 # Generated from openapi/knowledge-graph.yaml by scripts/generate_kg_client.py:
 #   src/learning_commons_evaluators/dependencies/_generated/knowledge_graph/**
 # Also committed; `make check-kg-client` fails CI when it drifts from the vendored spec.
@@ -23,6 +28,7 @@ COV_MIN ?= 95
 # and so is deliberately outside `verify`.
 
 .PHONY: help build check-build test integration-test generate-contracts check-generated \
+        generate-telemetry check-telemetry \
         fetch-kg-openapi generate-kg-client check-kg-client \
         lint lint-fix format format-check typecheck pip-check verify coverage
 
@@ -47,6 +53,8 @@ help:
 	@echo "  generate-contracts Re-bundle evals/ contracts and regenerate schema modules"
 	@echo "                     (CONTRACT=<path to config.json> bundles one for the first time)"
 	@echo "  check-generated    Verify generated files match evals/ (exits 1 if stale or orphaned)"
+	@echo "  generate-telemetry Regenerate both SDKs' telemetry event modules from evals/telemetry/"
+	@echo "  check-telemetry    Verify the generated telemetry event module matches the schema"
 	@echo "  fetch-kg-openapi   Download the Knowledge Graph OpenAPI spec (network; not in verify)"
 	@echo "  generate-kg-client Re-generate the Knowledge Graph client from the vendored spec"
 	@echo "  check-kg-client    Verify the generated Knowledge Graph client matches the spec"
@@ -67,7 +75,7 @@ help:
 # explicit step. The committed tree is the build artifact; `check-build` still verifies it.
 build: generate-contracts
 
-check-build: check-generated check-kg-client
+check-build: check-generated check-kg-client check-telemetry
 
 # ── Static checks (Ruff + Mypy) ───────────────────────────────────────────────
 
@@ -121,6 +129,14 @@ generate-contracts:
 
 check-generated:
 	$(PYTHON) scripts/generate_contracts.py --check
+
+# The telemetry event, from the schema both SDKs generate from. Regenerating rewrites the
+# TypeScript module too, which is the point: the two move together.
+generate-telemetry:
+	cd ../.. && $(PYTHON) scripts/generate_telemetry_schema.py
+
+check-telemetry:
+	cd ../.. && $(PYTHON) scripts/generate_telemetry_schema.py --check
 
 # ── Knowledge Graph OpenAPI client ────────────────────────────────────────────
 # Two steps on purpose. Fetching the published spec is the network step and is not part

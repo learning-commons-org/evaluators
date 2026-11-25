@@ -559,10 +559,118 @@ def render_typescript(model: Model) -> str:
     return "\n".join(out).rstrip("\n") + "\n"
 
 
+# Python ----------------------------------------------------------------------------------
+
+
+def _py_type(field_type: FieldType) -> str:
+    if field_type.const is not None:
+        return f"Literal[{field_type.const!r}]"
+    if field_type.kind == "string":
+        return "str"
+    if field_type.kind == "integer":
+        return "int"
+    if field_type.kind == "boolean":
+        return "bool"
+    if field_type.kind == "array":
+        return f"tuple[{field_type.ref}, ...]"
+    return field_type.ref or "Any"
+
+
+def _py_docstring(text: str | None, indent: str) -> list[str]:
+    if not text:
+        return []
+    body = _doc_lines(text, indent, width=96)
+    one_line = f'{indent}"""{body[0].strip()}"""'
+    if len(body) == 1 and len(one_line) <= 100:
+        return [one_line]
+    return [f'{indent}"""{body[0].strip()}', *body[1:], f'{indent}"""']
+
+
+def render_python(model: Model) -> str:
+    out = [
+        f'"""{GENERATED_MARKER}',
+        "",
+        "Source: evals/telemetry/event.schema.json",
+        f"Regenerate: {REGENERATE} (from the repo root)",
+        "",
+        "The telemetry event's types and wire serialization. ``payload()`` writes keys in schema",
+        "order, omits an unset optional field rather than writing ``null``, and writes no key the",
+        "schema does not declare — the same rules as the TypeScript SDK's generated serializer,",
+        "so the two SDKs put the same bytes on the wire for the same event.",
+        '"""',
+        "",
+        "from __future__ import annotations",
+        "",
+        "from dataclasses import dataclass",
+        "from typing import Any, Literal",
+        "",
+        "#: The ``schema_version`` this SDK's events are built against.",
+        f"SCHEMA_VERSION: Literal[{model.schema_version}] = {model.schema_version}",
+        "",
+    ]
+    for enum in model.enums:
+        out += [f"#: {line.strip()}" for line in _doc_lines(enum.description, "", width=96)]
+        values = ", ".join(json.dumps(v) for v in enum.values)
+        out.append(f"{enum.name} = Literal[{values}]")
+        out.append("")
+    for obj in model.objects:
+        out += ["", "@dataclass(frozen=True, kw_only=True)", f"class {obj.name}:"]
+        out += _py_docstring(obj.description, "    ")
+        out.append("")
+        for field in obj.fields:
+            out += [f"    #: {line.strip()}" for line in _doc_lines(field.description, "", 92)]
+            annotation = _py_type(field.type)
+            # Only a *required* constant defaults to its value. An optional one defaults to
+            # None like any optional field, so it is omitted when unset — as the TypeScript
+            # target's `field?: <const>` is — rather than always written.
+            if field.type.const is not None and field.required:
+                out.append(f"    {field.name}: {annotation} = {field.type.const!r}")
+            elif field.required:
+                out.append(f"    {field.name}: {annotation}")
+            else:
+                out.append(f"    {field.name}: {annotation} | None = None")
+        out += [
+            "",
+            "    def payload(self) -> dict[str, Any]:",
+            '        """This value as it goes on the wire."""',
+            "        wire: dict[str, Any] = {}",
+        ]
+        for field in obj.fields:
+            source = f"self.{field.name}"
+            if field.type.kind == "ref" and model.kind_of(field.type.ref or "") == "object":
+                expr = f"{source}.payload()"
+            elif field.type.kind == "array":
+                expr = f"[item.payload() for item in {source}]"
+            else:
+                expr = source
+            if field.required:
+                out.append(f'        wire["{field.name}"] = {expr}')
+            else:
+                out.append(f"        if {source} is not None:")
+                out.append(f'            wire["{field.name}"] = {expr}')
+        out.append("        return wire")
+        out.append("")
+    names = [e.name for e in model.enums] + [o.name for o in model.objects]
+    out += ["", "__all__ = ["]
+    out += [f'    "{name}",' for name in sorted(["SCHEMA_VERSION", *names])]
+    out.append("]")
+    return "\n".join(out).rstrip("\n") + "\n"
+
+
 TARGETS: list[Target] = [
     Target(
         REPO_ROOT / "sdks" / "typescript" / "src" / "telemetry" / "types.generated.ts",
         render_typescript,
+    ),
+    Target(
+        REPO_ROOT
+        / "sdks"
+        / "python"
+        / "src"
+        / "learning_commons_evaluators"
+        / "telemetry"
+        / "_event_generated.py",
+        render_python,
     ),
 ]
 

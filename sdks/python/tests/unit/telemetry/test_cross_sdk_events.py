@@ -59,14 +59,6 @@ MASK = "<masked>"
 
 CASES: list[dict[str, Any]] = json.loads(ORACLE.read_text(encoding="utf-8"))
 
-# TODO(DSCR-2742): the TypeScript SDK emits these from the generated event schema
-# (DSCR-2741); this SDK starts emitting them when its own event is generated from the same
-# schema. Until then they are left out of the comparison, and that change deletes this.
-_NOT_YET_EMITTED = ("schema_version", "sdk_language")
-for _case in CASES:
-    for _key in _NOT_YET_EMITTED:
-        _case["event"].pop(_key, None)
-
 
 @dataclass
 class Calls:
@@ -155,7 +147,13 @@ def config_for(case: dict[str, Any]) -> dict[str, Any]:
 
 
 def masked(event: dict[str, Any]) -> dict[str, Any]:
-    return {**event, "timestamp": MASK, "sdk_version": MASK, "latency_ms": MASK}
+    return {
+        **event,
+        "timestamp": MASK,
+        "sdk_version": MASK,
+        "sdk_language": MASK,
+        "latency_ms": MASK,
+    }
 
 
 async def event_for(case: dict[str, Any], calls: Calls, event_sink: EventSink) -> dict[str, Any]:
@@ -201,6 +199,7 @@ class TestTheEventsMatchTheTypeScriptOracle:
         event = await event_for(case, calls, event_sink)
 
         assert event["sdk_version"] == f"learning-commons-evaluators-python-{__version__}"
+        assert event["sdk_language"] == "python"
 
 
 def test_the_oracle_covers_both_evaluator_bases() -> None:
