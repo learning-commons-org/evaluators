@@ -29,13 +29,26 @@ identical interfaces.
 
 **Idiomatic surfaces — never flag these as drift:**
 - Type systems, sync vs. async shape, construction style, and logging each follow
-  their language's idiom. Naming casing differs by convention: kebab-case
-  directories in TS, snake_case packages in Python (e.g. `text-complexity` ↔
-  `text_complexity`) — that is expected, not drift.
-- Python conveniences on input (e.g. accepting `grade_level: int`) are allowed.
+  their language's idiom, in both SDKs.
+- Casing follows spec §2.1, applied mechanically to names the SDK owns (config,
+  envelope `metadata`, and error fields, and method names):
+  - **TypeScript:** `camelCase` fields and parameters, `PascalCase` classes, and
+    kebab-case source directories (e.g. `model_override` → `modelOverride`,
+    `src/evaluators/text-complexity/`).
+  - **Python:** `snake_case` fields and parameters, `PascalCase` classes, and
+    snake_case packages (e.g. `model_override` → `model_override`,
+    `learning_commons_evaluators/evaluators/text_complexity/`).
+  Names the registry owns (input names and `result` payload fields) are spelled
+  exactly as the registry spells them in both SDKs. Flag any casing on those, and
+  any rename beyond mechanical casing, as drift (§2.2 lists the permitted
+  divergences).
+- Either SDK MAY accept idiomatic conveniences on *input* when the mapping is
+  unambiguous (§2.3), e.g. `grade_level: int` in Python. The canonical wire form
+  (e.g. grade as a string token) must still be what appears in results and
+  telemetry from both SDKs.
 
-If Python idiom genuinely conflicts with a spec-bound surface, report it as a spec
-question to raise, not as a local divergence to paper over.
+If either SDK's idiom genuinely conflicts with a spec-bound surface, report it as a
+spec question to raise, not as a local divergence to paper over.
 
 ## Spec document
 
