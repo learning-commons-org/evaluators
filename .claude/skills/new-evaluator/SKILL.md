@@ -132,20 +132,12 @@ Run every command in this step from `sdks/typescript/`.
 
 ## Step 3 — Live integration tests (required before calling it done)
 
-The tests need `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and
-`LEARNING_COMMONS_API_KEY` (only the ones the contract's providers and
-dependencies use). The two SDKs find them differently:
-
-- **TypeScript**: vitest loads `.env*` files from `sdks/typescript/` itself
-  (template: `.env.test.example`, copied to `.env.test.local`).
-- **Python**: reads only the process environment and loads no file.
-
-Ask the user where their keys live rather than assuming. Common places are
-`evals/.env` (template: `evals/.env.example`) or a per-SDK `.env` file. Exporting
-the file into the shell works for both SDKs:
+Keys live in `evals/.env` (`OPENAI_API_KEY`, `GOOGLE_API_KEY`,
+`ANTHROPIC_API_KEY`, `LEARNING_COMMONS_API_KEY`) — neither SDK loads that file
+itself, so export it into the environment:
 
 ```shell
-set -a; source <path/to/.env>; set +a
+set -a; source evals/.env; set +a
 ```
 
 Then, scoped to the new evaluator:
@@ -162,7 +154,7 @@ RUN_INTEGRATION_TESTS=true npm run test:integration -- <evaluator>
 If the evaluator depends on the Knowledge Graph, also set
 `NO_PROXY=api.learningcommons.org` (a local system proxy re-signs KG TLS and
 breaks the calls). Run the live tests on **both** sides and report the actual
-results — a skipped suite is not a pass; if a needed key is missing,
+results — a skipped suite is not a pass; if a key is missing from `evals/.env`,
 say so rather than skipping silently.
 
 ## Step 4 — Repo harness and PRs
