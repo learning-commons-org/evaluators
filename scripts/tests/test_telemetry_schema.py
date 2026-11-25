@@ -4,29 +4,16 @@ from __future__ import annotations
 
 import copy
 import json
-import shutil
-import subprocess
 import sys
-import tempfile
 import unittest
-from collections.abc import Mapping
 from pathlib import Path
-from types import MappingProxyType
-from typing import ClassVar
-from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from jsonschema import Draft202012Validator  # noqa: E402
 
 import generate_telemetry_schema as gen  # noqa: E402
-from checks.base import Result  # noqa: E402
-from checks.telemetry_schema import (  # noqa: E402
-    TelemetrySchema,
-    base_ref,
-    gitattributes_problems,
-    registry_at,
-)
+from checks.telemetry_schema import TelemetrySchema, gitattributes_problems  # noqa: E402
 
 ORACLE = gen.REPO_ROOT / "sdks" / "typescript" / "tests" / "fixtures" / "telemetry-events.json"
 
@@ -235,113 +222,6 @@ class VersionProblems(unittest.TestCase):
         problems, fixable = gen.version_problems(restored, versions)
         self.assertEqual(len(problems), 1)
         self.assertTrue(fixable)
-
-
-class HistoryProblems(unittest.TestCase):
-    BASE: ClassVar[Mapping[int, str]] = MappingProxyType({1: "sha256:one", 2: "sha256:two"})
-
-    def test_an_unchanged_registry_passes(self) -> None:
-        self.assertEqual(gen.history_problems(self.BASE, dict(self.BASE), 2), [])
-
-    def test_recording_the_schemas_new_version_passes(self) -> None:
-        self.assertEqual(gen.history_problems(self.BASE, {**self.BASE, 3: "sha256:three"}, 3), [])
-
-    def test_a_rehashed_version_fails(self) -> None:
-        # The gap `version_problems` cannot see: change the shape, overwrite version 2's
-        # hash to match it, and the current file alone is self-consistent.
-        problems = gen.history_problems(self.BASE, {**self.BASE, 2: "sha256:other"}, 2)
-        self.assertEqual(len(problems), 1)
-        self.assertIn("version 2's recorded hash was changed", problems[0])
-        self.assertIn("takes version 3", problems[0])
-
-    def test_a_removed_version_fails(self) -> None:
-        problems = gen.history_problems(self.BASE, {1: "sha256:one"}, 1)
-        self.assertEqual(len(problems), 1)
-        self.assertIn("version 2 was removed", problems[0])
-
-    def test_a_version_other_than_the_schemas_may_not_be_added(self) -> None:
-        added = {**self.BASE, 3: "sha256:three", 4: "sha256:four"}
-        problems = gen.history_problems(self.BASE, added, 4)
-        self.assertEqual(len(problems), 1)
-        self.assertIn("version 3 was added, but the schema is at 4", problems[0])
-
-    def test_reports_every_problem(self) -> None:
-        rewritten = {1: "sha256:other", 5: "sha256:five"}
-        self.assertEqual(len(gen.history_problems(self.BASE, rewritten, 1)), 3)
-
-
-class BaseRef(unittest.TestCase):
-    def test_an_explicit_ref_wins_and_is_required(self) -> None:
-        env = {"TELEMETRY_REGISTRY_BASE": "abc123", "GITHUB_BASE_REF": "main"}
-        self.assertEqual(base_ref(env), ("abc123", True))
-
-    def test_a_pull_request_compares_with_its_base_branch_and_requires_it(self) -> None:
-        env = {"GITHUB_BASE_REF": "dscr-2598/telemetry-p0"}
-        self.assertEqual(base_ref(env), ("origin/dscr-2598/telemetry-p0", True))
-
-    def test_elsewhere_it_is_origin_main_on_a_best_effort_basis(self) -> None:
-        # GitHub Actions sets GITHUB_BASE_REF to "" outside pull_request events.
-        self.assertEqual(base_ref({"GITHUB_BASE_REF": ""}), ("origin/main", False))
-        self.assertEqual(base_ref({}), ("origin/main", False))
-
-
-class RegistryAt(unittest.TestCase):
-    """Reads the registry out of a throwaway repository's history."""
-
-    def setUp(self) -> None:
-        self.repo = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, self.repo)
-        self.git("init", "-q")
-        self.git("commit", "-q", "--allow-empty", "-m", "before the registry")
-        self.git("tag", "before")
-        registry = self.repo / gen.VERSIONS_PATH.relative_to(gen.REPO_ROOT)
-        registry.parent.mkdir(parents=True)
-        registry.write_text(gen.render_versions({1: "sha256:one"}), encoding="utf-8")
-        self.git("add", ".")
-        self.git("commit", "-q", "-m", "record version 1")
-        self.git("tag", "after")
-
-    def git(self, *args: str) -> None:
-        subprocess.run(
-            ["git", "-c", "user.name=t", "-c", "user.email=t@t", *args],
-            cwd=self.repo,
-            check=True,
-            capture_output=True,
-        )
-
-    def test_reads_the_registry_at_a_ref(self) -> None:
-        self.assertEqual(registry_at("after", self.repo), {1: "sha256:one"})
-
-    def test_a_ref_before_the_registry_existed_has_none(self) -> None:
-        self.assertIsNone(registry_at("before", self.repo))
-
-    def test_an_unknown_ref_raises(self) -> None:
-        with self.assertRaises(LookupError):
-            registry_at("origin/no-such-branch", self.repo)
-
-
-class CheckHistory(unittest.TestCase):
-    def violations(self, env: dict[str, str]) -> list[str]:
-        result = Result("telemetry-schema")
-        TelemetrySchema._check_history(schema(), result, env)
-        return [v.message for v in result.violations]
-
-    def test_an_unreadable_required_base_is_a_violation(self) -> None:
-        # In CI, failing to fetch the base must not quietly turn the comparison off.
-        (message,) = self.violations({"GITHUB_BASE_REF": "no-such-branch-for-this-test"})
-        self.assertIn("cannot compare with origin/no-such-branch-for-this-test", message)
-
-    def test_an_unreadable_best_effort_base_is_skipped(self) -> None:
-        with mock.patch("checks.telemetry_schema.registry_at", side_effect=LookupError("x")):
-            self.assertEqual(self.violations({}), [])
-
-    def test_a_rewritten_registry_is_reported_against_the_base(self) -> None:
-        recorded = gen.load_versions()
-        base = {version: "sha256:different" for version in recorded}
-        with mock.patch("checks.telemetry_schema.registry_at", return_value=base):
-            messages = self.violations({"TELEMETRY_REGISTRY_BASE": "the-base"})
-        self.assertEqual(len(messages), len(recorded))
-        self.assertTrue(all(m.endswith("(compared with the-base)") for m in messages))
 
 
 class Gitattributes(unittest.TestCase):

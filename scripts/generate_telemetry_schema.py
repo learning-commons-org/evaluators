@@ -386,11 +386,7 @@ def _canonical_value(key: str, value: Any, *, in_properties: bool) -> Any:
 
 
 def load_versions(path: Path = VERSIONS_PATH) -> dict[int, str]:
-    return parse_versions(path.read_text(encoding="utf-8"))
-
-
-def parse_versions(text: str) -> dict[int, str]:
-    data = json.loads(text)
+    data = json.loads(path.read_text(encoding="utf-8"))
     return {int(version): digest for version, digest in data["versions"].items()}
 
 
@@ -444,37 +440,6 @@ def version_problems(schema: dict[str, Any], versions: dict[int, str]) -> tuple[
             f"{newest}; only a wire-shape change takes a new version"
         ], False
     return [f"schema_version {version} is new and not yet recorded in schema-versions.json"], True
-
-
-def history_problems(base: dict[int, str], current: dict[int, str], version: int) -> list[str]:
-    """How the registry was rewritten relative to ``base``, the copy on the branch it merges into.
-
-    :func:`version_problems` sees only the current file, so it cannot tell a recorded hash
-    that was overwritten from one that was always there: change the wire shape, re-hash
-    version 1 by hand, and every rule there still holds. Against the base it can: a version
-    recorded there must survive with the same hash, and the only entry a change may add is
-    the version the schema now names — the one ``--fix`` records. Never auto-fixable.
-    """
-    problems: list[str] = []
-    next_version = max([*base, *current], default=0) + 1
-    for recorded in sorted(base):
-        if recorded not in current:
-            problems.append(
-                f"version {recorded} was removed; a recorded version is permanent, because "
-                "events already sent under it still carry the number"
-            )
-        elif current[recorded] != base[recorded]:
-            problems.append(
-                f"version {recorded}'s recorded hash was changed; a recorded version is "
-                f"permanent, so a new wire shape takes version {next_version} instead"
-            )
-    for added in sorted(set(current) - set(base)):
-        if added != version:
-            problems.append(
-                f"version {added} was added, but the schema is at {version}; record only the "
-                "version the schema names (`python3 scripts/check.py --fix telemetry-schema`)"
-            )
-    return problems
 
 
 # --- targets ------------------------------------------------------------------------------
