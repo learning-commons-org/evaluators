@@ -2,7 +2,7 @@
 
 All notable changes to the `learning-commons-evaluators` Python SDK will be documented in this file.
 
-## [1.3.0](https://github.com/learning-commons-org/evaluators/compare/sdks-python-v1.2.0...sdks-python-v1.3.0) (2026-11-25)
+## [1.3.0](https://github.com/learning-commons-org/evaluators/compare/sdks-python-v1.2.0...sdks-python-v1.3.0) (2026-11-24)
 
 
 ### Features
