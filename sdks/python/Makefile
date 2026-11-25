@@ -3,6 +3,10 @@ PYTEST  := $(PYTHON) -m pytest
 RUFF    := $(PYTHON) -m ruff
 MYPY    := $(PYTHON) -m mypy
 
+# Worker processes for the live integration suite. It is almost all waiting on provider
+# calls, so it runs in parallel; turn this down if a provider starts returning 429s.
+INTEGRATION_WORKERS ?= 6
+
 # Floor for line coverage. The suite sits at 98%; the gap is headroom so a single
 # uncovered line does not block an otherwise good PR. Raise it, never lower it.
 COV_MIN ?= 95
@@ -38,7 +42,7 @@ help:
 	@echo "  coverage           Tests with coverage; fails under COV_MIN ($(COV_MIN)%)"
 	@echo ""
 	@echo "  test               Run the test suite (live integration tests skip without keys)"
-	@echo "  integration-test   Live tests: needs RUN_INTEGRATION_TESTS=1 plus GOOGLE_API_KEY / OPENAI_API_KEY"
+	@echo "  integration-test   Live tests, in parallel (INTEGRATION_WORKERS=6): needs GOOGLE_API_KEY / OPENAI_API_KEY"
 	@echo ""
 	@echo "  generate-contracts Re-bundle evals/ contracts and regenerate schema modules"
 	@echo "                     (CONTRACT=<path to config.json> bundles one for the first time)"
@@ -99,8 +103,14 @@ test:
 # Each case also needs its own credential in the environment and skips without it:
 # GOOGLE_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY per the evaluator's contract, and
 # LEARNING_COMMONS_API_KEY for the live Knowledge Graph checks.
+#
+# Run in parallel (pytest-xdist): each test builds its own evaluator and runs with
+# telemetry off, so workers share nothing. `worksteal` rebalances as it goes, since a case
+# ranges from a sub-second KG lookup to a three-attempt graphics fixture. The unit suite
+# (`make test`) stays serial: it takes seconds, and spawning workers would slow it down.
+# INTEGRATION_WORKERS=0 runs serially, in-process, as before.
 integration-test:
-	RUN_INTEGRATION_TESTS=1 $(PYTEST) tests/integration -v
+	RUN_INTEGRATION_TESTS=1 $(PYTEST) tests/integration -n $(INTEGRATION_WORKERS) --dist worksteal -rA -v
 
 # ── Code generation ───────────────────────────────────────────────────────────
 # Re-run when anything under evals/ changes. The generator verifies each prompt
