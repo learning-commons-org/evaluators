@@ -15,15 +15,32 @@ both SDKs. This skill does not author contracts; it implements them.
 
 ## Step 0 — Precondition: the contract must exist. Error out if it doesn't.
 
-Resolve the argument to `evals/<family>/<subject>/<evaluator>/` (kebab-case path
-segments; the canonical dotted id is the same path with `_` instead of `-`, e.g.
-`durable_skills.ela_writing.critical_thinking`).
+The argument is the contract's directory under `evals/`, so it is kebab-case
+(`durable-skills/ela-writing/critical-thinking`). Resolve it to
+`evals/<family>/<subject>/<evaluator>/`.
+
+The same evaluator is spelled three ways, and each step below says which one it
+uses:
+
+| Where                                   | Spelling   | Example                                        |
+| --------------------------------------- | ---------- | ---------------------------------------------- |
+| `evals/` and TS SDK paths               | kebab-case | `durable-skills/ela-writing/critical-thinking` |
+| Python SDK modules and test files       | snake_case | `durable_skills/ela_writing/critical_thinking` |
+| Canonical id (`evaluator.id` in config) | dotted     | `durable_skills.ela_writing.critical_thinking` |
 
 **Stop immediately with an error** — do not scaffold anything, do not create the
-directory — unless the directory exists and contains all of: `config.json`,
-`input_schema.json`, `output_schema.json`, `system.txt`, `user.txt`,
-`fixtures.json`. Report exactly which files are missing and tell the user to add
-the contract first (see `evals/_schemas/` for the config and fixtures schemas).
+directory — unless the directory exists and contains all of:
+
+- `config.json`, `input_schema.json`, `output_schema.json`, `fixtures.json`
+- every file `config.json` names in a `source_path`: each step's prompt
+  messages (`steps[].prompt.messages[].source_path`) and any preprocessing
+  resources. Single-step evaluators usually name `system.txt` and `user.txt`, but
+  multi-step ones don't (sentence-structure uses `analysis-*.txt`,
+  `complexity-*.txt`, and `rubric-*.txt`), so read the names from the config
+  rather than assuming them.
+
+Report exactly which files are missing and tell the user to add the contract
+first (see `evals/_schemas/` for the config and fixtures schemas).
 
 While there, read `config.json` to learn what you are implementing: single-step
 vs multi-step, the providers it declares (which decide the integration-test API
@@ -31,9 +48,12 @@ keys), and any dependencies (e.g. the Knowledge Graph) or `x-image` input bounds
 
 ## Step 1 — Python SDK (`sdks/python/`)
 
+Run every command in this step from `sdks/python/`.
+
 1. **Bundle the contract**: a new contract must be named explicitly the first
    time — bare `make generate-contracts` only regenerates contracts that are
-   already bundled. Run:
+   already bundled. The make target runs `scripts/generate_contracts.py` for
+   you, and `CONTRACT` is a path relative to `sdks/python/`:
 
    ```shell
    make generate-contracts CONTRACT=../../evals/<family>/<subject>/<evaluator>/config.json
@@ -45,8 +65,15 @@ keys), and any dependencies (e.g. the Knowledge Graph) or `x-image` input bounds
    either; `make check-generated` must pass afterwards (from then on, plain
    `make generate-contracts` covers it).
 2. **Implement** `src/.../evaluators/<family>/<subject>/<evaluator>.py`, modeled
-   on the nearest sibling (e.g. `durable_skills/ela_writing/critical_thinking.py`
-   for single-step). Add any missing `__init__.py` files in the package chain.
+   on the nearest sibling. Add any missing `__init__.py` files in the package
+   chain. Good starting points, by contract shape:
+   - single-step: `durable_skills/ela_writing/critical_thinking.py`
+   - multi-step with preprocessing: `text_complexity/ela_reading/sentence_structure.py`
+     (preprocessing feeds two sequential LLM steps)
+   - multi-step with a branch: `text_complexity/ela_reading/vocabulary_complexity.py`
+     (one step feeds a grade-dependent choice between two others)
+   - multi-step with a Knowledge Graph dependency:
+     `academic_standards_alignment/mathematics/math_standards_alignment.py`
 3. **Register and export**: add it to `evaluators/registry.py` and thread the
    public name through `evaluators/__init__.py` and the package `__init__.py`.
    The registry-conformance tests (`tests/unit/evaluators/test_registry*.py`)
@@ -62,6 +89,8 @@ keys), and any dependencies (e.g. the Knowledge Graph) or `x-image` input bounds
    typecheck, pip-check, and the unit suite).
 
 ## Step 2 — TypeScript SDK (`sdks/typescript/`)
+
+Run every command in this step from `sdks/typescript/`.
 
 1. **Generate the schema module**: the first generation must name the config
    explicitly — `npm run generate:schemas` passes `--all`, which only selects
@@ -84,7 +113,8 @@ keys), and any dependencies (e.g. the Knowledge Graph) or `x-image` input bounds
    `tests/unit/scripts/generate-schema.test.ts` fails if the list and the
    GENERATED markers disagree.
 2. **Implement** `src/evaluators/<family>/<subject>/<evaluator>.ts`, modeled on
-   the nearest sibling.
+   the TS counterpart of the Python sibling you picked (same name in
+   kebab-case, e.g. `text-complexity/ela-reading/sentence-structure.ts`).
 3. **Register and export**: wire `src/evaluators/registry.ts`,
    `src/evaluators/index.ts`, and `src/index.ts`.
 4. **Unit tests**: dedicated tests under `tests/unit/evaluators/` plus the
@@ -102,12 +132,20 @@ keys), and any dependencies (e.g. the Knowledge Graph) or `x-image` input bounds
 
 ## Step 3 — Live integration tests (required before calling it done)
 
-Keys live in `evals/.env` (`OPENAI_API_KEY`, `GOOGLE_API_KEY`,
-`ANTHROPIC_API_KEY`, `LEARNING_COMMONS_API_KEY`) — neither SDK loads that file
-itself, so export it into the environment:
+The tests need `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and
+`LEARNING_COMMONS_API_KEY` (only the ones the contract's providers and
+dependencies use). The two SDKs find them differently:
+
+- **TypeScript**: vitest loads `.env*` files from `sdks/typescript/` itself
+  (template: `.env.test.example`, copied to `.env.test.local`).
+- **Python**: reads only the process environment and loads no file.
+
+Ask the user where their keys live rather than assuming. Common places are
+`evals/.env` (template: `evals/.env.example`) or a per-SDK `.env` file. Exporting
+the file into the shell works for both SDKs:
 
 ```shell
-set -a; source evals/.env; set +a
+set -a; source <path/to/.env>; set +a
 ```
 
 Then, scoped to the new evaluator:
@@ -124,7 +162,7 @@ RUN_INTEGRATION_TESTS=true npm run test:integration -- <evaluator>
 If the evaluator depends on the Knowledge Graph, also set
 `NO_PROXY=api.learningcommons.org` (a local system proxy re-signs KG TLS and
 breaks the calls). Run the live tests on **both** sides and report the actual
-results — a skipped suite is not a pass; if a key is missing from `evals/.env`,
+results — a skipped suite is not a pass; if a needed key is missing,
 say so rather than skipping silently.
 
 ## Step 4 — Repo harness and PRs
