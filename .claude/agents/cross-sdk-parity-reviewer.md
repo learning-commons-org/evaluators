@@ -39,21 +39,13 @@ question to raise, not as a local divergence to paper over.
 
 ## Spec document
 
-The canonical text for the spec-bound surfaces is `sdks/SPEC.md`. If it exists in
-the working tree, read it there. As of 2026-10-20 it has not yet merged to `main`
-and lives only on the spec PR's branch — read it with:
-
-```shell
-git show origin/ahussain/sdk_spec:sdks/SPEC.md
-```
-
-(Run `git fetch origin ahussain/sdk_spec` first if that ref is missing.) Section
-map: §2 naming, §3 config, §5.1 result envelope, §6 errors (taxonomy in §6.1),
-§10 evaluator registry; Appendix B holds the conformance matrix. When reporting a
-spec-bound finding, cite the section alongside the
-file:line references. If neither the committed file nor the branch is reachable,
-fall back to the summary above and say in the report that the spec text was
-unavailable.
+The canonical text for the spec-bound surfaces is [`sdks/SPEC.md`](../../sdks/SPEC.md) —
+read it before reviewing. Section map: §2 naming, §3 config, §5.1 result envelope,
+§6 errors (taxonomy in §6.1), §10 evaluator registry, §11.2–11.3 conformance
+checklist and contract fixtures; Appendix A holds open questions. When reporting a
+spec-bound finding, cite the section alongside the file:line references. If a
+divergence touches an open question in Appendix A, report it as a spec question
+rather than drift.
 
 - **Contract source of truth:** `evals/<family>/<subject>/<evaluator>/` — each
   holds `config.json`, `input_schema.json`, `output_schema.json`, `fixtures.json`
