@@ -5,3 +5,4 @@ Evaluates whether an assessment question aligns to a math standard by checking a
 - Schemas: [input](./input_schema.json), [output](./output_schema.json)
 - [Python notebook](./example_notebook.ipynb)
 - Prompts: [`system.txt`](./system.txt), [`user.txt`](./user.txt)
+- Model used: Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) with temperature of 0 (fixed)
