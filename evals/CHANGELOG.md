@@ -5,6 +5,27 @@ All notable changes to the evaluator prompt files will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.11.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.10.0...evals-prompts-v1.11.0) (2026-11-25)
+
+
+### Features
+
+* add a per-step output cap (generation.max_output_tokens) to the contract and both SDKs ([#441](https://github.com/learning-commons-org/evaluators/issues/441)) ([3a5e037](https://github.com/learning-commons-org/evaluators/commit/3a5e037a341ac5f0842be3c61af179778d49aef7))
+* add provider-agnostic generation.reasoning_effort to the contract and both SDKs ([#438](https://github.com/learning-commons-org/evaluators/issues/438)) ([99e678a](https://github.com/learning-commons-org/evaluators/commit/99e678abfc7d2eaa690e953da6090aece79645b7))
+* **evals:** cap output on the Sentence Structure and Vocabulary Complexity steps ([#444](https://github.com/learning-commons-org/evaluators/issues/444)) ([865fd4e](https://github.com/learning-commons-org/evaluators/commit/865fd4efcff7f19addc0641cd1a08110c86adf9d))
+* **evals:** move Vocabulary Complexity to gpt-6-luna and gemini-3.8-flash ahead of the gpt-4o, gpt-4.1 and gemini-2.5-pro retirements ([#421](https://github.com/learning-commons-org/evaluators/issues/421)) ([426eeb4](https://github.com/learning-commons-org/evaluators/commit/426eeb47aae7d1575b91e6ded751a3c0a672443f))
+* **sentence-structure:** move grades 3-4 to gpt-6-luna and grades 5-12 to gpt-5.5 at reasoning effort none ([#436](https://github.com/learning-commons-org/evaluators/issues/436)) ([aa496c7](https://github.com/learning-commons-org/evaluators/commit/aa496c79dbf0b50db419974e4a1a18273a9fb309))
+
+
+### Bug Fixes
+
+* **sentence-structure:** align feature names, flooring, and rubric boundaries ([#404](https://github.com/learning-commons-org/evaluators/issues/404)) ([e1b5dfb](https://github.com/learning-commons-org/evaluators/commit/e1b5dfb4631ffff37819e18d040efca04506bb5d))
+
+
+### Documentation
+
+* Add models used for all evaluators ([#453](https://github.com/learning-commons-org/evaluators/issues/453)) ([26ea241](https://github.com/learning-commons-org/evaluators/commit/26ea241143b95181841766d2c27611bda42367b9))
+
 ## [1.10.0](https://github.com/learning-commons-org/evaluators/compare/evals-prompts-v1.9.0...evals-prompts-v1.10.0) (2026-11-04)
 
 
