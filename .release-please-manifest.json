@@ -1,5 +1,5 @@
 {
-  "evals": "1.10.0",
+  "evals": "1.11.0",
   "sdks/python": "1.2.0",
   "sdks/typescript": "1.4.0"
 }
