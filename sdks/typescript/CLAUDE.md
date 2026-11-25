@@ -21,6 +21,7 @@ Integration tests need real API keys and are opt-in: `npm run test:integration` 
 
 - `src/schemas/**` — from `sdks/settings/`; `npm run generate:schemas`. CI runs `generate:schemas:check` and fails on drift.
 - `src/knowledge-graph/kg-api.d.ts` — from the published KG OpenAPI spec; `npm run generate:kg-types`.
+- `src/telemetry/types.generated.ts` — the telemetry event's types and wire serializer, from `evals/telemetry/event.schema.json`; `python3 scripts/generate_telemetry_schema.py` from the repo root. The repo-checks `telemetry-schema` check fails on drift.
 
 `sdks/settings/<evaluator>/settings.toml` is the source of truth shared with the Python SDK — change it there, then regenerate on both sides.
 

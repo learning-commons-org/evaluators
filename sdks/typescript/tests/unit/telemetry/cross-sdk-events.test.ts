@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RateLimitError } from '../../../src/errors.js';
+import { telemetryEventToWire, type TelemetryEvent } from '../../../src/telemetry/types.js';
 import { Provider, type BaseEvaluatorConfig } from '../../../src/evaluators/base.js';
 import { configFieldFor } from '../../../src/evaluators/credentials.js';
 import { PurposeClarityEvaluator } from '../../../src/evaluators/text-complexity/ela-reading/purpose-clarity.js';
@@ -23,7 +24,7 @@ import { SentenceStructureEvaluator } from '../../../src/evaluators/text-complex
  * commits both SDKs to the change.
  *
  * Only what a run cannot repeat is masked — the clock, the wall-clock latency, and
- * `sdk_version`, which each SDK reports as itself.
+ * `sdk_version` and `sdk_language`, which each SDK reports as itself.
  */
 
 /** What every stubbed model call reports, so an event's numbers are the same in both SDKs. */
@@ -149,8 +150,10 @@ let failAtCall: number | null = null;
 
 vi.mock('../../../src/telemetry/client.js', () => ({
   TelemetryClient: class {
-    send = async (event: Record<string, unknown>): Promise<void> => {
-      sent.push(event);
+    // Recorded as it goes on the wire — through the generated serializer — so key order
+    // and omissions in the oracle are the schema's, not this object literal's.
+    send = async (event: TelemetryEvent): Promise<void> => {
+      sent.push(telemetryEventToWire(event));
     };
   },
 }));
@@ -182,7 +185,7 @@ vi.mock('../../../src/providers/index.js', async (importOriginal) => {
 
 /** The event with the values a second run could not reproduce replaced. */
 function normalize(event: Record<string, unknown>): Record<string, unknown> {
-  return { ...event, timestamp: MASK, sdk_version: MASK, latency_ms: MASK };
+  return { ...event, timestamp: MASK, sdk_version: MASK, sdk_language: MASK, latency_ms: MASK };
 }
 
 function configFor(testCase: Case): BaseEvaluatorConfig {
@@ -215,6 +218,7 @@ async function eventFor(testCase: Case): Promise<Record<string, unknown>> {
   ].toBeDefined();
 
   expect(sent, `${testCase.id}: one event per evaluation`).toHaveLength(1);
+  expect(sent[0].sdk_language, `${testCase.id}: names this SDK`).toBe('typescript');
   return normalize(sent[0]);
 }
 

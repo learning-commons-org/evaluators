@@ -11,9 +11,12 @@ import type { Logger } from '../../../src/logger.js';
 
 /** A complete event, so a required field added to the type shows up here as a build error. */
 const EVENT: TelemetryEvent = {
+  schema_version: 1,
   timestamp: '2026-08-29T00:00:00.000Z',
   sdk_version: '0.8.0',
+  sdk_language: 'typescript',
   evaluator_type: 'text_complexity.ela_reading.vocabulary_complexity',
+  grade: '',
   status: 'success',
   latency_ms: 1234,
   text_length_chars: 512,
@@ -58,6 +61,32 @@ describe('TelemetryClient.send', () => {
     // dropped or renamed in transit is the failure this catches.
     expect(JSON.parse(init.body)).toEqual(EVENT);
     expect(init.body).toBe(JSON.stringify(EVENT));
+  });
+
+  it('writes keys in schema order, whatever order the event was built in', async () => {
+    const reversed = Object.fromEntries(Object.entries(EVENT).reverse()) as TelemetryEvent;
+
+    await makeClient().send(reversed);
+
+    expect(fetchMock.mock.calls[0][1].body).toBe(JSON.stringify(EVENT));
+  });
+
+  it('never writes a key the schema does not declare', async () => {
+    // Structural typing lets an object with extra properties through the type; the
+    // generated serializer is what keeps them off the wire.
+    const withExtra = { ...EVENT, input_text: 'the text being evaluated' };
+
+    await makeClient().send(withExtra);
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty('input_text');
+  });
+
+  it('omits an unset optional field rather than sending null', async () => {
+    await makeClient().send({ ...EVENT, error_code: undefined, token_usage: undefined });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body).not.toHaveProperty('error_code');
+    expect(body).not.toHaveProperty('token_usage');
   });
 
   it('identifies the client and declares the content type', async () => {

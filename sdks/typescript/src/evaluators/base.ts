@@ -2,6 +2,8 @@ import {
   TelemetryClient,
   generateClientId,
   getSDKVersion,
+  SDK_LANGUAGE,
+  TELEMETRY_SCHEMA_VERSION,
   type TelemetryMetadata,
   type TokenUsage,
 } from '../telemetry/index.js';
@@ -669,12 +671,15 @@ export abstract class BaseEvaluator {
     }
 
     await this.telemetryClient.send({
+      schema_version: TELEMETRY_SCHEMA_VERSION,
       timestamp: new Date().toISOString(),
       sdk_version: getSDKVersion(),
+      sdk_language: SDK_LANGUAGE,
       evaluator_type: this.getEvaluatorType(),
-      // Wire field stays `grade` until the telemetry schema is renamed with the
-      // rest of the event fields; the collector reads this name today.
-      grade: params.gradeLevel,
+      // Always present, empty when there is no grade (the schema requires it): an evaluator
+      // that takes none — Math Standards Alignment — used to omit it where every other
+      // evaluator sent "", splitting one query into two.
+      grade: params.gradeLevel ?? '',
       status: params.status,
       error_code: params.errorCode,
       latency_ms: params.latencyMs,

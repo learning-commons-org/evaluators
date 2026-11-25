@@ -9,6 +9,7 @@ import {
 import type { KnowledgeGraphClient } from '../../../src/knowledge-graph/client.js';
 import { TELEMETRY_LABEL_MAX } from '../../../src/evaluators/base.js';
 import type { LLMProvider } from '../../../src/providers/base.js';
+import { TELEMETRY_SCHEMA_VERSION, type TelemetryEvent } from '../../../src/telemetry/types.js';
 
 /**
  * Telemetry marks an injected `llmProvider` as `custom:{label}` (spec §3.4).
@@ -247,5 +248,27 @@ describe('telemetry marks an injected llmProvider', () => {
       expect(built.length).toBeGreaterThan(0);
       expect(named(reported).some((p) => p.startsWith('custom:'))).toBe(false);
     });
+  });
+});
+
+describe('every event carries the shared schema envelope', () => {
+  describe.each(PATHS)('$path', ({ answer, run }) => {
+    it('stamps schema_version and sdk_language, and always sends grade', async () => {
+      await run(provider('acme-gateway', answer));
+
+      const sentEvent = (await event()) as unknown as TelemetryEvent;
+      expect(sentEvent.schema_version).toBe(TELEMETRY_SCHEMA_VERSION);
+      expect(sentEvent.sdk_language).toBe('typescript');
+      // Present on every path, Math Standards Alignment included: it takes no grade, and
+      // used to omit the field where every other evaluator sent "".
+      expect(typeof sentEvent.grade).toBe('string');
+    });
+  });
+
+  it('sends an empty grade for an evaluator that takes none', async () => {
+    const math = PATHS.find((p) => p.path === 'math standards alignment')!;
+    await math.run(provider('acme-gateway', math.answer));
+
+    expect(((await event()) as unknown as TelemetryEvent).grade).toBe('');
   });
 });
