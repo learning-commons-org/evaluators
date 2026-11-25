@@ -189,6 +189,7 @@ class VersionProblems(unittest.TestCase):
     def test_a_shape_change_without_a_bump_fails_and_is_not_fixable(self) -> None:
         problems, fixable = gen.version_problems(self.grown(1), self.versions)
         self.assertIn("bump it to 2", problems[0])
+        self.assertIn("Do not re-record version 1's hash", problems[0])
         self.assertFalse(fixable)
 
     def test_a_genuine_bump_is_fixable(self) -> None:

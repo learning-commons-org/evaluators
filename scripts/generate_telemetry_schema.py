@@ -430,7 +430,9 @@ def version_problems(schema: dict[str, Any], versions: dict[int, str]) -> tuple[
         return [
             f"the wire shape changed but schema_version is still {version}: bump it to "
             f"{max(versions) + 1} in event.schema.json, then run "
-            "`python3 scripts/check.py --fix telemetry-schema` to record it"
+            "`python3 scripts/check.py --fix telemetry-schema` to record it. Do not re-record "
+            f"version {version}'s hash instead: events already sent as version {version} "
+            "keep the old shape, and the collector could no longer tell the two apart"
         ], False
     if version != newest + 1:
         return [f"schema_version {version} must be the next version after {newest}"], False
