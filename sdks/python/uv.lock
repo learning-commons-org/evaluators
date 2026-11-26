@@ -1,12 +1,12 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.15'",
     "python_full_version == '3.14.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.14.*' and sys_platform != 'emscripten'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform == 'emscripten'",
-    "(python_full_version < '3.14' and sys_platform != 'emscripten') or (python_full_version < '3.12' and sys_platform == 'emscripten')",
+    "python_full_version < '3.12' or (python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform != 'emscripten')",
 ]
 
 [[package]]
@@ -917,12 +917,17 @@ all = [
 anthropic = [
     { name = "anthropic" },
 ]
-dev = [
-    { name = "anthropic" },
+google = [
     { name = "google-genai" },
+]
+openai = [
+    { name = "openai" },
+]
+
+[package.dev-dependencies]
+dev = [
     { name = "httpx2" },
     { name = "mypy" },
-    { name = "openai" },
     { name = "openapi-python-client" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -930,12 +935,6 @@ dev = [
     { name = "pytest-xdist" },
     { name = "ruamel-yaml" },
     { name = "ruff" },
-]
-google = [
-    { name = "google-genai" },
-]
-openai = [
-    { name = "openai" },
 ]
 
 [package.metadata]
@@ -946,24 +945,27 @@ requires-dist = [
     { name = "google-genai", specifier = ">=1.39.0,<3" },
     { name = "google-genai", marker = "extra == 'google'", specifier = ">=1.39.0,<3" },
     { name = "httpx", specifier = ">=0.27.0,<1" },
-    { name = "httpx2", marker = "extra == 'dev'", specifier = ">=2.0.0,<3" },
-    { name = "learning-commons-evaluators", extras = ["all"], marker = "extra == 'dev'" },
     { name = "learning-commons-evaluators", extras = ["openai", "anthropic", "google"], marker = "extra == 'all'" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.14.0" },
     { name = "openai", specifier = ">=1.108.1,<4" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=1.108.1,<4" },
-    { name = "openapi-python-client", marker = "extra == 'dev'", specifier = "==0.29.1" },
     { name = "pillow", specifier = ">=10.1.0,<14" },
     { name = "pydantic", specifier = ">=2.0.0,<3" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0.0" },
-    { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.5.0" },
-    { name = "ruamel-yaml", marker = "extra == 'dev'", specifier = ">=0.18,<1" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9.0" },
     { name = "textstat", specifier = ">=0.7.0,<1" },
 ]
-provides-extras = ["openai", "anthropic", "google", "all", "dev"]
+provides-extras = ["openai", "anthropic", "google", "all"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "httpx2", specifier = ">=2.0.0,<3" },
+    { name = "mypy", specifier = ">=1.14.0" },
+    { name = "openapi-python-client", specifier = "==0.29.1" },
+    { name = "pytest", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.21.0" },
+    { name = "pytest-cov", specifier = ">=5.0.0" },
+    { name = "pytest-xdist", specifier = ">=3.5.0" },
+    { name = "ruamel-yaml", specifier = ">=0.18,<1" },
+    { name = "ruff", specifier = ">=0.9.0" },
+]
 
 [[package]]
 name = "librt"

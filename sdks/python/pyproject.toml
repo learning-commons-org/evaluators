@@ -27,7 +27,7 @@ classifiers = [
 # `messages.parse` and `extra_body`, google-genai `response_json_schema`, the SDKs'
 # exception attributes), which a major release may change without warning; a new major
 # is admitted by a deliberate bump after the suite has run against it, not by resolution.
-# Dependabot (.github/dependabot.yml, pip ecosystem) proposes those bumps. The `Verify`
+# Dependabot (.github/dependabot.yml, uv ecosystem) proposes those bumps. The `Verify`
 # CI jobs install the newest versions each range admits, so the upper end is always the
 # version under test.
 #
@@ -86,9 +86,14 @@ openai = ["openai>=1.108.1,<4"]
 anthropic = ["anthropic>=0.77.0,<2"]
 google = ["google-genai>=1.39.0,<3"]
 all = ["learning-commons-evaluators[openai,anthropic,google]"]
+
+[dependency-groups]
+# Contributor tooling, kept out of the published metadata: a group, unlike an extra, is
+# not something `pip install learning-commons-evaluators[...]` can ask for, and uv's
+# Dependabot updater files it under development rather than production. Install it next
+# to the provider extras, since the unit tests build vendor exceptions and mypy reads the
+# vendor types: `pip install -e ".[all]" --group dev` (pip 25.1 or later).
 dev = [
-    # The unit tests build vendor exceptions, and mypy reads the vendor types.
-    "learning-commons-evaluators[all]",
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=5.0.0",

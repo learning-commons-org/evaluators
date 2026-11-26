@@ -28,7 +28,8 @@ source .venv/bin/activate  # macOS/Linux
 # .venv\Scripts\activate.bat  # Windows CMD
 # .venv\Scripts\Activate.ps1  # Windows PowerShell
 
-pip install -e ".[dev]"
+python -m pip install --upgrade pip   # --group needs pip 25.1 or later
+pip install -e ".[all]" --group dev
 
 make verify   # check-build + lint + format-check + typecheck + pip-check + test (same gate as CI)
 make test     # pytest only
