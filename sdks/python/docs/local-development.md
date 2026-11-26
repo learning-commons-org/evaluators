@@ -123,7 +123,7 @@ Generated schema modules start with `# GENERATED — do not edit directly.` and 
 - `tests/unit/schemas/` — parser tests: hand-written payloads per `output_schema.json` against the generated `<Class>Output` models.
 - `tests/unit/evaluators/` — the single-step and multi-step flows on synthetic contracts, config and `model_override` checks, input validation, the registry, and `test_registry_conformance.py`: every registered evaluator matches its contract in `evals/`. A contract with no Python evaluator yet is not reported.
 - `tests/unit/test_cross_sdk_prompts.py` — for every fixture, and every step the inputs run, Python renders the prompt the TypeScript renderer would. Placeholders each SDK computes with its own language's library are masked, and so are step outputs, which would mean calling a model; the masked numbers' rounding is checked separately in the same file.
-- `tests/integration/` — live provider calls driven by `evals/**/fixtures.json`, skipped unless `RUN_INTEGRATION_TESTS=1` and the provider keys are set (`make integration-test`).
+- `tests/integration/` — live provider calls driven by `evals/**/fixtures.json`, skipped unless `RUN_INTEGRATION_TESTS=1` and the provider keys are set (`make integration-test`). That target runs them in parallel across `INTEGRATION_WORKERS` processes (default 6) with pytest-xdist; lower it if a provider rate-limits you, or set it to `0` to run serially, in-process.
 
 ## Adding an evaluator
 
